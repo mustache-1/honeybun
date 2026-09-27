@@ -63,7 +63,7 @@ button{cursor:pointer}
 .hello p{display:none}
 .month{display:flex;align-items:center;flex:none;color:var(--soft)}
 .month button{border:0;background:transparent;width:28px;height:30px;border-radius:50%;font-size:1.1rem;color:var(--soft)}
-.month span{font-weight:700;font-size:.88rem;min-width:62px;text-align:center;color:var(--ink)}
+.month span{font-weight:700;font-size:.88rem;min-width:74px;text-align:center;color:var(--ink)}
 
 .hero{background:var(--card);border-radius:24px;padding:22px 20px 18px}
 .hero-top{display:flex;align-items:center;gap:10px}
@@ -208,6 +208,47 @@ dialog h2{font-size:1.1rem;margin-bottom:4px}
 .dots i{width:6px;height:6px;border-radius:999px;background:var(--line);transition:width .2s}
 .dots i.on{width:18px;background:var(--pink)}
 #tour .acts{justify-content:space-between}
+
+/* v2 */
+.due{background:var(--card);border-radius:22px;padding:14px 16px;margin-top:14px}
+.due-h{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.due-h h2{font-size:1rem}
+.due-h span{font-size:.8rem;color:var(--soft);font-weight:700}
+.due-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.due-row:last-of-type{border-bottom:0}
+.due-row .ic{width:34px;height:34px;border-radius:50%;background:var(--bg);display:grid;place-items:center;flex:none}
+.due-row .mid{flex:1;min-width:0}
+.due-row .t{font-weight:700;font-size:.93rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.due-row .s{font-size:.78rem;color:var(--soft)}
+.due-row .s.late{color:var(--pink-d);font-weight:700}
+.due-row .amt{font-weight:700;font-size:.93rem;white-space:nowrap}
+.mini{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:5px 11px;font-weight:700;font-size:.8rem;white-space:nowrap;color:var(--pink-d)}
+.mini.inc{color:var(--mint-d)}
+.due-foot{display:flex;justify-content:space-between;font-weight:700;font-size:.88rem;padding-top:10px;border-top:1px solid var(--line);margin-top:4px}
+.due-foot .neg{color:var(--pink-d)}
+.due-empty{color:var(--soft);font-size:.9rem;padding:8px 0 2px}
+.list li.clickable{cursor:pointer}
+.list .lock{font-size:.72rem}
+.sub-opts{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.sub-opts button{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:5px 11px;font-size:.8rem;font-weight:700}
+.sub-opts button[aria-pressed="true"]{border-color:var(--pink);background:var(--pink-t);color:var(--pink-d)}
+.split-val{display:flex;align-items:center;gap:8px;margin-top:8px;font-weight:700;font-size:.88rem}
+.split-val input{width:110px;min-height:40px;padding:8px 10px}
+.hint{font-size:.8rem;color:var(--soft);margin:4px 2px 0}
+.check{display:flex;align-items:center;gap:10px;font-weight:700;font-size:.9rem;margin-top:14px;cursor:pointer}
+.check input{width:20px;height:20px;min-height:0;accent-color:var(--pink)}
+.edit-bar{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.edit-bar h2{font-size:1.05rem}
+.owe .mini{margin-left:6px}
+.hist{list-style:none;margin:10px 0 0;padding:0}
+.hist li{display:flex;align-items:center;gap:8px;font-size:.84rem;padding:6px 0;border-top:1px solid var(--line)}
+.hist li span{flex:1;color:var(--soft)}
+.hist li b{font-weight:700}
+.hist li button{border:0;background:none;color:var(--soft);font-size:.78rem;width:26px;height:26px;border-radius:50%}
+.jar-add button.go{width:auto;margin:0;padding:8px 14px;font-size:.88rem}
+.toast{display:flex;align-items:center;gap:12px}
+.toast.act{pointer-events:auto}
+.toast button{border:0;background:none;color:var(--bg);font-weight:800;text-decoration:underline;padding:0}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 /* ---------- login / setup ---------- */
 .gate{min-height:calc(100vh - 60px);display:flex;flex-direction:column;justify-content:center;padding:24px 0 40px}
@@ -235,26 +276,51 @@ dialog h2{font-size:1.1rem;margin-bottom:4px}
 <body>
 <div class="app">
 
-  <!-- loading -->
   <div id="scr-loading" class="loading"><img src="/icon-192.png" alt="Loading Honeybun"></div>
 
-  <!-- LOGIN / SIGN UP -->
+  <!-- LOGIN / SIGN UP / FORGOT -->
   <main id="scr-auth" class="gate" hidden>
     <img class="logo" src="/icon-192.png" alt="">
     <h1>Honeybun</h1>
     <p class="tag">A little budget for two</p>
     <div class="notice" id="inviteNotice" hidden>You've been invited to a budget. Log in or create an account to join.</div>
-    <div class="card">
+    <div class="card" id="authCard">
       <div class="tabs" role="tablist" aria-label="Account">
-        <button role="tab" data-auth="signup" aria-selected="true" >Create account</button>
-        <button role="tab" data-auth="login" aria-selected="false" >Log in</button>
+        <button role="tab" data-auth="signup" aria-selected="true">Create account</button>
+        <button role="tab" data-auth="login" aria-selected="false">Log in</button>
       </div>
       <form id="authForm" novalidate>
-        <div class="field" id="nameField"><label for="aName">Your name</label><input id="aName" autocomplete="given-name" maxlength="24" placeholder="Avila"></div>
+        <div class="field" id="nameField"><label for="aName">Your name</label><input id="aName" autocomplete="given-name" maxlength="24"></div>
         <div class="field"><label for="aEmail">Email</label><input id="aEmail" type="email" autocomplete="email" inputmode="email" autocapitalize="none" spellcheck="false"></div>
         <div class="field"><label for="aPass">Password</label><input id="aPass" type="password" autocomplete="new-password" minlength="8" placeholder="At least 8 characters"></div>
         <button class="go" id="authBtn" type="submit">Create account</button>
         <p class="err" id="authErr" role="alert"></p>
+        <p class="center" id="forgotWrap" hidden><button type="button" class="linkbtn" id="forgotLink">Forgot your password?</button></p>
+      </form>
+    </div>
+    <div class="card" id="forgotCard" hidden>
+      <h2>Reset your password</h2>
+      <p class="sub">We'll email you a link to choose a new one.</p>
+      <form id="forgotForm" novalidate>
+        <div class="field"><label for="fEmail">Email</label><input id="fEmail" type="email" autocomplete="email" inputmode="email" autocapitalize="none" spellcheck="false"></div>
+        <button class="go" id="forgotBtn" type="submit">Send reset link</button>
+        <p class="err" id="forgotMsg" role="status"></p>
+        <p class="center"><button type="button" class="linkbtn" id="backToLogin">Back to log in</button></p>
+      </form>
+    </div>
+  </main>
+
+  <!-- NEW PASSWORD (from email link) -->
+  <main id="scr-reset" class="gate" hidden>
+    <img class="logo" src="/icon-192.png" alt="">
+    <h1>New password</h1>
+    <p class="tag">Choose a new password for Honeybun.</p>
+    <div class="card">
+      <form id="resetForm" novalidate>
+        <div class="field"><label for="rPass">New password</label><input id="rPass" type="password" autocomplete="new-password" placeholder="At least 8 characters"></div>
+        <div class="field"><label for="rPass2">Type it again</label><input id="rPass2" type="password" autocomplete="new-password"></div>
+        <button class="go" id="resetBtn" type="submit">Save new password</button>
+        <p class="err" id="resetErr" role="alert"></p>
       </form>
     </div>
   </main>
@@ -315,34 +381,70 @@ dialog h2{font-size:1.1rem;margin-bottom:4px}
       <div class="meter" aria-hidden="true"><i id="meter" style="width:0"></i></div>
       <div class="flow"><span class="in" id="flowIn"></span><span class="out" id="flowOut"></span></div>
     </section>
+
+    <section class="due" id="dueCard" aria-label="Coming up"></section>
+
     <div class="couple" id="couple"></div>
     <div class="filter-note" id="filterNote" hidden></div>
     <div class="section-h"><h2>Latest</h2><button class="linkbtn" id="seeAll">See all</button></div>
     <div class="panel"><ul class="list" id="recent"></ul></div>
   </main>
 
-  <!-- ADD -->
+  <!-- ADD / EDIT -->
   <main id="scr-add" hidden>
+    <div class="edit-bar" id="editBar" hidden>
+      <h2 id="editTitle">Edit</h2>
+      <button class="linkbtn" id="cancelEdit">Cancel</button>
+    </div>
     <div class="tabs" role="tablist" aria-label="Type">
       <button role="tab" data-t="expense" aria-selected="true">Spent</button>
       <button role="tab" data-t="income" aria-selected="false">Got paid</button>
     </div>
     <label class="bigamt" for="amt"><span>$</span><input id="amt" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0" aria-label="Amount"></label>
     <div class="field" id="catField"><span class="lbl">What for?</span><div class="cats" id="cats"></div></div>
-    <div class="field"><label for="lbl">Note (optional)</label><input id="lbl" type="text" maxlength="40" placeholder="Date night tacos"></div>
+    <div class="field"><label for="lbl" id="lblLabel">Note (optional)</label><input id="lbl" type="text" maxlength="40" placeholder="Date night tacos"></div>
     <div class="field"><span class="lbl" id="whoLabel">Who paid?</span><div class="whos" id="whos"></div></div>
+
     <div class="field" id="splitField"><span class="lbl">Split</span>
       <div class="split"><button type="button" id="spShared" aria-pressed="true">Split it</button><button type="button" id="spMine" aria-pressed="false">Just mine</button></div>
+      <div id="splitOpts">
+        <div class="sub-opts" id="splitModes">
+          <button type="button" data-mode="equal">Evenly</button>
+          <button type="button" data-mode="percent">By %</button>
+          <button type="button" data-mode="owed">Set amount owed</button>
+        </div>
+        <div class="split-val" id="splitValWrap" hidden><span id="splitPre"></span><input id="splitVal" type="number" inputmode="decimal" min="0" step="1"><span id="splitPost"></span></div>
+        <p class="hint" id="splitHint"></p>
+      </div>
     </div>
-    <div class="field"><label for="dt">Date</label><input id="dt" type="date"></div>
+    <label class="check" id="privWrap"><input type="checkbox" id="priv"> Only I can see this</label>
+
+    <div class="field" id="repeatField"><label for="repeat">Repeats</label>
+      <select id="repeat">
+        <option value="">Doesn't repeat</option>
+        <option value="weekly">Every week</option>
+        <option value="biweekly">Every 2 weeks</option>
+        <option value="monthly">Every month</option>
+      </select>
+    </div>
+    <div class="field"><label for="dt" id="dtLabel">Date</label><input id="dt" type="date"></div>
+    <label class="check" id="paidNowWrap" hidden><input type="checkbox" id="paidNow"> <span id="paidNowTxt">Already paid this one</span></label>
+
     <button class="go" id="goBtn">Add expense</button>
     <p class="err" id="err" role="status"></p>
+    <p class="center" id="delRecWrap" hidden><button class="linkbtn danger" id="delRec">Delete this repeating item</button></p>
   </main>
 
   <!-- TOGETHER -->
   <main id="scr-us" hidden>
     <div class="section-h" style="margin-top:4px"><h2>Settle up</h2></div>
-    <div class="panel pad" id="settle"></div>
+    <div class="panel pad">
+      <div id="settle"></div>
+      <ul class="hist" id="settleHist"></ul>
+    </div>
+
+    <div class="section-h" id="billsH"><h2>Bills &amp; paydays</h2><button class="linkbtn" id="addBill">Add one</button></div>
+    <div class="panel"><ul class="list" id="bills"></ul></div>
 
     <div class="section-h"><h2>Our savings jar</h2><button class="linkbtn" id="editGoal">Change goal</button></div>
     <div class="panel pad">
@@ -357,12 +459,15 @@ dialog h2{font-size:1.1rem;margin-bottom:4px}
         <div class="jar-info">
           <div class="g" id="goalName"></div>
           <div class="p" id="goalProg"></div>
-          <div class="jar-add">
-            <input id="jarAmt" type="number" inputmode="decimal" min="0" step="0.01" placeholder="$ amount" aria-label="Amount to add to jar">
-            <button class="small" id="jarAddBtn">Drop in</button>
-          </div>
         </div>
       </div>
+      <p class="hint" style="margin:12px 0 0">Log money you actually moved into savings.</p>
+      <div class="jar-add">
+        <input id="jarAmt" type="number" inputmode="decimal" min="0" step="0.01" placeholder="$ amount" aria-label="Amount">
+        <button class="go inc" id="jarIn">Add</button>
+        <button class="small" id="jarOut">Take out</button>
+      </div>
+      <ul class="hist" id="jarHist"></ul>
     </div>
 
     <div class="section-h"><h2>Where it went</h2></div>
@@ -388,6 +493,7 @@ dialog h2{font-size:1.1rem;margin-bottom:4px}
       <div class="set-row"><label class="lbl" for="nestName">Budget name</label><input id="nestName" maxlength="24" placeholder="Leave blank to show your names"></div>
       <div class="set-row"><span class="lbl">People</span><div class="members" id="members"></div></div>
       <div class="set-row"><span class="lbl">Theme</span><div class="swatches" id="swatches"></div></div>
+      <div class="set-row"><button class="linkbtn" id="changePw">Change password</button></div>
       <div class="set-row"><button class="linkbtn" id="replayTour">Show the tutorial again</button></div>
       <div class="set-row" style="display:flex;justify-content:space-between;gap:10px">
         <button class="linkbtn" id="logoutBtn">Log out</button>
@@ -411,7 +517,7 @@ dialog h2{font-size:1.1rem;margin-bottom:4px}
   </div>
 </nav>
 
-<div class="toast" id="toast" role="status"></div>
+<div class="toast" id="toast" role="status"><span id="toastText"></span><button id="toastBtn" hidden>Undo</button></div>
 
 <dialog id="memberDlg" aria-labelledby="mdTitle">
   <h2 id="mdTitle">Edit you</h2>
@@ -430,6 +536,22 @@ dialog h2{font-size:1.1rem;margin-bottom:4px}
   <div class="field"><label for="gTarget">Target</label><input id="gTarget" type="number" min="1" inputmode="decimal"></div>
   <p class="err" id="gErr"></p>
   <div class="acts"><button class="small" id="gCancel">Cancel</button><button class="go inc" id="gSave">Save goal</button></div>
+</dialog>
+
+<dialog id="settleDlg" aria-labelledby="sdTitle">
+  <h2 id="sdTitle">Mark as paid</h2>
+  <p id="sdText" style="margin:4px 0 0;color:var(--soft);font-weight:600"></p>
+  <div class="field"><label for="sdAmt">Amount paid</label><input id="sdAmt" type="number" inputmode="decimal" min="0" step="0.01"></div>
+  <p class="err" id="sdErr"></p>
+  <div class="acts"><button class="small" id="sdCancel">Cancel</button><button class="go inc" id="sdSave">Mark as paid</button></div>
+</dialog>
+
+<dialog id="pwDlg" aria-labelledby="pwTitle">
+  <h2 id="pwTitle">Change password</h2>
+  <div class="field"><label for="pwCur">Current password</label><input id="pwCur" type="password" autocomplete="current-password"></div>
+  <div class="field"><label for="pwNew">New password</label><input id="pwNew" type="password" autocomplete="new-password" placeholder="At least 8 characters"></div>
+  <p class="err" id="pwErr"></p>
+  <div class="acts"><button class="small" id="pwCancel">Cancel</button><button class="go" id="pwSave">Save password</button></div>
 </dialog>
 
 <dialog id="tour" aria-labelledby="tourT">
