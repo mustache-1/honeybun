@@ -3,7 +3,7 @@
 
   // ---------- constants ----------
   const CATS = [
-    { id: "home", e: "🏠", n: "Home", c: "#9BB8FF" },
+    { id: "home", e: "🏠", n: "Housing", c: "#9BB8FF" },
     { id: "groc", e: "🛒", n: "Groceries", c: "#46BE8A" },
     { id: "food", e: "🍜", n: "Eating out", c: "#FF9F5A" },
     { id: "date", e: "💕", n: "Date night", c: "#FF6F9F" },
@@ -43,25 +43,86 @@
     return { l, title: TITLES[Math.min(l, TITLES.length) - 1], lo, hi, pct: Math.max(0, Math.min(1, (xp - lo) / (hi - lo))) };
   };
 
+  // ---------- language (English / Español / 中文) ----------
+  const LANGS = { en: "English", es: "Español", zh: "中文" };
+  const LANG = (() => {
+    let saved = null; try { saved = localStorage.getItem("hb-lang"); } catch {}
+    if (LANGS[saved]) return saved;
+    const n = (navigator.language || "en").toLowerCase();
+    return n.startsWith("zh") ? "zh" : n.startsWith("es") ? "es" : "en";
+  })();
+  const LOCALE = { en: "en-US", es: "es-US", zh: "zh-CN" }[LANG];
+  const DICT = LANG !== "en" && window.HB_I18N ? window.HB_I18N[LANG] : null;
+  function tr(str) {
+    if (!DICT || typeof str !== "string") return str;
+    const k = str.trim(); if (!k) return str;
+    if (DICT.exact[k] !== undefined) return str.replace(k, DICT.exact[k]);
+    for (const [re, rep] of DICT.patterns) if (re.test(k)) return str.replace(k, k.replace(re, rep));
+    let out = k; for (const [re, rep] of DICT.subs) out = out.replace(re, rep);
+    return out === k ? str : str.replace(k, out);
+  }
+  window.HB_TR = tr;
+  const TR_ATTRS = ["placeholder", "aria-label", "title"];
+  function trNode(node) {
+    if (!DICT) return;
+    if (node.nodeType === 3) {
+      const p = node.parentNode;
+      if (!p || p.nodeName === "SCRIPT" || p.nodeName === "STYLE" || p.closest?.("[data-nt]")) return;
+      const v = node.nodeValue, t = tr(v); if (t !== v) node.nodeValue = t;
+      return;
+    }
+    if (node.nodeType !== 1 || node.nodeName === "SCRIPT" || node.nodeName === "STYLE" || node.hasAttribute("data-nt")) return;
+    for (const a of TR_ATTRS) if (node.hasAttribute(a)) { const v = node.getAttribute(a), t = tr(v); if (t !== v) node.setAttribute(a, t); }
+    for (const c of node.childNodes) trNode(c);
+  }
+  if (DICT) {
+    document.documentElement.lang = LANG === "zh" ? "zh-CN" : LANG;
+    document.title = tr(document.title);
+    trNode(document.body);
+    new MutationObserver((muts) => {
+      for (const m of muts) {
+        if (m.type === "characterData") trNode(m.target);
+        else if (m.type === "attributes") trNode(m.target);
+        else m.addedNodes.forEach(trNode);
+      }
+    }).observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: TR_ATTRS });
+  }
+  function drawLangPickers() {
+    document.querySelectorAll("[data-lang-picker]").forEach((box) => {
+      box.innerHTML = "";
+      Object.entries(LANGS).forEach(([id, name]) => {
+        const b = document.createElement("button"); b.type = "button"; b.textContent = name; b.setAttribute("data-nt", "");
+        b.setAttribute("aria-pressed", id === LANG ? "true" : "false");
+        b.onclick = async () => {
+          if (id === LANG) return;
+          try { localStorage.setItem("hb-lang", id); } catch {}
+          if (ME) { try { await api("/api/me", { method: "PATCH", body: { lang: id } }); } catch {} }
+          location.reload();
+        };
+        box.appendChild(b);
+      });
+    });
+  }
+
   // ---------- helpers ----------
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-  const fmt = (n) => (n < 0 ? "−" : "") + "$" + Math.abs(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const fmt = (n) => (n < 0 ? "−" : "") + "$" + Math.abs(n).toLocaleString(LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const pad = (n) => String(n).padStart(2, "0");
   const toS = (d) => d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
   const parseD = (s) => { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d); };
   const addDays = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
   const today = () => toS(new Date());
   const ym = (d) => d.slice(0, 7);
-  const dayName = (d) => d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
-  const shortDay = (d) => d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  const dayName = (d) => d.toLocaleDateString(LOCALE, { weekday: "short", month: "short", day: "numeric" });
+  const shortDay = (d) => d.toLocaleDateString(LOCALE, { month: "short", day: "numeric" });
   const store = {
     get(k) { try { return localStorage.getItem(k); } catch { return null; } },
     set(k, v) { try { localStorage.setItem(k, v); } catch {} },
   };
   function monthName(m, short) {
     const [y, mo] = m.split("-").map(Number);
-    return new Date(y, mo - 1, 1).toLocaleDateString(undefined, short ? { month: "short", year: "numeric" } : { month: "long", year: "numeric" });
+    return new Date(y, mo - 1, 1).toLocaleDateString(LOCALE, short ? { month: "short", year: "numeric" } : { month: "long", year: "numeric" });
   }
   function toast(t, actionLabel, action) {
     const el = $("toast"); $("toastText").textContent = t;
@@ -85,9 +146,25 @@
     opts.headers["x-local-date"] = today();
     if (method !== "GET") { opts.headers["content-type"] = "application/json"; opts.body = JSON.stringify(body ?? {}); }
     let res;
-    try { res = await fetch(path, opts); } catch { throw new Error("You're offline. Check your connection and try again."); }
+    try { res = await fetch(path, opts); }
+    catch {
+      setOffline(true);
+      const cacheKey = "hb-cache:" + path.replace(/month=\d{4}-\d{2}/, (m) => m);
+      if (method === "GET" && (path.startsWith("/api/nest?") || path === "/api/me")) {
+        const c = store.get(cacheKey); if (c) return JSON.parse(c);
+      }
+      if (method === "POST" && path === "/api/entries") {
+        const q = JSON.parse(store.get("hb-queue") || "[]");
+        q.push({ ...body, pending_id: "p" + Date.now() + Math.random().toString(36).slice(2, 6) });
+        store.set("hb-queue", JSON.stringify(q));
+        return { ok: true, queued: true };
+      }
+      const e = new Error("You're offline. This needs a connection."); e.offline = true; throw e;
+    }
+    setOffline(false);
     let data = {};
     try { data = await res.json(); } catch {}
+    if (res.ok && method === "GET" && (path.startsWith("/api/nest?") || path === "/api/me")) store.set("hb-cache:" + path, JSON.stringify(data));
     if (!res.ok) {
       const e = new Error(data.error || "Something went wrong. Try again.");
       e.status = res.status;
@@ -98,18 +175,45 @@
   }
 
 
+  // ---------- offline ----------
+  let OFFLINE = false;
+  function setOffline(v) { OFFLINE = v; const b = document.getElementById("offlineBar"); if (b) b.hidden = !v; }
+  const queued = () => { try { return JSON.parse(localStorage.getItem("hb-queue") || "[]"); } catch { return []; } };
+  let flushing = false;
+  async function flushQueue() {
+    const q = queued(); if (!q.length || flushing) return;
+    flushing = true;
+    let sent = 0, i = 0;
+    for (; i < q.length; i++) {
+      const { pending_id, ...body } = q[i];
+      try {
+        const res = await fetch("/api/entries", { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json", "x-local-date": today() }, body: JSON.stringify(body) });
+        if (res.status >= 500 || res.status === 401) break; // try again later
+        sent++;
+      } catch { break; }
+    }
+    store.set("hb-queue", JSON.stringify(q.slice(i)));
+    flushing = false;
+    if (sent) { toast(`Synced ${sent} offline ${sent === 1 ? "entry" : "entries"}`); try { await loadNest(); } catch {} }
+  }
+  window.addEventListener("online", () => { setOffline(false); flushQueue(); });
+  window.addEventListener("offline", () => setOffline(true));
+  if ("serviceWorker" in navigator) window.addEventListener("load", () => navigator.serviceWorker.register("/sw.js").catch(() => {}));
+
   // ---------- state ----------
   let ME = null, NEST = null, MEMBERS = [], ENTRIES = [], BAL = {}, SETTLES = [], RECUR = [], LOGGED = new Set(), JAR = [];
   let GOALS = [], BUDGETS = {}, DEBTS = [], DEBTPAYS = [], SETUP_DONE = true;
   let MONTH = today().slice(0, 7), YEAR = new Date().getFullYear(), YDATA = null;
   let screen = "loading", filter = null, authMode = "signup", newKind = "couple", calSel = null;
   let mode = "expense", cat = "groc", who = null, shared = true, splitMode = "equal", editing = null;
-  let pendingCode = null, resetToken = null;
+  let pendingCode = null, resetToken = null, verifyToken = null;
   {
     const j = location.pathname.match(/^\/join\/([A-Za-z0-9-]{4,20})\/?$/);
     if (j) pendingCode = j[1];
     const r = location.pathname.match(/^\/reset\/([A-Za-z0-9_-]{20,100})\/?$/);
     if (r) resetToken = r[1];
+    const v = location.pathname.match(/^\/verify\/([A-Za-z0-9_-]{20,100})\/?$/);
+    if (v) verifyToken = v[1];
   }
   const member = (id) => MEMBERS.find((m) => m.id === id) || { name: "Someone", emoji: "❔", color: "#EEE" };
   const meMember = () => MEMBERS.find((m) => m.id === ME?.id);
@@ -121,7 +225,7 @@
 
   // ---------- screens ----------
   const APP_SCREENS = ["home", "plan", "add", "stats", "us"];
-  const ALL_SCREENS = ["loading", "auth", "reset", "setup", "onboard", ...APP_SCREENS];
+  const ALL_SCREENS = ["loading", "auth", "reset", "verify", "setup", "onboard", ...APP_SCREENS];
   function show(s) {
     screen = s;
     ALL_SCREENS.forEach((k) => ($("scr-" + k).hidden = k !== s));
@@ -163,7 +267,7 @@
     if (authMode === "signup" && password.length < 8) { $("authErr").textContent = "Use a password with at least 8 characters."; $("aPass").focus(); return; }
     busy($("authBtn"), true); $("authErr").textContent = "";
     try {
-      await api(authMode === "signup" ? "/api/signup" : "/api/login", { method: "POST", body: { name, email, password } });
+      await api(authMode === "signup" ? "/api/signup" : "/api/login", { method: "POST", body: { name, email, password, lang: LANG } });
       $("aPass").value = "";
       await afterAuth();
     } catch (e) {
@@ -205,6 +309,15 @@
     const me = await api("/api/me");
     ME = me.user;
     store.set("hb-had-account", "1");
+    const tz = (() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { return null; } })();
+    const patch = {};
+    if (tz && ME.tz !== tz) patch.tz = tz;
+    if (ME.lang && ME.lang !== LANG) {
+      if (store.get("hb-lang")) patch.lang = LANG;
+      else if (LANGS[ME.lang]) { store.set("hb-lang", ME.lang); location.reload(); return; }
+    }
+    if (Object.keys(patch).length) api("/api/me", { method: "PATCH", body: patch }).then(() => Object.assign(ME, patch)).catch(() => {});
+    flushQueue();
     if (pendingCode) {
       try { await api("/api/nests/join", { method: "POST", body: { code: pendingCode } }); toast("You joined the budget"); }
       catch (e) { $("setupErr").textContent = e.message; toast(e.message); }
@@ -249,6 +362,9 @@
     const d = await api("/api/nest?month=" + MONTH);
     ME = d.me; NEST = d.nest; MEMBERS = d.members;
     ENTRIES = d.entries.map((e) => ({ ...e, amount: e.amount_cents / 100, shared: !!e.shared, private: !!e.private }));
+    queued().filter((q) => (q.date || "").slice(0, 7) === MONTH).forEach((q) => ENTRIES.unshift({
+      id: q.pending_id, pending: true, member_id: q.member_id, type: q.type, amount: +q.amount, amount_cents: Math.round(q.amount * 100),
+      label: q.label, category: q.category, shared: !!q.shared, split_mode: q.split_mode, split_value: q.split_value, private: !!q.private, date: q.date }));
     BAL = d.balances; SETTLES = d.settlements; RECUR = d.recurring; JAR = d.jar;
     document.documentElement.setAttribute("data-accent", d.nest.accent || "blueberry");
     GOALS = d.goals; DEBTS = d.debts; DEBTPAYS = d.debt_payments; SETUP_DONE = d.setup_done;
@@ -347,8 +463,8 @@
     const t = parseD(today()), mon = addDays(t, -((t.getDay() + 6) % 7));
     const streakDays = new Set();
     if (m.last_day && st) for (let i = 0; i < Math.min(st, 7); i++) streakDays.add(toS(addDays(parseD(m.last_day), -i)));
-    const week = ["M", "T", "W", "T", "F", "S", "S"].map((n, i) => {
-      const d = toS(addDays(mon, i));
+    const week = [0, 1, 2, 3, 4, 5, 6].map((i) => {
+      const d = toS(addDays(mon, i)), n = addDays(mon, i).toLocaleDateString(LOCALE, { weekday: "narrow" });
       return `<div><i class="${streakDays.has(d) ? "on" : ""} ${d === today() ? "today" : ""}">${streakDays.has(d) ? "🐾" : ""}</i>${n}</div>`;
     }).join("");
     $("burrow").innerHTML = `<svg viewBox="0 0 120 128" aria-hidden="true">${bunnySvg(li.l)}</svg>
@@ -449,7 +565,7 @@
         if (!(parseFloat(p.amount) > 0)) { $("obErr").textContent = "Enter how much you get paid."; $("obPayAmt").focus(); return; }
         if (!p.date) { $("obErr").textContent = "Pick your next payday."; return; }
         try {
-          await api("/api/recurring", { method: "POST", body: { type: "income", amount: parseFloat(p.amount), label: member(p.who).name + "'s paycheck", member_id: p.who, freq: p.freq, date: p.date } });
+          await api("/api/recurring", { method: "POST", body: { type: "income", amount: parseFloat(p.amount), label: tr(member(p.who).name + "'s paycheck"), member_id: p.who, freq: p.freq, date: p.date } });
           ob.pay = freshPay(); ob.pay.who = p.who; await loadNest(); drawOb(); toast("Payday added");
         } catch (e) { $("obErr").textContent = e.message; }
       };
@@ -487,7 +603,7 @@
         if (!(parseFloat(b.amount) > 0)) { $("obErr").textContent = "Enter the amount."; $("obBillAmt").focus(); return; }
         if (!b.date) { $("obErr").textContent = "Pick the next due date."; $("obBillDate").focus(); return; }
         try {
-          await api("/api/recurring", { method: "POST", body: { type: "expense", amount: parseFloat(b.amount), label: b.label.trim(), category: b.cat, member_id: ME.id, shared: b.shared, split_mode: "equal", freq: b.freq, date: b.date } });
+          await api("/api/recurring", { method: "POST", body: { type: "expense", amount: parseFloat(b.amount), label: tr(b.label.trim()), category: b.cat, member_id: ME.id, shared: b.shared, split_mode: "equal", freq: b.freq, date: b.date } });
           ob.bill = freshBill(); await loadNest(); drawOb(); toast(`${b.label.trim()} added`);
         } catch (e) { $("obErr").textContent = e.message; }
       };
@@ -593,6 +709,7 @@
       private: e.private, date: e.date, recurring_id: e.recurring_id, occ_date: e.occ_date, restore: true };
   }
   async function deleteEntry(e) {
+    if (e.pending) { store.set("hb-queue", JSON.stringify(queued().filter((q) => q.pending_id !== e.id))); await loadNest(); toast("Removed"); return; }
     try {
       await api("/api/entries/" + e.id, { method: "DELETE" });
       await loadNest();
@@ -694,6 +811,7 @@
       $("flowIn").textContent = "+" + fmt(inc) + " in"; $("flowOut").textContent = fmt(out) + " out";
       setBunny(left, inc, out, view.length > 0);
       renderPill();
+      $("verifyBanner").hidden = !!ME.verified;
       const isThisMonth = MONTH === today().slice(0, 7);
       $("dueCard").hidden = !isThisMonth;
       if (isThisMonth) renderDue(sum(all, "income") - sum(all, "expense"));
@@ -762,9 +880,17 @@
         };
         sh.appendChild(li);
       });
-      const l = $("list"); l.innerHTML = "";
-      if (!all.length) l.innerHTML = `<li class="empty" style="justify-content:center;border:0">Nothing logged for ${esc(monthName(MONTH))}.</li>`;
-      all.forEach((e) => l.appendChild(entryLi(e)));
+      drawFilters();
+      if (!searching()) {
+        $("allTitle").textContent = "Everything this month";
+        const l = $("list"); l.innerHTML = "";
+        if (!all.length) l.innerHTML = `<li class="empty" style="justify-content:center;border:0">Nothing logged for ${esc(monthName(MONTH))}.</li>`;
+        all.forEach((e) => l.appendChild(entryLi(e)));
+      }
+      $("mailBills").checked = !!ME.mail?.bills; $("mailStreak").checked = !!ME.mail?.streak; $("mailWeekly").checked = !!ME.mail?.weekly;
+      ["mailBills", "mailStreak", "mailWeekly"].forEach((id) => ($(id).disabled = !ME.verified));
+      $("mailHint").hidden = !!ME.verified;
+      drawLangPickers();
 
       $("inviteTitle").textContent = { solo: "Invite someone (optional)", couple: "Invite your partner", family: "Invite your family" }[KIND()];
       $("inviteCode").textContent = prettyCode(NEST.invite_code);
@@ -847,7 +973,7 @@
     RECUR.forEach((r) => occurrences(r, first, last).forEach((d) => {
       (byDay[d.getDate()] = byDay[d.getDate()] || []).push({ r, d, paid: isLogged(r, d) });
     }));
-    const box = $("cal"); box.innerHTML = ["S", "M", "T", "W", "T", "F", "S"].map((n) => `<div class="wd">${n}</div>`).join("");
+    const box = $("cal"); box.innerHTML = [0, 1, 2, 3, 4, 5, 6].map((i) => `<div class="wd">${new Date(2026, 1, 1 + i).toLocaleDateString(LOCALE, { weekday: "narrow" })}</div>`).join("");
     for (let i = 0; i < first.getDay(); i++) box.insertAdjacentHTML("beforeend", '<button class="blank" tabindex="-1" aria-hidden="true"></button>');
     const t = today();
     if (calSel && calSel.slice(0, 7) !== MONTH) calSel = null;
@@ -891,7 +1017,7 @@
     const h = $("gdHist"); h.innerHTML = "";
     JAR.filter((j) => j.goal_id === g.id).slice(0, 8).forEach((j) => {
       const li = document.createElement("li"), inn = j.amount_cents > 0;
-      const when = new Date(j.created_at * 1000).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+      const when = new Date(j.created_at * 1000).toLocaleDateString(LOCALE, { month: "short", day: "numeric" });
       li.innerHTML = `<span><b>${esc(member(j.member_id).name)}</b> ${inn ? "added" : "took out"} ${fmt(Math.abs(j.amount_cents) / 100)}, ${when}</span><button aria-label="Remove">✕</button>`;
       li.querySelector("button").onclick = async () => { try { await api("/api/jar/" + j.id, { method: "DELETE" }); await loadNest(); drawGoalView(); } catch (e) { toast(e.message); } };
       h.appendChild(li);
@@ -959,7 +1085,7 @@
     }
     return { months: m >= 600 ? null : m, order, done };
   }
-  const monthsOut = (n) => { const d = new Date(); d.setMonth(d.getMonth() + n); return d.toLocaleDateString(undefined, { month: "short", year: "numeric" }); };
+  const monthsOut = (n) => { const d = new Date(); d.setMonth(d.getMonth() + n); return d.toLocaleDateString(LOCALE, { month: "short", year: "numeric" }); };
   function renderDebts() {
     const box = $("debts");
     if (!DEBTS.length) { box.innerHTML = `<p class="empty" style="margin:0;padding:4px 0">Track credit cards, car loans, or student loans and see when you'll be debt-free.</p>`; return; }
@@ -1070,10 +1196,10 @@
     const W = 340, H = 150, top = Math.max(1, ...inc, ...out), gw = W / 12, bw = 9;
     let svg = `<svg viewBox="0 0 ${W} ${H + 18}" role="img" aria-label="Earned and spent by month">`;
     for (let i = 0; i < 12; i++) {
-      const x = i * gw + gw / 2, hi = (inc[i] / top) * H, ho = (out[i] / top) * H, name = new Date(YEAR, i, 1).toLocaleDateString(undefined, { month: "short" });
+      const x = i * gw + gw / 2, hi = (inc[i] / top) * H, ho = (out[i] / top) * H, name = new Date(YEAR, i, 1).toLocaleDateString(LOCALE, { month: "short" });
       svg += `<rect x="${x - bw - 1}" y="${H - hi}" width="${bw}" height="${Math.max(hi, 1.5)}" rx="3" fill="var(--mint)" opacity="${inc[i] ? 1 : 0.25}"><title>${name}: earned ${fmt(inc[i])}</title></rect>`;
       svg += `<rect x="${x + 1}" y="${H - ho}" width="${bw}" height="${Math.max(ho, 1.5)}" rx="3" fill="var(--pink)" opacity="${out[i] ? 1 : 0.25}"><title>${name}: spent ${fmt(out[i])}</title></rect>`;
-      svg += `<text x="${x}" y="${H + 14}" text-anchor="middle" font-size="9" font-weight="700" fill="var(--soft)">${name.slice(0, 1)}</text>`;
+      svg += `<text x="${x}" y="${H + 14}" text-anchor="middle" font-size="9" font-weight="700" fill="var(--soft)">${LANG === "zh" ? i + 1 : name.slice(0, 1).toUpperCase()}</text>`;
     }
     $("yChart").innerHTML = svg + "</svg>";
     // 50/30/20 for the selected month
@@ -1101,7 +1227,7 @@
     if (!YDATA) return;
     const q = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
     const rows = [["Date", "Type", "Category", "Description", "Who", "Amount", "Split", "Private"]].concat(YDATA.entries.map((e) =>
-      [e.date, e.type === "income" ? "Income" : "Expense", e.type === "income" ? "Income" : catOf(e.category).n, e.label, member(e.member_id).name,
+      [e.date, tr(e.type === "income" ? "Income" : "Expense"), tr(e.type === "income" ? "Income" : catOf(e.category).n), e.label, member(e.member_id).name,
        ((e.type === "income" ? 1 : -1) * e.amount_cents / 100).toFixed(2), e.shared ? "Yes" : "No", e.private ? "Yes" : "No"]));
     const blob = new Blob(["\ufeff" + rows.map((r) => r.map(q).join(",")).join("\r\n")], { type: "text/csv;charset=utf-8" });
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `honeybun-${YEAR}.csv`;
@@ -1125,7 +1251,8 @@
     $("repeat").value = isRec ? x.freq : "";
     $("err").textContent = "";
   }
-  function openEditEntry(e) { editing = { kind: "entry", x: e }; fillForm(e, false); show("add"); }
+  function openEditEntry(e) {
+    if (e.pending) { toast("This will sync when you're back online. Edit it after."); return; } editing = { kind: "entry", x: e }; fillForm(e, false); show("add"); }
   function openEditRecurring(r) { editing = { kind: "recurring", x: r }; fillForm(r, true); show("add"); }
   $("cancelEdit").onclick = () => { const back = editing?.kind === "recurring" ? "plan" : "home"; editing = null; show(back); };
   $("addBill").onclick = () => openAdd({ repeat: "monthly" });
@@ -1205,7 +1332,7 @@
       if (splitMode === "owed" && !(split_value > 0 && split_value <= amount)) { $("err").textContent = "The amount owed has to be more than $0 and no more than the total."; $("splitVal").focus(); return; }
     }
     const date = $("dt").value || today();
-    const label = $("lbl").value.trim() || (mode === "income" ? "Paycheck" : CATS.find((c) => c.id === cat).n);
+    const label = $("lbl").value.trim() || tr(mode === "income" ? "Paycheck" : CATS.find((c) => c.id === cat).n);
     const body = {
       type: mode, amount, label, category: cat, member_id: who, shared: isShared,
       split_mode: isShared ? splitMode : null, split_value, private: $("priv").checked && !$("privWrap").hidden, date,
@@ -1225,7 +1352,8 @@
       } else {
         const res = await api("/api/entries", { method: "POST", body });
         MONTH = ym(date); await loadNest();
-        rewardToast(res.reward, mode === "income" ? "Income added" : "Expense added"); show("home"); bunnyHop();
+        if (res.queued) toast("Saved offline. It'll sync when you're back."); else rewardToast(res.reward, mode === "income" ? "Income added" : "Expense added");
+        show("home"); bunnyHop();
       }
     } catch (e) { $("err").textContent = e.message; }
     finally { busy($("goBtn"), false); }
@@ -1337,9 +1465,146 @@
   $("nextM").onclick = () => shift(1);
   $("seeAll").onclick = () => { show("us"); setTimeout(() => $("allH").scrollIntoView({ behavior: "smooth" }), 40); };
 
+  // ---------- search & filters ----------
+  const searching = () => !!($("q").value.trim() || $("fType").value || $("fCat").value || $("fWho").value);
+  function drawFilters() {
+    const fc = $("fCat");
+    if (fc.options.length !== CATS.length + 1) CATS.forEach((c) => fc.add(new Option(`${c.e} ${tr(c.n)}`, c.id)));
+    const fw = $("fWho"), cur = fw.value;
+    while (fw.options.length > 1) fw.remove(1);
+    MEMBERS.forEach((m) => fw.add(new Option(`${m.emoji} ${m.name}`, m.id)));
+    fw.value = cur; fw.hidden = MEMBERS.length < 2;
+  }
+  let searchTimer;
+  async function runSearch() {
+    if (!searching()) { $("searchHint").hidden = true; render(); return; }
+    const params = new URLSearchParams({ q: $("q").value.trim(), type: $("fType").value, cat: $("fCat").value, member: $("fWho").value });
+    try {
+      const d = await api("/api/search?" + params);
+      const rows = d.entries.map((e) => ({ ...e, amount: e.amount_cents / 100, shared: !!e.shared, private: !!e.private }));
+      $("allTitle").textContent = "Search results";
+      const total = rows.reduce((s, e) => s + (e.type === "income" ? e.amount : -e.amount), 0);
+      $("searchHint").hidden = false;
+      $("searchHint").textContent = rows.length ? `${rows.length} found · net ${fmt(total)}` : "Nothing matches that.";
+      const l = $("list"); l.innerHTML = "";
+      rows.forEach((e) => l.appendChild(entryLi(e)));
+    } catch (e) { toast(e.message); }
+  }
+  $("q").oninput = () => { clearTimeout(searchTimer); searchTimer = setTimeout(runSearch, 300); };
+  ["fType", "fCat", "fWho"].forEach((id) => ($(id).onchange = runSearch));
+
+  // ---------- email, account & data ----------
+  $("resendVerify").onclick = async () => {
+    try { const r = await api("/api/email/resend", { method: "POST" }); if (r.already) { ME.verified = true; render(); toast("Your email is already confirmed ♡"); } else toast("Sent! Check your inbox."); }
+    catch (e) { toast(e.message); }
+  };
+  [["mailBills", "mail_bills", "bills"], ["mailStreak", "mail_streak", "streak"], ["mailWeekly", "mail_weekly", "weekly"]].forEach(([id, key, k]) => {
+    $(id).onchange = async (ev) => {
+      const on = ev.target.checked;
+      try { await api("/api/me", { method: "PATCH", body: { [key]: on } }); ME.mail = { ...(ME.mail || {}), [k]: on }; toast(on ? "Reminder on" : "Reminder off"); }
+      catch (e) { ev.target.checked = !on; toast(e.message); }
+    };
+  });
+  $("exportData").onclick = async () => {
+    try {
+      const res = await fetch("/api/account/export", { credentials: "same-origin" });
+      if (!res.ok) throw new Error("Couldn't download your data. Try again.");
+      const blob = await res.blob(), a = document.createElement("a");
+      a.href = URL.createObjectURL(blob); a.download = "honeybun-data.json"; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    } catch (e) { toast(e.message); }
+  };
+  $("deleteAcct").onclick = () => { $("delPw").value = ""; $("delErr").textContent = ""; $("delDlg").showModal(); };
+  $("delCancel").onclick = () => $("delDlg").close();
+  $("delGo").onclick = async () => {
+    try {
+      await api("/api/account/delete", { method: "POST", body: { password: $("delPw").value } });
+      $("delDlg").close();
+      try { Object.keys(localStorage).filter((k) => k.startsWith("hb-")).forEach((k) => localStorage.removeItem(k)); } catch {}
+      ME = null; NEST = null; authMode = "signup"; showAuth(); toast("Your account was deleted. Take care ♡");
+    } catch (e) { $("delErr").textContent = e.message; }
+  };
+  async function runVerify() {
+    show("verify");
+    history.replaceState(null, "", "/");
+    try {
+      await api("/api/email/verify", { method: "POST", body: { token: verifyToken } });
+      $("verifyTitle").textContent = "Email confirmed ♡"; $("verifyText").textContent = "Thanks! Reminders and password resets will reach you now.";
+    } catch (e) { $("verifyTitle").textContent = "Hmm, that didn't work"; $("verifyText").textContent = e.message; }
+    verifyToken = null; $("verifyGo").hidden = false;
+  }
+  $("verifyGo").onclick = async () => {
+    try { await afterAuth(); } catch (e) { authMode = "login"; showAuth(); }
+  };
+
+  // ---------- monthly recap card ----------
+  const ACCENT_HEX = { blueberry: "#6F93DB", blush: "#EE7FA3", lavender: "#9C82DC", honey: "#DDA13F" };
+  let recapBlob = null;
+  async function drawRecap() {
+    const c = $("recapCanvas"), x = c.getContext("2d"), W = 1080, H = 1350, acc = ACCENT_HEX[NEST.accent] || ACCENT_HEX.blueberry;
+    try { await document.fonts.ready; } catch {}
+    const F = (w, sz) => `${w} ${sz}px Fredoka, Nunito, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif`;
+    const rr = (x0, y0, w, h, r, fill) => { x.beginPath(); x.roundRect(x0, y0, w, h, r); x.fillStyle = fill; x.fill(); };
+    x.clearRect(0, 0, W, H); x.fillStyle = "#F3F5FA"; x.fillRect(0, 0, W, H);
+    x.fillStyle = acc; x.globalAlpha = .12; x.beginPath(); x.arc(W - 80, 90, 260, 0, 7); x.fill(); x.beginPath(); x.arc(60, H - 40, 200, 0, 7); x.fill(); x.globalAlpha = 1;
+    const img = new Image(); img.src = "/icon-512.png";
+    await new Promise((r) => { img.onload = r; img.onerror = r; });
+    x.save(); x.beginPath(); x.roundRect(80, 80, 150, 150, 42); x.clip(); try { x.drawImage(img, 80, 80, 150, 150); } catch {} x.restore();
+    x.fillStyle = "#8E8898"; x.font = F(600, 34); x.fillText("Honeybun", 260, 140);
+    x.fillStyle = "#2B2733"; x.font = F(600, 58); x.fillText(monthName(MONTH), 260, 205);
+    const inc = ENTRIES.filter((e) => e.type === "income").reduce((s, e) => s + e.amount, 0);
+    const out = ENTRIES.filter((e) => e.type === "expense").reduce((s, e) => s + e.amount, 0);
+    const kept = inc > 0 ? Math.round(((inc - out) / inc) * 100) : null;
+    rr(80, 280, W - 160, 300, 44, "#FFFFFF");
+    x.fillStyle = "#8E8898"; x.font = F(600, 36); x.fillText(tr(kept === null ? "Spent this month" : "You kept"), 130, 350);
+    x.fillStyle = kept !== null && kept < 0 ? "#D9668C" : acc; x.font = F(600, 150);
+    x.fillText(kept === null ? fmt(out) : kept + "%", 124, 510);
+    x.fillStyle = "#8E8898"; x.font = F(600, 32);
+    if (kept !== null) x.fillText(`${tr("Earned")} ${fmt(inc)}  ·  ${tr("Spent")} ${fmt(out)}`, 130, 555);
+    const by = spentByCat(), top = Object.entries(by).sort((a, b) => b[1] - a[1])[0];
+    const m = meMember() || {}, li = levelInfo(m.xp || 0), budgets = Object.keys(BUDGETS), under = budgets.filter((k) => (by[k] || 0) <= BUDGETS[k]).length;
+    const tiles = [
+      ["🐾", tr("Hop streak"), `${streakOf(m)} · ${tr("best")} ${m.best_streak || 0}`],
+      ["🥕", tr("Level"), `${li.l} · ${tr(li.title)}`],
+      [top ? catOf(top[0]).e : "✨", tr("Top spend"), top ? `${tr(catOf(top[0]).n)} ${fmt(top[1])}` : "–"],
+      ["🎯", tr("Budgets kept"), budgets.length ? `${under} / ${budgets.length}` : "–"],
+    ];
+    tiles.forEach(([e, k, v], i) => {
+      const col = i % 2, row = Math.floor(i / 2), tx = 80 + col * 470, ty = 620 + row * 230;
+      rr(tx, ty, 450, 200, 38, "#FFFFFF");
+      x.font = F(400, 56); x.fillStyle = "#2B2733"; x.fillText(e, tx + 34, ty + 82);
+      x.font = F(600, 30); x.fillStyle = "#8E8898";
+      let kk = k; while (x.measureText(kk).width > 390 && kk.length > 3) kk = kk.slice(0, -2) + "…";
+      x.fillText(kk, tx + 34, ty + 132);
+      x.font = F(600, 36); x.fillStyle = "#2B2733";
+      let t = v; while (x.measureText(t).width > 390 && t.length > 3) t = t.slice(0, -2) + "…";
+      x.fillText(t, tx + 34, ty + 178);
+    });
+    x.textAlign = "center"; x.font = F(600, 40); x.fillStyle = "#2B2733";
+    const msg = tr(kept !== null && kept >= 20 ? "Look at you go! Your bunny is so proud ♡" : streakOf(m) >= 3 ? "Keep hopping. Your bunny is proud of you." : "Every little log helps your bunny grow ♡");
+    x.fillText(msg.length > 46 ? msg.slice(0, 45) + "…" : msg, W / 2, 1150);
+    x.font = F(600, 34); x.fillStyle = "#8E8898";
+    x.fillText(tr("A cute little budget") + " · honeybun.me", W / 2, H - 70); x.textAlign = "left";
+    recapBlob = await new Promise((r) => c.toBlob(r, "image/png"));
+  }
+  $("makeRecap").onclick = async () => { $("rcTitle").textContent = `${monthName(MONTH)}`; $("recapDlg").showModal(); await drawRecap(); };
+  $("rcClose").onclick = () => $("recapDlg").close();
+  $("rcShare").onclick = async () => {
+    if (!recapBlob) return;
+    const file = new File([recapBlob], `honeybun-${MONTH}.png`, { type: "image/png" });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) { try { await navigator.share({ files: [file], title: "Honeybun" }); } catch {} return; }
+    const a = document.createElement("a"); a.href = URL.createObjectURL(recapBlob); a.download = file.name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  };
+
+  // sticky header gets a hairline once you scroll
+  window.addEventListener("scroll", () => $("topBar").classList.toggle("scrolled", window.scrollY > 4), { passive: true });
+  drawLangPickers();
+
   // ---------- start ----------
   (async () => {
     if (resetToken) { show("reset"); return; }
+    if (verifyToken) { runVerify(); return; }
     try { await afterAuth(); }
     catch (e) {
       if (e.status === 401) { authMode = pendingCode ? "signup" : store.get("hb-had-account") ? "login" : "signup"; showAuth(); }
