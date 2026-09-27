@@ -11,13 +11,13 @@
 <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
 <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 <link rel="manifest" href="/manifest.webmanifest">
-<title>Honeybun — a little budget for two</title>
-<meta name="description" content="Honeybun is a simple, cute budget for couples and families. Log what you earn and spend, split costs, and save toward goals together.">
+<title>Honeybun — a cute little budget</title>
+<meta name="description" content="Honeybun is a simple, cute budget for you, your partner, or your whole family. Track spending, bills, and goals, and build a daily streak with your bunny.">
 <link rel="canonical" href="https://honeybun.me/">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Honeybun">
 <meta property="og:url" content="https://honeybun.me/">
-<meta property="og:title" content="Honeybun — a little budget for two">
+<meta property="og:title" content="Honeybun — a cute little budget">
 <meta property="og:description" content="Track money together, split costs, and fill your savings jar.">
 <meta property="og:image" content="https://honeybun.me/og-image.png">
 <meta property="og:image:width" content="1200">
@@ -249,6 +249,170 @@ dialog h2{font-size:1.1rem;margin-bottom:4px}
 .toast{display:flex;align-items:center;gap:12px}
 .toast.act{pointer-events:auto}
 .toast button{border:0;background:none;color:var(--bg);font-weight:800;text-decoration:underline;padding:0}
+
+/* ---------- v3 polish ---------- */
+:root{--shadow:0 1px 2px rgba(43,39,51,.04),0 8px 24px rgba(43,39,51,.05);--honey-t:#FFF3D1}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--shadow:none;--honey-t:#46391C}}
+:root[data-theme="dark"]{--shadow:none;--honey-t:#46391C}
+.hero,.panel,.due,.card{box-shadow:var(--shadow)}
+.section-h h2{font-size:1.02rem}
+.section-h .sub{font-size:.8rem;color:var(--soft);font-weight:700}
+nav.bottom .in{justify-content:space-between;padding:0 10px}
+nav.bottom button{width:66px}
+nav.bottom button[aria-current="page"] svg{stroke-width:2.4}
+
+/* setup flow */
+.ob{min-height:calc(100vh - 40px);display:flex;flex-direction:column;padding:8px 0 30px}
+.ob-top{display:flex;align-items:center;gap:12px;margin-bottom:22px}
+.ob-top button{border:0;background:none;color:var(--soft);font-weight:700;padding:6px 0;min-width:48px;text-align:left}
+.ob-top button:last-child{text-align:right}
+.ob-prog{flex:1;height:6px;border-radius:999px;background:var(--line);overflow:hidden}
+.ob-prog i{display:block;height:100%;background:var(--pink);border-radius:999px;transition:width .35s ease}
+.ob-art{width:64px;height:64px;border-radius:20px;background:var(--pink-t);color:var(--pink-d);display:grid;place-items:center;margin-bottom:14px}
+.ob-art img{width:64px;height:64px;border-radius:20px}
+.ob-art svg{width:30px;height:30px}
+.ob h1{font-size:1.5rem;margin-bottom:6px}
+.ob .lead{color:var(--soft);margin:0 0 18px;font-size:.95rem}
+.ob-foot{margin-top:auto;padding-top:22px}
+.quick{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:4px}
+.quick button{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:7px 12px;font-size:.86rem;font-weight:700}
+.quick button[aria-pressed="true"]{border-color:var(--pink);background:var(--pink-t);color:var(--pink-d)}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.added{list-style:none;margin:14px 0 0;padding:0}
+.added li{display:flex;align-items:center;gap:10px;background:var(--card);border-radius:14px;padding:10px 12px;margin-top:6px;box-shadow:var(--shadow)}
+.added li .t{flex:1;min-width:0;font-weight:700;font-size:.92rem}
+.added li .t small{display:block;font-weight:600;color:var(--soft);font-size:.78rem}
+.added li button{border:0;background:none;color:var(--soft);width:28px;height:28px;border-radius:50%}
+.big-code{font-family:"Fredoka",sans-serif;font-size:2rem;font-weight:500;letter-spacing:.1em;text-align:center;background:var(--card);border-radius:20px;padding:18px;box-shadow:var(--shadow)}
+
+/* plan: budgets */
+.bud{padding:10px 0;border-bottom:1px solid var(--line)}
+.bud:last-child{border-bottom:0}
+.bud .l{display:flex;justify-content:space-between;gap:8px;font-weight:700;font-size:.9rem}
+.bud .l small{font-weight:700;color:var(--soft)}
+.bud .l small.over{color:var(--pink-d)}
+.bud .trk{height:8px;background:var(--bg);border-radius:999px;overflow:hidden;margin-top:6px}
+.bud .trk i{display:block;height:100%;border-radius:999px;background:var(--mint)}
+.bud .trk i.warn{background:var(--honey)}
+.bud .trk i.over{background:var(--pink)}
+.budget-edit{display:flex;flex-direction:column;gap:8px;max-height:52vh;overflow:auto;margin:10px 0 14px}
+.budget-edit label{display:flex;align-items:center;gap:10px;font-weight:700;font-size:.9rem}
+.budget-edit label span{flex:1}
+.budget-edit input{width:120px;min-height:40px;padding:8px 10px}
+
+/* plan: calendar */
+.cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;text-align:center}
+.cal .wd{font-size:.7rem;font-weight:800;color:var(--soft);padding-bottom:2px}
+.cal button{border:0;background:var(--bg);border-radius:10px;aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:.8rem;font-weight:700;padding:0;color:var(--ink)}
+.cal button.blank{visibility:hidden}
+.cal button.today{box-shadow:inset 0 0 0 2px var(--pink)}
+.cal button[aria-pressed="true"]{background:var(--pink-t)}
+.cal .dots{display:flex;gap:2px;height:5px}
+.cal .dots i{width:5px;height:5px;border-radius:50%;background:var(--pink)}
+.cal .dots i.in{background:var(--mint)}
+.cal-day{margin-top:10px;font-size:.86rem}
+.cal-day div{display:flex;justify-content:space-between;padding:6px 0;border-top:1px solid var(--line)}
+.cal-day div span:first-child{font-weight:700}
+
+/* plan: goals + debts */
+.goal{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line);cursor:pointer}
+.goal:last-child{border-bottom:0}
+.goal .em{width:42px;height:42px;border-radius:14px;background:var(--honey-t,#FFF3D1);display:grid;place-items:center;font-size:1.3rem;flex:none}
+.goal .mid{flex:1;min-width:0}
+.goal .t{font-weight:700;display:flex;justify-content:space-between;gap:8px}
+.goal .t small{color:var(--soft);font-weight:700}
+.goal .s{font-size:.78rem;color:var(--soft)}
+.goal .trk{height:6px;background:var(--bg);border-radius:999px;overflow:hidden;margin-top:6px}
+.goal .trk i{display:block;height:100%;background:var(--honey);border-radius:999px}
+.debt .em{background:var(--pink-t)}
+.debt .trk i{background:var(--mint)}
+.strategy{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:4px 0 8px}
+.strategy .split button{padding:6px 12px;font-size:.82rem}
+.payoff{background:var(--bg);border-radius:14px;padding:10px 12px;font-size:.88rem;font-weight:600;margin-bottom:4px}
+.payoff b{font-weight:800}
+.extra{display:flex;align-items:center;gap:8px;font-size:.86rem;font-weight:700;margin-bottom:8px}
+.extra input{width:100px;min-height:38px;padding:6px 10px}
+.emoji-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.emoji-row button{border:1px solid var(--line);background:var(--card);border-radius:12px;width:40px;height:40px;font-size:1.2rem;padding:0}
+.emoji-row button[aria-pressed="true"]{border-color:var(--pink);background:var(--pink-t)}
+.dlg-amt{display:flex;gap:6px;margin-top:12px}
+.dlg-amt input{flex:1}
+.dlg-amt button.go{width:auto;margin:0;padding:10px 14px}
+
+/* stats */
+.year-h{display:flex;align-items:center;justify-content:space-between;margin:4px 2px 12px}
+.year-h h2{font-size:1.2rem}
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.tile{background:var(--card);border-radius:18px;padding:12px;box-shadow:var(--shadow)}
+.tile small{display:block;font-size:.74rem;color:var(--soft);font-weight:700}
+.tile b{font-family:"Fredoka",sans-serif;font-weight:500;font-size:1.05rem}
+.chart svg{width:100%;height:auto;display:block}
+.legend{display:flex;gap:14px;font-size:.78rem;font-weight:700;color:var(--soft);margin-top:6px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.rule{padding:8px 0}
+.rule .l{display:flex;justify-content:space-between;font-weight:700;font-size:.9rem}
+.rule .l small{color:var(--soft)}
+.rule .trk{position:relative;height:10px;background:var(--bg);border-radius:999px;overflow:hidden;margin-top:5px}
+.rule .trk i{display:block;height:100%;border-radius:999px}
+.rule .trk b{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--ink);opacity:.35}
+.home-bud{background:var(--card);border-radius:18px;padding:10px 14px;margin-top:12px;font-size:.86rem;font-weight:700;display:flex;gap:8px;align-items:center;box-shadow:var(--shadow);cursor:pointer}
+.home-bud span{flex:1}
+.home-bud small{color:var(--pink-d)}
+
+/* budget type */
+.kinds{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+.kinds button{border:1px solid var(--line);background:var(--card);border-radius:16px;padding:12px 4px;font-weight:700;font-size:.86rem;display:flex;flex-direction:column;align-items:center;gap:4px}
+.kinds button b{font-weight:400;font-size:1.15rem;letter-spacing:-.15em}
+.kinds button[aria-pressed="true"]{border-color:var(--pink);background:var(--pink-t);color:var(--pink-d)}
+.small-kinds{margin-top:0}
+.small-kinds button{padding:8px 4px;font-size:.8rem}
+
+/* carrots, streaks, levels */
+.burrow-pill{display:flex;align-items:center;gap:10px;width:100%;border:0;background:var(--card);border-radius:18px;padding:10px 14px;margin-top:12px;box-shadow:var(--shadow);text-align:left;font-weight:700;font-size:.86rem}
+.burrow-pill .st{display:flex;align-items:center;gap:4px;white-space:nowrap}
+.burrow-pill .st.cold{opacity:.45}
+.burrow-pill .lv{flex:1;min-width:0}
+.burrow-pill .lv small{display:block;color:var(--soft);font-size:.74rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.burrow-pill .xpbar{height:6px;background:var(--bg);border-radius:999px;overflow:hidden;margin-top:4px}
+.burrow-pill .xpbar i{display:block;height:100%;background:var(--honey);border-radius:999px}
+.today-dot{width:10px;height:10px;border-radius:50%;background:var(--line);flex:none}
+.today-dot.done{background:var(--mint)}
+.burrow{background:var(--card);border-radius:24px;padding:18px;box-shadow:var(--shadow);display:flex;gap:14px;align-items:center;margin-bottom:6px}
+.burrow svg{width:92px;height:98px;flex:none}
+.burrow .info{flex:1;min-width:0}
+.burrow .kick{font-size:.78rem;color:var(--soft);font-weight:800}
+.burrow h2{font-size:1.25rem;margin:2px 0 6px}
+.burrow .xpbar{height:8px;background:var(--bg);border-radius:999px;overflow:hidden}
+.burrow .xpbar i{display:block;height:100%;background:var(--honey);border-radius:999px;transition:width .6s ease}
+.burrow .nums{display:flex;justify-content:space-between;font-size:.76rem;color:var(--soft);font-weight:700;margin-top:4px}
+.burrow .chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.burrow .chips span{background:var(--bg);border-radius:999px;padding:4px 10px;font-size:.78rem;font-weight:800}
+.week{display:flex;justify-content:space-between;margin-top:12px}
+.week div{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:.68rem;font-weight:800;color:var(--soft)}
+.week i{width:22px;height:22px;border-radius:50%;background:var(--bg);display:grid;place-items:center;font-style:normal;font-size:.7rem}
+.week i.on{background:var(--mint-t)}
+.week i.today{box-shadow:inset 0 0 0 2px var(--pink)}
+.badges{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.badge{display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center;font-size:.7rem;font-weight:700;color:var(--soft);background:none;border:0;padding:0}
+.badge i{width:52px;height:52px;border-radius:18px;background:var(--bg);display:grid;place-items:center;font-size:1.5rem;font-style:normal;filter:grayscale(1);opacity:.4}
+.badge.on{color:var(--ink)}
+.badge.on i{background:var(--honey-t);filter:none;opacity:1}
+.board-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line)}
+.board-row:last-child{border-bottom:0}
+.board-row .rk{width:18px;font-weight:800;color:var(--soft);font-size:.85rem}
+.board-row .face{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-size:1.1rem}
+.board-row .nm{flex:1;font-weight:700}
+.board-row .xp{font-weight:800}
+.level-dlg{text-align:center;overflow:hidden;padding:28px 22px 22px}
+.lv-bunny{width:120px;height:128px;display:block;margin:0 auto 6px}
+.level-dlg[open] .lv-bunny{animation:lvhop .9s ease 2}
+@keyframes lvhop{0%,100%{transform:none}35%{transform:translateY(-14px)}60%{transform:translateY(0) scaleY(.94)}}
+.lv-kicker{margin:0;font-weight:800;color:var(--pink-d);font-size:.85rem}
+.level-dlg h2{font-size:1.4rem;margin:4px 0 6px}
+.level-dlg p#lvText{color:var(--soft);margin:0 0 18px}
+.confetti{position:absolute;inset:0;pointer-events:none}
+.confetti i{position:absolute;top:-20px;font-style:normal;font-size:1.1rem;animation:fall 1.8s ease-in forwards}
+@keyframes fall{to{transform:translateY(420px) rotate(260deg);opacity:0}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 /* ---------- login / setup ---------- */
 .gate{min-height:calc(100vh - 60px);display:flex;flex-direction:column;justify-content:center;padding:24px 0 40px}
@@ -282,7 +446,7 @@ dialog h2{font-size:1.1rem;margin-bottom:4px}
   <main id="scr-auth" class="gate" hidden>
     <img class="logo" src="/icon-192.png" alt="">
     <h1>Honeybun</h1>
-    <p class="tag">A little budget for two</p>
+    <p class="tag">A cute little budget for you and yours</p>
     <div class="notice" id="inviteNotice" hidden>You've been invited to a budget. Log in or create an account to join.</div>
     <div class="card" id="authCard">
       <div class="tabs" role="tablist" aria-label="Account">
@@ -310,7 +474,7 @@ dialog h2{font-size:1.1rem;margin-bottom:4px}
     </div>
   </main>
 
-  <!-- NEW PASSWORD (from email link) -->
+  <!-- NEW PASSWORD -->
   <main id="scr-reset" class="gate" hidden>
     <img class="logo" src="/icon-192.png" alt="">
     <h1>New password</h1>
@@ -332,14 +496,19 @@ dialog h2{font-size:1.1rem;margin-bottom:4px}
     <p class="tag">Start a budget, or join your partner's.</p>
     <div class="card">
       <h2>Start a new budget</h2>
-      <p class="sub">You'll get an invite link to send your partner.</p>
-      <div class="field"><label for="newNestName">Budget name (optional)</label><input id="newNestName" maxlength="24" placeholder="Casa Avila"></div>
+      <p class="sub">Who's this budget for?</p>
+      <div class="kinds" id="kinds">
+        <button type="button" data-kind="solo" aria-pressed="false"><b>🐰</b>Just me</button>
+        <button type="button" data-kind="couple" aria-pressed="true"><b>🐰🐻</b>Couple</button>
+        <button type="button" data-kind="family" aria-pressed="false"><b>🐰🐻🐥</b>Family</button>
+      </div>
+      <div class="field"><label for="newNestName">Budget name (optional)</label><input id="newNestName" maxlength="24" placeholder="Our little home"></div>
       <button class="go" id="createNest">Start our budget</button>
     </div>
     <div class="or">or</div>
     <div class="card">
       <h2>Join with a code</h2>
-      <p class="sub">Ask your partner for their invite code or link.</p>
+      <p class="sub">Got an invite code or link from someone? Use it here.</p>
       <div class="field"><label for="joinCode">Invite code</label><input id="joinCode" maxlength="12" autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="ABCD-EFGH"></div>
       <button class="go inc" id="joinNest">Join budget</button>
     </div>
@@ -347,12 +516,26 @@ dialog h2{font-size:1.1rem;margin-bottom:4px}
     <p class="center"><button class="linkbtn" id="setupLogout">Log out</button></p>
   </main>
 
+  <!-- FIRST-TIME SETUP (invite → paydays → bills) -->
+  <main id="scr-onboard" class="ob" hidden>
+    <div class="ob-top">
+      <button id="obBack">Back</button>
+      <div class="ob-prog"><i id="obProg"></i></div>
+      <button id="obSkip">Skip</button>
+    </div>
+    <div id="obBody"></div>
+    <div class="ob-foot">
+      <p class="err" id="obErr" role="alert"></p>
+      <button class="go" id="obNext">Next</button>
+    </div>
+  </main>
+
   <header class="top" id="topBar" hidden>
     <button class="hello hi-btn" id="hiBtn" aria-label="Open settings">
       <img src="/icon-192.png" alt="">
       <span style="min-width:0;display:block"><span id="hi" class="h1">Us</span></span>
     </button>
-    <div class="month" aria-label="Choose month">
+    <div class="month" aria-label="Choose month" id="monthNav">
       <button id="prevM" aria-label="Previous month">‹</button>
       <span id="monthLbl"></span>
       <button id="nextM" aria-label="Next month">›</button>
@@ -372,6 +555,7 @@ dialog h2{font-size:1.1rem;margin-bottom:4px}
             <ellipse cx="38" cy="90" rx="6" ry="3.5" fill="#F6B7CB" stroke="none"/><ellipse cx="82" cy="90" rx="6" ry="3.5" fill="#F6B7CB" stroke="none"/>
             <path id="mouth" d="M53 90 q3.5 4 7 0 q3.5 4 7 0" fill="none" stroke-width="3"/>
             <g id="prop"></g>
+            <g id="gear"></g>
           </g>
         </svg>
         <div class="bubble" id="bubble"></div>
@@ -382,12 +566,33 @@ dialog h2{font-size:1.1rem;margin-bottom:4px}
       <div class="flow"><span class="in" id="flowIn"></span><span class="out" id="flowOut"></span></div>
     </section>
 
+    <button class="burrow-pill" id="burrowPill" aria-label="Your streak and level"></button>
     <section class="due" id="dueCard" aria-label="Coming up"></section>
+    <div id="homeBud"></div>
 
     <div class="couple" id="couple"></div>
     <div class="filter-note" id="filterNote" hidden></div>
     <div class="section-h"><h2>Latest</h2><button class="linkbtn" id="seeAll">See all</button></div>
     <div class="panel"><ul class="list" id="recent"></ul></div>
+  </main>
+
+  <!-- PLAN -->
+  <main id="scr-plan" hidden>
+    <div class="section-h" style="margin-top:4px"><h2>Monthly budgets</h2><button class="linkbtn" id="editBudgets">Edit</button></div>
+    <div class="panel pad" id="budgets"></div>
+
+    <div class="section-h" id="billsH"><h2>Bill calendar</h2><button class="linkbtn" id="addBill">Add bill or payday</button></div>
+    <div class="panel pad">
+      <div class="cal" id="cal"></div>
+      <div class="cal-day" id="calDay"></div>
+    </div>
+    <div class="panel" style="margin-top:10px"><ul class="list" id="bills"></ul></div>
+
+    <div class="section-h"><h2>Savings goals</h2><button class="linkbtn" id="addGoal">New goal</button></div>
+    <div class="panel" style="padding:2px 16px" id="goals"></div>
+
+    <div class="section-h"><h2>Debts</h2><button class="linkbtn" id="addDebt">Add debt</button></div>
+    <div class="panel pad" id="debts"></div>
   </main>
 
   <!-- ADD / EDIT -->
@@ -404,7 +609,6 @@ dialog h2{font-size:1.1rem;margin-bottom:4px}
     <div class="field" id="catField"><span class="lbl">What for?</span><div class="cats" id="cats"></div></div>
     <div class="field"><label for="lbl" id="lblLabel">Note (optional)</label><input id="lbl" type="text" maxlength="40" placeholder="Date night tacos"></div>
     <div class="field"><span class="lbl" id="whoLabel">Who paid?</span><div class="whos" id="whos"></div></div>
-
     <div class="field" id="splitField"><span class="lbl">Split</span>
       <div class="split"><button type="button" id="spShared" aria-pressed="true">Split it</button><button type="button" id="spMine" aria-pressed="false">Just mine</button></div>
       <div id="splitOpts">
@@ -418,7 +622,6 @@ dialog h2{font-size:1.1rem;margin-bottom:4px}
       </div>
     </div>
     <label class="check" id="privWrap"><input type="checkbox" id="priv"> Only I can see this</label>
-
     <div class="field" id="repeatField"><label for="repeat">Repeats</label>
       <select id="repeat">
         <option value="">Doesn't repeat</option>
@@ -429,54 +632,53 @@ dialog h2{font-size:1.1rem;margin-bottom:4px}
     </div>
     <div class="field"><label for="dt" id="dtLabel">Date</label><input id="dt" type="date"></div>
     <label class="check" id="paidNowWrap" hidden><input type="checkbox" id="paidNow"> <span id="paidNowTxt">Already paid this one</span></label>
-
     <button class="go" id="goBtn">Add expense</button>
     <p class="err" id="err" role="status"></p>
     <p class="center" id="delRecWrap" hidden><button class="linkbtn danger" id="delRec">Delete this repeating item</button></p>
   </main>
 
+  <!-- STATS -->
+  <main id="scr-stats" hidden>
+    <section class="burrow" id="burrow" aria-label="Your progress"></section>
+    <div class="section-h" id="badgesH"><h2>Badges</h2><span class="sub" id="badgeCount"></span></div>
+    <div class="panel pad"><div class="badges" id="badges"></div></div>
+    <div id="boardWrap"><div class="section-h"><h2>This week's carrots</h2></div>
+    <div class="panel pad" id="board"></div></div>
+    <div class="year-h">
+      <button class="linkbtn" id="prevY" aria-label="Previous year" style="font-size:1.3rem;text-decoration:none">‹</button>
+      <h2 id="yearLbl"></h2>
+      <button class="linkbtn" id="nextY" aria-label="Next year" style="font-size:1.3rem;text-decoration:none">›</button>
+    </div>
+    <div class="tiles">
+      <div class="tile"><small>Earned</small><b id="yIn"></b></div>
+      <div class="tile"><small>Spent</small><b id="yOut"></b></div>
+      <div class="tile"><small>Kept</small><b id="yKeep"></b></div>
+    </div>
+    <div class="section-h"><h2>Month by month</h2></div>
+    <div class="panel pad chart"><div id="yChart"></div>
+      <div class="legend"><span><i style="background:var(--mint)"></i>Earned</span><span><i style="background:var(--pink)"></i>Spent</span></div>
+    </div>
+    <div class="section-h"><h2>50 / 30 / 20 check</h2><span class="sub" id="ruleMonth"></span></div>
+    <div class="panel pad" id="rule"></div>
+    <div class="section-h"><h2>Where it went</h2><span class="sub" id="barsMonth"></span></div>
+    <div class="panel pad"><div class="bars" id="bars"></div></div>
+    <div class="section-h"><h2>Biggest categories this year</h2></div>
+    <div class="panel pad"><div class="bars" id="yCats"></div></div>
+    <p class="center" style="margin-top:16px"><button class="small" id="exportCsv">Download this year as a spreadsheet (CSV)</button></p>
+  </main>
+
   <!-- TOGETHER -->
   <main id="scr-us" hidden>
-    <div class="section-h" style="margin-top:4px"><h2>Settle up</h2></div>
+    <div id="settleWrap"><div class="section-h" style="margin-top:4px"><h2>Settle up</h2></div>
     <div class="panel pad">
       <div id="settle"></div>
       <ul class="hist" id="settleHist"></ul>
-    </div>
-
-    <div class="section-h" id="billsH"><h2>Bills &amp; paydays</h2><button class="linkbtn" id="addBill">Add one</button></div>
-    <div class="panel"><ul class="list" id="bills"></ul></div>
-
-    <div class="section-h"><h2>Our savings jar</h2><button class="linkbtn" id="editGoal">Change goal</button></div>
-    <div class="panel pad">
-      <div class="jar">
-        <svg viewBox="0 0 84 104" aria-hidden="true">
-          <defs><clipPath id="jc"><rect x="8" y="18" width="68" height="80" rx="18"/></clipPath></defs>
-          <rect x="8" y="18" width="68" height="80" rx="18" fill="var(--bg)"/>
-          <rect id="jarFill" x="8" y="98" width="68" height="0" fill="#F6CF73" clip-path="url(#jc)"/>
-          <rect x="8" y="18" width="68" height="80" rx="18" fill="none" stroke="var(--ink)" stroke-width="2.5"/>
-          <rect x="16" y="8" width="52" height="12" rx="5" fill="var(--ink)"/>
-        </svg>
-        <div class="jar-info">
-          <div class="g" id="goalName"></div>
-          <div class="p" id="goalProg"></div>
-        </div>
-      </div>
-      <p class="hint" style="margin:12px 0 0">Log money you actually moved into savings.</p>
-      <div class="jar-add">
-        <input id="jarAmt" type="number" inputmode="decimal" min="0" step="0.01" placeholder="$ amount" aria-label="Amount">
-        <button class="go inc" id="jarIn">Add</button>
-        <button class="small" id="jarOut">Take out</button>
-      </div>
-      <ul class="hist" id="jarHist"></ul>
-    </div>
-
-    <div class="section-h"><h2>Where it went</h2></div>
-    <div class="panel pad"><div class="bars" id="bars"></div></div>
+    </div></div>
 
     <div class="section-h" id="allH"><h2>Everything this month</h2></div>
     <div class="panel"><ul class="list" id="list"></ul></div>
 
-    <div class="section-h" id="inviteH"><h2>Invite your partner</h2></div>
+    <div class="section-h" id="inviteH"><h2 id="inviteTitle">Invite your partner</h2></div>
     <div class="panel pad">
       <div class="lbl" style="padding:0">Invite code</div>
       <div class="invite-code" id="inviteCode"></div>
@@ -491,10 +693,11 @@ dialog h2{font-size:1.1rem;margin-bottom:4px}
     <div class="section-h" id="setH"><h2>Settings</h2></div>
     <div class="panel" style="padding:4px 16px">
       <div class="set-row"><label class="lbl" for="nestName">Budget name</label><input id="nestName" maxlength="24" placeholder="Leave blank to show your names"></div>
+      <div class="set-row"><span class="lbl">Budget type</span><div class="kinds small-kinds" id="kindSet"></div></div>
       <div class="set-row"><span class="lbl">People</span><div class="members" id="members"></div></div>
       <div class="set-row"><span class="lbl">Theme</span><div class="swatches" id="swatches"></div></div>
+      <div class="set-row"><button class="linkbtn" id="rerunSetup">Set up paydays &amp; bills</button></div>
       <div class="set-row"><button class="linkbtn" id="changePw">Change password</button></div>
-      <div class="set-row"><button class="linkbtn" id="replayTour">Show the tutorial again</button></div>
       <div class="set-row" style="display:flex;justify-content:space-between;gap:10px">
         <button class="linkbtn" id="logoutBtn">Log out</button>
         <button class="linkbtn danger" id="leaveBtn">Leave this budget</button>
@@ -512,8 +715,10 @@ dialog h2{font-size:1.1rem;margin-bottom:4px}
 <nav class="bottom" id="nav" aria-label="Main" hidden>
   <div class="in">
     <button data-go="home" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg>Home</button>
+    <button data-go="plan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="15" rx="3"/><path d="M4 10h16M9 3v4M15 3v4"/></svg>Plan</button>
     <button class="plus" data-go="add" aria-label="Add money"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
-    <button data-go="us"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg>Together</button>
+    <button data-go="stats"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 20V11M12 20V5M19 20v-7"/></svg>Stats</button>
+    <button data-go="us"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg><span id="usLabel">Together</span></button>
   </div>
 </nav>
 
@@ -530,12 +735,54 @@ dialog h2{font-size:1.1rem;margin-bottom:4px}
   <div class="acts"><button class="small" id="mCancel">Cancel</button><button class="go" id="mSave">Save</button></div>
 </dialog>
 
+<dialog id="budgetDlg" aria-labelledby="bdTitle">
+  <h2 id="bdTitle">Monthly budgets</h2>
+  <p class="hint" style="margin:0">Set a monthly limit for any category. Leave blank for no limit.</p>
+  <div class="budget-edit" id="budgetEdit"></div>
+  <p class="err" id="bdErr"></p>
+  <div class="acts"><button class="small" id="bdCancel">Cancel</button><button class="go" id="bdSave">Save budgets</button></div>
+</dialog>
+
 <dialog id="goalDlg" aria-labelledby="gdTitle">
-  <h2 id="gdTitle">Our savings goal</h2>
-  <div class="field"><label for="gName">Saving for</label><input id="gName" maxlength="30" placeholder="Beach trip"></div>
-  <div class="field"><label for="gTarget">Target</label><input id="gTarget" type="number" min="1" inputmode="decimal"></div>
-  <p class="err" id="gErr"></p>
-  <div class="acts"><button class="small" id="gCancel">Cancel</button><button class="go inc" id="gSave">Save goal</button></div>
+  <h2 id="gdTitle">Savings goal</h2>
+  <div id="gdView">
+    <p id="gdProg" style="margin:4px 0 0;color:var(--soft);font-weight:700"></p>
+    <p class="hint" style="margin:10px 0 0">Log money you actually moved into savings.</p>
+    <div class="dlg-amt"><input id="gdAmt" type="number" inputmode="decimal" min="0" step="0.01" placeholder="$ amount" aria-label="Amount"><button class="go inc" id="gdIn">Add</button><button class="small" id="gdOut">Take out</button></div>
+    <ul class="hist" id="gdHist"></ul>
+    <div class="acts" style="margin-top:14px;justify-content:space-between"><button class="linkbtn" id="gdEdit">Edit goal</button><button class="small" id="gdClose">Done</button></div>
+  </div>
+  <div id="gdForm" hidden>
+    <div class="field"><label for="gName">Saving for</label><input id="gName" maxlength="30" placeholder="Beach trip"></div>
+    <div class="field"><label for="gTarget">Target</label><input id="gTarget" type="number" min="1" inputmode="decimal" placeholder="1500"></div>
+    <div class="lbl" style="margin-top:12px">Icon</div>
+    <div class="emoji-row" id="gEmojis"></div>
+    <p class="err" id="gErr"></p>
+    <div class="acts" style="justify-content:space-between"><button class="linkbtn danger" id="gDelete">Delete goal</button><span style="flex:1"></span><button class="small" id="gCancel">Cancel</button><button class="go inc" id="gSave">Save goal</button></div>
+  </div>
+</dialog>
+
+<dialog id="debtDlg" aria-labelledby="ddTitle">
+  <h2 id="ddTitle">Debt</h2>
+  <div class="field"><label for="dName">Name</label><input id="dName" maxlength="30" placeholder="Credit card"></div>
+  <div class="row2">
+    <div class="field"><label for="dBal">Balance</label><input id="dBal" type="number" inputmode="decimal" min="0" step="0.01" placeholder="2400"></div>
+    <div class="field"><label for="dApr">Interest (APR %)</label><input id="dApr" type="number" inputmode="decimal" min="0" step="0.01" placeholder="24.99"></div>
+  </div>
+  <div class="field"><label for="dMin">Minimum monthly payment</label><input id="dMin" type="number" inputmode="decimal" min="0" step="0.01" placeholder="75"></div>
+  <p class="hint" id="dHint">For a debt you've already been paying, enter what you owe today.</p>
+  <p class="err" id="dErr"></p>
+  <div class="acts" style="justify-content:space-between"><button class="linkbtn danger" id="dDelete">Delete</button><span style="flex:1"></span><button class="small" id="dCancel">Cancel</button><button class="go" id="dSave">Save</button></div>
+</dialog>
+
+<dialog id="payDlg" aria-labelledby="pdTitle">
+  <h2 id="pdTitle">Log a payment</h2>
+  <p id="pdText" style="margin:4px 0 0;color:var(--soft);font-weight:600"></p>
+  <div class="field"><label for="pdAmt">Amount paid</label><input id="pdAmt" type="number" inputmode="decimal" min="0" step="0.01"></div>
+  <div class="field"><span class="lbl">Who paid?</span><div class="whos" id="pdWho"></div></div>
+  <p class="hint">It's also added to this month's spending as a debt payment.</p>
+  <p class="err" id="pdErr"></p>
+  <div class="acts"><button class="small" id="pdCancel">Cancel</button><button class="go inc" id="pdSave">Log payment</button></div>
 </dialog>
 
 <dialog id="settleDlg" aria-labelledby="sdTitle">
@@ -554,13 +801,13 @@ dialog h2{font-size:1.1rem;margin-bottom:4px}
   <div class="acts"><button class="small" id="pwCancel">Cancel</button><button class="go" id="pwSave">Save password</button></div>
 </dialog>
 
-<dialog id="tour" aria-labelledby="tourT">
-  <div class="tour-art" id="tourArt"></div>
-  <h2 id="tourT"></h2>
-  <p id="tourP"></p>
-  <div id="tourExtra"></div>
-  <div class="dots" id="tourDots"></div>
-  <div class="acts"><button class="small" id="tourSkip">Skip</button><button class="go" id="tourNext">Next</button></div>
+<dialog id="levelDlg" class="level-dlg" aria-labelledby="lvTitle">
+  <div class="confetti" id="confetti" aria-hidden="true"></div>
+  <svg class="lv-bunny" id="lvBunny" viewBox="0 0 120 128" aria-hidden="true"></svg>
+  <p class="lv-kicker" id="lvKicker">Level up!</p>
+  <h2 id="lvTitle"></h2>
+  <p id="lvText"></p>
+  <button class="go" id="lvOk">Yay!</button>
 </dialog>
 
 <dialog id="askDlg" aria-labelledby="askT">
