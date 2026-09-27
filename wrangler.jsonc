@@ -1,0 +1,28 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "honeybun",
+  "main": "src/worker.js",
+  "compatibility_date": "2026-09-01",
+  "observability": { "enabled": true },
+
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "honeybun",
+      "database_id": "PASTE-YOUR-DATABASE-ID-HERE"
+    }
+  ],
+
+  "triggers": { "crons": ["0 4 * * *"] },
+
+  "routes": [
+    { "pattern": "honeybun.me", "custom_domain": true }
+  ]
+}
