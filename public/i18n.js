@@ -9,6 +9,10 @@ window.HB_I18N = (() => {
     exact: {
       // general
       "Honeybun — a cute little budget": "Honeybun — un presupuesto lindo",
+      "A fresh update just hopped in!": "¡Llegó una actualización nueva!", "Refresh to get the newest Honeybun.": "Actualiza para tener lo más nuevo de Honeybun.",
+      "Refresh": "Actualizar", "Later": "Luego", "Honeybun is getting a fresh update…": "Honeybun se está actualizando…",
+      "Hang tight, refreshing in a few seconds 🐰": "Espera un momento, se recarga en unos segundos 🐰",
+
       "A cute little budget for you and yours": "Un presupuesto lindo para ti y los tuyos",
       "A cute little budget": "Un presupuesto lindo",
       "Cancel": "Cancelar", "Save": "Guardar", "Delete": "Eliminar", "Edit": "Editar", "Done": "Listo", "Close": "Cerrar", "Next": "Siguiente",
@@ -16,7 +20,7 @@ window.HB_I18N = (() => {
       "Add": "Agregar", "Resend": "Reenviar", "Open": "Abre", "Main": "Principal", "Account": "Cuenta", "Search": "Buscar", "Type": "Tipo",
       "Category": "Categoría", "Person": "Persona", "Name": "Nombre", "Amount": "Monto", "Date": "Fecha", "Color": "Color", "Icon": "Ícono",
       "Target": "Meta", "Balance": "Saldo", "Debt": "Deuda", "or": "o", "and": "y la", "Terms": "Términos", "Privacy Policy": "Política de privacidad",
-      "Contact": "Contacto", "By continuing you agree to the": "Al continuar, aceptas los",
+      "Contact": "Contacto", "Developed by Rodrigo · Questions?": "Desarrollado por Rodrigo · ¿Preguntas?", "By continuing you agree to the": "Al continuar, aceptas los",
       // auth
       "Create account": "Crear cuenta", "Log in": "Iniciar sesión", "Your name": "Tu nombre", "Email": "Correo", "Password": "Contraseña",
       "At least 8 characters": "Al menos 8 caracteres", "Forgot your password?": "¿Olvidaste tu contraseña?", "Reset your password": "Restablece tu contraseña",
@@ -230,12 +234,16 @@ window.HB_I18N = (() => {
   // ---------------- 中文 ----------------
   const zh = {
     exact: {
-      "Honeybun — a cute little budget": "Honeybun — 可爱的小预算", "A cute little budget for you and yours": "为你和家人准备的可爱小预算", "A cute little budget": "可爱的小预算",
+      "Honeybun — a cute little budget": "Honeybun — 可爱的小预算",
+      "A fresh update just hopped in!": "有新版本啦！", "Refresh to get the newest Honeybun.": "刷新即可使用最新的 Honeybun。",
+      "Refresh": "刷新", "Later": "稍后", "Honeybun is getting a fresh update…": "Honeybun 正在更新…",
+      "Hang tight, refreshing in a few seconds 🐰": "请稍等，几秒后自动刷新 🐰",
+ "A cute little budget for you and yours": "为你和家人准备的可爱小预算", "A cute little budget": "可爱的小预算",
       "Cancel": "取消", "Save": "保存", "Delete": "删除", "Edit": "编辑", "Done": "完成", "Close": "关闭", "Next": "下一步", "Back": "返回", "Skip": "跳过",
       "Yes": "是", "No": "否", "Share": "分享", "Undo": "撤销", "Remove": "移除", "Leave": "退出", "Add": "存入", "Resend": "重新发送", "Open": "用浏览器打开",
       "Main": "主导航", "Account": "账户", "Search": "搜索", "Type": "类型", "Category": "类别", "Person": "成员", "Name": "名称", "Amount": "金额", "Date": "日期",
       "Color": "颜色", "Icon": "图标", "Target": "目标金额", "Balance": "余额", "Debt": "债务", "or": "或", "and": "和", "Terms": "服务条款", "Privacy Policy": "隐私政策",
-      "Contact": "联系我们", "By continuing you agree to the": "继续即表示你同意",
+      "Contact": "联系我们", "Developed by Rodrigo · Questions?": "由 Rodrigo 开发 · 有问题？", "By continuing you agree to the": "继续即表示你同意",
       "Create account": "注册", "Log in": "登录", "Your name": "你的名字", "Email": "邮箱", "Password": "密码", "At least 8 characters": "至少 8 个字符",
       "Forgot your password?": "忘记密码？", "Reset your password": "重置密码", "We'll email you a link to choose a new one.": "我们会发邮件给你，用来设置新密码。",
       "Send reset link": "发送重置链接", "Back to log in": "返回登录", "New password": "新密码", "Choose a new password for Honeybun.": "为 Honeybun 设置新密码。",
