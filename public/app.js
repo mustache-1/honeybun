@@ -1,601 +1,816 @@
-// Honeybun API — Cloudflare Worker + D1
-// Static files in /public are served automatically; this Worker only handles /api/*.
+(() => {
+  "use strict";
 
-const SESSION_DAYS = 30;
-const COOKIE = "__Host-hb";
-const PBKDF2_ITER = 100000; // the most Workers allows
-const MAX_MEMBERS = 8;
-const RESET_MINUTES = 60;
+  // ---------- constants ----------
+  const CATS = [
+    { id: "home", e: "🏠", n: "Home", c: "#9BB8FF" },
+    { id: "groc", e: "🛒", n: "Groceries", c: "#46BE8A" },
+    { id: "food", e: "🍜", n: "Eating out", c: "#FF9F5A" },
+    { id: "date", e: "💕", n: "Date night", c: "#FF6F9F" },
+    { id: "bills", e: "💡", n: "Bills", c: "#FFC94D" },
+    { id: "car", e: "🚗", n: "Getting around", c: "#5CC6D0" },
+    { id: "fun", e: "🎁", n: "Gifts & fun", c: "#B79CFF" },
+    { id: "pets", e: "🐾", n: "Kids & pets", c: "#D9A27A" },
+    { id: "other", e: "✨", n: "Other", c: "#B7A9C4" },
+  ];
+  const EMOJIS = ["🐰", "🐻", "🐱", "🐶", "🦊", "🐼", "🐨", "🐸", "🐧", "🦄", "🐥", "🐹"];
+  const COLORS = ["#FFD6E5", "#FFF0C2", "#DDF5E9", "#E4EDFF", "#EADFFF", "#FFE1CC"];
+  const THEMES = [
+    { id: "blueberry", n: "Blueberry", c: "#6F93DB" },
+    { id: "blush", n: "Blush", c: "#EE7FA3" },
+    { id: "lavender", n: "Lavender", c: "#9C82DC" },
+    { id: "honey", n: "Honey", c: "#DDA13F" },
+  ];
+  const FREQ_NAME = { weekly: "Every week", biweekly: "Every 2 weeks", monthly: "Every month" };
 
-const CATEGORIES = ["home", "groc", "food", "date", "bills", "car", "fun", "pets", "other"];
-const EMOJIS = ["🐰", "🐻", "🐱", "🐶", "🦊", "🐼", "🐨", "🐸", "🐧", "🦄", "🐥", "🐹"];
-const COLORS = ["#FFD6E5", "#FFF0C2", "#DDF5E9", "#E4EDFF", "#EADFFF", "#FFE1CC"];
-const ACCENTS = ["blueberry", "blush", "lavender", "honey"];
-const FREQS = ["weekly", "biweekly", "monthly"];
-const SPLITS = ["equal", "percent", "owed"];
-
-// ---------- database setup (runs automatically, once per Worker instance) ----------
-const TABLES = [
-  `CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE, name TEXT NOT NULL, pw TEXT NOT NULL, created_at INTEGER NOT NULL)`,
-  `CREATE TABLE IF NOT EXISTS sessions (token_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, expires_at INTEGER NOT NULL)`,
-  `CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id)`,
-  `CREATE TABLE IF NOT EXISTS nests (id TEXT PRIMARY KEY, name TEXT NOT NULL DEFAULT '', invite_code TEXT NOT NULL UNIQUE, accent TEXT NOT NULL DEFAULT 'blueberry', goal_name TEXT NOT NULL DEFAULT 'Weekend getaway', goal_target INTEGER NOT NULL DEFAULT 80000, goal_saved INTEGER NOT NULL DEFAULT 0, created_by TEXT NOT NULL, created_at INTEGER NOT NULL)`,
-  `CREATE TABLE IF NOT EXISTS members (nest_id TEXT NOT NULL REFERENCES nests(id) ON DELETE CASCADE, user_id TEXT NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE, emoji TEXT NOT NULL, color TEXT NOT NULL, joined_at INTEGER NOT NULL, PRIMARY KEY (nest_id, user_id))`,
-  `CREATE TABLE IF NOT EXISTS entries (id TEXT PRIMARY KEY, nest_id TEXT NOT NULL REFERENCES nests(id) ON DELETE CASCADE, member_id TEXT NOT NULL, type TEXT NOT NULL CHECK (type IN ('income','expense')), amount_cents INTEGER NOT NULL CHECK (amount_cents > 0), label TEXT NOT NULL, category TEXT, shared INTEGER NOT NULL DEFAULT 0, date TEXT NOT NULL, created_by TEXT NOT NULL, created_at INTEGER NOT NULL, split_mode TEXT, split_value INTEGER, shares TEXT, private INTEGER NOT NULL DEFAULT 0, recurring_id TEXT, occ_date TEXT)`,
-  `CREATE INDEX IF NOT EXISTS idx_entries_nest_date ON entries(nest_id, date)`,
-  `CREATE TABLE IF NOT EXISTS auth_attempts (key TEXT NOT NULL, ts INTEGER NOT NULL)`,
-  `CREATE INDEX IF NOT EXISTS idx_attempts ON auth_attempts(key, ts)`,
-  `CREATE TABLE IF NOT EXISTS password_resets (token_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, expires_at INTEGER NOT NULL)`,
-  `CREATE TABLE IF NOT EXISTS settlements (id TEXT PRIMARY KEY, nest_id TEXT NOT NULL REFERENCES nests(id) ON DELETE CASCADE, from_id TEXT NOT NULL, to_id TEXT NOT NULL, amount_cents INTEGER NOT NULL CHECK (amount_cents > 0), date TEXT NOT NULL, created_by TEXT NOT NULL, created_at INTEGER NOT NULL)`,
-  `CREATE INDEX IF NOT EXISTS idx_settlements_nest ON settlements(nest_id)`,
-  `CREATE TABLE IF NOT EXISTS jar_moves (id TEXT PRIMARY KEY, nest_id TEXT NOT NULL REFERENCES nests(id) ON DELETE CASCADE, member_id TEXT NOT NULL, amount_cents INTEGER NOT NULL, created_at INTEGER NOT NULL)`,
-  `CREATE INDEX IF NOT EXISTS idx_jar_nest ON jar_moves(nest_id)`,
-  `CREATE TABLE IF NOT EXISTS recurring (id TEXT PRIMARY KEY, nest_id TEXT NOT NULL REFERENCES nests(id) ON DELETE CASCADE, type TEXT NOT NULL CHECK (type IN ('income','expense')), label TEXT NOT NULL, amount_cents INTEGER NOT NULL CHECK (amount_cents > 0), category TEXT, member_id TEXT NOT NULL, shared INTEGER NOT NULL DEFAULT 0, split_mode TEXT, split_value INTEGER, freq TEXT NOT NULL, anchor_date TEXT NOT NULL, created_by TEXT NOT NULL, created_at INTEGER NOT NULL)`,
-  `CREATE INDEX IF NOT EXISTS idx_recurring_nest ON recurring(nest_id)`,
-];
-const ENTRY_COLUMNS = [["split_mode", "TEXT"], ["split_value", "INTEGER"], ["shares", "TEXT"], ["private", "INTEGER NOT NULL DEFAULT 0"], ["recurring_id", "TEXT"], ["occ_date", "TEXT"]];
-
-let schemaReady = null;
-function ensureSchema(env) {
-  if (!schemaReady) schemaReady = migrate(env).catch((e) => { schemaReady = null; throw e; });
-  return schemaReady;
-}
-async function migrate(env) {
-  await env.DB.batch(TABLES.map((s) => env.DB.prepare(s)));
-  const cols = (await env.DB.prepare("PRAGMA table_info(entries)").all()).results.map((c) => c.name);
-  for (const [name, type] of ENTRY_COLUMNS) {
-    if (cols.includes(name)) continue;
-    try { await env.DB.prepare(`ALTER TABLE entries ADD COLUMN ${name} ${type}`).run(); }
-    catch (e) { if (!String(e.message).includes("duplicate column")) throw e; }
-  }
-  await env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_entries_occ ON entries(recurring_id, occ_date)").run();
-}
-
-// ---------- responses ----------
-const SEC_HEADERS = {
-  "x-content-type-options": "nosniff",
-  "referrer-policy": "strict-origin-when-cross-origin",
-  "x-frame-options": "DENY",
-  "cache-control": "no-store",
-};
-const json = (data, status = 200, extra = {}) =>
-  new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json; charset=utf-8", ...SEC_HEADERS, ...extra } });
-const fail = (message, status = 400) => json({ error: message }, status);
-class HttpError extends Error { constructor(message, status = 400) { super(message); this.status = status; } }
-
-const now = () => Math.floor(Date.now() / 1000);
-const enc = new TextEncoder();
-
-// ---------- crypto ----------
-const b64u = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-const fromB64u = (s) => Uint8Array.from(atob(s.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((s.length + 3) % 4)), (c) => c.charCodeAt(0));
-const randomToken = () => b64u(crypto.getRandomValues(new Uint8Array(32)));
-
-async function pbkdf2(password, salt, iterations) {
-  const key = await crypto.subtle.importKey("raw", enc.encode(password), "PBKDF2", false, ["deriveBits"]);
-  return new Uint8Array(await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt, iterations }, key, 256));
-}
-async function hashPassword(password) {
-  const salt = crypto.getRandomValues(new Uint8Array(16));
-  return `pbkdf2$${PBKDF2_ITER}$${b64u(salt)}$${b64u(await pbkdf2(password, salt, PBKDF2_ITER))}`;
-}
-async function verifyPassword(password, stored) {
-  const [alg, iter, salt, hash] = stored.split("$");
-  if (alg !== "pbkdf2") return false;
-  const got = await pbkdf2(password, fromB64u(salt), Number(iter));
-  const want = fromB64u(hash);
-  if (got.length !== want.length) return false;
-  let diff = 0;
-  for (let i = 0; i < got.length; i++) diff |= got[i] ^ want[i];
-  return diff === 0;
-}
-const DUMMY_HASH = "pbkdf2$100000$AAAAAAAAAAAAAAAAAAAAAA$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
-const sha256 = async (text) => b64u(await crypto.subtle.digest("SHA-256", enc.encode(text)));
-
-function inviteCode() {
-  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  return Array.from(crypto.getRandomValues(new Uint8Array(8)), (b) => alphabet[b % 32]).join("");
-}
-
-// ---------- sessions ----------
-function readCookie(request, name) {
-  for (const part of (request.headers.get("cookie") || "").split(/;\s*/)) {
-    const i = part.indexOf("=");
-    if (i > 0 && part.slice(0, i) === name) return part.slice(i + 1);
-  }
-  return null;
-}
-async function createSession(env, userId) {
-  const token = randomToken(), maxAge = SESSION_DAYS * 86400;
-  await env.DB.prepare("INSERT INTO sessions (token_hash, user_id, expires_at) VALUES (?, ?, ?)").bind(await sha256(token), userId, now() + maxAge).run();
-  return `${COOKIE}=${token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${maxAge}`;
-}
-const clearCookie = `${COOKIE}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`;
-async function currentUser(request, env) {
-  const token = readCookie(request, COOKIE);
-  if (!token) return null;
-  const hash = await sha256(token);
-  const user = await env.DB.prepare(
-    "SELECT u.id, u.email, u.name FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = ? AND s.expires_at > ?"
-  ).bind(hash, now()).first();
-  if (user) user.session = hash;
-  return user;
-}
-
-// ---------- rate limiting ----------
-async function limited(env, key, max, windowSec) {
-  const row = await env.DB.prepare("SELECT COUNT(*) AS n FROM auth_attempts WHERE key = ? AND ts > ?").bind(key, now() - windowSec).first();
-  return row.n >= max;
-}
-const recordAttempt = (env, key) => env.DB.prepare("INSERT INTO auth_attempts (key, ts) VALUES (?, ?)").bind(key, now()).run();
-
-// ---------- email (Resend) ----------
-async function sendEmail(env, to, subject, text, html) {
-  if (!env.RESEND_API_KEY) throw new HttpError("Password reset emails aren't set up yet. Ask the site owner to add the email key.", 503);
-  const res = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: { authorization: `Bearer ${env.RESEND_API_KEY}`, "content-type": "application/json" },
-    body: JSON.stringify({ from: env.MAIL_FROM || "Honeybun <hello@honeybun.me>", to: [to], subject, text, html }),
-  });
-  if (!res.ok) { console.error("Resend error", res.status, await res.text()); throw new HttpError("Couldn't send the email. Try again in a minute.", 502); }
-}
-
-// ---------- validation ----------
-const cleanText = (v, max) => String(v ?? "").replace(/[\u0000-\u001f\u007f]/g, "").trim().slice(0, max);
-const isEmail = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e) && e.length <= 254;
-const isDate = (d) => typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d) && !Number.isNaN(Date.parse(d));
-const checkPassword = (p) => { if (typeof p !== "string" || p.length < 8 || p.length > 200) throw new HttpError("Use a password with at least 8 characters."); return p; };
-function toCents(v, what = "an amount") {
-  const n = Number(v);
-  if (!Number.isFinite(n) || n <= 0 || n > 10_000_000) throw new HttpError(`Enter ${what} between $0.01 and $10,000,000.`);
-  return Math.round(n * 100);
-}
-const todayStr = () => new Date().toISOString().slice(0, 10);
-
-async function membership(env, userId) {
-  return env.DB.prepare("SELECT nest_id FROM members WHERE user_id = ?").bind(userId).first();
-}
-async function requireNest(env, user) {
-  const m = await membership(env, user.id);
-  if (!m) throw new HttpError("You're not in a budget yet.", 404);
-  return m.nest_id;
-}
-async function memberIds(env, nestId) {
-  return (await env.DB.prepare("SELECT user_id FROM members WHERE nest_id = ? ORDER BY joined_at").bind(nestId).all()).results.map((r) => r.user_id);
-}
-
-// Splits: who is responsible for how much of a shared expense (in cents).
-//  equal   – everyone pays the same
-//  percent – split_value = % the payer covers; the rest is split evenly between the others
-//  owed    – split_value = cents the others owe in total, split evenly between them
-function computeShares(amount, mode, value, payer, ids) {
-  const others = ids.filter((id) => id !== payer);
-  if (!others.length) return { [payer]: amount };
-  let payerShare;
-  if (mode === "percent") payerShare = Math.round((amount * Math.min(100, Math.max(0, value))) / 100);
-  else if (mode === "owed") payerShare = amount - Math.min(amount, Math.max(0, value));
-  else payerShare = amount - Math.floor(amount / ids.length) * others.length;
-  const rest = amount - payerShare, each = Math.floor(rest / others.length);
-  const shares = { [payer]: payerShare };
-  others.forEach((id, i) => (shares[id] = each + (i < rest - each * others.length ? 1 : 0)));
-  return shares;
-}
-function readSplit(body, amount) {
-  const mode = SPLITS.includes(body.split_mode) ? body.split_mode : "equal";
-  let value = null;
-  if (mode === "percent") {
-    value = Math.round(Number(body.split_value));
-    if (!Number.isFinite(value) || value < 0 || value > 100) throw new HttpError("Enter a percent from 0 to 100.");
-  } else if (mode === "owed") {
-    value = Math.round(Number(body.split_value) * 100);
-    if (!Number.isFinite(value) || value <= 0 || value > amount) throw new HttpError("The amount owed has to be more than $0 and no more than the total.");
-  }
-  return { mode, value };
-}
-
-// Build a clean entry from the request body (used for create + edit)
-async function readEntry(env, nestId, user, body) {
-  const type = body.type === "income" ? "income" : body.type === "expense" ? "expense" : null;
-  if (!type) throw new HttpError("Bad entry type.");
-  const amount = toCents(body.amount);
-  const ids = await memberIds(env, nestId);
-  const memberId = String(body.member_id ?? "");
-  if (!ids.includes(memberId)) throw new HttpError("Pick who paid.");
-  const shared = type === "expense" && !!body.shared && ids.length > 1;
-  let split = { mode: null, value: null }, shares = null;
-  if (shared) { split = readSplit(body, amount); shares = JSON.stringify(computeShares(amount, split.mode, split.value, memberId, ids)); }
-  const priv = !shared && !!body.private && memberId === user.id ? 1 : 0;
-  return {
-    type, amount, memberId, shared: shared ? 1 : 0, split, shares, priv,
-    category: type === "expense" ? (CATEGORIES.includes(body.category) ? body.category : "other") : null,
-    label: cleanText(body.label, 40) || (type === "income" ? "Paycheck" : "Expense"),
-    date: isDate(body.date) ? body.date : todayStr(),
+  // ---------- helpers ----------
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const fmt = (n) => (n < 0 ? "−" : "") + "$" + Math.abs(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const pad = (n) => String(n).padStart(2, "0");
+  const toS = (d) => d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
+  const parseD = (s) => { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d); };
+  const addDays = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
+  const today = () => toS(new Date());
+  const ym = (d) => d.slice(0, 7);
+  const dayName = (d) => d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+  const shortDay = (d) => d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  const store = {
+    get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+    set(k, v) { try { localStorage.setItem(k, v); } catch {} },
   };
-}
-async function insertEntry(env, nestId, user, e, recurringId = null, occDate = null) {
-  const id = crypto.randomUUID();
-  await env.DB.prepare(
-    `INSERT INTO entries (id, nest_id, member_id, type, amount_cents, label, category, shared, split_mode, split_value, shares, private, date, recurring_id, occ_date, created_by, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  ).bind(id, nestId, e.memberId, e.type, e.amount, e.label, e.category, e.shared, e.split.mode, e.split.value, e.shares, e.priv, e.date, recurringId, occDate, user.id, now()).run();
-  return id;
-}
-
-// ---------- routes ----------
-async function handle(request, env, url) {
-  const path = url.pathname, method = request.method;
-  const ip = request.headers.get("cf-connecting-ip") || "unknown";
-  const appUrl = (env.APP_URL || url.origin).replace(/\/$/, "");
-
-  let body = {};
-  if (method === "POST" || method === "PATCH") {
-    body = await request.json().catch(() => null);
-    if (!body || typeof body !== "object") throw new HttpError("Invalid request.");
+  function monthName(m, short) {
+    const [y, mo] = m.split("-").map(Number);
+    return new Date(y, mo - 1, 1).toLocaleDateString(undefined, short ? { month: "short", year: "2-digit" } : { month: "long", year: "numeric" });
   }
-
-  // ===== public =====
-  if (path === "/api/signup" && method === "POST") {
-    if (await limited(env, "signup:" + ip, 10, 3600)) throw new HttpError("Too many sign-ups from here. Try again in an hour.", 429);
-    const name = cleanText(body.name, 24), email = cleanText(body.email, 254).toLowerCase();
-    if (!name) throw new HttpError("Enter your name.");
-    if (!isEmail(email)) throw new HttpError("Enter a valid email address.");
-    const password = checkPassword(body.password);
-    await recordAttempt(env, "signup:" + ip);
-    if (await env.DB.prepare("SELECT 1 FROM users WHERE email = ?").bind(email).first())
-      throw new HttpError("An account with that email already exists. Log in instead.", 409);
-    const id = crypto.randomUUID();
-    await env.DB.prepare("INSERT INTO users (id, email, name, pw, created_at) VALUES (?, ?, ?, ?, ?)").bind(id, email, name, await hashPassword(password), now()).run();
-    return json({ ok: true }, 201, { "set-cookie": await createSession(env, id) });
+  function toast(t, actionLabel, action) {
+    const el = $("toast"); $("toastText").textContent = t;
+    const b = $("toastBtn"); b.hidden = !action; el.classList.toggle("act", !!action);
+    if (action) { b.textContent = actionLabel; b.onclick = () => { el.classList.remove("show", "act"); action(); }; }
+    el.classList.add("show");
+    clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove("show", "act"), action ? 6000 : 1900);
   }
-
-  if (path === "/api/login" && method === "POST") {
-    const email = cleanText(body.email, 254).toLowerCase(), password = String(body.password ?? "");
-    if ((await limited(env, "login:" + email, 10, 900)) || (await limited(env, "loginip:" + ip, 40, 900)))
-      throw new HttpError("Too many tries. Wait 15 minutes and try again.", 429);
-    const user = await env.DB.prepare("SELECT id, pw FROM users WHERE email = ?").bind(email).first();
-    const ok = await verifyPassword(password, user ? user.pw : DUMMY_HASH);
-    if (!user || !ok) {
-      await recordAttempt(env, "login:" + email); await recordAttempt(env, "loginip:" + ip);
-      throw new HttpError("Wrong email or password.", 401);
-    }
-    return json({ ok: true }, 200, { "set-cookie": await createSession(env, user.id) });
-  }
-
-  if (path === "/api/logout" && method === "POST") {
-    const token = readCookie(request, COOKIE);
-    if (token) await env.DB.prepare("DELETE FROM sessions WHERE token_hash = ?").bind(await sha256(token)).run();
-    return json({ ok: true }, 200, { "set-cookie": clearCookie });
-  }
-
-  if (path === "/api/password/forgot" && method === "POST") {
-    const email = cleanText(body.email, 254).toLowerCase();
-    if (!isEmail(email)) throw new HttpError("Enter a valid email address.");
-    if ((await limited(env, "forgot:" + email, 3, 3600)) || (await limited(env, "forgotip:" + ip, 10, 3600)))
-      throw new HttpError("Too many reset requests. Try again in an hour.", 429);
-    await recordAttempt(env, "forgot:" + email); await recordAttempt(env, "forgotip:" + ip);
-    const user = await env.DB.prepare("SELECT id, name FROM users WHERE email = ?").bind(email).first();
-    if (user) {
-      const token = randomToken();
-      await env.DB.batch([
-        env.DB.prepare("DELETE FROM password_resets WHERE user_id = ?").bind(user.id),
-        env.DB.prepare("INSERT INTO password_resets (token_hash, user_id, expires_at) VALUES (?, ?, ?)").bind(await sha256(token), user.id, now() + RESET_MINUTES * 60),
-      ]);
-      const link = `${appUrl}/reset/${token}`;
-      await sendEmail(env, email, "Reset your Honeybun password",
-        `Hi ${user.name},\n\nTap this link to choose a new Honeybun password:\n${link}\n\nIt works for ${RESET_MINUTES} minutes. If you didn't ask for this, you can ignore this email.`,
-        `<div style="font-family:system-ui,sans-serif;max-width:420px;margin:auto;color:#2B2733">
-          <p>Hi ${user.name.replace(/[<>&"]/g, "")},</p>
-          <p>Tap the button to choose a new Honeybun password.</p>
-          <p><a href="${link}" style="display:inline-block;background:#6F93DB;color:#fff;padding:12px 20px;border-radius:12px;text-decoration:none;font-weight:700">Choose a new password</a></p>
-          <p style="color:#8E8898;font-size:14px">This link works for ${RESET_MINUTES} minutes. If you didn't ask for this, you can ignore this email.</p>
-        </div>`);
-    }
-    // same answer either way, so nobody can use this to check who has an account
-    return json({ ok: true });
-  }
-
-  if (path === "/api/password/reset" && method === "POST") {
-    const token = String(body.token ?? "");
-    const password = checkPassword(body.password);
-    if (await limited(env, "resetip:" + ip, 20, 3600)) throw new HttpError("Too many tries. Try again later.", 429);
-    await recordAttempt(env, "resetip:" + ip);
-    const hash = await sha256(token);
-    const row = await env.DB.prepare("SELECT user_id FROM password_resets WHERE token_hash = ? AND expires_at > ?").bind(hash, now()).first();
-    if (!row) throw new HttpError("This reset link has expired or was already used. Ask for a new one.", 400);
-    await env.DB.batch([
-      env.DB.prepare("UPDATE users SET pw = ? WHERE id = ?").bind(await hashPassword(password), row.user_id),
-      env.DB.prepare("DELETE FROM password_resets WHERE user_id = ?").bind(row.user_id),
-      env.DB.prepare("DELETE FROM sessions WHERE user_id = ?").bind(row.user_id), // log out everywhere
-    ]);
-    return json({ ok: true }, 200, { "set-cookie": await createSession(env, row.user_id) });
-  }
-
-  // ===== signed in =====
-  const user = await currentUser(request, env);
-  if (!user) throw new HttpError("Please log in.", 401);
-  const me = { id: user.id, email: user.email, name: user.name };
-
-  if (path === "/api/me" && method === "GET") {
-    const m = await membership(env, user.id);
-    return json({ user: me, nest_id: m ? m.nest_id : null });
-  }
-
-  if (path === "/api/password/change" && method === "POST") {
-    const row = await env.DB.prepare("SELECT pw FROM users WHERE id = ?").bind(user.id).first();
-    if (await limited(env, "change:" + user.id, 10, 900)) throw new HttpError("Too many tries. Wait 15 minutes.", 429);
-    if (!(await verifyPassword(String(body.current ?? ""), row.pw))) { await recordAttempt(env, "change:" + user.id); throw new HttpError("Your current password is wrong."); }
-    const password = checkPassword(body.password);
-    await env.DB.batch([
-      env.DB.prepare("UPDATE users SET pw = ? WHERE id = ?").bind(await hashPassword(password), user.id),
-      env.DB.prepare("DELETE FROM sessions WHERE user_id = ? AND token_hash != ?").bind(user.id, user.session), // log out other devices
-    ]);
-    return json({ ok: true });
-  }
-
-  if (path === "/api/me" && method === "PATCH") {
-    const nestId = await requireNest(env, user);
-    if (body.name !== undefined) {
-      const name = cleanText(body.name, 24);
-      if (!name) throw new HttpError("Enter a name.");
-      await env.DB.prepare("UPDATE users SET name = ? WHERE id = ?").bind(name, user.id).run();
-    }
-    if (body.emoji !== undefined) {
-      if (!EMOJIS.includes(body.emoji)) throw new HttpError("Pick one of the buddies.");
-      await env.DB.prepare("UPDATE members SET emoji = ? WHERE user_id = ? AND nest_id = ?").bind(body.emoji, user.id, nestId).run();
-    }
-    if (body.color !== undefined) {
-      if (!COLORS.includes(body.color)) throw new HttpError("Pick one of the colors.");
-      await env.DB.prepare("UPDATE members SET color = ? WHERE user_id = ? AND nest_id = ?").bind(body.color, user.id, nestId).run();
-    }
-    return json({ ok: true });
-  }
-
-  if (path === "/api/nests" && method === "POST") {
-    if (await membership(env, user.id)) throw new HttpError("You're already in a budget.", 409);
-    const id = crypto.randomUUID();
-    await env.DB.batch([
-      env.DB.prepare("INSERT INTO nests (id, name, invite_code, created_by, created_at) VALUES (?, ?, ?, ?, ?)").bind(id, cleanText(body.name, 24), inviteCode(), user.id, now()),
-      env.DB.prepare("INSERT INTO members (nest_id, user_id, emoji, color, joined_at) VALUES (?, ?, ?, ?, ?)").bind(id, user.id, EMOJIS[0], COLORS[0], now()),
-    ]);
-    return json({ ok: true, nest_id: id }, 201);
-  }
-
-  if (path === "/api/nests/join" && method === "POST") {
-    if (await limited(env, "join:" + user.id, 20, 3600)) throw new HttpError("Too many tries. Try again later.", 429);
-    await recordAttempt(env, "join:" + user.id);
-    const code = String(body.code ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "");
-    const nest = await env.DB.prepare("SELECT id FROM nests WHERE invite_code = ?").bind(code).first();
-    if (!nest) throw new HttpError("That invite code doesn't match any budget. Check it and try again.", 404);
-    const mine = await membership(env, user.id);
-    if (mine) {
-      if (mine.nest_id === nest.id) return json({ ok: true, nest_id: nest.id });
-      throw new HttpError("You're already in a budget. Leave it in Settings first, then join this one.", 409);
-    }
-    const members = (await env.DB.prepare("SELECT emoji, color FROM members WHERE nest_id = ?").bind(nest.id).all()).results;
-    if (members.length >= MAX_MEMBERS) throw new HttpError("This budget is full.", 409);
-    const emoji = EMOJIS.find((e) => !members.some((m) => m.emoji === e)) || EMOJIS[0];
-    const color = COLORS.find((c) => !members.some((m) => m.color === c)) || COLORS[0];
-    await env.DB.prepare("INSERT INTO members (nest_id, user_id, emoji, color, joined_at) VALUES (?, ?, ?, ?, ?)").bind(nest.id, user.id, emoji, color, now()).run();
-    return json({ ok: true, nest_id: nest.id });
-  }
-
-  // ----- everything below is inside a budget -----
-  const nestId = await requireNest(env, user);
-
-  if (path === "/api/nest" && method === "GET") {
-    const month = url.searchParams.get("month") || "";
-    if (!/^\d{4}-\d{2}$/.test(month)) throw new HttpError("Bad month.");
-    const since = new Date(Date.now() - 45 * 86400000).toISOString().slice(0, 10);
-    const [nest, members, entries, sharedAll, settlements, recurring, logged, jar] = await env.DB.batch([
-      env.DB.prepare("SELECT id, name, invite_code, accent, goal_name, goal_target, goal_saved FROM nests WHERE id = ?").bind(nestId),
-      env.DB.prepare("SELECT u.id, u.name, m.emoji, m.color FROM members m JOIN users u ON u.id = m.user_id WHERE m.nest_id = ? ORDER BY m.joined_at").bind(nestId),
-      env.DB.prepare(
-        `SELECT id, member_id, type, amount_cents, label, category, shared, split_mode, split_value, shares, private, date, recurring_id, occ_date, created_at
-         FROM entries WHERE nest_id = ? AND date >= ? AND date <= ? AND (private = 0 OR member_id = ?) ORDER BY date DESC, created_at DESC`
-      ).bind(nestId, month + "-01", month + "-31", user.id),
-      env.DB.prepare("SELECT member_id, amount_cents, shares FROM entries WHERE nest_id = ? AND type = 'expense' AND shared = 1").bind(nestId),
-      env.DB.prepare("SELECT id, from_id, to_id, amount_cents, date, created_at FROM settlements WHERE nest_id = ? ORDER BY date DESC, created_at DESC").bind(nestId),
-      env.DB.prepare("SELECT id, type, label, amount_cents, category, member_id, shared, split_mode, split_value, freq, anchor_date FROM recurring WHERE nest_id = ? ORDER BY type DESC, label").bind(nestId),
-      env.DB.prepare("SELECT recurring_id, occ_date FROM entries WHERE nest_id = ? AND recurring_id IS NOT NULL AND occ_date >= ?").bind(nestId, since),
-      env.DB.prepare("SELECT id, member_id, amount_cents, created_at FROM jar_moves WHERE nest_id = ? ORDER BY created_at DESC LIMIT 12").bind(nestId),
-    ]);
-
-    // running "who owes whom" balance across all time (positive = others owe you)
-    const ids = members.results.map((m) => m.id);
-    const balances = Object.fromEntries(ids.map((id) => [id, 0]));
-    for (const e of sharedAll.results) {
-      let shares; try { shares = JSON.parse(e.shares); } catch { shares = null; }
-      if (!shares) shares = computeShares(e.amount_cents, "equal", null, e.member_id, ids.includes(e.member_id) ? ids : [e.member_id, ...ids]);
-      if (e.member_id in balances) balances[e.member_id] += e.amount_cents;
-      for (const [id, c] of Object.entries(shares)) if (id in balances) balances[id] -= c;
-    }
-    for (const s of settlements.results) {
-      if (s.from_id in balances) balances[s.from_id] += s.amount_cents;
-      if (s.to_id in balances) balances[s.to_id] -= s.amount_cents;
-    }
-
-    return json({
-      me, nest: nest.results[0], members: members.results, entries: entries.results,
-      balances, settlements: settlements.results.slice(0, 10), recurring: recurring.results,
-      logged: logged.results, jar: jar.results,
+  function ask(title, body, yes = "Yes") {
+    return new Promise((res) => {
+      $("askT").textContent = title; $("askP").textContent = body; $("askYes").textContent = yes;
+      const d = $("askDlg"); d.showModal();
+      $("askYes").onclick = () => { d.close(); res(true); };
+      $("askNo").onclick = () => { d.close(); res(false); };
     });
   }
+  function busy(btn, on) { btn.disabled = on; btn.style.opacity = on ? ".6" : ""; }
 
-  if (path === "/api/nest" && method === "PATCH") {
-    if (body.name !== undefined) await env.DB.prepare("UPDATE nests SET name = ? WHERE id = ?").bind(cleanText(body.name, 24), nestId).run();
-    if (body.accent !== undefined) {
-      if (!ACCENTS.includes(body.accent)) throw new HttpError("Unknown theme.");
-      await env.DB.prepare("UPDATE nests SET accent = ? WHERE id = ?").bind(body.accent, nestId).run();
+  async function api(path, { method = "GET", body } = {}) {
+    const opts = { method, credentials: "same-origin", headers: {} };
+    if (method !== "GET") { opts.headers["content-type"] = "application/json"; opts.body = JSON.stringify(body ?? {}); }
+    let res;
+    try { res = await fetch(path, opts); } catch { throw new Error("You're offline. Check your connection and try again."); }
+    let data = {};
+    try { data = await res.json(); } catch {}
+    if (!res.ok) {
+      const e = new Error(data.error || "Something went wrong. Try again.");
+      e.status = res.status;
+      if (res.status === 401 && !["/api/login", "/api/me"].includes(path)) { ME = null; showAuth(); }
+      throw e;
     }
-    if (body.goal_name !== undefined || body.goal_target !== undefined) {
-      const name = cleanText(body.goal_name, 30);
-      if (!name) throw new HttpError("Name your goal.");
-      await env.DB.prepare("UPDATE nests SET goal_name = ?, goal_target = ? WHERE id = ?").bind(name, toCents(body.goal_target, "a target"), nestId).run();
-    }
-    return json({ ok: true });
+    return data;
   }
 
-  if (path === "/api/nest/invite" && method === "POST") {
-    const code = inviteCode();
-    await env.DB.prepare("UPDATE nests SET invite_code = ? WHERE id = ?").bind(code, nestId).run();
-    return json({ ok: true, invite_code: code });
+  // ---------- state ----------
+  let ME = null, NEST = null, MEMBERS = [], ENTRIES = [], BAL = {}, SETTLES = [], RECUR = [], LOGGED = new Set(), JAR = [];
+  let MONTH = today().slice(0, 7);
+  let screen = "loading", filter = null, authMode = "signup";
+  // add/edit form
+  let mode = "expense", cat = "groc", who = null, shared = true, splitMode = "equal", editing = null;
+  let pendingCode = null, resetToken = null;
+  {
+    const j = location.pathname.match(/^\/join\/([A-Za-z0-9-]{4,20})\/?$/);
+    if (j) pendingCode = j[1];
+    const r = location.pathname.match(/^\/reset\/([A-Za-z0-9_-]{20,100})\/?$/);
+    if (r) resetToken = r[1];
   }
+  const member = (id) => MEMBERS.find((m) => m.id === id) || { name: "Someone", emoji: "❔", color: "#EEE" };
+  const meMember = () => MEMBERS.find((m) => m.id === ME?.id);
+  const others = (id) => MEMBERS.filter((m) => m.id !== id);
 
-  if (path === "/api/nest/leave" && method === "POST") {
-    await env.DB.prepare("DELETE FROM members WHERE user_id = ? AND nest_id = ?").bind(user.id, nestId).run();
-    const left = await env.DB.prepare("SELECT COUNT(*) AS n FROM members WHERE nest_id = ?").bind(nestId).first();
-    if (left.n === 0) {
-      await env.DB.batch(["entries", "settlements", "jar_moves", "recurring"].map((t) => env.DB.prepare(`DELETE FROM ${t} WHERE nest_id = ?`).bind(nestId))
-        .concat([env.DB.prepare("DELETE FROM nests WHERE id = ?").bind(nestId)]));
-    }
-    return json({ ok: true });
+  // ---------- screens ----------
+  const APP_SCREENS = ["home", "add", "us"];
+  function show(s) {
+    screen = s;
+    ["loading", "auth", "reset", "setup", "home", "add", "us"].forEach((k) => ($("scr-" + k).hidden = k !== s));
+    const inApp = APP_SCREENS.includes(s);
+    $("nav").hidden = !inApp; $("topBar").hidden = !inApp;
+    document.querySelectorAll("nav.bottom [data-go]").forEach((b) => b.dataset.go === s ? b.setAttribute("aria-current", "page") : b.removeAttribute("aria-current"));
+    window.scrollTo(0, 0);
+    if (inApp) render();
   }
+  document.querySelectorAll("nav.bottom [data-go]").forEach((b) => (b.onclick = () => {
+    if (b.dataset.go === "add") openAdd(); else { if (screen === "add") editing = null; show(b.dataset.go); }
+  }));
 
-  // ----- savings jar -----
-  if (path === "/api/jar" && method === "POST") {
-    const cents = toCents(body.amount);
-    const signed = body.direction === "out" ? -cents : cents;
-    const nest = await env.DB.prepare("SELECT goal_saved FROM nests WHERE id = ?").bind(nestId).first();
-    if (nest.goal_saved + signed < 0) throw new HttpError("You can't take out more than is in the jar.");
-    await env.DB.batch([
-      env.DB.prepare("INSERT INTO jar_moves (id, nest_id, member_id, amount_cents, created_at) VALUES (?, ?, ?, ?, ?)").bind(crypto.randomUUID(), nestId, user.id, signed, now()),
-      env.DB.prepare("UPDATE nests SET goal_saved = goal_saved + ? WHERE id = ?").bind(signed, nestId),
-    ]);
-    return json({ ok: true });
+  // ---------- auth ----------
+  function showAuth() {
+    $("inviteNotice").hidden = !pendingCode;
+    $("authCard").hidden = false; $("forgotCard").hidden = true;
+    setAuthMode(authMode);
+    show("auth");
   }
-  const jarDel = path.match(/^\/api\/jar\/([0-9a-f-]{36})$/);
-  if (jarDel && method === "DELETE") {
-    const move = await env.DB.prepare("SELECT amount_cents FROM jar_moves WHERE id = ? AND nest_id = ?").bind(jarDel[1], nestId).first();
-    if (!move) throw new HttpError("Not found.", 404);
-    await env.DB.batch([
-      env.DB.prepare("DELETE FROM jar_moves WHERE id = ?").bind(jarDel[1]),
-      env.DB.prepare("UPDATE nests SET goal_saved = MAX(0, goal_saved - ?) WHERE id = ?").bind(move.amount_cents, nestId),
-    ]);
-    return json({ ok: true });
+  function setAuthMode(m) {
+    authMode = m;
+    document.querySelectorAll("[data-auth]").forEach((b) => b.setAttribute("aria-selected", b.dataset.auth === m ? "true" : "false"));
+    $("nameField").hidden = m !== "signup";
+    $("forgotWrap").hidden = m !== "login";
+    $("aPass").setAttribute("autocomplete", m === "signup" ? "new-password" : "current-password");
+    $("aPass").placeholder = m === "signup" ? "At least 8 characters" : "";
+    $("authBtn").textContent = m === "signup" ? "Create account" : "Log in";
+    $("authErr").textContent = "";
   }
-
-  // ----- settle up -----
-  if (path === "/api/settlements" && method === "POST") {
-    const ids = await memberIds(env, nestId);
-    const from = String(body.from_id ?? ""), to = String(body.to_id ?? "");
-    if (!ids.includes(from) || !ids.includes(to) || from === to) throw new HttpError("Pick who paid who.");
-    await env.DB.prepare("INSERT INTO settlements (id, nest_id, from_id, to_id, amount_cents, date, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
-      .bind(crypto.randomUUID(), nestId, from, to, toCents(body.amount), isDate(body.date) ? body.date : todayStr(), user.id, now()).run();
-    return json({ ok: true }, 201);
-  }
-  const setDel = path.match(/^\/api\/settlements\/([0-9a-f-]{36})$/);
-  if (setDel && method === "DELETE") {
-    await env.DB.prepare("DELETE FROM settlements WHERE id = ? AND nest_id = ?").bind(setDel[1], nestId).run();
-    return json({ ok: true });
-  }
-
-  // ----- entries -----
-  if (path === "/api/entries" && method === "POST") {
-    const e = await readEntry(env, nestId, user, body);
-    let rid = null, occ = null;
-    if (body.recurring_id) {
-      const r = await env.DB.prepare("SELECT id FROM recurring WHERE id = ? AND nest_id = ?").bind(String(body.recurring_id), nestId).first();
-      if (r && isDate(body.occ_date)) { rid = r.id; occ = body.occ_date; }
-    }
-    return json({ ok: true, id: await insertEntry(env, nestId, user, e, rid, occ) }, 201);
-  }
-  const entryId = path.match(/^\/api\/entries\/([0-9a-f-]{36})$/);
-  if (entryId && method === "PATCH") {
-    const existing = await env.DB.prepare("SELECT id FROM entries WHERE id = ? AND nest_id = ? AND (private = 0 OR member_id = ?)").bind(entryId[1], nestId, user.id).first();
-    if (!existing) throw new HttpError("That entry doesn't exist anymore.", 404);
-    const e = await readEntry(env, nestId, user, body);
-    await env.DB.prepare(
-      "UPDATE entries SET member_id = ?, type = ?, amount_cents = ?, label = ?, category = ?, shared = ?, split_mode = ?, split_value = ?, shares = ?, private = ?, date = ? WHERE id = ? AND nest_id = ?"
-    ).bind(e.memberId, e.type, e.amount, e.label, e.category, e.shared, e.split.mode, e.split.value, e.shares, e.priv, e.date, entryId[1], nestId).run();
-    return json({ ok: true });
-  }
-  if (entryId && method === "DELETE") {
-    await env.DB.prepare("DELETE FROM entries WHERE id = ? AND nest_id = ? AND (private = 0 OR member_id = ?)").bind(entryId[1], nestId, user.id).run();
-    return json({ ok: true });
-  }
-
-  // ----- bills & paydays -----
-  async function readRecurring() {
-    const e = await readEntry(env, nestId, user, body);
-    const freq = FREQS.includes(body.freq) ? body.freq : null;
-    if (!freq) throw new HttpError("Pick how often it repeats.");
-    if (!isDate(body.date)) throw new HttpError("Pick the next date.");
-    return { ...e, freq, anchor: body.date };
-  }
-  if (path === "/api/recurring" && method === "POST") {
-    const r = await readRecurring();
-    const id = crypto.randomUUID();
-    await env.DB.prepare(
-      "INSERT INTO recurring (id, nest_id, type, label, amount_cents, category, member_id, shared, split_mode, split_value, freq, anchor_date, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-    ).bind(id, nestId, r.type, r.label, r.amount, r.category, r.memberId, r.shared, r.split.mode, r.split.value, r.freq, r.anchor, user.id, now()).run();
-    if (body.log_now) await insertEntry(env, nestId, user, { ...r, priv: 0 }, id, r.anchor);
-    return json({ ok: true, id }, 201);
-  }
-  const recId = path.match(/^\/api\/recurring\/([0-9a-f-]{36})$/);
-  if (recId && method === "PATCH") {
-    const r = await readRecurring();
-    await env.DB.prepare(
-      "UPDATE recurring SET type = ?, label = ?, amount_cents = ?, category = ?, member_id = ?, shared = ?, split_mode = ?, split_value = ?, freq = ?, anchor_date = ? WHERE id = ? AND nest_id = ?"
-    ).bind(r.type, r.label, r.amount, r.category, r.memberId, r.shared, r.split.mode, r.split.value, r.freq, r.anchor, recId[1], nestId).run();
-    return json({ ok: true });
-  }
-  if (recId && method === "DELETE") {
-    await env.DB.prepare("DELETE FROM recurring WHERE id = ? AND nest_id = ?").bind(recId[1], nestId).run();
-    return json({ ok: true });
-  }
-  const recLog = path.match(/^\/api\/recurring\/([0-9a-f-]{36})\/log$/);
-  if (recLog && method === "POST") {
-    const r = await env.DB.prepare("SELECT * FROM recurring WHERE id = ? AND nest_id = ?").bind(recLog[1], nestId).first();
-    if (!r) throw new HttpError("That bill doesn't exist anymore.", 404);
-    if (!isDate(body.occ_date)) throw new HttpError("Bad date.");
-    if (await env.DB.prepare("SELECT 1 FROM entries WHERE recurring_id = ? AND occ_date = ?").bind(r.id, body.occ_date).first())
-      return json({ ok: true, already: true });
-    const ids = await memberIds(env, nestId);
-    const payer = ids.includes(r.member_id) ? r.member_id : user.id;
-    const shared = r.shared && ids.length > 1 ? 1 : 0;
-    const e = {
-      type: r.type, amount: r.amount_cents, memberId: payer, shared, priv: 0,
-      split: { mode: shared ? r.split_mode || "equal" : null, value: shared ? r.split_value : null },
-      shares: shared ? JSON.stringify(computeShares(r.amount_cents, r.split_mode || "equal", r.split_value, payer, ids)) : null,
-      category: r.category, label: r.label, date: todayStr(),
-    };
-    await insertEntry(env, nestId, user, e, r.id, body.occ_date);
-    return json({ ok: true }, 201);
-  }
-
-  throw new HttpError("Not found.", 404);
-}
-
-export default {
-  async fetch(request, env) {
-    const url = new URL(request.url);
-    if (!url.pathname.startsWith("/api/")) return env.ASSETS.fetch(request);
-
-    // CSRF protection: changes must come from our own site, as JSON
-    if (request.method !== "GET") {
-      let sameOrigin = false;
-      try { sameOrigin = new URL(request.headers.get("origin")).host === url.host; } catch {}
-      if (!sameOrigin) return fail("Request blocked.", 403);
-      if (!(request.headers.get("content-type") || "").includes("application/json")) return fail("Expected JSON.", 415);
-    }
-
+  document.querySelectorAll("[data-auth]").forEach((b) => (b.onclick = () => setAuthMode(b.dataset.auth)));
+  $("authForm").onsubmit = async (ev) => {
+    ev.preventDefault();
+    const email = $("aEmail").value.trim(), password = $("aPass").value, name = $("aName").value.trim();
+    if (authMode === "signup" && !name) { $("authErr").textContent = "Enter your name."; $("aName").focus(); return; }
+    if (!email) { $("authErr").textContent = "Enter your email."; $("aEmail").focus(); return; }
+    if (authMode === "signup" && password.length < 8) { $("authErr").textContent = "Use a password with at least 8 characters."; $("aPass").focus(); return; }
+    busy($("authBtn"), true); $("authErr").textContent = "";
     try {
-      await ensureSchema(env);
-      return await handle(request, env, url);
+      await api(authMode === "signup" ? "/api/signup" : "/api/login", { method: "POST", body: { name, email, password } });
+      $("aPass").value = "";
+      await afterAuth();
     } catch (e) {
-      if (e instanceof HttpError) return fail(e.message, e.status);
-      console.error(e);
-      return fail("Something went wrong on our side. Try again.", 500);
-    }
-  },
+      if (e.status === 409) setAuthMode("login");
+      $("authErr").textContent = e.message;
+    } finally { busy($("authBtn"), false); }
+  };
+  $("forgotLink").onclick = () => { $("authCard").hidden = true; $("forgotCard").hidden = false; $("fEmail").value = $("aEmail").value; $("forgotMsg").textContent = ""; $("fEmail").focus(); };
+  $("backToLogin").onclick = () => { $("forgotCard").hidden = true; $("authCard").hidden = false; setAuthMode("login"); };
+  $("forgotForm").onsubmit = async (ev) => {
+    ev.preventDefault();
+    const email = $("fEmail").value.trim();
+    if (!email) { $("forgotMsg").textContent = "Enter your email."; return; }
+    busy($("forgotBtn"), true);
+    try {
+      await api("/api/password/forgot", { method: "POST", body: { email } });
+      $("forgotMsg").style.color = "var(--mint-d)";
+      $("forgotMsg").textContent = "If there's an account for that email, a reset link is on its way. It works for 1 hour.";
+    } catch (e) { $("forgotMsg").style.color = ""; $("forgotMsg").textContent = e.message; }
+    finally { busy($("forgotBtn"), false); }
+  };
+  $("resetForm").onsubmit = async (ev) => {
+    ev.preventDefault();
+    const p = $("rPass").value, p2 = $("rPass2").value;
+    if (p.length < 8) { $("resetErr").textContent = "Use a password with at least 8 characters."; return; }
+    if (p !== p2) { $("resetErr").textContent = "The two passwords don't match."; return; }
+    busy($("resetBtn"), true);
+    try {
+      await api("/api/password/reset", { method: "POST", body: { token: resetToken, password: p } });
+      resetToken = null; history.replaceState(null, "", "/");
+      toast("Password changed");
+      await afterAuth();
+    } catch (e) { $("resetErr").textContent = e.message; }
+    finally { busy($("resetBtn"), false); }
+  };
 
-  // daily cleanup (cron in wrangler.jsonc)
-  async scheduled(_event, env) {
-    await ensureSchema(env);
-    await env.DB.batch([
-      env.DB.prepare("DELETE FROM sessions WHERE expires_at < ?").bind(now()),
-      env.DB.prepare("DELETE FROM password_resets WHERE expires_at < ?").bind(now()),
-      env.DB.prepare("DELETE FROM auth_attempts WHERE ts < ?").bind(now() - 86400),
-    ]);
-  },
-};
+  async function afterAuth() {
+    const me = await api("/api/me");
+    ME = me.user;
+    store.set("hb-had-account", "1");
+    if (pendingCode) {
+      try { await api("/api/nests/join", { method: "POST", body: { code: pendingCode } }); toast("You joined the budget"); }
+      catch (e) { $("setupErr").textContent = e.message; toast(e.message); }
+      pendingCode = null; history.replaceState(null, "", "/");
+      return afterAuth();
+    }
+    if (!me.nest_id) { $("setupHi").textContent = "Hi, " + ME.name + "!"; show("setup"); return; }
+    await loadNest();
+    show("home"); bunnyHop();
+    if (!store.get("hb-tour-" + ME.id)) setTimeout(openTour, 350);
+  }
+  async function logout() {
+    try { await api("/api/logout", { method: "POST" }); } catch {}
+    ME = null; NEST = null; MEMBERS = []; ENTRIES = []; filter = null; editing = null;
+    authMode = "login"; showAuth();
+  }
+  $("setupLogout").onclick = logout;
+  $("logoutBtn").onclick = logout;
+
+  // ---------- setup ----------
+  $("createNest").onclick = async () => {
+    busy($("createNest"), true); $("setupErr").textContent = "";
+    try { await api("/api/nests", { method: "POST", body: { name: $("newNestName").value } }); await afterAuth(); }
+    catch (e) { $("setupErr").textContent = e.message; } finally { busy($("createNest"), false); }
+  };
+  $("joinNest").onclick = async () => {
+    const code = $("joinCode").value.trim();
+    if (!code) { $("setupErr").textContent = "Enter the invite code."; $("joinCode").focus(); return; }
+    busy($("joinNest"), true); $("setupErr").textContent = "";
+    try { await api("/api/nests/join", { method: "POST", body: { code } }); toast("You joined the budget"); await afterAuth(); }
+    catch (e) { $("setupErr").textContent = e.message; } finally { busy($("joinNest"), false); }
+  };
+
+  // ---------- data ----------
+  async function loadNest() {
+    const d = await api("/api/nest?month=" + MONTH);
+    ME = d.me; NEST = d.nest; MEMBERS = d.members;
+    ENTRIES = d.entries.map((e) => ({ ...e, amount: e.amount_cents / 100, shared: !!e.shared, private: !!e.private }));
+    BAL = d.balances; SETTLES = d.settlements; RECUR = d.recurring; JAR = d.jar;
+    LOGGED = new Set(d.logged.map((l) => l.recurring_id + "|" + l.occ_date));
+    if (!MEMBERS.some((m) => m.id === who)) who = ME.id;
+    if (filter && !MEMBERS.some((m) => m.id === filter)) filter = null;
+    if (APP_SCREENS.includes(screen)) render();
+  }
+  async function refresh() {
+    if (!ME || !APP_SCREENS.includes(screen) || document.hidden || screen === "add") return;
+    if (document.querySelector("dialog[open]")) return;
+    try { await loadNest(); } catch {}
+  }
+  setInterval(refresh, 20000);
+  document.addEventListener("visibilitychange", refresh);
+
+  // ---------- bills & paydays: upcoming ----------
+  function occurrences(r, from, to) {
+    const out = [], a = parseD(r.anchor_date);
+    if (r.freq === "monthly") {
+      const day = a.getDate();
+      let y = from.getFullYear(), m = from.getMonth();
+      for (let i = 0; i < 26; i++) {
+        const d = new Date(y, m, Math.min(day, new Date(y, m + 1, 0).getDate()));
+        if (d > to) break;
+        if (d >= from && d >= a) out.push(d);
+        if (++m > 11) { m = 0; y++; }
+      }
+    } else {
+      const step = r.freq === "weekly" ? 7 : 14;
+      let d = a;
+      if (d < from) d = addDays(a, Math.ceil(Math.round((from - a) / 86400000) / step) * step);
+      for (let i = 0; d <= to && i < 60; i++) { out.push(d); d = addDays(d, step); }
+    }
+    return out;
+  }
+  const isLogged = (r, d) => LOGGED.has(r.id + "|" + toS(d));
+  function nextOcc(r) { const t = parseD(today()); return occurrences(r, t, addDays(t, 400))[0]; }
+  function upcoming() {
+    const t = parseD(today());
+    let payday = null, pays = [];
+    for (const r of RECUR.filter((r) => r.type === "income")) {
+      const d = occurrences(r, t, addDays(t, 62)).find((d) => !isLogged(r, d));
+      if (!d) continue;
+      if (!payday || d < payday) { payday = d; pays = [{ r, d }]; }
+      else if (+d === +payday) pays.push({ r, d });
+    }
+    const until = payday ? addDays(payday, -1) : addDays(t, 30);
+    const bills = [];
+    for (const r of RECUR.filter((r) => r.type === "expense"))
+      for (const d of occurrences(r, addDays(t, -31), until)) if (!isLogged(r, d)) bills.push({ r, d, late: d < t });
+    bills.sort((a, b) => a.d - b.d);
+    return { payday, pays, bills };
+  }
+  async function logOcc(r, d, btn) {
+    if (btn) busy(btn, true);
+    try {
+      await api(`/api/recurring/${r.id}/log`, { method: "POST", body: { occ_date: toS(d) } });
+      await loadNest();
+      toast(r.type === "income" ? "Payday logged" : r.label + " marked paid");
+      bunnyHop();
+    } catch (e) { toast(e.message); if (btn) busy(btn, false); }
+  }
+
+  // ---------- rendering ----------
+  function setBunny(left, inc, out, any) {
+    const r = inc > 0 ? out / inc : out > 0 ? 2 : 0;
+    let msg, path = "M53 90 q3.5 4 7 0 q3.5 4 7 0", p = "";
+    if (!any) msg = "Add your first paycheck to begin.";
+    else if (inc === 0) { msg = "No income logged yet."; path = "M54 91 h12"; }
+    else if (r > 1) { msg = "A little over this month."; path = "M53 93 q7 -5 14 0"; }
+    else if (r > 0.8) { msg = "Almost at the limit."; path = "M54 91 q6 1.5 12 0"; }
+    else {
+      msg = Math.round((1 - r) * 100) + "% of this month is still ours.";
+      if (r < 0.5) { path = "M52 89 q8 8 16 0"; p = '<path d="M100 40 c-3-5-10-2-6 4 l6 5 6-5 c4-6-3-9-6-4z" fill="#EE7FA3" stroke="none"/>'; }
+    }
+    $("mouth").setAttribute("d", path); $("prop").innerHTML = p; $("bubble").textContent = msg;
+  }
+  function bunnyHop() { const b = $("bunny"); b.classList.remove("hop"); void b.getBoundingClientRect(); b.classList.add("hop"); }
+
+  function splitText(e) {
+    if (!e.shared) return e.private ? "personal, private" : "personal";
+    if (e.split_mode === "percent" && MEMBERS.length === 2) return `split ${e.split_value}/${100 - e.split_value}`;
+    if (e.split_mode === "percent") return `split, ${member(e.member_id).name} covers ${e.split_value}%`;
+    if (e.split_mode === "owed") {
+      const o = others(e.member_id);
+      return o.length === 1 ? `${o[0].name} owes ${fmt(e.split_value / 100)}` : `others owe ${fmt(e.split_value / 100)}`;
+    }
+    return "split evenly";
+  }
+
+  function entryPayload(e) {
+    return { type: e.type, amount: e.amount, label: e.label, category: e.category, member_id: e.member_id, shared: e.shared,
+      split_mode: e.split_mode, split_value: e.split_mode === "owed" ? e.split_value / 100 : e.split_value,
+      private: e.private, date: e.date, recurring_id: e.recurring_id, occ_date: e.occ_date };
+  }
+  async function deleteEntry(e) {
+    try {
+      await api("/api/entries/" + e.id, { method: "DELETE" });
+      await loadNest();
+      toast("Deleted " + e.label, "Undo", async () => {
+        try { await api("/api/entries", { method: "POST", body: entryPayload(e) }); await loadNest(); toast("Restored"); }
+        catch (err) { toast(err.message); }
+      });
+    } catch (err) { toast(err.message); }
+  }
+
+  function entryLi(e) {
+    const m = member(e.member_id), c = CATS.find((x) => x.id === e.category) || CATS[8], isIn = e.type === "income";
+    const li = document.createElement("li"); li.className = "clickable";
+    li.innerHTML = `<div class="ic" style="${isIn ? "background:var(--mint-t)" : ""}">${isIn ? "💰" : c.e}</div>
+      <div class="mid"><div class="t">${esc(e.label)}${e.private ? ' <span class="lock" title="Only you can see this">🔒</span>' : ""}</div>
+      <div class="s">${esc(m.emoji)} ${esc(m.name)}, ${shortDay(parseD(e.date))}${isIn ? "" : ", " + esc(splitText(e))}</div></div>
+      <div class="amt ${isIn ? "in" : ""}">${isIn ? "+" : "−"}${fmt(e.amount)}</div>
+      <button class="del" aria-label="Delete ${esc(e.label)}">✕</button>`;
+    li.onclick = () => openEditEntry(e);
+    li.querySelector(".del").onclick = (ev) => { ev.stopPropagation(); deleteEntry(e); };
+    return li;
+  }
+
+  function inviteUrl() { return location.origin + "/join/" + NEST.invite_code; }
+  const prettyCode = (c) => c.slice(0, 4) + "-" + c.slice(4);
+
+  function pairs() {
+    const debt = [], cred = [];
+    MEMBERS.forEach((m) => { const v = (BAL[m.id] || 0) / 100; if (v < -0.005) debt.push({ m, v: -v }); else if (v > 0.005) cred.push({ m, v }); });
+    const out = []; let i = 0, j = 0;
+    while (i < debt.length && j < cred.length) {
+      const pay = Math.min(debt[i].v, cred[j].v);
+      out.push({ from: debt[i].m, to: cred[j].m, amount: Math.round(pay * 100) / 100 });
+      debt[i].v -= pay; cred[j].v -= pay;
+      if (debt[i].v < 0.005) i++; if (cred[j].v < 0.005) j++;
+    }
+    return out;
+  }
+
+  function renderDue(left) {
+    const box = $("dueCard");
+    if (!RECUR.length) {
+      box.innerHTML = `<div class="due-h"><h2>Bills &amp; paydays</h2></div>
+        <p class="due-empty">Add rent, bills, and paydays once. Honeybun will show what's due before your next paycheck.</p>
+        <button class="small" id="dueAdd" style="margin-top:8px">Add a bill or payday</button>`;
+      $("dueAdd").onclick = () => openAdd({ repeat: "monthly" });
+      return;
+    }
+    const { payday, pays, bills } = upcoming();
+    const total = bills.reduce((s, b) => s + b.r.amount_cents / 100, 0);
+    box.innerHTML = `<div class="due-h"><h2>${payday ? "Before payday" : "Coming up"}</h2><span>${payday ? dayName(payday) : "next 30 days"}</span></div>`;
+    if (!bills.length) box.insertAdjacentHTML("beforeend", `<p class="due-empty">Nothing due${payday ? " before payday" : " soon"} ♡</p>`);
+    bills.forEach((b) => {
+      const c = CATS.find((x) => x.id === b.r.category) || CATS[4];
+      const row = document.createElement("div"); row.className = "due-row";
+      row.innerHTML = `<div class="ic">${c.e}</div><div class="mid"><div class="t">${esc(b.r.label)}</div>
+        <div class="s ${b.late ? "late" : ""}">${b.late ? "Overdue, was due " : "Due "}${shortDay(b.d)}</div></div>
+        <div class="amt">${fmt(b.r.amount_cents / 100)}</div><button class="mini">Paid</button>`;
+      row.querySelector("button").onclick = (ev) => logOcc(b.r, b.d, ev.currentTarget);
+      box.appendChild(row);
+    });
+    pays.forEach((p) => {
+      const m = member(p.r.member_id);
+      const row = document.createElement("div"); row.className = "due-row";
+      row.innerHTML = `<div class="ic" style="background:var(--mint-t)">💰</div><div class="mid"><div class="t">${esc(p.r.label)}</div>
+        <div class="s">${esc(m.name)} gets paid ${shortDay(p.d)}</div></div>
+        <div class="amt" style="color:var(--mint-d)">+${fmt(p.r.amount_cents / 100)}</div><button class="mini inc">Got it</button>`;
+      row.querySelector("button").onclick = (ev) => logOcc(p.r, p.d, ev.currentTarget);
+      box.appendChild(row);
+    });
+    if (bills.length) box.insertAdjacentHTML("beforeend",
+      `<div class="due-foot"><span>Due ${fmt(total)}</span><span class="${left - total < 0 ? "neg" : ""}">Left after bills ${fmt(left - total)}</span></div>`);
+  }
+
+  function render() {
+    if (!NEST) return;
+    document.documentElement.setAttribute("data-accent", NEST.accent || "blueberry");
+    $("monthLbl").textContent = monthName(MONTH, true);
+    const names = MEMBERS.map((m) => m.name);
+    $("hi").textContent = NEST.name || (MEMBERS.length === 2 ? `${names[0]} & ${names[1]}` : MEMBERS.length === 1 ? names[0] : "Our family");
+
+    const all = ENTRIES, view = filter ? all.filter((e) => e.member_id === filter) : all;
+    const sum = (arr, t) => arr.filter((e) => e.type === t).reduce((s, e) => s + e.amount, 0);
+    const inc = sum(view, "income"), out = sum(view, "expense"), left = inc - out;
+
+    if (screen === "home") {
+      $("leftLbl").textContent = filter ? member(filter).name + "'s balance" : "Left for us this month";
+      $("leftAmt").textContent = fmt(left); $("leftAmt").classList.toggle("neg", left < 0);
+      $("meter").style.width = inc > 0 ? Math.min(100, (out / inc) * 100) + "%" : out > 0 ? "100%" : "0";
+      $("flowIn").textContent = "+" + fmt(inc) + " in"; $("flowOut").textContent = fmt(out) + " out";
+      setBunny(left, inc, out, view.length > 0);
+      const isThisMonth = MONTH === today().slice(0, 7);
+      $("dueCard").hidden = !isThisMonth;
+      if (isThisMonth) renderDue(sum(all, "income") - sum(all, "expense"));
+
+      const cp = $("couple"); cp.innerHTML = "";
+      const amp = () => { const h = document.createElement("span"); h.className = "heart"; h.textContent = "&"; h.setAttribute("aria-hidden", "true"); return h; };
+      MEMBERS.forEach((m, i) => {
+        if (i > 0 && MEMBERS.length === 2) cp.appendChild(amp());
+        const mi = all.filter((e) => e.member_id === m.id && e.type === "income").reduce((s, e) => s + e.amount, 0);
+        const mo = all.filter((e) => e.member_id === m.id && e.type === "expense").reduce((s, e) => s + e.amount, 0);
+        const b = document.createElement("button"); b.className = "pal"; b.setAttribute("aria-pressed", filter === m.id ? "true" : "false");
+        b.setAttribute("aria-label", `${m.name}: earned ${fmt(mi)}, paid ${fmt(mo)}. Tap to see only theirs.`);
+        b.innerHTML = `<span class="face" style="background:${esc(m.color)}">${esc(m.emoji)}</span><span class="nm">${esc(m.name)}</span><span class="st">+${fmt(mi)}<br>−${fmt(mo).replace("−", "")}</span>`;
+        b.onclick = () => { filter = filter === m.id ? null : m.id; render(); };
+        cp.appendChild(b);
+      });
+      if (MEMBERS.length === 1) {
+        const b = document.createElement("button"); b.className = "pal";
+        b.innerHTML = `<span class="face" style="background:var(--card);box-shadow:inset 0 0 0 2px var(--line);color:var(--soft)">＋</span><span class="nm">Invite</span><span class="st">your partner</span>`;
+        b.onclick = () => { show("us"); setTimeout(() => $("inviteH").scrollIntoView({ behavior: "smooth" }), 40); };
+        cp.append(amp(), b);
+      }
+      const fn = $("filterNote");
+      if (filter) {
+        fn.hidden = false; fn.textContent = `Only ${member(filter).name}'s money. `;
+        const c = document.createElement("button"); c.className = "linkbtn"; c.textContent = "Show everyone"; c.onclick = () => { filter = null; render(); }; fn.appendChild(c);
+      } else fn.hidden = true;
+
+      const rc = $("recent"); rc.innerHTML = "";
+      if (!view.length) rc.innerHTML = `<li class="empty" style="justify-content:center;border:0">Nothing yet for ${esc(monthName(MONTH))}. Tap + to add something.</li>`;
+      view.slice(0, 5).forEach((e) => rc.appendChild(entryLi(e)));
+      $("seeAll").hidden = view.length <= 5;
+    }
+
+    if (screen === "add") renderForm();
+
+    if (screen === "us") {
+      // settle up
+      const st = $("settle"), ps = pairs();
+      if (MEMBERS.length < 2) st.innerHTML = `<p class="empty" style="margin:0">Invite your partner to split costs.</p>`;
+      else if (!ps.length) st.innerHTML = `<div class="owe">You're all even ♡</div>`;
+      else {
+        st.innerHTML = `<p style="margin:0;color:var(--soft);font-weight:700;font-size:.85rem">From all split expenses so far</p>`;
+        ps.forEach((p) => {
+          const d = document.createElement("div"); d.className = "owe";
+          d.innerHTML = `<span class="f">${esc(p.from.emoji)}</span><span>${esc(p.from.name)} owes ${esc(p.to.name)}</span><span class="amt">${fmt(p.amount)}</span><button class="mini inc">Mark paid</button>`;
+          d.querySelector("button").onclick = () => openSettle(p);
+          st.appendChild(d);
+        });
+      }
+      const sh = $("settleHist"); sh.innerHTML = "";
+      SETTLES.slice(0, 5).forEach((s) => {
+        const li = document.createElement("li");
+        li.innerHTML = `<span><b>${esc(member(s.from_id).name)}</b> paid <b>${esc(member(s.to_id).name)}</b> ${fmt(s.amount_cents / 100)}, ${shortDay(parseD(s.date))}</span><button aria-label="Remove payment">✕</button>`;
+        li.querySelector("button").onclick = async () => {
+          if (!(await ask("Remove this payment?", "The balance will go back to what it was before.", "Remove"))) return;
+          try { await api("/api/settlements/" + s.id, { method: "DELETE" }); await loadNest(); } catch (e) { toast(e.message); }
+        };
+        sh.appendChild(li);
+      });
+
+      // bills & paydays
+      const bl = $("bills"); bl.innerHTML = "";
+      if (!RECUR.length) bl.innerHTML = `<li class="empty" style="justify-content:center;border:0">Rent, subscriptions, paychecks. Add them once.</li>`;
+      RECUR.forEach((r) => {
+        const isIn = r.type === "income", c = CATS.find((x) => x.id === r.category) || CATS[4], n = nextOcc(r);
+        const li = document.createElement("li"); li.className = "clickable";
+        li.innerHTML = `<div class="ic" style="${isIn ? "background:var(--mint-t)" : ""}">${isIn ? "💰" : c.e}</div>
+          <div class="mid"><div class="t">${esc(r.label)}</div><div class="s">${FREQ_NAME[r.freq]}${n ? ", next " + shortDay(n) : ""}, ${esc(member(r.member_id).name)}</div></div>
+          <div class="amt ${isIn ? "in" : ""}">${isIn ? "+" : ""}${fmt(r.amount_cents / 100)}</div>`;
+        li.onclick = () => openEditRecurring(r);
+        bl.appendChild(li);
+      });
+
+      // jar
+      const saved = NEST.goal_saved / 100, target = NEST.goal_target / 100;
+      const pct = target > 0 ? Math.min(100, (saved / target) * 100) : 0, h = (80 * pct) / 100;
+      $("jarFill").setAttribute("y", 98 - h); $("jarFill").setAttribute("height", h);
+      $("goalName").textContent = NEST.goal_name;
+      $("goalProg").textContent = fmt(saved) + " of " + fmt(target) + (pct >= 100 ? " · reached ♡" : " · " + Math.round(pct) + "%");
+      const jh = $("jarHist"); jh.innerHTML = "";
+      JAR.slice(0, 6).forEach((j) => {
+        const li = document.createElement("li"), inn = j.amount_cents > 0;
+        const when = new Date(j.created_at * 1000).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+        li.innerHTML = `<span><b>${esc(member(j.member_id).name)}</b> ${inn ? "added" : "took out"} ${fmt(Math.abs(j.amount_cents) / 100)}, ${when}</span><button aria-label="Remove">✕</button>`;
+        li.querySelector("button").onclick = async () => {
+          if (!(await ask("Remove this from the history?", "The jar total will be corrected.", "Remove"))) return;
+          try { await api("/api/jar/" + j.id, { method: "DELETE" }); await loadNest(); } catch (e) { toast(e.message); }
+        };
+        jh.appendChild(li);
+      });
+
+      // categories
+      const bars = $("bars"); bars.innerHTML = ""; const by = {};
+      all.filter((e) => e.type === "expense").forEach((e) => (by[e.category] = (by[e.category] || 0) + e.amount));
+      const rows = CATS.filter((c) => by[c.id]).sort((a, b) => by[b.id] - by[a.id]); const mx = Math.max(1, ...rows.map((c) => by[c.id]));
+      if (!rows.length) bars.innerHTML = `<p class="empty" style="margin:0">No spending yet this month.</p>`;
+      rows.forEach((c) => {
+        const d = document.createElement("div"); d.className = "bar";
+        d.innerHTML = `<div class="l"><span>${c.e} ${c.n}</span><span>${fmt(by[c.id])}</span></div><div class="trk"><i style="width:${(by[c.id] / mx) * 100}%;background:${c.c}"></i></div>`;
+        bars.appendChild(d);
+      });
+      const l = $("list"); l.innerHTML = "";
+      if (!all.length) l.innerHTML = `<li class="empty" style="justify-content:center;border:0">Nothing logged for ${esc(monthName(MONTH))}.</li>`;
+      all.forEach((e) => l.appendChild(entryLi(e)));
+
+      $("inviteCode").textContent = prettyCode(NEST.invite_code);
+      $("inviteLink").textContent = inviteUrl();
+      $("shareInvite").hidden = !navigator.share;
+      if (document.activeElement !== $("nestName")) $("nestName").value = NEST.name;
+      const mm = $("members"); mm.innerHTML = "";
+      MEMBERS.forEach((m) => {
+        const r = document.createElement("div"); r.className = "mem";
+        r.innerHTML = `<span class="face" style="background:${esc(m.color)}">${esc(m.emoji)}</span><span class="nm">${esc(m.name)}${m.id === ME.id ? " (you)" : ""}</span>`;
+        if (m.id === ME.id) { const b = document.createElement("button"); b.className = "small"; b.textContent = "Edit"; b.onclick = openMe; r.appendChild(b); }
+        mm.appendChild(r);
+      });
+      drawSwatches($("swatches"));
+      $("signedAs").textContent = "Signed in as " + ME.email;
+    }
+  }
+
+  // ---------- add / edit form ----------
+  function resetForm(opts = {}) {
+    mode = opts.type || "expense"; cat = "groc"; who = ME.id; shared = MEMBERS.length > 1; splitMode = "equal";
+    $("amt").value = ""; $("lbl").value = ""; $("splitVal").value = ""; $("priv").checked = false;
+    $("repeat").value = opts.repeat || ""; $("dt").value = today(); $("paidNow").checked = false; $("err").textContent = "";
+  }
+  function openAdd(opts) { editing = null; resetForm(opts); show("add"); setTimeout(() => $("amt").focus(), 60); }
+  function fillForm(x, isRec) {
+    mode = x.type; cat = x.category || "groc"; who = x.member_id; shared = !!x.shared; splitMode = x.split_mode || "equal";
+    $("amt").value = (isRec ? x.amount_cents / 100 : x.amount).toFixed(2);
+    $("lbl").value = x.label;
+    $("splitVal").value = x.split_mode === "owed" ? (x.split_value / 100).toFixed(2) : x.split_mode === "percent" ? x.split_value : "";
+    $("priv").checked = !!x.private;
+    $("dt").value = isRec ? toS(nextOcc(x) || parseD(x.anchor_date)) : x.date;
+    $("repeat").value = isRec ? x.freq : "";
+    $("err").textContent = "";
+  }
+  function openEditEntry(e) { editing = { kind: "entry", x: e }; fillForm(e, false); show("add"); }
+  function openEditRecurring(r) { editing = { kind: "recurring", x: r }; fillForm(r, true); show("add"); }
+  $("cancelEdit").onclick = () => { const back = editing?.kind === "recurring" ? "us" : "home"; editing = null; show(back); };
+  $("addBill").onclick = () => openAdd({ repeat: "monthly" });
+
+  function renderForm() {
+    const isInc = mode === "income", rep = $("repeat").value, editingRec = editing?.kind === "recurring";
+    $("editBar").hidden = !editing;
+    $("editTitle").textContent = editingRec ? (isInc ? "Edit payday" : "Edit bill") : "Edit entry";
+    document.querySelectorAll("#scr-add .tabs button").forEach((b) => b.setAttribute("aria-selected", b.dataset.t === mode ? "true" : "false"));
+
+    const c = $("cats"); c.innerHTML = "";
+    CATS.forEach((k) => {
+      const b = document.createElement("button"); b.type = "button"; b.innerHTML = `<b>${k.e}</b>${k.n}`;
+      b.setAttribute("aria-pressed", k.id === cat ? "true" : "false"); b.onclick = () => { cat = k.id; renderForm(); }; c.appendChild(b);
+    });
+    const w = $("whos"); w.innerHTML = "";
+    if (!MEMBERS.some((m) => m.id === who)) who = ME.id;
+    MEMBERS.forEach((m) => {
+      const b = document.createElement("button"); b.type = "button";
+      b.innerHTML = `<i style="background:${esc(m.color)}">${esc(m.emoji)}</i>${esc(m.name)}`;
+      b.setAttribute("aria-pressed", m.id === who ? "true" : "false"); b.onclick = () => { who = m.id; renderForm(); }; w.appendChild(b);
+    });
+    $("catField").hidden = isInc;
+    $("lblLabel").textContent = rep || editingRec ? "Name" : "Note (optional)";
+    $("lbl").placeholder = isInc ? "Paycheck" : rep ? "Rent" : "Date night tacos";
+    $("whoLabel").textContent = isInc ? "Who gets paid?" : "Who pays?";
+
+    // split
+    const canSplit = !isInc && MEMBERS.length > 1;
+    $("splitField").hidden = !canSplit;
+    $("spShared").setAttribute("aria-pressed", shared ? "true" : "false");
+    $("spMine").setAttribute("aria-pressed", shared ? "false" : "true");
+    $("splitOpts").hidden = !shared;
+    document.querySelectorAll("#splitModes button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.mode === splitMode ? "true" : "false"));
+    const o = others(who), payer = member(who), oName = o.length === 1 ? o[0].name : "Everyone else";
+    $("splitValWrap").hidden = splitMode === "equal";
+    if (splitMode === "percent") {
+      $("splitPre").textContent = payer.name + " covers"; $("splitPost").textContent = "%";
+      $("splitVal").step = "1"; $("splitVal").placeholder = "70";
+      const v = parseFloat($("splitVal").value);
+      $("splitHint").textContent = v >= 0 && v <= 100 ? `${oName} ${o.length === 1 ? "covers" : "cover"} ${100 - v}%${o.length > 1 ? ", split between them" : ""}.` : "";
+    } else if (splitMode === "owed") {
+      $("splitPre").textContent = oName + (o.length === 1 ? " owes $" : " owe $"); $("splitPost").textContent = o.length > 1 ? "total" : "";
+      $("splitVal").step = "0.01"; $("splitVal").placeholder = "40";
+      $("splitHint").textContent = `Use this when ${payer.name} paid and just needs part of it back.`;
+    } else $("splitHint").textContent = MEMBERS.length === 2 ? "Each of you covers half." : "Everyone covers the same amount.";
+
+    // privacy: only for your own, unshared, non-repeating entries
+    $("privWrap").hidden = !(who === ME.id && (!shared || !canSplit) && !rep && !editingRec);
+
+    // repeating
+    $("repeatField").hidden = editing?.kind === "entry";
+    $("dtLabel").textContent = rep ? (editingRec ? "Next date" : "Next (or last) date") : "Date";
+    $("paidNowWrap").hidden = !rep || editingRec;
+    $("paidNowTxt").textContent = isInc ? "Already got this one" : "Already paid this one";
+    $("delRecWrap").hidden = !editingRec;
+
+    $("goBtn").textContent = editing ? "Save changes" : rep ? (isInc ? "Add payday" : "Add bill") : isInc ? "Add income" : "Add expense";
+    $("goBtn").classList.toggle("inc", isInc);
+  }
+  document.querySelectorAll("#scr-add .tabs button").forEach((b) => (b.onclick = () => { mode = b.dataset.t; $("err").textContent = ""; renderForm(); }));
+  $("spShared").onclick = () => { shared = true; renderForm(); };
+  $("spMine").onclick = () => { shared = false; renderForm(); };
+  document.querySelectorAll("#splitModes button").forEach((b) => (b.onclick = () => { splitMode = b.dataset.mode; $("splitVal").value = ""; renderForm(); if (splitMode !== "equal") $("splitVal").focus(); }));
+  $("splitVal").oninput = () => { if (splitMode === "percent") renderForm(); };
+  $("repeat").onchange = () => { $("paidNow").checked = $("dt").value <= today(); renderForm(); };
+  $("dt").onchange = () => { if ($("repeat").value && !editing) $("paidNow").checked = $("dt").value <= today(); };
+
+  $("goBtn").onclick = async () => {
+    const amount = parseFloat($("amt").value);
+    if (!(amount > 0)) { $("err").textContent = "Type an amount above $0 first."; $("amt").focus(); return; }
+    const rep = $("repeat").value, isShared = mode === "expense" && shared && MEMBERS.length > 1;
+    let split_value = null;
+    if (isShared && splitMode !== "equal") {
+      split_value = parseFloat($("splitVal").value);
+      if (splitMode === "percent" && !(split_value >= 0 && split_value <= 100)) { $("err").textContent = "Enter a percent from 0 to 100."; $("splitVal").focus(); return; }
+      if (splitMode === "owed" && !(split_value > 0 && split_value <= amount)) { $("err").textContent = "The amount owed has to be more than $0 and no more than the total."; $("splitVal").focus(); return; }
+    }
+    const date = $("dt").value || today();
+    const label = $("lbl").value.trim() || (mode === "income" ? "Paycheck" : CATS.find((c) => c.id === cat).n);
+    const body = {
+      type: mode, amount, label, category: cat, member_id: who, shared: isShared,
+      split_mode: isShared ? splitMode : null, split_value, private: $("priv").checked && !$("privWrap").hidden, date,
+    };
+    busy($("goBtn"), true); $("err").textContent = "";
+    try {
+      if (editing?.kind === "entry") {
+        await api("/api/entries/" + editing.x.id, { method: "PATCH", body });
+        MONTH = ym(date); editing = null; await loadNest(); toast("Changes saved"); show("home");
+      } else if (editing?.kind === "recurring") {
+        if (!rep) { $("err").textContent = "Pick how often it repeats."; return; }
+        await api("/api/recurring/" + editing.x.id, { method: "PATCH", body: { ...body, freq: rep } });
+        editing = null; await loadNest(); toast("Saved"); show("us");
+      } else if (rep) {
+        await api("/api/recurring", { method: "POST", body: { ...body, freq: rep, log_now: $("paidNow").checked } });
+        await loadNest(); toast(mode === "income" ? "Payday added" : "Bill added"); show("home"); bunnyHop();
+      } else {
+        await api("/api/entries", { method: "POST", body });
+        MONTH = ym(date); await loadNest();
+        toast(mode === "income" ? "Income added" : "Expense added"); show("home"); bunnyHop();
+      }
+    } catch (e) { $("err").textContent = e.message; }
+    finally { busy($("goBtn"), false); }
+  };
+  $("delRec").onclick = async () => {
+    const r = editing?.x; if (!r) return;
+    if (!(await ask(`Delete ${r.label}?`, "It stops showing up as due. Anything already logged stays.", "Delete"))) return;
+    try { await api("/api/recurring/" + r.id, { method: "DELETE" }); editing = null; await loadNest(); toast("Deleted"); show("us"); }
+    catch (e) { toast(e.message); }
+  };
+
+  // ---------- settle up ----------
+  let settling = null;
+  function openSettle(p) {
+    settling = p;
+    $("sdText").textContent = `${p.from.name} paid ${p.to.name} back.`;
+    $("sdAmt").value = p.amount.toFixed(2); $("sdErr").textContent = "";
+    $("settleDlg").showModal();
+  }
+  $("sdCancel").onclick = () => $("settleDlg").close();
+  $("sdSave").onclick = async () => {
+    const amount = parseFloat($("sdAmt").value);
+    if (!(amount > 0)) { $("sdErr").textContent = "Enter the amount that was paid."; return; }
+    try {
+      await api("/api/settlements", { method: "POST", body: { from_id: settling.from.id, to_id: settling.to.id, amount, date: today() } });
+      $("settleDlg").close(); await loadNest(); toast("Marked as paid ♡");
+    } catch (e) { $("sdErr").textContent = e.message; }
+  };
+
+  // ---------- edit yourself ----------
+  let pickE, pickC;
+  function drawPick() {
+    const ep = $("emojiPick"); ep.innerHTML = "";
+    EMOJIS.forEach((e) => { const b = document.createElement("button"); b.type = "button"; b.textContent = e; b.setAttribute("aria-pressed", e === pickE ? "true" : "false"); b.onclick = () => { pickE = e; drawPick(); }; ep.appendChild(b); });
+    const cp = $("colorPick"); cp.innerHTML = "";
+    COLORS.forEach((c) => { const b = document.createElement("button"); b.type = "button"; b.style.background = c; b.setAttribute("aria-label", "Color"); b.setAttribute("aria-pressed", c === pickC ? "true" : "false"); b.onclick = () => { pickC = c; drawPick(); }; cp.appendChild(b); });
+  }
+  function openMe() {
+    const m = meMember(); if (!m) return;
+    $("mName").value = m.name; pickE = m.emoji; pickC = m.color; $("mErr").textContent = "";
+    drawPick(); $("memberDlg").showModal();
+  }
+  $("mCancel").onclick = () => $("memberDlg").close();
+  $("mSave").onclick = async () => {
+    const name = $("mName").value.trim(); if (!name) { $("mName").focus(); return; }
+    try { await api("/api/me", { method: "PATCH", body: { name, emoji: pickE, color: pickC } }); $("memberDlg").close(); await loadNest(); }
+    catch (e) { $("mErr").textContent = e.message; }
+  };
+
+  // ---------- password change ----------
+  $("changePw").onclick = () => { $("pwCur").value = ""; $("pwNew").value = ""; $("pwErr").textContent = ""; $("pwDlg").showModal(); };
+  $("pwCancel").onclick = () => $("pwDlg").close();
+  $("pwSave").onclick = async () => {
+    if ($("pwNew").value.length < 8) { $("pwErr").textContent = "Use a password with at least 8 characters."; return; }
+    try {
+      await api("/api/password/change", { method: "POST", body: { current: $("pwCur").value, password: $("pwNew").value } });
+      $("pwDlg").close(); toast("Password changed. Other devices were logged out.");
+    } catch (e) { $("pwErr").textContent = e.message; }
+  };
+
+  // ---------- nest settings ----------
+  function drawSwatches(box) {
+    box.innerHTML = "";
+    THEMES.forEach((t) => {
+      const b = document.createElement("button"); b.type = "button"; b.setAttribute("aria-pressed", NEST.accent === t.id ? "true" : "false");
+      b.innerHTML = `<i style="background:${t.c}"></i>${t.n}`;
+      b.onclick = async () => {
+        NEST.accent = t.id; render(); drawSwatches(box);
+        try { await api("/api/nest", { method: "PATCH", body: { accent: t.id } }); } catch (e) { toast(e.message); }
+      };
+      box.appendChild(b);
+    });
+  }
+  let nameTimer;
+  $("nestName").oninput = (e) => {
+    NEST.name = e.target.value.trim(); render();
+    clearTimeout(nameTimer);
+    nameTimer = setTimeout(() => api("/api/nest", { method: "PATCH", body: { name: NEST.name } }).catch((err) => toast(err.message)), 600);
+  };
+  $("hiBtn").onclick = () => { show("us"); setTimeout(() => $("setH").scrollIntoView({ behavior: "smooth" }), 40); };
+
+  async function jarMove(direction) {
+    const v = parseFloat($("jarAmt").value);
+    if (!(v > 0)) { toast("Enter an amount first."); $("jarAmt").focus(); return; }
+    try {
+      await api("/api/jar", { method: "POST", body: { amount: v, direction } });
+      $("jarAmt").value = ""; await loadNest(); toast(direction === "in" ? "Added to the jar" : "Taken out of the jar");
+    } catch (e) { toast(e.message); }
+  }
+  $("jarIn").onclick = () => jarMove("in");
+  $("jarOut").onclick = () => jarMove("out");
+  $("editGoal").onclick = () => { $("gName").value = NEST.goal_name; $("gTarget").value = NEST.goal_target / 100; $("gErr").textContent = ""; $("goalDlg").showModal(); };
+  $("gCancel").onclick = () => $("goalDlg").close();
+  $("gSave").onclick = async () => {
+    try { await api("/api/nest", { method: "PATCH", body: { goal_name: $("gName").value, goal_target: parseFloat($("gTarget").value) } }); $("goalDlg").close(); await loadNest(); }
+    catch (e) { $("gErr").textContent = e.message; }
+  };
+
+  // invite
+  $("copyInvite").onclick = async () => {
+    try { await navigator.clipboard.writeText(inviteUrl()); toast("Link copied"); } catch { toast("Couldn't copy. Press and hold the link instead."); }
+  };
+  $("shareInvite").onclick = async () => {
+    try { await navigator.share({ title: "Join our Honeybun budget", text: "Join our budget on Honeybun 🐰", url: inviteUrl() }); } catch {}
+  };
+  $("newCode").onclick = async () => {
+    if (!(await ask("Make a new code?", "The old code and link will stop working. People already in the budget stay in.", "Make new code"))) return;
+    try { await api("/api/nest/invite", { method: "POST" }); await loadNest(); toast("New code ready"); } catch (e) { toast(e.message); }
+  };
+  $("leaveBtn").onclick = async () => {
+    const alone = MEMBERS.length === 1;
+    if (!(await ask("Leave this budget?", alone ? "You're the only one here, so the budget and everything in it will be deleted." : "You can rejoin later with an invite code.", "Leave"))) return;
+    try { await api("/api/nest/leave", { method: "POST" }); NEST = null; filter = null; await afterAuth(); } catch (e) { toast(e.message); }
+  };
+
+  // months
+  async function shift(k) {
+    const [y, mo] = MONTH.split("-").map(Number); const d = new Date(y, mo - 1 + k, 1);
+    MONTH = d.getFullYear() + "-" + pad(d.getMonth() + 1);
+    render();
+    try { await loadNest(); } catch (e) { toast(e.message); }
+  }
+  $("prevM").onclick = () => shift(-1);
+  $("nextM").onclick = () => shift(1);
+  $("seeAll").onclick = () => { show("us"); setTimeout(() => $("allH").scrollIntoView({ behavior: "smooth" }), 40); };
+
+  // ---------- tutorial ----------
+  const ICONS = {
+    plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
+    cal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="15" rx="3"/><path d="M4 10h16M9 3v4M15 3v4"/></svg>',
+    heart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg>',
+  };
+  let step = 0;
+  const STEPS = () => [
+    { art: '<img src="/icon-192.png" alt="">', t: `Welcome, ${ME.name}`, p: "Pick your little buddy. It shows next to everything you add.", extra: "buddy" },
+    { art: ICONS.plus, t: "Add money in or out", p: "Tap + to log what you spend or earn. Split it evenly, by percent, or set what's owed. Tap anything later to edit it." },
+    { art: ICONS.cal, t: "Bills & paydays", p: "Add rent, subscriptions, and paychecks once. Home shows what's due before your next payday." },
+    { art: ICONS.heart, t: "Do it together", p: MEMBERS.length < 2 ? "Invite your partner from Together. Then pick a look you both like:" : "Together shows who owes whom, so you can mark it paid. Pick a look you both like:", extra: "theme" },
+  ];
+  function drawTour() {
+    const steps = STEPS(), st = steps[step];
+    $("tourArt").innerHTML = st.art; $("tourT").textContent = st.t; $("tourP").textContent = st.p;
+    const ex = $("tourExtra"); ex.innerHTML = "";
+    if (st.extra === "buddy") {
+      const g = document.createElement("div"); g.className = "emojis"; g.style.marginTop = "14px";
+      const mine = meMember();
+      EMOJIS.forEach((e) => {
+        const b = document.createElement("button"); b.type = "button"; b.textContent = e;
+        b.setAttribute("aria-pressed", mine && mine.emoji === e ? "true" : "false");
+        b.onclick = async () => { if (mine) mine.emoji = e; drawTour(); try { await api("/api/me", { method: "PATCH", body: { emoji: e } }); } catch (err) { toast(err.message); } };
+        g.appendChild(b);
+      });
+      ex.appendChild(g);
+    }
+    if (st.extra === "theme") { const b = document.createElement("div"); b.className = "swatches"; ex.appendChild(b); drawSwatches(b); }
+    $("tourDots").innerHTML = steps.map((_, i) => `<i class="${i === step ? "on" : ""}"></i>`).join("");
+    $("tourNext").textContent = step === steps.length - 1 ? "Let's go" : "Next";
+    $("tourSkip").hidden = step === steps.length - 1;
+  }
+  function openTour() { step = 0; drawTour(); $("tour").showModal(); }
+  $("tour").addEventListener("close", () => { store.set("hb-tour-" + ME.id, "1"); render(); });
+  $("tourNext").onclick = () => { if (step < STEPS().length - 1) { step++; drawTour(); } else $("tour").close(); };
+  $("tourSkip").onclick = () => $("tour").close();
+  $("replayTour").onclick = openTour;
+
+  // ---------- start ----------
+  (async () => {
+    if (resetToken) { show("reset"); return; }
+    try { await afterAuth(); }
+    catch (e) {
+      if (e.status === 401) { authMode = pendingCode ? "signup" : store.get("hb-had-account") ? "login" : "signup"; showAuth(); }
+      else { showAuth(); $("authErr").textContent = e.message; }
+    }
+  })();
+})();
