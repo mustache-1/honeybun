@@ -9,6 +9,19 @@ window.HB_I18N = (() => {
     exact: {
       // general
       "Honeybun — a cute little budget": "Honeybun — un presupuesto lindo",
+      "Left to spend in": "Te queda para gastar en", "Left in": "Queda en", "Please confirm your email": "Confirma tu correo", "Hide for now": "Ocultar por ahora", "Came in": "Entró", "Bills due": "Facturas", "On track": "Vas bien", "Almost there": "Casi al límite", "Over budget": "Te pasaste",
+      "Good morning": "Buenos días", "Good afternoon": "Buenas tardes", "Good evening": "Buenas noches", "1 day": "1 día", "hop streak": "racha", "Log today to hop": "Registra algo hoy",
+      "What's due?": "¿Qué vence?", "My streak": "Mi racha", "Add spend": "Agregar gasto", "Your bunny": "Tu conejito", "Honey jars": "Tarros de miel", "New jar": "Nuevo tarro",
+      "reached ♡": "¡lograda! ♡", "Save for a trip, a ring, or a rainy day. Tap New jar to start.": "Ahorra para un viaje, un anillo o un imprevisto. Toca Nuevo tarro para empezar.",
+
+      "Help & suggestions": "Ayuda y sugerencias", "Questions, a bug, or an idea to make Honeybun better? We read every email ♡": "¿Preguntas, un error o una idea para mejorar Honeybun? Leemos cada correo ♡",
+      "✉️ Get help": "✉️ Pedir ayuda", "💡 Send a suggestion": "💡 Enviar una sugerencia", "Honeybun help": "Ayuda con Honeybun", "Honeybun suggestion": "Sugerencia para Honeybun",
+      "Hi! I need help with:": "¡Hola! Necesito ayuda con:", "Hi! I have an idea for Honeybun:": "¡Hola! Tengo una idea para Honeybun:", "App info (helps us help you)": "Info de la app (nos ayuda a ayudarte)",
+
+      "Messages from Bun": "Mensajes de Bun", "Your budget buddy 🐰": "Tu amiguito del presupuesto 🐰", "Tap to read": "Toca para leer",
+      "Today": "Hoy", "Yesterday": "Ayer", "See budgets": "Ver presupuestos", "See Plan": "Ver Plan", "See stats": "Ver estadísticas",
+      "Log something": "Registrar algo", "See my bunny": "Ver mi conejito", "No messages yet. I'll hop in when something's coming up 🐰": "Aún no hay mensajes. Te aviso cuando se acerque algo 🐰",
+
       "A fresh update just hopped in!": "¡Llegó una actualización nueva!", "Refresh to get the newest Honeybun.": "Actualiza para tener lo más nuevo de Honeybun.",
       "Refresh": "Actualizar", "Later": "Luego", "Honeybun is getting a fresh update…": "Honeybun se está actualizando…",
       "Hang tight, refreshing in a few seconds 🐰": "Espera un momento, se recarga en unos segundos 🐰",
@@ -195,6 +208,7 @@ window.HB_I18N = (() => {
       "Enter the amount that was paid.": "Escribe el monto que se pagó.",
     },
     patterns: [
+      [/^(\d+) days$/, "$1 días"], [/^(\d+) carrots$/, "$1 zanahorias"], [/^of (\$[\d,.]+)$/, "de $1"], [/^(.+)'s balance in$/, "Saldo de $1 en"],
       [/^Hi (.+)!$/, "¡Hola, $1!"], [/^Hi, (.+)!$/, "¡Hola, $1!"],
       [/^(\d+)% of this month is still ours\.$/, "Todavía nos queda el $1% del mes."], [/^(\d+)% of this month is still yours\.$/, "Todavía te queda el $1% del mes."],
       [/^Overdue, was due (.+)$/, "Vencido, era el $1"], [/^Due (.+)$/, "Vence $1"], [/^(.+) gets paid (.+)$/, "$1 cobra el $2"],
@@ -235,6 +249,19 @@ window.HB_I18N = (() => {
   const zh = {
     exact: {
       "Honeybun — a cute little budget": "Honeybun — 可爱的小预算",
+      "Left to spend in": "可支配余额 ·", "Left in": "余额 ·", "Please confirm your email": "请确认你的邮箱", "Hide for now": "暂时隐藏", "Came in": "收入", "Bills due": "待付账单", "On track": "状态良好", "Almost there": "快到上限", "Over budget": "已超支",
+      "Good morning": "早上好", "Good afternoon": "下午好", "Good evening": "晚上好", "1 day": "1 天", "hop streak": "连续记录", "Log today to hop": "今天记一笔吧",
+      "What's due?": "有什么要付？", "My streak": "我的连续记录", "Add spend": "记一笔支出", "Your bunny": "你的小兔", "Honey jars": "蜂蜜罐", "New jar": "新罐子",
+      "reached ♡": "已达成 ♡", "Save for a trip, a ring, or a rainy day. Tap New jar to start.": "为旅行、戒指或应急存钱。点「新罐子」开始。",
+
+      "Help & suggestions": "帮助与建议", "Questions, a bug, or an idea to make Honeybun better? We read every email ♡": "有问题、发现错误，或有让 Honeybun 更好的点子？每封邮件我们都会看 ♡",
+      "✉️ Get help": "✉️ 获取帮助", "💡 Send a suggestion": "💡 提建议", "Honeybun help": "Honeybun 帮助", "Honeybun suggestion": "Honeybun 建议",
+      "Hi! I need help with:": "你好！我需要帮助：", "Hi! I have an idea for Honeybun:": "你好！我对 Honeybun 有个想法：", "App info (helps us help you)": "应用信息（方便我们帮你）",
+
+      "Messages from Bun": "Bun 的消息", "Your budget buddy 🐰": "你的预算小伙伴 🐰", "Tap to read": "点按查看",
+      "Today": "今天", "Yesterday": "昨天", "See budgets": "查看预算", "See Plan": "查看计划", "See stats": "查看统计",
+      "Log something": "记一笔", "See my bunny": "看看我的小兔", "No messages yet. I'll hop in when something's coming up 🐰": "还没有消息。有事情要到期时我会来提醒你 🐰",
+
       "A fresh update just hopped in!": "有新版本啦！", "Refresh to get the newest Honeybun.": "刷新即可使用最新的 Honeybun。",
       "Refresh": "刷新", "Later": "稍后", "Honeybun is getting a fresh update…": "Honeybun 正在更新…",
       "Hang tight, refreshing in a few seconds 🐰": "请稍等，几秒后自动刷新 🐰",
@@ -370,6 +397,7 @@ window.HB_I18N = (() => {
       "We already sent a few. Check your inbox and spam, or try again in an hour.": "已经发过几封了。请查看收件箱和垃圾邮件，或一小时后再试。", "Enter the amount that was paid.": "请输入已付金额。",
     },
     patterns: [
+      [/^(\d+) days$/, "$1 天"], [/^(\d+) carrots$/, "$1 根胡萝卜"], [/^of (\$[\d,.]+)$/, "目标 $1"], [/^(.+)'s balance in$/, "$1 的余额 ·"],
       [/^Hi (.+)!$/, "$1，你好！"], [/^Hi, (.+)!$/, "$1，你好！"],
       [/^(\d+)% of this month is still ours\.$/, "本月还剩 $1%。"], [/^(\d+)% of this month is still yours\.$/, "本月还剩 $1%。"],
       [/^Overdue, was due (.+)$/, "已逾期，原定 $1"], [/^Due (.+)$/, "$1 到期"], [/^(.+) gets paid (.+)$/, "$1 于 $2 发薪"],
