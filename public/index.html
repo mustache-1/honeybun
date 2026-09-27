@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F3F5FA">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Honeybun">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+<link rel="manifest" href="/manifest.webmanifest">
+<title>Honeybun — a little budget for two</title>
+<meta name="description" content="Honeybun is a simple, cute budget for couples and families. Log what you earn and spend, split costs, and save toward goals together.">
+<link rel="canonical" href="https://honeybun.me/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Honeybun">
+<meta property="og:url" content="https://honeybun.me/">
+<meta property="og:title" content="Honeybun — a little budget for two">
+<meta property="og:description" content="Track money together, split costs, and fill your savings jar.">
+<meta property="og:image" content="https://honeybun.me/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://honeybun.me/og-image.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F6F5F8; --card:#FFFFFF; --ink:#2B2733; --soft:#8E8898; --line:#EAE7EF;
+  --pink:#EE7FA3; --pink-d:#D9668C; --pink-t:#FCEDF2;
+  --lav-t:#F1EEF8; --mint:#58B287; --mint-d:#3F9A70; --mint-t:#E9F6EF;
+  --honey:#F6CF73; --nav:rgba(255,255,255,.9);
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#1D1B21; --card:#27242D; --ink:#F3F1F6; --soft:#A7A1B0; --line:#37333F;
+    --pink-t:#3E2833; --lav-t:#302C3A; --mint-t:#1F3329; --nav:rgba(39,36,45,.92);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#1D1B21; --card:#27242D; --ink:#F3F1F6; --soft:#A7A1B0; --line:#37333F;
+  --pink-t:#3E2833; --lav-t:#302C3A; --mint-t:#1F3329; --nav:rgba(39,36,45,.92);
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px);height:100%}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;min-height:100%;background:var(--bg);color:var(--ink);font-family:"Nunito",system-ui,-apple-system,"Segoe UI",sans-serif;font-size:16px;line-height:1.5;-webkit-tap-highlight-color:transparent}
+h1,h2,h3{font-family:"Fredoka","Nunito",system-ui,sans-serif;font-weight:500;margin:0;line-height:1.2}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--pink);outline-offset:2px;border-radius:10px}
+[hidden]{display:none!important}
+.app{max-width:440px;margin:0 auto;padding:18px 20px calc(100px + env(safe-area-inset-bottom,0px))}
+
+.top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:22px}
+.hello{display:flex;align-items:center;gap:10px;min-width:0}
+.hello img{width:34px;height:34px;border-radius:10px;flex:none}
+.hello .h1{display:block;font-family:"Fredoka",sans-serif;font-weight:500;font-size:1.1rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hello p{display:none}
+.month{display:flex;align-items:center;flex:none;color:var(--soft)}
+.month button{border:0;background:transparent;width:28px;height:30px;border-radius:50%;font-size:1.1rem;color:var(--soft)}
+.month span{font-weight:700;font-size:.88rem;min-width:62px;text-align:center;color:var(--ink)}
+
+.hero{background:var(--card);border-radius:24px;padding:22px 20px 18px}
+.hero-top{display:flex;align-items:center;gap:10px}
+.bunny{width:44px;height:48px;flex:none}
+.bunny .body{transform-origin:60px 110px}
+.hop .body{animation:hop .6s ease 1}
+@keyframes hop{0%,100%{transform:none}40%{transform:translateY(-8px)}}
+.bubble{font-size:.88rem;color:var(--soft);font-weight:600;flex:1}
+.left-lbl{margin-top:18px;color:var(--soft);font-weight:600;font-size:.85rem}
+.left-amt{font-family:"Fredoka",sans-serif;font-weight:500;font-size:clamp(2.3rem,10vw,2.9rem);line-height:1.1;letter-spacing:-.01em}
+.left-amt.neg{color:var(--pink-d)}
+.meter{height:6px;background:var(--mint-t);border-radius:999px;overflow:hidden;margin:14px 0 8px}
+.meter i{display:block;height:100%;background:var(--pink);border-radius:999px;transition:width .5s ease}
+.flow{display:flex;justify-content:space-between;font-weight:700;font-size:.85rem;color:var(--soft)}
+.flow .in{color:var(--mint-d)}
+
+.couple{display:flex;align-items:flex-start;justify-content:center;flex-wrap:wrap;gap:4px;margin:22px 0 4px}
+.pal{border:0;background:transparent;padding:4px;text-align:center;width:84px;border-radius:16px}
+.pal .face{width:52px;height:52px;border-radius:50%;display:grid;place-items:center;font-size:1.6rem;margin:0 auto 4px;box-shadow:0 0 0 2px transparent;transition:box-shadow .15s}
+.pal[aria-pressed="true"] .face{box-shadow:0 0 0 2px var(--pink)}
+.pal .nm{font-weight:700;font-size:.9rem;display:block}
+.pal .st{font-size:.74rem;color:var(--soft);font-weight:600}
+.heart{font-family:"Fredoka",sans-serif;color:var(--pink);font-size:1rem;margin-top:16px}
+.filter-note{text-align:center;color:var(--soft);font-size:.82rem;font-weight:600}
+.linkbtn{border:0;background:none;color:var(--pink-d);font-weight:700;padding:0;font-size:.88rem}
+
+.section-h{display:flex;justify-content:space-between;align-items:baseline;margin:26px 2px 8px}
+.section-h h2{font-size:1rem}
+.panel{background:var(--card);border-radius:20px;padding:6px 16px}
+.panel.pad{padding:16px}
+
+.list{list-style:none;margin:0;padding:0}
+.list li{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+.list li:last-child{border-bottom:0}
+.list .ic{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;font-size:1.05rem;flex:none;background:var(--bg)}
+.list .mid{flex:1;min-width:0}
+.list .t{font-weight:700;font-size:.95rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.list .s{font-size:.78rem;color:var(--soft)}
+.list .amt{font-weight:700;font-size:.95rem;white-space:nowrap}
+.list .amt.in{color:var(--mint-d)}
+.list .del{border:0;background:transparent;color:var(--line);width:28px;height:28px;border-radius:50%;flex:none;font-size:.8rem}
+.list li:hover .del,.list .del:focus-visible{color:var(--soft)}
+.empty{color:var(--soft);font-size:.9rem;text-align:center;padding:14px 4px}
+
+.tabs{display:flex;gap:4px;background:var(--card);padding:4px;border-radius:14px;margin-bottom:18px}
+.tabs button{flex:1;border:0;background:transparent;padding:9px;border-radius:11px;font-weight:700;color:var(--soft);font-size:.92rem}
+.tabs button[aria-selected="true"][data-t="expense"]{background:var(--pink-t);color:var(--pink-d)}
+.tabs button[aria-selected="true"][data-t="income"]{background:var(--mint-t);color:var(--mint-d)}
+.bigamt{display:flex;align-items:center;justify-content:center;gap:2px;padding:10px 0 4px}
+.bigamt span{font-family:"Fredoka",sans-serif;font-size:2rem;color:var(--soft)}
+.bigamt input{border:0;background:transparent;font-family:"Fredoka",sans-serif;font-size:2.8rem;font-weight:500;width:100%;max-width:200px;text-align:center;padding:0;min-height:0}
+.bigamt input:focus{outline:none}
+.field{display:flex;flex-direction:column;gap:6px;margin-top:18px}
+.field > label,.lbl{font-weight:700;font-size:.82rem;color:var(--soft);padding-left:2px}
+input,select{width:100%;border:1px solid var(--line);background:var(--card);border-radius:12px;padding:11px 14px;min-height:46px}
+input:focus,select:focus{border-color:var(--pink);outline:none}
+.cats,.whos,.split{display:flex;flex-wrap:wrap;gap:6px}
+.cats button,.whos button,.split button{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:7px 13px;font-size:.86rem;font-weight:700;display:flex;align-items:center;gap:6px}
+.cats button b{font-weight:400;font-size:1rem}
+.whos button{padding:4px 13px 4px 4px}
+.whos button i{font-style:normal;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-size:1rem}
+.cats button[aria-pressed="true"],.whos button[aria-pressed="true"],.split button[aria-pressed="true"]{border-color:var(--pink);background:var(--pink-t);color:var(--pink-d)}
+.go{width:100%;border:0;border-radius:14px;padding:14px;font-weight:700;font-size:1rem;color:#fff;background:var(--pink);margin-top:24px}
+.go.inc{background:var(--mint)}
+.go:active{opacity:.85}
+.err{color:var(--pink-d);font-weight:600;font-size:.86rem;min-height:1.3em;margin:8px 0 0;text-align:center}
+
+.bars{display:flex;flex-direction:column;gap:12px}
+.bar .l{display:flex;justify-content:space-between;font-weight:600;font-size:.88rem}
+.bar .trk{height:6px;background:var(--bg);border-radius:999px;overflow:hidden;margin-top:4px}
+.bar .trk i{display:block;height:100%;border-radius:999px}
+.owe{display:flex;align-items:center;gap:8px;padding:10px 0 2px;font-weight:600;font-size:.92rem}
+.owe .f{font-size:1.2rem}
+.owe .amt{margin-left:auto;font-weight:800}
+.jar{display:flex;gap:16px;align-items:center}
+.jar svg{width:60px;height:74px;flex:none}
+.jar-info{flex:1;min-width:0}
+.jar-info .g{font-weight:700}
+.jar-info .p{color:var(--soft);font-size:.84rem}
+.jar-add{display:flex;gap:6px;margin-top:10px}
+.jar-add input{min-height:40px;padding:8px 12px}
+.small{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:8px 12px;font-weight:700;font-size:.88rem;white-space:nowrap}
+.members{display:flex;flex-direction:column;gap:10px}
+.mem{display:flex;align-items:center;gap:10px}
+.mem .face{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;font-size:1.2rem;flex:none}
+.mem .nm{flex:1;font-weight:700}
+.install{display:flex;gap:12px;align-items:center;padding:16px 4px 0}
+.install img{width:36px;height:36px;border-radius:10px;flex:none}
+.install p{margin:0;font-size:.82rem;color:var(--soft)}
+
+nav.bottom{position:fixed;left:0;right:0;bottom:0;padding-bottom:env(safe-area-inset-bottom,0px);background:var(--nav);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-top:1px solid var(--line);z-index:10}
+nav.bottom .in{max-width:440px;margin:0 auto;display:flex;justify-content:space-around;align-items:center;height:62px}
+nav.bottom button{border:0;background:transparent;display:flex;flex-direction:column;align-items:center;font-size:.72rem;font-weight:700;color:var(--soft);width:84px;gap:2px}
+nav.bottom button svg{width:22px;height:22px}
+nav.bottom button[aria-current="page"]{color:var(--pink-d)}
+nav.bottom .plus{width:48px;height:48px;border-radius:50%;background:var(--pink);color:#fff;display:grid;place-items:center}
+nav.bottom .plus svg{width:22px;height:22px}
+
+.toast{position:fixed;left:50%;bottom:calc(80px + env(safe-area-inset-bottom,0px));transform:translate(-50%,10px);background:var(--ink);color:var(--bg);padding:8px 16px;border-radius:999px;font-weight:700;font-size:.88rem;opacity:0;pointer-events:none;transition:.25s;z-index:20;white-space:nowrap}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+dialog{border:0;border-radius:22px;background:var(--card);color:var(--ink);padding:22px;width:min(92vw,360px)}
+dialog::backdrop{background:rgba(29,27,33,.35)}
+dialog h2{font-size:1.1rem;margin-bottom:4px}
+.emojis{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin:6px 0 12px}
+.emojis button{border:1px solid var(--line);background:var(--card);border-radius:12px;font-size:1.25rem;aspect-ratio:1;padding:0}
+.emojis button[aria-pressed="true"]{border-color:var(--pink);background:var(--pink-t)}
+.colors{display:flex;gap:8px;margin:6px 0 18px}
+.colors button{width:30px;height:30px;border-radius:50%;border:0;box-shadow:inset 0 0 0 1px var(--line)}
+.colors button[aria-pressed="true"]{box-shadow:0 0 0 2px var(--card),0 0 0 4px var(--pink)}
+.acts{display:flex;gap:8px;justify-content:flex-end;align-items:center}
+.acts .go{width:auto;margin:0;padding:10px 18px;font-size:.92rem}
+:root[data-accent="blueberry"]{--pink:#6F93DB;--pink-d:#4F72BD;--pink-t:#E9EFFB;--bg:#F3F5FA}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"])[data-accent="blueberry"]{--pink-t:#26304A;--bg:#1D1B21}}
+:root[data-theme="dark"][data-accent="blueberry"]{--pink-t:#26304A;--bg:#1D1B21}
+:root[data-accent="blush"]{--pink:#EE7FA3;--pink-d:#D9668C;--pink-t:#FCEDF2;--bg:#F6F5F8}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"])[data-accent="blush"]{--pink-t:#3E2833;--bg:#1D1B21}}
+:root[data-theme="dark"][data-accent="blush"]{--pink-t:#3E2833;--bg:#1D1B21}
+:root[data-accent="lavender"]{--pink:#9C82DC;--pink-d:#7C62C2;--pink-t:#EFEAFA;--bg:#F5F4FA}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"])[data-accent="lavender"]{--pink-t:#312A45;--bg:#1D1B21}}
+:root[data-theme="dark"][data-accent="lavender"]{--pink-t:#312A45;--bg:#1D1B21}
+:root[data-accent="honey"]{--pink:#DDA13F;--pink-d:#B98224;--pink-t:#FBF1DC;--bg:#F8F6F1}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"])[data-accent="honey"]{--pink-t:#3F3420;--bg:#1D1B21}}
+:root[data-theme="dark"][data-accent="honey"]{--pink-t:#3F3420;--bg:#1D1B21}
+
+.swatches{display:flex;gap:10px;flex-wrap:wrap}
+.swatches button{border:0;background:transparent;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:.76rem;font-weight:700;color:var(--soft);padding:0}
+.swatches button i{width:36px;height:36px;border-radius:50%;box-shadow:inset 0 0 0 1px rgba(0,0,0,.06)}
+.swatches button[aria-pressed="true"]{color:var(--ink)}
+.swatches button[aria-pressed="true"] i{box-shadow:0 0 0 2px var(--card),0 0 0 4px var(--ink)}
+.set-row{padding:12px 0;border-bottom:1px solid var(--line)}
+.set-row:last-child{border-bottom:0}
+.set-row > .lbl{display:block;margin-bottom:8px}
+.hi-btn{border:0;background:none;padding:0;text-align:left;min-width:0}
+#tour{padding:26px 22px 20px;text-align:center}
+.tour-art{width:72px;height:72px;margin:0 auto 12px;border-radius:22px;background:var(--pink-t);color:var(--pink-d);display:grid;place-items:center}
+.tour-art img{width:72px;height:72px;border-radius:22px}
+.tour-art svg{width:34px;height:34px}
+#tourP{margin:6px 0 0;color:var(--soft);font-size:.94rem}
+#tourExtra{text-align:left}
+#tourExtra .swatches{justify-content:center;margin-top:14px}
+.dots{display:flex;justify-content:center;gap:6px;margin:18px 0 14px}
+.dots i{width:6px;height:6px;border-radius:999px;background:var(--line);transition:width .2s}
+.dots i.on{width:18px;background:var(--pink)}
+#tour .acts{justify-content:space-between}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+/* ---------- login / setup ---------- */
+.gate{min-height:calc(100vh - 60px);display:flex;flex-direction:column;justify-content:center;padding:24px 0 40px}
+.gate .logo{width:92px;height:92px;border-radius:28px;display:block;margin:0 auto 16px}
+.gate h1{text-align:center;font-size:2rem}
+.gate .tag{text-align:center;color:var(--soft);margin:4px 0 26px}
+.card{background:var(--card);border-radius:22px;padding:18px}
+.card + .card{margin-top:12px}
+.card h2{font-size:1.05rem;margin-bottom:2px}
+.card p.sub{margin:0;color:var(--soft);font-size:.88rem}
+.tabs button[aria-selected="true"][data-auth]{background:var(--pink-t);color:var(--pink-d)}
+.notice{background:var(--pink-t);color:var(--pink-d);border-radius:14px;padding:10px 12px;font-weight:700;font-size:.88rem;margin-bottom:12px}
+.gate .field:first-of-type{margin-top:14px}
+.or{text-align:center;color:var(--soft);font-weight:700;font-size:.82rem;margin:14px 0}
+.center{text-align:center}
+.loading{min-height:80vh;display:grid;place-items:center}
+.loading img{width:72px;height:72px;border-radius:22px;animation:breathe 1.4s ease-in-out infinite}
+@keyframes breathe{50%{transform:scale(.92);opacity:.7}}
+.invite-code{font-family:"Fredoka",sans-serif;font-size:1.4rem;font-weight:500;letter-spacing:.08em}
+.invite-link{font-size:.82rem;color:var(--soft);word-break:break-all}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.danger{color:#C9485B}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- loading -->
+  <div id="scr-loading" class="loading"><img src="/icon-192.png" alt="Loading Honeybun"></div>
+
+  <!-- LOGIN / SIGN UP -->
+  <main id="scr-auth" class="gate" hidden>
+    <img class="logo" src="/icon-192.png" alt="">
+    <h1>Honeybun</h1>
+    <p class="tag">A little budget for two</p>
+    <div class="notice" id="inviteNotice" hidden>You've been invited to a budget. Log in or create an account to join.</div>
+    <div class="card">
+      <div class="tabs" role="tablist" aria-label="Account">
+        <button role="tab" data-auth="signup" aria-selected="true" >Create account</button>
+        <button role="tab" data-auth="login" aria-selected="false" >Log in</button>
+      </div>
+      <form id="authForm" novalidate>
+        <div class="field" id="nameField"><label for="aName">Your name</label><input id="aName" autocomplete="given-name" maxlength="24" placeholder="Avila"></div>
+        <div class="field"><label for="aEmail">Email</label><input id="aEmail" type="email" autocomplete="email" inputmode="email" autocapitalize="none" spellcheck="false"></div>
+        <div class="field"><label for="aPass">Password</label><input id="aPass" type="password" autocomplete="new-password" minlength="8" placeholder="At least 8 characters"></div>
+        <button class="go" id="authBtn" type="submit">Create account</button>
+        <p class="err" id="authErr" role="alert"></p>
+      </form>
+    </div>
+  </main>
+
+  <!-- START OR JOIN -->
+  <main id="scr-setup" class="gate" hidden>
+    <img class="logo" src="/icon-192.png" alt="">
+    <h1 id="setupHi">Hi!</h1>
+    <p class="tag">Start a budget, or join your partner's.</p>
+    <div class="card">
+      <h2>Start a new budget</h2>
+      <p class="sub">You'll get an invite link to send your partner.</p>
+      <div class="field"><label for="newNestName">Budget name (optional)</label><input id="newNestName" maxlength="24" placeholder="Casa Avila"></div>
+      <button class="go" id="createNest">Start our budget</button>
+    </div>
+    <div class="or">or</div>
+    <div class="card">
+      <h2>Join with a code</h2>
+      <p class="sub">Ask your partner for their invite code or link.</p>
+      <div class="field"><label for="joinCode">Invite code</label><input id="joinCode" maxlength="12" autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="ABCD-EFGH"></div>
+      <button class="go inc" id="joinNest">Join budget</button>
+    </div>
+    <p class="err" id="setupErr" role="alert"></p>
+    <p class="center"><button class="linkbtn" id="setupLogout">Log out</button></p>
+  </main>
+
+  <header class="top" id="topBar" hidden>
+    <button class="hello hi-btn" id="hiBtn" aria-label="Open settings">
+      <img src="/icon-192.png" alt="">
+      <span style="min-width:0;display:block"><span id="hi" class="h1">Us</span></span>
+    </button>
+    <div class="month" aria-label="Choose month">
+      <button id="prevM" aria-label="Previous month">‹</button>
+      <span id="monthLbl"></span>
+      <button id="nextM" aria-label="Next month">›</button>
+    </div>
+  </header>
+
+  <!-- HOME -->
+  <main id="scr-home" hidden>
+    <section class="hero" aria-label="This month's money">
+      <div class="hero-top">
+        <svg class="bunny" id="bunny" viewBox="0 0 120 128" aria-hidden="true">
+          <g class="body" fill="var(--card)" stroke="var(--ink)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M44 52 C34 30 34 8 42 6 C50 4 54 28 54 46"/>
+            <path d="M76 52 C86 30 86 8 78 6 C70 4 66 28 66 46"/>
+            <ellipse cx="60" cy="82" rx="38" ry="34"/>
+            <circle cx="47" cy="78" r="3.5" fill="var(--ink)" stroke="none"/><circle cx="73" cy="78" r="3.5" fill="var(--ink)" stroke="none"/>
+            <ellipse cx="38" cy="90" rx="6" ry="3.5" fill="#F6B7CB" stroke="none"/><ellipse cx="82" cy="90" rx="6" ry="3.5" fill="#F6B7CB" stroke="none"/>
+            <path id="mouth" d="M53 90 q3.5 4 7 0 q3.5 4 7 0" fill="none" stroke-width="3"/>
+            <g id="prop"></g>
+          </g>
+        </svg>
+        <div class="bubble" id="bubble"></div>
+      </div>
+      <div class="left-lbl" id="leftLbl">Left for us this month</div>
+      <div class="left-amt" id="leftAmt">$0.00</div>
+      <div class="meter" aria-hidden="true"><i id="meter" style="width:0"></i></div>
+      <div class="flow"><span class="in" id="flowIn"></span><span class="out" id="flowOut"></span></div>
+    </section>
+    <div class="couple" id="couple"></div>
+    <div class="filter-note" id="filterNote" hidden></div>
+    <div class="section-h"><h2>Latest</h2><button class="linkbtn" id="seeAll">See all</button></div>
+    <div class="panel"><ul class="list" id="recent"></ul></div>
+  </main>
+
+  <!-- ADD -->
+  <main id="scr-add" hidden>
+    <div class="tabs" role="tablist" aria-label="Type">
+      <button role="tab" data-t="expense" aria-selected="true">Spent</button>
+      <button role="tab" data-t="income" aria-selected="false">Got paid</button>
+    </div>
+    <label class="bigamt" for="amt"><span>$</span><input id="amt" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0" aria-label="Amount"></label>
+    <div class="field" id="catField"><span class="lbl">What for?</span><div class="cats" id="cats"></div></div>
+    <div class="field"><label for="lbl">Note (optional)</label><input id="lbl" type="text" maxlength="40" placeholder="Date night tacos"></div>
+    <div class="field"><span class="lbl" id="whoLabel">Who paid?</span><div class="whos" id="whos"></div></div>
+    <div class="field" id="splitField"><span class="lbl">Split</span>
+      <div class="split"><button type="button" id="spShared" aria-pressed="true">Split it</button><button type="button" id="spMine" aria-pressed="false">Just mine</button></div>
+    </div>
+    <div class="field"><label for="dt">Date</label><input id="dt" type="date"></div>
+    <button class="go" id="goBtn">Add expense</button>
+    <p class="err" id="err" role="status"></p>
+  </main>
+
+  <!-- TOGETHER -->
+  <main id="scr-us" hidden>
+    <div class="section-h" style="margin-top:4px"><h2>Settle up</h2></div>
+    <div class="panel pad" id="settle"></div>
+
+    <div class="section-h"><h2>Our savings jar</h2><button class="linkbtn" id="editGoal">Change goal</button></div>
+    <div class="panel pad">
+      <div class="jar">
+        <svg viewBox="0 0 84 104" aria-hidden="true">
+          <defs><clipPath id="jc"><rect x="8" y="18" width="68" height="80" rx="18"/></clipPath></defs>
+          <rect x="8" y="18" width="68" height="80" rx="18" fill="var(--bg)"/>
+          <rect id="jarFill" x="8" y="98" width="68" height="0" fill="#F6CF73" clip-path="url(#jc)"/>
+          <rect x="8" y="18" width="68" height="80" rx="18" fill="none" stroke="var(--ink)" stroke-width="2.5"/>
+          <rect x="16" y="8" width="52" height="12" rx="5" fill="var(--ink)"/>
+        </svg>
+        <div class="jar-info">
+          <div class="g" id="goalName"></div>
+          <div class="p" id="goalProg"></div>
+          <div class="jar-add">
+            <input id="jarAmt" type="number" inputmode="decimal" min="0" step="0.01" placeholder="$ amount" aria-label="Amount to add to jar">
+            <button class="small" id="jarAddBtn">Drop in</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-h"><h2>Where it went</h2></div>
+    <div class="panel pad"><div class="bars" id="bars"></div></div>
+
+    <div class="section-h" id="allH"><h2>Everything this month</h2></div>
+    <div class="panel"><ul class="list" id="list"></ul></div>
+
+    <div class="section-h" id="inviteH"><h2>Invite your partner</h2></div>
+    <div class="panel pad">
+      <div class="lbl" style="padding:0">Invite code</div>
+      <div class="invite-code" id="inviteCode"></div>
+      <div class="invite-link" id="inviteLink"></div>
+      <div class="btn-row">
+        <button class="small" id="shareInvite">Share link</button>
+        <button class="small" id="copyInvite">Copy link</button>
+        <button class="small" id="newCode">New code</button>
+      </div>
+    </div>
+
+    <div class="section-h" id="setH"><h2>Settings</h2></div>
+    <div class="panel" style="padding:4px 16px">
+      <div class="set-row"><label class="lbl" for="nestName">Budget name</label><input id="nestName" maxlength="24" placeholder="Leave blank to show your names"></div>
+      <div class="set-row"><span class="lbl">People</span><div class="members" id="members"></div></div>
+      <div class="set-row"><span class="lbl">Theme</span><div class="swatches" id="swatches"></div></div>
+      <div class="set-row"><button class="linkbtn" id="replayTour">Show the tutorial again</button></div>
+      <div class="set-row" style="display:flex;justify-content:space-between;gap:10px">
+        <button class="linkbtn" id="logoutBtn">Log out</button>
+        <button class="linkbtn danger" id="leaveBtn">Leave this budget</button>
+      </div>
+    </div>
+
+    <div class="install">
+      <img src="/icon-192.png" alt="">
+      <p>Open <b>honeybun.me</b> in Safari or Chrome, then choose Share → Add to Home Screen.</p>
+    </div>
+    <p class="center" style="font-size:.82rem;color:var(--soft);margin-top:14px" id="signedAs"></p>
+  </main>
+</div>
+
+<nav class="bottom" id="nav" aria-label="Main" hidden>
+  <div class="in">
+    <button data-go="home" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg>Home</button>
+    <button class="plus" data-go="add" aria-label="Add money"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
+    <button data-go="us"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg>Together</button>
+  </div>
+</nav>
+
+<div class="toast" id="toast" role="status"></div>
+
+<dialog id="memberDlg" aria-labelledby="mdTitle">
+  <h2 id="mdTitle">Edit you</h2>
+  <div class="field" style="margin-top:6px"><label for="mName">Name</label><input id="mName" maxlength="24"></div>
+  <div class="lbl" style="margin-top:12px">Pick your buddy</div>
+  <div class="emojis" id="emojiPick"></div>
+  <div class="lbl">Color</div>
+  <div class="colors" id="colorPick"></div>
+  <p class="err" id="mErr"></p>
+  <div class="acts"><button class="small" id="mCancel">Cancel</button><button class="go" id="mSave">Save</button></div>
+</dialog>
+
+<dialog id="goalDlg" aria-labelledby="gdTitle">
+  <h2 id="gdTitle">Our savings goal</h2>
+  <div class="field"><label for="gName">Saving for</label><input id="gName" maxlength="30" placeholder="Beach trip"></div>
+  <div class="field"><label for="gTarget">Target</label><input id="gTarget" type="number" min="1" inputmode="decimal"></div>
+  <p class="err" id="gErr"></p>
+  <div class="acts"><button class="small" id="gCancel">Cancel</button><button class="go inc" id="gSave">Save goal</button></div>
+</dialog>
+
+<dialog id="tour" aria-labelledby="tourT">
+  <div class="tour-art" id="tourArt"></div>
+  <h2 id="tourT"></h2>
+  <p id="tourP"></p>
+  <div id="tourExtra"></div>
+  <div class="dots" id="tourDots"></div>
+  <div class="acts"><button class="small" id="tourSkip">Skip</button><button class="go" id="tourNext">Next</button></div>
+</dialog>
+
+<dialog id="askDlg" aria-labelledby="askT">
+  <h2 id="askT"></h2>
+  <p id="askP" style="margin:6px 0 16px;color:var(--soft);font-weight:600"></p>
+  <div class="acts"><button class="small" id="askNo">Cancel</button><button class="go" id="askYes">Yes</button></div>
+</dialog>
+
+<script src="/app.js" defer></script>
+</body>
+</html>
