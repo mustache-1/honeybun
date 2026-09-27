@@ -8,13 +8,19 @@
     { id: "food", e: "🍜", n: "Eating out", c: "#FF9F5A" },
     { id: "date", e: "💕", n: "Date night", c: "#FF6F9F" },
     { id: "bills", e: "💡", n: "Bills", c: "#FFC94D" },
+    { id: "subs", e: "📺", n: "Subscriptions", c: "#8FA3FF" },
     { id: "car", e: "🚗", n: "Getting around", c: "#5CC6D0" },
     { id: "fun", e: "🎁", n: "Gifts & fun", c: "#B79CFF" },
     { id: "pets", e: "🐾", n: "Kids & pets", c: "#D9A27A" },
+    { id: "debt", e: "💳", n: "Debt payments", c: "#E88AA8" },
     { id: "other", e: "✨", n: "Other", c: "#B7A9C4" },
   ];
+  const catOf = (id) => CATS.find((c) => c.id === id) || CATS[CATS.length - 1];
+  const NEEDS = ["home", "groc", "bills", "car", "pets", "debt"];
+  const WANTS = ["food", "date", "fun", "subs", "other"];
   const EMOJIS = ["🐰", "🐻", "🐱", "🐶", "🦊", "🐼", "🐨", "🐸", "🐧", "🦄", "🐥", "🐹"];
   const COLORS = ["#FFD6E5", "#FFF0C2", "#DDF5E9", "#E4EDFF", "#EADFFF", "#FFE1CC"];
+  const GOAL_EMOJIS = ["🍯", "✈️", "🏠", "💍", "🚗", "🎓", "🐶", "🎄", "🛟", "🎁"];
   const THEMES = [
     { id: "blueberry", n: "Blueberry", c: "#6F93DB" },
     { id: "blush", n: "Blush", c: "#EE7FA3" },
@@ -22,6 +28,20 @@
     { id: "honey", n: "Honey", c: "#DDA13F" },
   ];
   const FREQ_NAME = { weekly: "Every week", biweekly: "Every 2 weeks", monthly: "Every month" };
+  const QUICK_BILLS = [
+    { e: "🏠", n: "Rent", c: "home", s: true }, { e: "💡", n: "Electric", c: "bills", s: true }, { e: "💧", n: "Water", c: "bills", s: true },
+    { e: "🌐", n: "Internet", c: "bills", s: true }, { e: "📱", n: "Phone", c: "bills", s: false }, { e: "🚗", n: "Car payment", c: "car", s: false },
+    { e: "🛡️", n: "Insurance", c: "bills", s: false }, { e: "📺", n: "Netflix", c: "subs", s: true }, { e: "🎵", n: "Spotify", c: "subs", s: false },
+    { e: "🏋️", n: "Gym", c: "subs", s: false }, { e: "✨", n: "Something else", c: "other", s: false },
+  ];
+  // bunny levels
+  const TITLES = ["Tiny Sprout", "Curious Kit", "Hoppy Saver", "Carrot Collector", "Burrow Builder", "Budget Bunny", "Clover Keeper", "Garden Guardian", "Moon Hopper", "Honeybun Legend"];
+  const UNLOCKS = { 2: "a little sprout", 3: "a pink bow", 5: "a cozy scarf", 7: "a flower crown", 10: "a tiny golden crown" };
+  const levelFor = (xp) => { let l = 1; while (xp >= 25 * (l + 1) * l) l++; return l; };
+  const levelInfo = (xp) => {
+    const l = levelFor(xp), lo = 25 * l * (l - 1), hi = 25 * (l + 1) * l;
+    return { l, title: TITLES[Math.min(l, TITLES.length) - 1], lo, hi, pct: Math.max(0, Math.min(1, (xp - lo) / (hi - lo))) };
+  };
 
   // ---------- helpers ----------
   const $ = (id) => document.getElementById(id);
@@ -41,7 +61,7 @@
   };
   function monthName(m, short) {
     const [y, mo] = m.split("-").map(Number);
-    return new Date(y, mo - 1, 1).toLocaleDateString(undefined, short ? { month: "short", year: "2-digit" } : { month: "long", year: "numeric" });
+    return new Date(y, mo - 1, 1).toLocaleDateString(undefined, short ? { month: "short", year: "numeric" } : { month: "long", year: "numeric" });
   }
   function toast(t, actionLabel, action) {
     const el = $("toast"); $("toastText").textContent = t;
@@ -62,6 +82,7 @@
 
   async function api(path, { method = "GET", body } = {}) {
     const opts = { method, credentials: "same-origin", headers: {} };
+    opts.headers["x-local-date"] = today();
     if (method !== "GET") { opts.headers["content-type"] = "application/json"; opts.body = JSON.stringify(body ?? {}); }
     let res;
     try { res = await fetch(path, opts); } catch { throw new Error("You're offline. Check your connection and try again."); }
@@ -76,11 +97,12 @@
     return data;
   }
 
+
   // ---------- state ----------
   let ME = null, NEST = null, MEMBERS = [], ENTRIES = [], BAL = {}, SETTLES = [], RECUR = [], LOGGED = new Set(), JAR = [];
-  let MONTH = today().slice(0, 7);
-  let screen = "loading", filter = null, authMode = "signup";
-  // add/edit form
+  let GOALS = [], BUDGETS = {}, DEBTS = [], DEBTPAYS = [], SETUP_DONE = true;
+  let MONTH = today().slice(0, 7), YEAR = new Date().getFullYear(), YDATA = null;
+  let screen = "loading", filter = null, authMode = "signup", newKind = "couple", calSel = null;
   let mode = "expense", cat = "groc", who = null, shared = true, splitMode = "equal", editing = null;
   let pendingCode = null, resetToken = null;
   {
@@ -92,16 +114,23 @@
   const member = (id) => MEMBERS.find((m) => m.id === id) || { name: "Someone", emoji: "❔", color: "#EEE" };
   const meMember = () => MEMBERS.find((m) => m.id === ME?.id);
   const others = (id) => MEMBERS.filter((m) => m.id !== id);
+  const KIND = () => NEST?.kind || "couple";
+  const yesterday = () => toS(addDays(parseD(today()), -1));
+  const streakOf = (m) => (m && (m.last_day === today() || m.last_day === yesterday()) ? m.streak : 0);
+  const loggedToday = () => meMember()?.last_day === today();
 
   // ---------- screens ----------
-  const APP_SCREENS = ["home", "add", "us"];
+  const APP_SCREENS = ["home", "plan", "add", "stats", "us"];
+  const ALL_SCREENS = ["loading", "auth", "reset", "setup", "onboard", ...APP_SCREENS];
   function show(s) {
     screen = s;
-    ["loading", "auth", "reset", "setup", "home", "add", "us"].forEach((k) => ($("scr-" + k).hidden = k !== s));
+    ALL_SCREENS.forEach((k) => ($("scr-" + k).hidden = k !== s));
     const inApp = APP_SCREENS.includes(s);
     $("nav").hidden = !inApp; $("topBar").hidden = !inApp;
+    $("monthNav").style.visibility = s === "stats" || s === "add" ? "hidden" : "";
     document.querySelectorAll("nav.bottom [data-go]").forEach((b) => b.dataset.go === s ? b.setAttribute("aria-current", "page") : b.removeAttribute("aria-current"));
     window.scrollTo(0, 0);
+    if (s === "stats") loadYear();
     if (inApp) render();
   }
   document.querySelectorAll("nav.bottom [data-go]").forEach((b) => (b.onclick = () => {
@@ -171,6 +200,7 @@
     finally { busy($("resetBtn"), false); }
   };
 
+
   async function afterAuth() {
     const me = await api("/api/me");
     ME = me.user;
@@ -181,10 +211,10 @@
       pendingCode = null; history.replaceState(null, "", "/");
       return afterAuth();
     }
-    if (!me.nest_id) { $("setupHi").textContent = "Hi, " + ME.name + "!"; show("setup"); return; }
+    if (!me.nest_id) { $("setupHi").textContent = "Hi, " + ME.name + "!"; drawKinds(); show("setup"); return; }
     await loadNest();
+    if (!SETUP_DONE) { openOnboard(false); return; }
     show("home"); bunnyHop();
-    if (!store.get("hb-tour-" + ME.id)) setTimeout(openTour, 350);
   }
   async function logout() {
     try { await api("/api/logout", { method: "POST" }); } catch {}
@@ -194,10 +224,16 @@
   $("setupLogout").onclick = logout;
   $("logoutBtn").onclick = logout;
 
-  // ---------- setup ----------
+  // ---------- start or join ----------
+  function drawKinds() {
+    document.querySelectorAll("#kinds [data-kind]").forEach((b) => {
+      b.setAttribute("aria-pressed", b.dataset.kind === newKind ? "true" : "false");
+      b.onclick = () => { newKind = b.dataset.kind; drawKinds(); };
+    });
+  }
   $("createNest").onclick = async () => {
     busy($("createNest"), true); $("setupErr").textContent = "";
-    try { await api("/api/nests", { method: "POST", body: { name: $("newNestName").value } }); await afterAuth(); }
+    try { await api("/api/nests", { method: "POST", body: { name: $("newNestName").value, kind: newKind } }); await afterAuth(); }
     catch (e) { $("setupErr").textContent = e.message; } finally { busy($("createNest"), false); }
   };
   $("joinNest").onclick = async () => {
@@ -214,6 +250,9 @@
     ME = d.me; NEST = d.nest; MEMBERS = d.members;
     ENTRIES = d.entries.map((e) => ({ ...e, amount: e.amount_cents / 100, shared: !!e.shared, private: !!e.private }));
     BAL = d.balances; SETTLES = d.settlements; RECUR = d.recurring; JAR = d.jar;
+    document.documentElement.setAttribute("data-accent", d.nest.accent || "blueberry");
+    GOALS = d.goals; DEBTS = d.debts; DEBTPAYS = d.debt_payments; SETUP_DONE = d.setup_done;
+    BUDGETS = Object.fromEntries(d.budgets.map((b) => [b.category, b.limit_cents / 100]));
     LOGGED = new Set(d.logged.map((l) => l.recurring_id + "|" + l.occ_date));
     if (!MEMBERS.some((m) => m.id === who)) who = ME.id;
     if (filter && !MEMBERS.some((m) => m.id === filter)) filter = null;
@@ -226,6 +265,251 @@
   }
   setInterval(refresh, 20000);
   document.addEventListener("visibilitychange", refresh);
+
+  // ---------- carrots, streaks & level-ups ----------
+  function gearSvg(l) {
+    let g = "";
+    if (l >= 10) g += '<path d="M45 52 l4 -15 l11 9 l11 -9 l4 15z" fill="#F6CF73" stroke="#DDA13F" stroke-width="2" stroke-linejoin="round"/><circle cx="60" cy="44" r="2.5" fill="#EE7FA3" stroke="none"/>';
+    else if (l >= 7) g += [[40, 56, "#EE7FA3"], [49, 51, "#F6CF73"], [60, 49, "#fff"], [71, 51, "#F6CF73"], [80, 56, "#EE7FA3"]]
+      .map(([x, y, c]) => `<circle cx="${x}" cy="${y}" r="4.5" fill="${c}" stroke="#D9668C" stroke-width="1.2"/>`).join("") + '<circle cx="60" cy="49" r="1.6" fill="#F6CF73" stroke="none"/>';
+    else if (l >= 2) g += '<path d="M60 49 V37" stroke="#3E9B6B" stroke-width="3" fill="none"/><path d="M60 40 c-8 -1 -13 -7 -11 -12 c7 0 11 4 11 12z" fill="#58B287" stroke="none"/><path d="M60 42 c7 -3 12 -9 10 -13 c-7 1 -10 6 -10 13z" fill="#7FCB9F" stroke="none"/>';
+    if (l >= 3) g += '<path d="M79 53 l-9 -6 v12z M79 53 l9 -6 v12z" fill="#EE7FA3" stroke="none"/><circle cx="79" cy="53" r="3" fill="#D9668C" stroke="none"/>';
+    if (l >= 5) g += '<path d="M33 104 q27 16 54 0 l2 8 q-29 17 -58 0z" fill="#F6CF73" stroke="none"/><path d="M77 111 l5 14 l8 -3 l-5 -13z" fill="#EDBE55" stroke="none"/>';
+    return g;
+  }
+  function bunnySvg(l) {
+    return `<g fill="var(--card)" stroke="var(--ink)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M44 52 C34 30 34 8 42 6 C50 4 54 28 54 46"/><path d="M76 52 C86 30 86 8 78 6 C70 4 66 28 66 46"/>
+      <ellipse cx="60" cy="82" rx="38" ry="34"/>
+      <circle cx="47" cy="78" r="3.5" fill="var(--ink)" stroke="none"/><circle cx="73" cy="78" r="3.5" fill="var(--ink)" stroke="none"/>
+      <ellipse cx="38" cy="90" rx="6" ry="3.5" fill="#F6B7CB" stroke="none"/><ellipse cx="82" cy="90" rx="6" ry="3.5" fill="#F6B7CB" stroke="none"/>
+      <path d="M52 89 q8 8 16 0" fill="none" stroke-width="3"/>${gearSvg(l)}</g>`;
+  }
+  function rewardToast(rw, msg) {
+    if (!rw) { toast(msg); return; }
+    toast(rw.gained > 0 ? `${msg}  +${rw.gained} 🥕` : msg);
+    if (rw.leveled) setTimeout(() => showLevelUp(rw.level), 700);
+    else if (rw.streak_up) setTimeout(() => toast(`🐾 ${rw.streak}-day hop streak!`), 2000);
+    else if (rw.first_today && rw.streak === 1) setTimeout(() => toast("🐾 Streak started. Come back tomorrow!"), 2000);
+  }
+  function showLevelUp(l) {
+    const title = TITLES[Math.min(l, TITLES.length) - 1];
+    $("lvBunny").innerHTML = bunnySvg(l);
+    $("lvKicker").textContent = "Level up!";
+    $("lvTitle").textContent = `Level ${l} · ${title}`;
+    const unlock = Object.keys(UNLOCKS).map(Number).filter((n) => n <= l).pop();
+    $("lvText").textContent = UNLOCKS[l] ? `Your bunny unlocked ${UNLOCKS[l]}!` : unlock ? "Keep hopping. Your bunny is proud of you." : "Keep logging to grow your bunny.";
+    const c = $("confetti"); c.innerHTML = "";
+    if (!matchMedia("(prefers-reduced-motion: reduce)").matches)
+      for (let i = 0; i < 18; i++) {
+        const e = document.createElement("i"); e.textContent = ["🥕", "✨", "💕"][i % 3];
+        e.style.left = Math.random() * 100 + "%"; e.style.animationDelay = Math.random() * 0.6 + "s";
+        c.appendChild(e);
+      }
+    $("levelDlg").showModal();
+  }
+  $("lvOk").onclick = () => $("levelDlg").close();
+
+  function renderPill() {
+    const m = meMember(); if (!m) return;
+    const li = levelInfo(m.xp || 0), st = streakOf(m), done = loggedToday();
+    $("burrowPill").innerHTML = `<span class="today-dot ${done ? "done" : ""}"></span>
+      <span class="st ${st ? "" : "cold"}">🐾 ${st}</span>
+      <span class="lv">Lv ${li.l} · ${esc(li.title)}<small>${done ? "You hopped today ♡" : st ? "Log one thing today to keep your streak" : "Log one thing today to start a streak"}</small>
+      <span class="xpbar" style="display:block"><i style="width:${li.pct * 100}%"></i></span></span>
+      <span class="st">🥕 ${m.xp || 0}</span>`;
+    $("gear").innerHTML = gearSvg(li.l);
+  }
+  $("burrowPill").onclick = () => show("stats");
+
+  const BADGES = [
+    { e: "🐣", n: "First hop", d: "Log your first thing", ok: (m) => m.logs >= 1 },
+    { e: "🐾", n: "3-day hop", d: "Keep a 3-day streak", ok: (m) => m.best_streak >= 3 },
+    { e: "🌟", n: "Week hopper", d: "Keep a 7-day streak", ok: (m) => m.best_streak >= 7 },
+    { e: "🏅", n: "Month marathon", d: "Keep a 30-day streak", ok: (m) => m.best_streak >= 30 },
+    { e: "🥕", n: "Carrot counter", d: "Log 50 things", ok: (m) => m.logs >= 50 },
+    { e: "🧺", n: "Carrot basket", d: "Log 200 things", ok: (m) => m.logs >= 200 },
+    { e: "💰", n: "Payday planner", d: "Add a payday", ok: () => RECUR.some((r) => r.type === "income") },
+    { e: "📅", n: "Bill boss", d: "Add 3 bills", ok: () => RECUR.filter((r) => r.type === "expense").length >= 3 },
+    { e: "🎯", n: "Limit setter", d: "Set a monthly budget", ok: () => Object.keys(BUDGETS).length > 0 },
+    { e: "🍯", n: "Goal getter", d: "Reach a savings goal", ok: () => GOALS.some((g) => g.saved_cents >= g.target_cents) },
+    { e: "🎉", n: "Debt free-ish", d: "Pay off a debt", ok: () => DEBTS.some((d) => d.paid_cents >= d.start_cents) },
+    { e: "💞", n: "Better together", d: "Share your budget", ok: () => MEMBERS.length >= 2 },
+    { e: "🏡", n: "Burrow builder", d: "Reach level 5", ok: (m) => levelFor(m.xp) >= 5 },
+    { e: "🌙", n: "Moon hopper", d: "Reach level 9", ok: (m) => levelFor(m.xp) >= 9 },
+    { e: "👑", n: "Legend", d: "Reach level 10", ok: (m) => levelFor(m.xp) >= 10 },
+    { e: "🗓️", n: "Year in review", d: "Log something in 6 different months", ok: () => YDATA && new Set(YDATA.entries.map((e) => e.date.slice(0, 7))).size >= 6 },
+  ];
+  function renderBurrow() {
+    const m = meMember(); if (!m) return;
+    const li = levelInfo(m.xp || 0), st = streakOf(m);
+    // this week's hop days (Mon–Sun) from the current streak
+    const t = parseD(today()), mon = addDays(t, -((t.getDay() + 6) % 7));
+    const streakDays = new Set();
+    if (m.last_day && st) for (let i = 0; i < Math.min(st, 7); i++) streakDays.add(toS(addDays(parseD(m.last_day), -i)));
+    const week = ["M", "T", "W", "T", "F", "S", "S"].map((n, i) => {
+      const d = toS(addDays(mon, i));
+      return `<div><i class="${streakDays.has(d) ? "on" : ""} ${d === today() ? "today" : ""}">${streakDays.has(d) ? "🐾" : ""}</i>${n}</div>`;
+    }).join("");
+    $("burrow").innerHTML = `<svg viewBox="0 0 120 128" aria-hidden="true">${bunnySvg(li.l)}</svg>
+      <div class="info"><div class="kick">Level ${li.l}</div><h2>${esc(li.title)}</h2>
+      <div class="xpbar"><i style="width:${li.pct * 100}%"></i></div>
+      <div class="nums"><span>🥕 ${m.xp || 0}</span><span>${li.hi - (m.xp || 0)} to level ${li.l + 1}</span></div>
+      <div class="chips"><span>🐾 ${st}-day streak</span><span>Best ${m.best_streak || 0}</span></div>
+      <div class="week">${week}</div></div>`;
+    const bg = $("badges"); bg.innerHTML = ""; let got = 0;
+    BADGES.forEach((b) => {
+      const on = !!b.ok(m); if (on) got++;
+      const el = document.createElement("button"); el.className = "badge" + (on ? " on" : "");
+      el.innerHTML = `<i>${b.e}</i>${esc(b.n)}`;
+      el.onclick = () => toast(on ? `${b.n}: unlocked ♡` : `${b.n}: ${b.d}`);
+      bg.appendChild(el);
+    });
+    $("badgeCount").textContent = `${got} of ${BADGES.length}`;
+    const wk = (() => { const d = parseD(today()); return toS(addDays(d, -((d.getDay() + 6) % 7))); })();
+    $("boardWrap").hidden = MEMBERS.length < 2;
+    const rows = MEMBERS.map((x) => ({ x, v: x.week_key === wk ? x.week_xp : 0 })).sort((a, b) => b.v - a.v);
+    $("board").innerHTML = rows.map((r, i) => `<div class="board-row"><span class="rk">${i + 1}</span><span class="face" style="background:${esc(r.x.color)}">${esc(r.x.emoji)}</span>
+      <span class="nm">${esc(r.x.name)}${r.x.id === ME.id ? " (you)" : ""}</span><span class="xp">🥕 ${r.v}</span></div>`).join("");
+  }
+
+  // ---------- first-time setup ----------
+  let ob = { steps: [], i: 0, rerun: false, pay: {}, bill: {} };
+  function freshPay() { return { amount: "", freq: "biweekly", date: today(), who: ME.id, label: "Paycheck" }; }
+  function freshBill() { return { pick: null, label: "", cat: "home", amount: "", freq: "monthly", date: "", shared: MEMBERS.length > 1 }; }
+  function openOnboard(rerun) {
+    ob.rerun = rerun;
+    const invite = KIND() !== "solo" && MEMBERS.length < 2 && !rerun;
+    ob.steps = rerun ? ["paydays", "bills", "done"] : ["buddy", ...(invite ? ["invite"] : []), "paydays", "bills", "done"];
+    ob.i = 0; ob.pay = freshPay(); ob.bill = freshBill();
+    show("onboard"); drawOb();
+  }
+  const ICON = {
+    heart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg>',
+    cal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="15" rx="3"/><path d="M4 10h16M9 3v4M15 3v4"/></svg>',
+    coin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="8"/><path d="M12 7v10M14.5 9.5c0-1-1.1-1.8-2.5-1.8s-2.5.8-2.5 1.9 1 1.6 2.5 1.9 2.5.9 2.5 2-1.1 1.8-2.5 1.8-2.5-.8-2.5-1.8"/></svg>',
+  };
+  function recurRow(r) {
+    const isIn = r.type === "income", n = nextOcc(r);
+    const li = document.createElement("li");
+    li.innerHTML = `<span>${isIn ? "💰" : catOf(r.category).e}</span><span class="t">${esc(r.label)} · ${fmt(r.amount_cents / 100)}<small>${FREQ_NAME[r.freq]}${n ? ", next " + shortDay(n) : ""}${isIn ? ", " + esc(member(r.member_id).name) : r.shared ? ", split" : ""}</small></span><button aria-label="Remove">✕</button>`;
+    li.querySelector("button").onclick = async () => { try { await api("/api/recurring/" + r.id, { method: "DELETE" }); await loadNest(); drawOb(); } catch (e) { $("obErr").textContent = e.message; } };
+    return li;
+  }
+  function drawOb() {
+    const step = ob.steps[ob.i], last = ob.steps.length - 1, body = $("obBody");
+    $("obProg").style.width = (ob.i / last) * 100 + "%";
+    $("obBack").style.visibility = ob.i === 0 ? "hidden" : "";
+    $("obSkip").style.visibility = step === "done" ? "hidden" : "";
+    $("obErr").textContent = "";
+    $("obNext").textContent = step === "done" ? "Go to my budget" : step === "bills" ? "Finish" : "Next";
+    const isSolo = KIND() === "solo";
+    if (step === "buddy") {
+      body.innerHTML = `<div class="ob-art"><img src="/icon-192.png" alt=""></div><h1>Hi ${esc(ME.name)}!</h1>
+        <p class="lead">Let's set up your budget. It takes about a minute. First, pick the little buddy that shows next to everything you add.</p>
+        <div class="emojis" id="obEmojis"></div>`;
+      const mine = meMember(), g = $("obEmojis");
+      EMOJIS.forEach((e) => {
+        const b = document.createElement("button"); b.type = "button"; b.textContent = e;
+        b.setAttribute("aria-pressed", mine && mine.emoji === e ? "true" : "false");
+        b.onclick = async () => { if (mine) mine.emoji = e; drawOb(); try { await api("/api/me", { method: "PATCH", body: { emoji: e } }); } catch (err) { $("obErr").textContent = err.message; } };
+        g.appendChild(b);
+      });
+    }
+    if (step === "invite") {
+      const who = KIND() === "family" ? "your family" : "your partner";
+      body.innerHTML = `<div class="ob-art">${ICON.heart}</div><h1>Invite ${who}</h1>
+        <p class="lead">Send them this link. When they join, you'll share one budget and see the same bills.</p>
+        <div class="big-code">${esc(prettyCode(NEST.invite_code))}</div>
+        <div class="btn-row" style="justify-content:center;margin-top:12px">${navigator.share ? '<button class="small" id="obShare">Share link</button>' : ""}<button class="small" id="obCopy">Copy link</button></div>
+        <p class="hint center" style="margin-top:12px">You can always find this later in Together.</p>`;
+      $("obCopy").onclick = $("copyInvite").onclick;
+      if ($("obShare")) $("obShare").onclick = $("shareInvite").onclick;
+    }
+    if (step === "paydays") {
+      const p = ob.pay, pays = RECUR.filter((r) => r.type === "income");
+      body.innerHTML = `<div class="ob-art">${ICON.coin}</div><h1>When do you get paid?</h1>
+        <p class="lead">Add each paycheck once. Honeybun uses it to show what's due before payday.</p>
+        ${MEMBERS.length > 1 ? '<div class="field" style="margin-top:0"><span class="lbl">Who gets paid?</span><div class="whos" id="obPayWho"></div></div>' : ""}
+        <div class="row2"><div class="field"><label for="obPayAmt">Amount</label><input id="obPayAmt" type="number" inputmode="decimal" min="0" step="0.01" placeholder="1,800"></div>
+        <div class="field"><label for="obPayFreq">How often</label><select id="obPayFreq"><option value="weekly">Every week</option><option value="biweekly">Every 2 weeks</option><option value="monthly">Every month</option></select></div></div>
+        <div class="field"><label for="obPayDate">Next payday</label><input id="obPayDate" type="date"></div>
+        <button class="small" id="obPayAdd" style="margin-top:12px">Add payday</button>
+        <ul class="added" id="obPays"></ul>`;
+      $("obPayAmt").value = p.amount; $("obPayFreq").value = p.freq; $("obPayDate").value = p.date;
+      $("obPayAmt").oninput = (e) => (p.amount = e.target.value);
+      $("obPayFreq").onchange = (e) => (p.freq = e.target.value);
+      $("obPayDate").onchange = (e) => (p.date = e.target.value);
+      if ($("obPayWho")) MEMBERS.forEach((m) => {
+        const b = document.createElement("button"); b.type = "button"; b.innerHTML = `<i style="background:${esc(m.color)}">${esc(m.emoji)}</i>${esc(m.name)}`;
+        b.setAttribute("aria-pressed", m.id === p.who ? "true" : "false"); b.onclick = () => { p.who = m.id; drawOb(); }; $("obPayWho").appendChild(b);
+      });
+      pays.forEach((r) => $("obPays").appendChild(recurRow(r)));
+      $("obPayAdd").onclick = async () => {
+        if (!(parseFloat(p.amount) > 0)) { $("obErr").textContent = "Enter how much you get paid."; $("obPayAmt").focus(); return; }
+        if (!p.date) { $("obErr").textContent = "Pick your next payday."; return; }
+        try {
+          await api("/api/recurring", { method: "POST", body: { type: "income", amount: parseFloat(p.amount), label: member(p.who).name + "'s paycheck", member_id: p.who, freq: p.freq, date: p.date } });
+          ob.pay = freshPay(); ob.pay.who = p.who; await loadNest(); drawOb(); toast("Payday added");
+        } catch (e) { $("obErr").textContent = e.message; }
+      };
+    }
+    if (step === "bills") {
+      const b = ob.bill, bills = RECUR.filter((r) => r.type === "expense");
+      body.innerHTML = `<div class="ob-art">${ICON.cal}</div><h1>Rent, bills & subscriptions</h1>
+        <p class="lead">Add the things you pay every month. We'll show them before they're due${isSolo ? "" : " and split them for you"}.</p>
+        <div class="quick" id="obQuick"></div>
+        <div class="field"><label for="obBillName">Name</label><input id="obBillName" maxlength="40" placeholder="Rent"></div>
+        <div class="row2"><div class="field"><label for="obBillAmt">Amount</label><input id="obBillAmt" type="number" inputmode="decimal" min="0" step="0.01" placeholder="1,500"></div>
+        <div class="field"><label for="obBillDate">Next due date</label><input id="obBillDate" type="date"></div></div>
+        <div class="field"><label for="obBillFreq">How often</label><select id="obBillFreq"><option value="monthly">Every month</option><option value="biweekly">Every 2 weeks</option><option value="weekly">Every week</option></select></div>
+        ${MEMBERS.length > 1 ? '<div class="field"><span class="lbl">Split</span><div class="split"><button type="button" id="obSplit">Split evenly</button><button type="button" id="obMine">Just mine</button></div></div>' : ""}
+        <button class="small" id="obBillAdd" style="margin-top:12px">Add bill</button>
+        <ul class="added" id="obBills"></ul>`;
+      QUICK_BILLS.forEach((q) => {
+        const el = document.createElement("button"); el.type = "button"; el.textContent = `${q.e} ${q.n}`;
+        el.setAttribute("aria-pressed", b.pick === q.n ? "true" : "false");
+        el.onclick = () => { b.pick = q.n; b.label = q.n === "Something else" ? "" : q.n; b.cat = q.c; b.shared = MEMBERS.length > 1 && q.s; drawOb(); (q.n === "Something else" ? $("obBillName") : $("obBillAmt")).focus(); };
+        $("obQuick").appendChild(el);
+      });
+      $("obBillName").value = b.label; $("obBillAmt").value = b.amount; $("obBillDate").value = b.date; $("obBillFreq").value = b.freq;
+      $("obBillName").oninput = (e) => (b.label = e.target.value);
+      $("obBillAmt").oninput = (e) => (b.amount = e.target.value);
+      $("obBillDate").onchange = (e) => (b.date = e.target.value);
+      $("obBillFreq").onchange = (e) => (b.freq = e.target.value);
+      if ($("obSplit")) {
+        $("obSplit").setAttribute("aria-pressed", b.shared ? "true" : "false"); $("obMine").setAttribute("aria-pressed", b.shared ? "false" : "true");
+        $("obSplit").onclick = () => { b.shared = true; drawOb(); }; $("obMine").onclick = () => { b.shared = false; drawOb(); };
+      }
+      bills.forEach((r) => $("obBills").appendChild(recurRow(r)));
+      $("obBillAdd").onclick = async () => {
+        if (!b.label.trim()) { $("obErr").textContent = "Name the bill, or tap one above."; $("obBillName").focus(); return; }
+        if (!(parseFloat(b.amount) > 0)) { $("obErr").textContent = "Enter the amount."; $("obBillAmt").focus(); return; }
+        if (!b.date) { $("obErr").textContent = "Pick the next due date."; $("obBillDate").focus(); return; }
+        try {
+          await api("/api/recurring", { method: "POST", body: { type: "expense", amount: parseFloat(b.amount), label: b.label.trim(), category: b.cat, member_id: ME.id, shared: b.shared, split_mode: "equal", freq: b.freq, date: b.date } });
+          ob.bill = freshBill(); await loadNest(); drawOb(); toast(`${b.label.trim()} added`);
+        } catch (e) { $("obErr").textContent = e.message; }
+      };
+    }
+    if (step === "done") {
+      const np = RECUR.filter((r) => r.type === "income").length, nb = RECUR.filter((r) => r.type === "expense").length;
+      body.innerHTML = `<div class="ob-art"><img src="/icon-192.png" alt=""></div><h1>You're all set</h1>
+        <p class="lead">${np} payday${np === 1 ? "" : "s"} and ${nb} bill${nb === 1 ? "" : "s"} added. You can change them anytime in Plan.</p>
+        <div class="card" style="text-align:left"><h2 style="font-size:1rem">How your bunny grows 🥕</h2>
+        <p class="sub" style="margin-top:6px">Earn carrots every time you log spending, pay a bill, or save. Log something each day to build your hop streak 🐾, level up, and unlock outfits for your bunny.</p></div>`;
+    }
+  }
+  $("obBack").onclick = () => { if (ob.i > 0) { ob.i--; drawOb(); window.scrollTo(0, 0); } };
+  $("obSkip").onclick = () => { ob.i = Math.min(ob.i + 1, ob.steps.length - 1); drawOb(); window.scrollTo(0, 0); };
+  $("obNext").onclick = async () => {
+    if (ob.steps[ob.i] !== "done") { ob.i++; drawOb(); window.scrollTo(0, 0); return; }
+    let rw = null;
+    try { rw = (await api("/api/setup/done", { method: "POST" })).reward; } catch {}
+    await loadNest(); show("home"); bunnyHop();
+    if (rw) rewardToast(rw, "Setup complete");
+  };
+  $("rerunSetup").onclick = () => openOnboard(true);
 
   // ---------- bills & paydays: upcoming ----------
   function occurrences(r, from, to) {
@@ -268,23 +552,24 @@
   async function logOcc(r, d, btn) {
     if (btn) busy(btn, true);
     try {
-      await api(`/api/recurring/${r.id}/log`, { method: "POST", body: { occ_date: toS(d) } });
+      const res = await api(`/api/recurring/${r.id}/log`, { method: "POST", body: { occ_date: toS(d) } });
       await loadNest();
-      toast(r.type === "income" ? "Payday logged" : r.label + " marked paid");
+      rewardToast(res.reward, r.type === "income" ? "Payday logged" : r.label + " marked paid");
       bunnyHop();
     } catch (e) { toast(e.message); if (btn) busy(btn, false); }
   }
+
 
   // ---------- rendering ----------
   function setBunny(left, inc, out, any) {
     const r = inc > 0 ? out / inc : out > 0 ? 2 : 0;
     let msg, path = "M53 90 q3.5 4 7 0 q3.5 4 7 0", p = "";
-    if (!any) msg = "Add your first paycheck to begin.";
+    if (!any) msg = loggedToday() ? "Add your first paycheck to begin." : "Log something today to start your hop streak 🐾";
     else if (inc === 0) { msg = "No income logged yet."; path = "M54 91 h12"; }
     else if (r > 1) { msg = "A little over this month."; path = "M53 93 q7 -5 14 0"; }
     else if (r > 0.8) { msg = "Almost at the limit."; path = "M54 91 q6 1.5 12 0"; }
     else {
-      msg = Math.round((1 - r) * 100) + "% of this month is still ours.";
+      msg = Math.round((1 - r) * 100) + `% of this month is still ${KIND() === "solo" ? "yours" : "ours"}.`;
       if (r < 0.5) { path = "M52 89 q8 8 16 0"; p = '<path d="M100 40 c-3-5-10-2-6 4 l6 5 6-5 c4-6-3-9-6-4z" fill="#EE7FA3" stroke="none"/>'; }
     }
     $("mouth").setAttribute("d", path); $("prop").innerHTML = p; $("bubble").textContent = msg;
@@ -305,7 +590,7 @@
   function entryPayload(e) {
     return { type: e.type, amount: e.amount, label: e.label, category: e.category, member_id: e.member_id, shared: e.shared,
       split_mode: e.split_mode, split_value: e.split_mode === "owed" ? e.split_value / 100 : e.split_value,
-      private: e.private, date: e.date, recurring_id: e.recurring_id, occ_date: e.occ_date };
+      private: e.private, date: e.date, recurring_id: e.recurring_id, occ_date: e.occ_date, restore: true };
   }
   async function deleteEntry(e) {
     try {
@@ -382,26 +667,43 @@
       `<div class="due-foot"><span>Due ${fmt(total)}</span><span class="${left - total < 0 ? "neg" : ""}">Left after bills ${fmt(left - total)}</span></div>`);
   }
 
+
+  const spentByCat = () => {
+    const by = {};
+    ENTRIES.filter((e) => e.type === "expense").forEach((e) => (by[e.category] = (by[e.category] || 0) + e.amount));
+    return by;
+  };
+
   function render() {
     if (!NEST) return;
     document.documentElement.setAttribute("data-accent", NEST.accent || "blueberry");
     $("monthLbl").textContent = monthName(MONTH, true);
     const names = MEMBERS.map((m) => m.name);
     $("hi").textContent = NEST.name || (MEMBERS.length === 2 ? `${names[0]} & ${names[1]}` : MEMBERS.length === 1 ? names[0] : "Our family");
+    $("usLabel").textContent = KIND() === "solo" && MEMBERS.length < 2 ? "Me" : "Together";
 
     const all = ENTRIES, view = filter ? all.filter((e) => e.member_id === filter) : all;
     const sum = (arr, t) => arr.filter((e) => e.type === t).reduce((s, e) => s + e.amount, 0);
     const inc = sum(view, "income"), out = sum(view, "expense"), left = inc - out;
 
     if (screen === "home") {
-      $("leftLbl").textContent = filter ? member(filter).name + "'s balance" : "Left for us this month";
+      const lbl = { solo: "Left for me this month", couple: "Left for us this month", family: "Left for our family this month" }[KIND()];
+      $("leftLbl").textContent = filter ? member(filter).name + "'s balance" : lbl;
       $("leftAmt").textContent = fmt(left); $("leftAmt").classList.toggle("neg", left < 0);
       $("meter").style.width = inc > 0 ? Math.min(100, (out / inc) * 100) + "%" : out > 0 ? "100%" : "0";
       $("flowIn").textContent = "+" + fmt(inc) + " in"; $("flowOut").textContent = fmt(out) + " out";
       setBunny(left, inc, out, view.length > 0);
+      renderPill();
       const isThisMonth = MONTH === today().slice(0, 7);
       $("dueCard").hidden = !isThisMonth;
       if (isThisMonth) renderDue(sum(all, "income") - sum(all, "expense"));
+
+      // budget heads-up
+      const by = spentByCat();
+      const warn = Object.entries(BUDGETS).map(([c, lim]) => ({ c, lim, sp: by[c] || 0 })).filter((x) => x.sp >= x.lim * 0.8).sort((a, b) => b.sp / b.lim - a.sp / a.lim).slice(0, 2);
+      $("homeBud").innerHTML = warn.map((x) => `<div class="home-bud"><span>${catOf(x.c).e} ${esc(catOf(x.c).n)}</span>
+        <small>${x.sp > x.lim ? "Over by " + fmt(x.sp - x.lim) : fmt(x.lim - x.sp) + " left"}</small></div>`).join("");
+      $("homeBud").onclick = () => show("plan");
 
       const cp = $("couple"); cp.innerHTML = "";
       const amp = () => { const h = document.createElement("span"); h.className = "heart"; h.textContent = "&"; h.setAttribute("aria-hidden", "true"); return h; };
@@ -411,13 +713,13 @@
         const mo = all.filter((e) => e.member_id === m.id && e.type === "expense").reduce((s, e) => s + e.amount, 0);
         const b = document.createElement("button"); b.className = "pal"; b.setAttribute("aria-pressed", filter === m.id ? "true" : "false");
         b.setAttribute("aria-label", `${m.name}: earned ${fmt(mi)}, paid ${fmt(mo)}. Tap to see only theirs.`);
-        b.innerHTML = `<span class="face" style="background:${esc(m.color)}">${esc(m.emoji)}</span><span class="nm">${esc(m.name)}</span><span class="st">+${fmt(mi)}<br>−${fmt(mo).replace("−", "")}</span>`;
+        b.innerHTML = `<span class="face" style="background:${esc(m.color)}">${esc(m.emoji)}</span><span class="nm">${esc(m.name)}</span><span class="st">Lv ${levelFor(m.xp || 0)} · 🐾 ${streakOf(m)}<br>+${fmt(mi)} / −${fmt(mo).replace("−", "")}</span>`;
         b.onclick = () => { filter = filter === m.id ? null : m.id; render(); };
         cp.appendChild(b);
       });
-      if (MEMBERS.length === 1) {
+      if (MEMBERS.length === 1 && KIND() !== "solo") {
         const b = document.createElement("button"); b.className = "pal";
-        b.innerHTML = `<span class="face" style="background:var(--card);box-shadow:inset 0 0 0 2px var(--line);color:var(--soft)">＋</span><span class="nm">Invite</span><span class="st">your partner</span>`;
+        b.innerHTML = `<span class="face" style="background:var(--card);box-shadow:inset 0 0 0 2px var(--line);color:var(--soft)">＋</span><span class="nm">Invite</span><span class="st">${KIND() === "family" ? "your family" : "your partner"}</span>`;
         b.onclick = () => { show("us"); setTimeout(() => $("inviteH").scrollIntoView({ behavior: "smooth" }), 40); };
         cp.append(amp(), b);
       }
@@ -434,12 +736,13 @@
     }
 
     if (screen === "add") renderForm();
+    if (screen === "plan") renderPlan();
+    if (screen === "stats") renderStats();
 
     if (screen === "us") {
-      // settle up
+      $("settleWrap").hidden = MEMBERS.length < 2;
       const st = $("settle"), ps = pairs();
-      if (MEMBERS.length < 2) st.innerHTML = `<p class="empty" style="margin:0">Invite your partner to split costs.</p>`;
-      else if (!ps.length) st.innerHTML = `<div class="owe">You're all even ♡</div>`;
+      if (!ps.length) st.innerHTML = `<div class="owe">You're all even ♡</div>`;
       else {
         st.innerHTML = `<p style="margin:0;color:var(--soft);font-weight:700;font-size:.85rem">From all split expenses so far</p>`;
         ps.forEach((p) => {
@@ -459,56 +762,22 @@
         };
         sh.appendChild(li);
       });
-
-      // bills & paydays
-      const bl = $("bills"); bl.innerHTML = "";
-      if (!RECUR.length) bl.innerHTML = `<li class="empty" style="justify-content:center;border:0">Rent, subscriptions, paychecks. Add them once.</li>`;
-      RECUR.forEach((r) => {
-        const isIn = r.type === "income", c = CATS.find((x) => x.id === r.category) || CATS[4], n = nextOcc(r);
-        const li = document.createElement("li"); li.className = "clickable";
-        li.innerHTML = `<div class="ic" style="${isIn ? "background:var(--mint-t)" : ""}">${isIn ? "💰" : c.e}</div>
-          <div class="mid"><div class="t">${esc(r.label)}</div><div class="s">${FREQ_NAME[r.freq]}${n ? ", next " + shortDay(n) : ""}, ${esc(member(r.member_id).name)}</div></div>
-          <div class="amt ${isIn ? "in" : ""}">${isIn ? "+" : ""}${fmt(r.amount_cents / 100)}</div>`;
-        li.onclick = () => openEditRecurring(r);
-        bl.appendChild(li);
-      });
-
-      // jar
-      const saved = NEST.goal_saved / 100, target = NEST.goal_target / 100;
-      const pct = target > 0 ? Math.min(100, (saved / target) * 100) : 0, h = (80 * pct) / 100;
-      $("jarFill").setAttribute("y", 98 - h); $("jarFill").setAttribute("height", h);
-      $("goalName").textContent = NEST.goal_name;
-      $("goalProg").textContent = fmt(saved) + " of " + fmt(target) + (pct >= 100 ? " · reached ♡" : " · " + Math.round(pct) + "%");
-      const jh = $("jarHist"); jh.innerHTML = "";
-      JAR.slice(0, 6).forEach((j) => {
-        const li = document.createElement("li"), inn = j.amount_cents > 0;
-        const when = new Date(j.created_at * 1000).toLocaleDateString(undefined, { month: "short", day: "numeric" });
-        li.innerHTML = `<span><b>${esc(member(j.member_id).name)}</b> ${inn ? "added" : "took out"} ${fmt(Math.abs(j.amount_cents) / 100)}, ${when}</span><button aria-label="Remove">✕</button>`;
-        li.querySelector("button").onclick = async () => {
-          if (!(await ask("Remove this from the history?", "The jar total will be corrected.", "Remove"))) return;
-          try { await api("/api/jar/" + j.id, { method: "DELETE" }); await loadNest(); } catch (e) { toast(e.message); }
-        };
-        jh.appendChild(li);
-      });
-
-      // categories
-      const bars = $("bars"); bars.innerHTML = ""; const by = {};
-      all.filter((e) => e.type === "expense").forEach((e) => (by[e.category] = (by[e.category] || 0) + e.amount));
-      const rows = CATS.filter((c) => by[c.id]).sort((a, b) => by[b.id] - by[a.id]); const mx = Math.max(1, ...rows.map((c) => by[c.id]));
-      if (!rows.length) bars.innerHTML = `<p class="empty" style="margin:0">No spending yet this month.</p>`;
-      rows.forEach((c) => {
-        const d = document.createElement("div"); d.className = "bar";
-        d.innerHTML = `<div class="l"><span>${c.e} ${c.n}</span><span>${fmt(by[c.id])}</span></div><div class="trk"><i style="width:${(by[c.id] / mx) * 100}%;background:${c.c}"></i></div>`;
-        bars.appendChild(d);
-      });
       const l = $("list"); l.innerHTML = "";
       if (!all.length) l.innerHTML = `<li class="empty" style="justify-content:center;border:0">Nothing logged for ${esc(monthName(MONTH))}.</li>`;
       all.forEach((e) => l.appendChild(entryLi(e)));
 
+      $("inviteTitle").textContent = { solo: "Invite someone (optional)", couple: "Invite your partner", family: "Invite your family" }[KIND()];
       $("inviteCode").textContent = prettyCode(NEST.invite_code);
       $("inviteLink").textContent = inviteUrl();
       $("shareInvite").hidden = !navigator.share;
       if (document.activeElement !== $("nestName")) $("nestName").value = NEST.name;
+      const ks = $("kindSet"); ks.innerHTML = "";
+      [["solo", "🐰", "Just me"], ["couple", "🐰🐻", "Couple"], ["family", "🐰🐻🐥", "Family"]].forEach(([id, e, n]) => {
+        const b = document.createElement("button"); b.type = "button"; b.innerHTML = `<b>${e}</b>${n}`;
+        b.setAttribute("aria-pressed", KIND() === id ? "true" : "false");
+        b.onclick = async () => { NEST.kind = id; render(); try { await api("/api/nest", { method: "PATCH", body: { kind: id } }); } catch (err) { toast(err.message); } };
+        ks.appendChild(b);
+      });
       const mm = $("members"); mm.innerHTML = "";
       MEMBERS.forEach((m) => {
         const r = document.createElement("div"); r.className = "mem";
@@ -520,6 +789,324 @@
       $("signedAs").textContent = "Signed in as " + ME.email;
     }
   }
+
+  // ---------- plan: budgets ----------
+  function renderPlan() {
+    const by = spentByCat(), box = $("budgets"), cats = Object.keys(BUDGETS);
+    if (!cats.length) {
+      box.innerHTML = `<p class="empty" style="margin:0;padding:4px 0 10px">Give each category a monthly limit, like $400 for groceries. We'll warn you before you go over.</p><button class="small" id="budStart">Set budgets</button>`;
+      $("budStart").onclick = openBudgets;
+    } else {
+      const totL = cats.reduce((s, c) => s + BUDGETS[c], 0), totS = cats.reduce((s, c) => s + (by[c] || 0), 0);
+      box.innerHTML = `<div class="bud"><div class="l"><span>All budgets</span><small class="${totS > totL ? "over" : ""}">${fmt(totS)} of ${fmt(totL)}</small></div>
+        <div class="trk"><i class="${totS > totL ? "over" : totS > totL * 0.8 ? "warn" : ""}" style="width:${Math.min(100, (totS / totL) * 100)}%"></i></div></div>` +
+        cats.map((c) => ({ c, lim: BUDGETS[c], sp: by[c] || 0 })).sort((a, b) => b.sp / b.lim - a.sp / a.lim).map((x) => {
+          const r = x.sp / x.lim;
+          return `<div class="bud"><div class="l"><span>${catOf(x.c).e} ${esc(catOf(x.c).n)}</span><small class="${r > 1 ? "over" : ""}">${r > 1 ? "Over by " + fmt(x.sp - x.lim) : fmt(x.lim - x.sp) + " left of " + fmt(x.lim)}</small></div>
+            <div class="trk"><i class="${r > 1 ? "over" : r > 0.8 ? "warn" : ""}" style="width:${Math.min(100, r * 100)}%"></i></div></div>`;
+        }).join("");
+    }
+    renderCalendar();
+    // bills list
+    const bl = $("bills"); bl.innerHTML = "";
+    if (!RECUR.length) bl.innerHTML = `<li class="empty" style="justify-content:center;border:0">Rent, subscriptions, paychecks. Add them once.</li>`;
+    RECUR.forEach((r) => {
+      const isIn = r.type === "income", n = nextOcc(r);
+      const li = document.createElement("li"); li.className = "clickable";
+      li.innerHTML = `<div class="ic" style="${isIn ? "background:var(--mint-t)" : ""}">${isIn ? "💰" : catOf(r.category).e}</div>
+        <div class="mid"><div class="t">${esc(r.label)}</div><div class="s">${FREQ_NAME[r.freq]}${n ? ", next " + shortDay(n) : ""}, ${esc(member(r.member_id).name)}</div></div>
+        <div class="amt ${isIn ? "in" : ""}">${isIn ? "+" : ""}${fmt(r.amount_cents / 100)}</div>`;
+      li.onclick = () => openEditRecurring(r);
+      bl.appendChild(li);
+    });
+    renderGoals();
+    renderDebts();
+  }
+  function openBudgets() {
+    const box = $("budgetEdit"); box.innerHTML = "";
+    CATS.forEach((c) => {
+      const l = document.createElement("label");
+      l.innerHTML = `${c.e} <span>${esc(c.n)}</span><input type="number" inputmode="decimal" min="0" step="1" data-cat="${c.id}" placeholder="No limit">`;
+      l.querySelector("input").value = BUDGETS[c.id] ?? "";
+      box.appendChild(l);
+    });
+    $("bdErr").textContent = ""; $("budgetDlg").showModal();
+  }
+  $("editBudgets").onclick = openBudgets;
+  $("bdCancel").onclick = () => $("budgetDlg").close();
+  $("bdSave").onclick = async () => {
+    const items = [...document.querySelectorAll("#budgetEdit input")].map((i) => ({ category: i.dataset.cat, limit: parseFloat(i.value) || 0 }));
+    try { await api("/api/budgets", { method: "PUT", body: { items } }); $("budgetDlg").close(); await loadNest(); toast("Budgets saved"); }
+    catch (e) { $("bdErr").textContent = e.message; }
+  };
+
+  // ---------- plan: bill calendar ----------
+  function renderCalendar() {
+    const [y, m] = MONTH.split("-").map(Number), first = new Date(y, m - 1, 1), last = new Date(y, m, 0);
+    const byDay = {};
+    RECUR.forEach((r) => occurrences(r, first, last).forEach((d) => {
+      (byDay[d.getDate()] = byDay[d.getDate()] || []).push({ r, d, paid: isLogged(r, d) });
+    }));
+    const box = $("cal"); box.innerHTML = ["S", "M", "T", "W", "T", "F", "S"].map((n) => `<div class="wd">${n}</div>`).join("");
+    for (let i = 0; i < first.getDay(); i++) box.insertAdjacentHTML("beforeend", '<button class="blank" tabindex="-1" aria-hidden="true"></button>');
+    const t = today();
+    if (calSel && calSel.slice(0, 7) !== MONTH) calSel = null;
+    for (let d = 1; d <= last.getDate(); d++) {
+      const ds = `${MONTH}-${pad(d)}`, items = byDay[d] || [];
+      const b = document.createElement("button");
+      b.className = ds === t ? "today" : ""; b.setAttribute("aria-pressed", calSel === ds ? "true" : "false");
+      b.setAttribute("aria-label", `${d}${items.length ? ", " + items.map((x) => x.r.label).join(", ") : ""}`);
+      b.innerHTML = `${d}<span class="dots">${items.slice(0, 3).map((x) => `<i class="${x.r.type === "income" ? "in" : ""}" style="${x.paid ? "opacity:.35" : ""}"></i>`).join("")}</span>`;
+      b.onclick = () => { calSel = calSel === ds ? null : ds; renderCalendar(); };
+      box.appendChild(b);
+    }
+    const dayBox = $("calDay");
+    if (!calSel) { dayBox.innerHTML = `<p class="hint" style="margin:0">Tap a day to see what's due. Pink dots are bills, green are paydays.</p>`; return; }
+    const items = byDay[+calSel.slice(8)] || [];
+    dayBox.innerHTML = `<p class="hint" style="margin:0 0 4px">${dayName(parseD(calSel))}</p>` + (items.length ? items.map((x) =>
+      `<div><span>${x.r.type === "income" ? "💰" : catOf(x.r.category).e} ${esc(x.r.label)}</span><span>${x.r.type === "income" ? "+" : ""}${fmt(x.r.amount_cents / 100)} · ${x.paid ? "Done ✓" : x.d < parseD(t) ? "Overdue" : x.r.type === "income" ? "Expected" : "Due"}</span></div>`).join("")
+      : `<p class="hint" style="margin:0">Nothing due this day.</p>`);
+  }
+
+  // ---------- plan: savings goals ----------
+  function renderGoals() {
+    const box = $("goals");
+    if (!GOALS.length) { box.innerHTML = `<p class="empty" style="margin:0;padding:14px 0">Save for a trip, a ring, or a rainy day. Tap New goal to start.</p>`; return; }
+    box.innerHTML = "";
+    GOALS.forEach((g) => {
+      const saved = g.saved_cents / 100, target = g.target_cents / 100, pct = target ? Math.min(100, (saved / target) * 100) : 0;
+      const el = document.createElement("div"); el.className = "goal";
+      el.innerHTML = `<span class="em">${esc(g.emoji)}</span><div class="mid"><div class="t"><span>${esc(g.name)}</span><small>${Math.round(pct)}%</small></div>
+        <div class="s">${fmt(saved)} of ${fmt(target)}${pct >= 100 ? " · reached ♡" : ""}</div><div class="trk"><i style="width:${pct}%"></i></div></div>`;
+      el.onclick = () => openGoal(g);
+      box.appendChild(el);
+    });
+  }
+  let goalOpen = null, goalEmoji = GOAL_EMOJIS[0];
+  function drawGoalView() {
+    const g = GOALS.find((x) => x.id === goalOpen?.id); if (!g) { $("goalDlg").close(); return; }
+    goalOpen = g;
+    $("gdTitle").textContent = `${g.emoji} ${g.name}`;
+    $("gdProg").textContent = `${fmt(g.saved_cents / 100)} of ${fmt(g.target_cents / 100)} saved`;
+    const h = $("gdHist"); h.innerHTML = "";
+    JAR.filter((j) => j.goal_id === g.id).slice(0, 8).forEach((j) => {
+      const li = document.createElement("li"), inn = j.amount_cents > 0;
+      const when = new Date(j.created_at * 1000).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+      li.innerHTML = `<span><b>${esc(member(j.member_id).name)}</b> ${inn ? "added" : "took out"} ${fmt(Math.abs(j.amount_cents) / 100)}, ${when}</span><button aria-label="Remove">✕</button>`;
+      li.querySelector("button").onclick = async () => { try { await api("/api/jar/" + j.id, { method: "DELETE" }); await loadNest(); drawGoalView(); } catch (e) { toast(e.message); } };
+      h.appendChild(li);
+    });
+  }
+  function openGoal(g) { goalOpen = g; $("gdView").hidden = false; $("gdForm").hidden = true; $("gdAmt").value = ""; drawGoalView(); $("goalDlg").showModal(); }
+  function drawGoalEmojis() {
+    const r = $("gEmojis"); r.innerHTML = "";
+    GOAL_EMOJIS.forEach((e) => { const b = document.createElement("button"); b.type = "button"; b.textContent = e; b.setAttribute("aria-pressed", e === goalEmoji ? "true" : "false"); b.onclick = () => { goalEmoji = e; drawGoalEmojis(); }; r.appendChild(b); });
+  }
+  function openGoalForm(g) {
+    goalOpen = g || null; $("gdView").hidden = true; $("gdForm").hidden = false;
+    $("gdTitle").textContent = g ? "Edit goal" : "New savings goal";
+    $("gName").value = g ? g.name : ""; $("gTarget").value = g ? g.target_cents / 100 : ""; goalEmoji = g ? g.emoji : GOAL_EMOJIS[0];
+    $("gDelete").hidden = !g; $("gErr").textContent = ""; drawGoalEmojis();
+    if (!$("goalDlg").open) $("goalDlg").showModal();
+  }
+  $("addGoal").onclick = () => openGoalForm(null);
+  $("gdEdit").onclick = () => openGoalForm(goalOpen);
+  $("gdClose").onclick = () => $("goalDlg").close();
+  $("gCancel").onclick = () => { if (goalOpen) { $("gdView").hidden = false; $("gdForm").hidden = true; drawGoalView(); } else $("goalDlg").close(); };
+  $("gSave").onclick = async () => {
+    const body = { name: $("gName").value, target: parseFloat($("gTarget").value), emoji: goalEmoji };
+    try {
+      if (goalOpen) await api("/api/goals/" + goalOpen.id, { method: "PATCH", body });
+      else await api("/api/goals", { method: "POST", body });
+      $("goalDlg").close(); await loadNest(); toast("Goal saved");
+    } catch (e) { $("gErr").textContent = e.message; }
+  };
+  $("gDelete").onclick = async () => {
+    const g = goalOpen; $("goalDlg").close();
+    if (!(await ask(`Delete ${g.name}?`, "Its savings history goes too. The money you moved stays wherever you put it.", "Delete"))) return;
+    try { await api("/api/goals/" + g.id, { method: "DELETE" }); await loadNest(); } catch (e) { toast(e.message); }
+  };
+  async function goalMove(direction) {
+    const v = parseFloat($("gdAmt").value);
+    if (!(v > 0)) { $("gdAmt").focus(); return; }
+    try {
+      const res = await api("/api/jar", { method: "POST", body: { goal_id: goalOpen.id, amount: v, direction } });
+      $("gdAmt").value = ""; await loadNest(); drawGoalView();
+      rewardToast(res.reward, direction === "in" ? "Added to " + goalOpen.name : "Taken out");
+      const g = GOALS.find((x) => x.id === goalOpen.id);
+      if (g && direction === "in" && g.saved_cents >= g.target_cents && g.saved_cents - v * 100 < g.target_cents) setTimeout(() => toast(`🍯 You reached ${g.name}!`), 2200);
+    } catch (e) { toast(e.message); }
+  }
+  $("gdIn").onclick = () => goalMove("in");
+  $("gdOut").onclick = () => goalMove("out");
+
+  // ---------- plan: debts ----------
+  let debtStrat = store.get("hb-debt-strat") || "snowball";
+  function payoffPlan(extra) {
+    const ds = DEBTS.map((d) => ({ id: d.id, bal: Math.max(0, (d.start_cents - d.paid_cents) / 100), r: d.apr_bp / 10000 / 12, min: d.min_cents / 100 })).filter((d) => d.bal > 0.005);
+    const order = [...ds].sort(debtStrat === "avalanche" ? (a, b) => b.r - a.r || a.bal - b.bal : (a, b) => a.bal - b.bal).map((d) => d.id);
+    if (!ds.length) return { months: 0, order, done: {} };
+    const budget = ds.reduce((s, d) => s + d.min, 0) + extra, done = {};
+    if (budget <= 0) return { months: null, order, done };
+    let m = 0;
+    while (ds.some((d) => d.bal > 0.005) && m < 600) {
+      m++;
+      ds.forEach((d) => { if (d.bal > 0.005) d.bal += d.bal * d.r; });
+      let pool = budget;
+      ds.forEach((d) => { if (d.bal > 0.005) { const p = Math.min(d.min, d.bal, pool); d.bal -= p; pool -= p; } });
+      for (const id of order) { const d = ds.find((x) => x.id === id); if (d.bal > 0.005 && pool > 0) { const p = Math.min(pool, d.bal); d.bal -= p; pool -= p; } }
+      ds.forEach((d) => { if (d.bal <= 0.005 && !done[d.id]) done[d.id] = m; });
+    }
+    return { months: m >= 600 ? null : m, order, done };
+  }
+  const monthsOut = (n) => { const d = new Date(); d.setMonth(d.getMonth() + n); return d.toLocaleDateString(undefined, { month: "short", year: "numeric" }); };
+  function renderDebts() {
+    const box = $("debts");
+    if (!DEBTS.length) { box.innerHTML = `<p class="empty" style="margin:0;padding:4px 0">Track credit cards, car loans, or student loans and see when you'll be debt-free.</p>`; return; }
+    const left = DEBTS.reduce((s, d) => s + Math.max(0, d.start_cents - d.paid_cents), 0) / 100;
+    const paid = DEBTS.reduce((s, d) => s + d.paid_cents, 0) / 100;
+    const extra = parseFloat(store.get("hb-debt-extra") || "0") || 0;
+    const plan = payoffPlan(extra);
+    box.innerHTML = `<div class="strategy"><div class="split"><button type="button" data-s="snowball" aria-pressed="${debtStrat === "snowball"}">Snowball</button><button type="button" data-s="avalanche" aria-pressed="${debtStrat === "avalanche"}">Avalanche</button></div></div>
+      <p class="hint" style="margin:0 0 8px">${debtStrat === "snowball" ? "Pay the smallest balance first for quick wins." : "Pay the highest interest first to save the most money."}</p>
+      <label class="extra">Extra each month $<input id="debtExtra" type="number" inputmode="decimal" min="0" step="10" value="${extra || ""}" placeholder="0"></label>
+      <div class="payoff">${left <= 0 ? "Everything's paid off 🎉" : plan.months === null ? "Add minimum payments to see your debt-free date." : `<b>${fmt(left)}</b> left · debt-free around <b>${monthsOut(plan.months)}</b>`}${paid > 0 ? `<br><span style="color:var(--soft)">${fmt(paid)} paid so far</span>` : ""}</div>`;
+    box.querySelectorAll("[data-s]").forEach((b) => (b.onclick = () => { debtStrat = b.dataset.s; store.set("hb-debt-strat", debtStrat); renderDebts(); }));
+    $("debtExtra").onchange = (e) => { store.set("hb-debt-extra", String(parseFloat(e.target.value) || 0)); renderDebts(); };
+    const sorted = [...DEBTS].sort((a, b) => {
+      const ia = plan.order.indexOf(a.id), ib = plan.order.indexOf(b.id);
+      return (ia < 0 ? 999 : ia) - (ib < 0 ? 999 : ib);
+    });
+    sorted.forEach((d, i) => {
+      const rem = Math.max(0, d.start_cents - d.paid_cents) / 100, pct = d.start_cents ? Math.min(100, (d.paid_cents / d.start_cents) * 100) : 0;
+      const el = document.createElement("div"); el.className = "goal debt";
+      el.innerHTML = `<span class="em">${rem <= 0 ? "🎉" : "💳"}</span><div class="mid"><div class="t"><span>${rem > 0 ? `${i + 1}. ` : ""}${esc(d.name)}</span><small>${fmt(rem)} left</small></div>
+        <div class="s">${(d.apr_bp / 100).toFixed(2).replace(/\.00$/, "")}% APR · min ${fmt(d.min_cents / 100)}${plan.done[d.id] ? " · paid off ~" + monthsOut(plan.done[d.id]) : ""}</div>
+        <div class="trk"><i style="width:${pct}%"></i></div></div>${rem > 0 ? '<button class="mini inc">Pay</button>' : ""}`;
+      el.onclick = () => openDebt(d);
+      const pb = el.querySelector("button"); if (pb) pb.onclick = (ev) => { ev.stopPropagation(); openPay(d); };
+      box.appendChild(el);
+    });
+    if (DEBTPAYS.length) {
+      const h = document.createElement("ul"); h.className = "hist";
+      DEBTPAYS.slice(0, 5).forEach((p) => {
+        const d = DEBTS.find((x) => x.id === p.debt_id); if (!d) return;
+        const li = document.createElement("li");
+        li.innerHTML = `<span><b>${esc(member(p.member_id).name)}</b> paid ${fmt(p.amount_cents / 100)} on ${esc(d.name)}, ${shortDay(parseD(p.date))}</span><button aria-label="Remove payment">✕</button>`;
+        li.querySelector("button").onclick = async () => {
+          if (!(await ask("Remove this payment?", "It's also removed from that month's spending.", "Remove"))) return;
+          try { await api("/api/debt-payments/" + p.id, { method: "DELETE" }); await loadNest(); } catch (e) { toast(e.message); }
+        };
+        h.appendChild(li);
+      });
+      box.appendChild(h);
+    }
+  }
+  let debtOpen = null;
+  function openDebt(d) {
+    debtOpen = d || null;
+    $("ddTitle").textContent = d ? "Edit debt" : "Add a debt";
+    $("dName").value = d ? d.name : ""; $("dBal").value = d ? d.start_cents / 100 : ""; $("dApr").value = d ? d.apr_bp / 100 : ""; $("dMin").value = d ? d.min_cents / 100 : "";
+    $("dHint").textContent = d ? "Balance here is where you started. Payments you log are taken off it." : "For a debt you've already been paying, enter what you owe today.";
+    $("dDelete").hidden = !d; $("dErr").textContent = ""; $("debtDlg").showModal();
+  }
+  $("addDebt").onclick = () => openDebt(null);
+  $("dCancel").onclick = () => $("debtDlg").close();
+  $("dSave").onclick = async () => {
+    const body = { name: $("dName").value, balance: parseFloat($("dBal").value), apr: parseFloat($("dApr").value) || 0, min: parseFloat($("dMin").value) || 0 };
+    try {
+      if (debtOpen) await api("/api/debts/" + debtOpen.id, { method: "PATCH", body });
+      else await api("/api/debts", { method: "POST", body });
+      $("debtDlg").close(); await loadNest(); toast("Debt saved");
+    } catch (e) { $("dErr").textContent = e.message; }
+  };
+  $("dDelete").onclick = async () => {
+    const d = debtOpen; $("debtDlg").close();
+    if (!(await ask(`Delete ${d.name}?`, "Its payment history goes too. Payments stay in your spending.", "Delete"))) return;
+    try { await api("/api/debts/" + d.id, { method: "DELETE" }); await loadNest(); } catch (e) { toast(e.message); }
+  };
+  let payOpen = null, payWho = null;
+  function drawPayWho() {
+    const w = $("pdWho"); w.innerHTML = "";
+    MEMBERS.forEach((m) => { const b = document.createElement("button"); b.type = "button"; b.innerHTML = `<i style="background:${esc(m.color)}">${esc(m.emoji)}</i>${esc(m.name)}`; b.setAttribute("aria-pressed", m.id === payWho ? "true" : "false"); b.onclick = () => { payWho = m.id; drawPayWho(); }; w.appendChild(b); });
+  }
+  function openPay(d) {
+    payOpen = d; payWho = ME.id;
+    $("pdText").textContent = `${d.name} · ${fmt(Math.max(0, d.start_cents - d.paid_cents) / 100)} left`;
+    $("pdAmt").value = d.min_cents ? (d.min_cents / 100).toFixed(2) : ""; $("pdErr").textContent = "";
+    drawPayWho(); $("payDlg").showModal();
+  }
+  $("pdCancel").onclick = () => $("payDlg").close();
+  $("pdSave").onclick = async () => {
+    const amount = parseFloat($("pdAmt").value);
+    if (!(amount > 0)) { $("pdErr").textContent = "Enter the amount you paid."; return; }
+    try {
+      const res = await api(`/api/debts/${payOpen.id}/pay`, { method: "POST", body: { amount, member_id: payWho, date: today() } });
+      $("payDlg").close(); await loadNest(); rewardToast(res.reward, "Payment logged");
+      const d = DEBTS.find((x) => x.id === payOpen.id);
+      if (d && d.paid_cents >= d.start_cents) setTimeout(() => toast(`🎉 ${d.name} is paid off!`), 2200);
+    } catch (e) { $("pdErr").textContent = e.message; }
+  };
+
+  // ---------- stats ----------
+  async function loadYear() {
+    try { YDATA = await api("/api/year?year=" + YEAR); } catch (e) { YDATA = { entries: [], jar: [] }; toast(e.message); }
+    if (screen === "stats") renderStats();
+  }
+  $("prevY").onclick = () => { YEAR--; YDATA = null; renderStats(); loadYear(); };
+  $("nextY").onclick = () => { YEAR++; YDATA = null; renderStats(); loadYear(); };
+  function renderStats() {
+    renderBurrow();
+    $("yearLbl").textContent = YEAR;
+    const ents = YDATA ? YDATA.entries : [];
+    const inc = Array(12).fill(0), out = Array(12).fill(0), yc = {};
+    ents.forEach((e) => {
+      const m = +e.date.slice(5, 7) - 1, a = e.amount_cents / 100;
+      if (e.type === "income") inc[m] += a; else { out[m] += a; yc[e.category] = (yc[e.category] || 0) + a; }
+    });
+    const ti = inc.reduce((a, b) => a + b, 0), to = out.reduce((a, b) => a + b, 0);
+    $("yIn").textContent = fmt(ti); $("yOut").textContent = fmt(to); $("yKeep").textContent = ti ? Math.round(((ti - to) / ti) * 100) + "%" : "–";
+    // chart
+    const W = 340, H = 150, top = Math.max(1, ...inc, ...out), gw = W / 12, bw = 9;
+    let svg = `<svg viewBox="0 0 ${W} ${H + 18}" role="img" aria-label="Earned and spent by month">`;
+    for (let i = 0; i < 12; i++) {
+      const x = i * gw + gw / 2, hi = (inc[i] / top) * H, ho = (out[i] / top) * H, name = new Date(YEAR, i, 1).toLocaleDateString(undefined, { month: "short" });
+      svg += `<rect x="${x - bw - 1}" y="${H - hi}" width="${bw}" height="${Math.max(hi, 1.5)}" rx="3" fill="var(--mint)" opacity="${inc[i] ? 1 : 0.25}"><title>${name}: earned ${fmt(inc[i])}</title></rect>`;
+      svg += `<rect x="${x + 1}" y="${H - ho}" width="${bw}" height="${Math.max(ho, 1.5)}" rx="3" fill="var(--pink)" opacity="${out[i] ? 1 : 0.25}"><title>${name}: spent ${fmt(out[i])}</title></rect>`;
+      svg += `<text x="${x}" y="${H + 14}" text-anchor="middle" font-size="9" font-weight="700" fill="var(--soft)">${name.slice(0, 1)}</text>`;
+    }
+    $("yChart").innerHTML = svg + "</svg>";
+    // 50/30/20 for the selected month
+    $("ruleMonth").textContent = monthName(MONTH);
+    const mInc = ENTRIES.filter((e) => e.type === "income").reduce((s, e) => s + e.amount, 0);
+    const by = spentByCat(), needs = NEEDS.reduce((s, c) => s + (by[c] || 0), 0), wants = WANTS.reduce((s, c) => s + (by[c] || 0), 0);
+    if (!mInc) $("rule").innerHTML = `<p class="empty" style="margin:0">Add this month's income to see how your money splits between needs, wants, and savings.</p>`;
+    else {
+      const sav = Math.max(0, mInc - needs - wants);
+      $("rule").innerHTML = [["Needs", needs, 50, "#9BB8FF", "rent, groceries, bills, car, debt"], ["Wants", wants, 30, "var(--pink)", "eating out, fun, subscriptions"], ["Savings", sav, 20, "var(--mint)", "what's left over"]]
+        .map(([n, v, goal, c, d]) => { const p = (v / mInc) * 100; return `<div class="rule"><div class="l"><span>${n} <small>${d}</small></span><span>${Math.round(p)}% <small>/ ${goal}%</small></span></div>
+          <div class="trk"><i style="width:${Math.min(100, p)}%;background:${c}"></i><b style="left:${goal}%"></b></div></div>`; }).join("") +
+        `<p class="hint">The line marks the classic 50/30/20 target.</p>`;
+    }
+    // where it went (month) + year categories
+    $("barsMonth").textContent = monthName(MONTH);
+    const bars = (el, data) => {
+      const rows = CATS.filter((c) => data[c.id]).sort((a, b) => data[b.id] - data[a.id]).slice(0, 8), mx = Math.max(1, ...rows.map((c) => data[c.id]));
+      el.innerHTML = rows.length ? rows.map((c) => `<div class="bar"><div class="l"><span>${c.e} ${c.n}</span><span>${fmt(data[c.id])}</span></div><div class="trk"><i style="width:${(data[c.id] / mx) * 100}%;background:${c.c}"></i></div></div>`).join("")
+        : `<p class="empty" style="margin:0">No spending yet.</p>`;
+    };
+    bars($("bars"), by); bars($("yCats"), yc);
+  }
+  $("exportCsv").onclick = () => {
+    if (!YDATA) return;
+    const q = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const rows = [["Date", "Type", "Category", "Description", "Who", "Amount", "Split", "Private"]].concat(YDATA.entries.map((e) =>
+      [e.date, e.type === "income" ? "Income" : "Expense", e.type === "income" ? "Income" : catOf(e.category).n, e.label, member(e.member_id).name,
+       ((e.type === "income" ? 1 : -1) * e.amount_cents / 100).toFixed(2), e.shared ? "Yes" : "No", e.private ? "Yes" : "No"]));
+    const blob = new Blob(["\ufeff" + rows.map((r) => r.map(q).join(",")).join("\r\n")], { type: "text/csv;charset=utf-8" });
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `honeybun-${YEAR}.csv`;
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  };
 
   // ---------- add / edit form ----------
   function resetForm(opts = {}) {
@@ -540,7 +1127,7 @@
   }
   function openEditEntry(e) { editing = { kind: "entry", x: e }; fillForm(e, false); show("add"); }
   function openEditRecurring(r) { editing = { kind: "recurring", x: r }; fillForm(r, true); show("add"); }
-  $("cancelEdit").onclick = () => { const back = editing?.kind === "recurring" ? "us" : "home"; editing = null; show(back); };
+  $("cancelEdit").onclick = () => { const back = editing?.kind === "recurring" ? "plan" : "home"; editing = null; show(back); };
   $("addBill").onclick = () => openAdd({ repeat: "monthly" });
 
   function renderForm() {
@@ -631,14 +1218,14 @@
       } else if (editing?.kind === "recurring") {
         if (!rep) { $("err").textContent = "Pick how often it repeats."; return; }
         await api("/api/recurring/" + editing.x.id, { method: "PATCH", body: { ...body, freq: rep } });
-        editing = null; await loadNest(); toast("Saved"); show("us");
+        editing = null; await loadNest(); toast("Saved"); show("plan");
       } else if (rep) {
-        await api("/api/recurring", { method: "POST", body: { ...body, freq: rep, log_now: $("paidNow").checked } });
-        await loadNest(); toast(mode === "income" ? "Payday added" : "Bill added"); show("home"); bunnyHop();
+        const res = await api("/api/recurring", { method: "POST", body: { ...body, freq: rep, log_now: $("paidNow").checked } });
+        await loadNest(); rewardToast(res.reward, mode === "income" ? "Payday added" : "Bill added"); show("plan");
       } else {
-        await api("/api/entries", { method: "POST", body });
+        const res = await api("/api/entries", { method: "POST", body });
         MONTH = ym(date); await loadNest();
-        toast(mode === "income" ? "Income added" : "Expense added"); show("home"); bunnyHop();
+        rewardToast(res.reward, mode === "income" ? "Income added" : "Expense added"); show("home"); bunnyHop();
       }
     } catch (e) { $("err").textContent = e.message; }
     finally { busy($("goBtn"), false); }
@@ -646,7 +1233,7 @@
   $("delRec").onclick = async () => {
     const r = editing?.x; if (!r) return;
     if (!(await ask(`Delete ${r.label}?`, "It stops showing up as due. Anything already logged stays.", "Delete"))) return;
-    try { await api("/api/recurring/" + r.id, { method: "DELETE" }); editing = null; await loadNest(); toast("Deleted"); show("us"); }
+    try { await api("/api/recurring/" + r.id, { method: "DELETE" }); editing = null; await loadNest(); toast("Deleted"); show("plan"); }
     catch (e) { toast(e.message); }
   };
 
@@ -663,8 +1250,8 @@
     const amount = parseFloat($("sdAmt").value);
     if (!(amount > 0)) { $("sdErr").textContent = "Enter the amount that was paid."; return; }
     try {
-      await api("/api/settlements", { method: "POST", body: { from_id: settling.from.id, to_id: settling.to.id, amount, date: today() } });
-      $("settleDlg").close(); await loadNest(); toast("Marked as paid ♡");
+      const res = await api("/api/settlements", { method: "POST", body: { from_id: settling.from.id, to_id: settling.to.id, amount, date: today() } });
+      $("settleDlg").close(); await loadNest(); rewardToast(res.reward, "Marked as paid ♡");
     } catch (e) { $("sdErr").textContent = e.message; }
   };
 
@@ -699,16 +1286,24 @@
     } catch (e) { $("pwErr").textContent = e.message; }
   };
 
-  // ---------- nest settings ----------
+  // ---------- password change ----------
+  $("changePw").onclick = () => { $("pwCur").value = ""; $("pwNew").value = ""; $("pwErr").textContent = ""; $("pwDlg").showModal(); };
+  $("pwCancel").onclick = () => $("pwDlg").close();
+  $("pwSave").onclick = async () => {
+    if ($("pwNew").value.length < 8) { $("pwErr").textContent = "Use a password with at least 8 characters."; return; }
+    try {
+      await api("/api/password/change", { method: "POST", body: { current: $("pwCur").value, password: $("pwNew").value } });
+      $("pwDlg").close(); toast("Password changed. Other devices were logged out.");
+    } catch (e) { $("pwErr").textContent = e.message; }
+  };
+
+  // ---------- settings ----------
   function drawSwatches(box) {
     box.innerHTML = "";
     THEMES.forEach((t) => {
       const b = document.createElement("button"); b.type = "button"; b.setAttribute("aria-pressed", NEST.accent === t.id ? "true" : "false");
       b.innerHTML = `<i style="background:${t.c}"></i>${t.n}`;
-      b.onclick = async () => {
-        NEST.accent = t.id; render(); drawSwatches(box);
-        try { await api("/api/nest", { method: "PATCH", body: { accent: t.id } }); } catch (e) { toast(e.message); }
-      };
+      b.onclick = async () => { NEST.accent = t.id; render(); drawSwatches(box); try { await api("/api/nest", { method: "PATCH", body: { accent: t.id } }); } catch (e) { toast(e.message); } };
       box.appendChild(b);
     });
   }
@@ -719,31 +1314,8 @@
     nameTimer = setTimeout(() => api("/api/nest", { method: "PATCH", body: { name: NEST.name } }).catch((err) => toast(err.message)), 600);
   };
   $("hiBtn").onclick = () => { show("us"); setTimeout(() => $("setH").scrollIntoView({ behavior: "smooth" }), 40); };
-
-  async function jarMove(direction) {
-    const v = parseFloat($("jarAmt").value);
-    if (!(v > 0)) { toast("Enter an amount first."); $("jarAmt").focus(); return; }
-    try {
-      await api("/api/jar", { method: "POST", body: { amount: v, direction } });
-      $("jarAmt").value = ""; await loadNest(); toast(direction === "in" ? "Added to the jar" : "Taken out of the jar");
-    } catch (e) { toast(e.message); }
-  }
-  $("jarIn").onclick = () => jarMove("in");
-  $("jarOut").onclick = () => jarMove("out");
-  $("editGoal").onclick = () => { $("gName").value = NEST.goal_name; $("gTarget").value = NEST.goal_target / 100; $("gErr").textContent = ""; $("goalDlg").showModal(); };
-  $("gCancel").onclick = () => $("goalDlg").close();
-  $("gSave").onclick = async () => {
-    try { await api("/api/nest", { method: "PATCH", body: { goal_name: $("gName").value, goal_target: parseFloat($("gTarget").value) } }); $("goalDlg").close(); await loadNest(); }
-    catch (e) { $("gErr").textContent = e.message; }
-  };
-
-  // invite
-  $("copyInvite").onclick = async () => {
-    try { await navigator.clipboard.writeText(inviteUrl()); toast("Link copied"); } catch { toast("Couldn't copy. Press and hold the link instead."); }
-  };
-  $("shareInvite").onclick = async () => {
-    try { await navigator.share({ title: "Join our Honeybun budget", text: "Join our budget on Honeybun 🐰", url: inviteUrl() }); } catch {}
-  };
+  $("copyInvite").onclick = async () => { try { await navigator.clipboard.writeText(inviteUrl()); toast("Link copied"); } catch { toast("Couldn't copy. Press and hold the link instead."); } };
+  $("shareInvite").onclick = async () => { try { await navigator.share({ title: "Join my Honeybun budget", text: "Join my budget on Honeybun 🐰", url: inviteUrl() }); } catch {} };
   $("newCode").onclick = async () => {
     if (!(await ask("Make a new code?", "The old code and link will stop working. People already in the budget stay in.", "Make new code"))) return;
     try { await api("/api/nest/invite", { method: "POST" }); await loadNest(); toast("New code ready"); } catch (e) { toast(e.message); }
@@ -764,45 +1336,6 @@
   $("prevM").onclick = () => shift(-1);
   $("nextM").onclick = () => shift(1);
   $("seeAll").onclick = () => { show("us"); setTimeout(() => $("allH").scrollIntoView({ behavior: "smooth" }), 40); };
-
-  // ---------- tutorial ----------
-  const ICONS = {
-    plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
-    cal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="15" rx="3"/><path d="M4 10h16M9 3v4M15 3v4"/></svg>',
-    heart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg>',
-  };
-  let step = 0;
-  const STEPS = () => [
-    { art: '<img src="/icon-192.png" alt="">', t: `Welcome, ${ME.name}`, p: "Pick your little buddy. It shows next to everything you add.", extra: "buddy" },
-    { art: ICONS.plus, t: "Add money in or out", p: "Tap + to log what you spend or earn. Split it evenly, by percent, or set what's owed. Tap anything later to edit it." },
-    { art: ICONS.cal, t: "Bills & paydays", p: "Add rent, subscriptions, and paychecks once. Home shows what's due before your next payday." },
-    { art: ICONS.heart, t: "Do it together", p: MEMBERS.length < 2 ? "Invite your partner from Together. Then pick a look you both like:" : "Together shows who owes whom, so you can mark it paid. Pick a look you both like:", extra: "theme" },
-  ];
-  function drawTour() {
-    const steps = STEPS(), st = steps[step];
-    $("tourArt").innerHTML = st.art; $("tourT").textContent = st.t; $("tourP").textContent = st.p;
-    const ex = $("tourExtra"); ex.innerHTML = "";
-    if (st.extra === "buddy") {
-      const g = document.createElement("div"); g.className = "emojis"; g.style.marginTop = "14px";
-      const mine = meMember();
-      EMOJIS.forEach((e) => {
-        const b = document.createElement("button"); b.type = "button"; b.textContent = e;
-        b.setAttribute("aria-pressed", mine && mine.emoji === e ? "true" : "false");
-        b.onclick = async () => { if (mine) mine.emoji = e; drawTour(); try { await api("/api/me", { method: "PATCH", body: { emoji: e } }); } catch (err) { toast(err.message); } };
-        g.appendChild(b);
-      });
-      ex.appendChild(g);
-    }
-    if (st.extra === "theme") { const b = document.createElement("div"); b.className = "swatches"; ex.appendChild(b); drawSwatches(b); }
-    $("tourDots").innerHTML = steps.map((_, i) => `<i class="${i === step ? "on" : ""}"></i>`).join("");
-    $("tourNext").textContent = step === steps.length - 1 ? "Let's go" : "Next";
-    $("tourSkip").hidden = step === steps.length - 1;
-  }
-  function openTour() { step = 0; drawTour(); $("tour").showModal(); }
-  $("tour").addEventListener("close", () => { store.set("hb-tour-" + ME.id, "1"); render(); });
-  $("tourNext").onclick = () => { if (step < STEPS().length - 1) { step++; drawTour(); } else $("tour").close(); };
-  $("tourSkip").onclick = () => $("tour").close();
-  $("replayTour").onclick = openTour;
 
   // ---------- start ----------
   (async () => {
