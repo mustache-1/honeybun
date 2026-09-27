@@ -1601,6 +1601,42 @@
   window.addEventListener("scroll", () => $("topBar").classList.toggle("scrolled", window.scrollY > 4), { passive: true });
   drawLangPickers();
 
+  // ---------- "new version deployed" notice ----------
+  let APP_VERSION = null, updateShown = false;
+  async function fetchVersion() {
+    try {
+      const heads = await Promise.all(["/app.js", "/"].map((u) => fetch(u, { method: "HEAD", cache: "no-store" })));
+      const tags = heads.map((r) => r.headers.get("etag") || r.headers.get("last-modified") || "");
+      if (tags.every(Boolean)) return tags.join("|");
+      // no version headers: fall back to a quick fingerprint of the code
+      const txt = await (await fetch("/app.js", { cache: "no-store" })).text();
+      let h = 0; for (let i = 0; i < txt.length; i += 7) h = (h * 31 + txt.charCodeAt(i)) | 0;
+      return "h" + txt.length + ":" + h;
+    } catch { return null; }
+  }
+  async function checkForUpdate() {
+    if (document.hidden || OFFLINE || updateShown) return;
+    const v = await fetchVersion();
+    if (!v) return;
+    if (!APP_VERSION) { APP_VERSION = v; return; }
+    if (v !== APP_VERSION) {
+      // nothing important on screen? just refresh. Otherwise ask nicely.
+      if (["loading", "auth", "verify"].includes(screen) && !document.querySelector("dialog[open]")) { location.reload(); return; }
+      updateShown = true;
+      $("updateCard").hidden = false;
+    }
+  }
+  $("updateNow").onclick = () => location.reload();
+  $("updateLater").onclick = () => { $("updateCard").hidden = true; setTimeout(() => { updateShown = false; }, 15 * 60 * 1000); };
+  setTimeout(checkForUpdate, 1500);
+  setInterval(checkForUpdate, 30 * 1000); // every 30 seconds
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) checkForUpdate(); });
+  window.addEventListener("focus", checkForUpdate);
+
+  // the app started fine, so cancel the stuck-loading fallback
+  window.__hbStarted = true;
+  try { sessionStorage.removeItem("hb-boot"); } catch {}
+
   // ---------- start ----------
   (async () => {
     if (resetToken) { show("reset"); return; }
