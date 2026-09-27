@@ -7,7 +7,8 @@ const PBKDF2_ITER = 100000; // the most Workers allows
 const MAX_MEMBERS = 8;
 const RESET_MINUTES = 60;
 
-const CATEGORIES = ["home", "groc", "food", "date", "bills", "car", "fun", "pets", "other"];
+const CATEGORIES = ["home", "groc", "food", "date", "bills", "subs", "car", "fun", "pets", "debt", "other"];
+const GOAL_EMOJIS = ["🍯", "✈️", "🏠", "💍", "🚗", "🎓", "🐶", "🎄", "🛟", "🎁"];
 const EMOJIS = ["🐰", "🐻", "🐱", "🐶", "🦊", "🐼", "🐨", "🐸", "🐧", "🦄", "🐥", "🐹"];
 const COLORS = ["#FFD6E5", "#FFF0C2", "#DDF5E9", "#E4EDFF", "#EADFFF", "#FFE1CC"];
 const ACCENTS = ["blueberry", "blush", "lavender", "honey"];
@@ -19,8 +20,8 @@ const TABLES = [
   `CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE, name TEXT NOT NULL, pw TEXT NOT NULL, created_at INTEGER NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS sessions (token_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, expires_at INTEGER NOT NULL)`,
   `CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id)`,
-  `CREATE TABLE IF NOT EXISTS nests (id TEXT PRIMARY KEY, name TEXT NOT NULL DEFAULT '', invite_code TEXT NOT NULL UNIQUE, accent TEXT NOT NULL DEFAULT 'blueberry', goal_name TEXT NOT NULL DEFAULT 'Weekend getaway', goal_target INTEGER NOT NULL DEFAULT 80000, goal_saved INTEGER NOT NULL DEFAULT 0, created_by TEXT NOT NULL, created_at INTEGER NOT NULL)`,
-  `CREATE TABLE IF NOT EXISTS members (nest_id TEXT NOT NULL REFERENCES nests(id) ON DELETE CASCADE, user_id TEXT NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE, emoji TEXT NOT NULL, color TEXT NOT NULL, joined_at INTEGER NOT NULL, PRIMARY KEY (nest_id, user_id))`,
+  `CREATE TABLE IF NOT EXISTS nests (id TEXT PRIMARY KEY, name TEXT NOT NULL DEFAULT '', invite_code TEXT NOT NULL UNIQUE, accent TEXT NOT NULL DEFAULT 'blueberry', goal_name TEXT NOT NULL DEFAULT 'Weekend getaway', goal_target INTEGER NOT NULL DEFAULT 80000, goal_saved INTEGER NOT NULL DEFAULT 0, goals_migrated INTEGER NOT NULL DEFAULT 0, created_by TEXT NOT NULL, created_at INTEGER NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS members (nest_id TEXT NOT NULL REFERENCES nests(id) ON DELETE CASCADE, user_id TEXT NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE, emoji TEXT NOT NULL, color TEXT NOT NULL, joined_at INTEGER NOT NULL, setup_done INTEGER NOT NULL DEFAULT 1, PRIMARY KEY (nest_id, user_id))`,
   `CREATE TABLE IF NOT EXISTS entries (id TEXT PRIMARY KEY, nest_id TEXT NOT NULL REFERENCES nests(id) ON DELETE CASCADE, member_id TEXT NOT NULL, type TEXT NOT NULL CHECK (type IN ('income','expense')), amount_cents INTEGER NOT NULL CHECK (amount_cents > 0), label TEXT NOT NULL, category TEXT, shared INTEGER NOT NULL DEFAULT 0, date TEXT NOT NULL, created_by TEXT NOT NULL, created_at INTEGER NOT NULL, split_mode TEXT, split_value INTEGER, shares TEXT, private INTEGER NOT NULL DEFAULT 0, recurring_id TEXT, occ_date TEXT)`,
   `CREATE INDEX IF NOT EXISTS idx_entries_nest_date ON entries(nest_id, date)`,
   `CREATE TABLE IF NOT EXISTS auth_attempts (key TEXT NOT NULL, ts INTEGER NOT NULL)`,
@@ -28,12 +29,26 @@ const TABLES = [
   `CREATE TABLE IF NOT EXISTS password_resets (token_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, expires_at INTEGER NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS settlements (id TEXT PRIMARY KEY, nest_id TEXT NOT NULL REFERENCES nests(id) ON DELETE CASCADE, from_id TEXT NOT NULL, to_id TEXT NOT NULL, amount_cents INTEGER NOT NULL CHECK (amount_cents > 0), date TEXT NOT NULL, created_by TEXT NOT NULL, created_at INTEGER NOT NULL)`,
   `CREATE INDEX IF NOT EXISTS idx_settlements_nest ON settlements(nest_id)`,
-  `CREATE TABLE IF NOT EXISTS jar_moves (id TEXT PRIMARY KEY, nest_id TEXT NOT NULL REFERENCES nests(id) ON DELETE CASCADE, member_id TEXT NOT NULL, amount_cents INTEGER NOT NULL, created_at INTEGER NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS jar_moves (id TEXT PRIMARY KEY, nest_id TEXT NOT NULL REFERENCES nests(id) ON DELETE CASCADE, member_id TEXT NOT NULL, amount_cents INTEGER NOT NULL, created_at INTEGER NOT NULL, goal_id TEXT)`,
   `CREATE INDEX IF NOT EXISTS idx_jar_nest ON jar_moves(nest_id)`,
   `CREATE TABLE IF NOT EXISTS recurring (id TEXT PRIMARY KEY, nest_id TEXT NOT NULL REFERENCES nests(id) ON DELETE CASCADE, type TEXT NOT NULL CHECK (type IN ('income','expense')), label TEXT NOT NULL, amount_cents INTEGER NOT NULL CHECK (amount_cents > 0), category TEXT, member_id TEXT NOT NULL, shared INTEGER NOT NULL DEFAULT 0, split_mode TEXT, split_value INTEGER, freq TEXT NOT NULL, anchor_date TEXT NOT NULL, created_by TEXT NOT NULL, created_at INTEGER NOT NULL)`,
   `CREATE INDEX IF NOT EXISTS idx_recurring_nest ON recurring(nest_id)`,
+  `CREATE TABLE IF NOT EXISTS goals (id TEXT PRIMARY KEY, nest_id TEXT NOT NULL REFERENCES nests(id) ON DELETE CASCADE, name TEXT NOT NULL, emoji TEXT NOT NULL, target_cents INTEGER NOT NULL, saved_cents INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL)`,
+  `CREATE INDEX IF NOT EXISTS idx_goals_nest ON goals(nest_id)`,
+  `CREATE TABLE IF NOT EXISTS budgets (nest_id TEXT NOT NULL REFERENCES nests(id) ON DELETE CASCADE, category TEXT NOT NULL, limit_cents INTEGER NOT NULL, PRIMARY KEY (nest_id, category))`,
+  `CREATE TABLE IF NOT EXISTS debts (id TEXT PRIMARY KEY, nest_id TEXT NOT NULL REFERENCES nests(id) ON DELETE CASCADE, name TEXT NOT NULL, start_cents INTEGER NOT NULL, apr_bp INTEGER NOT NULL DEFAULT 0, min_cents INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL)`,
+  `CREATE INDEX IF NOT EXISTS idx_debts_nest ON debts(nest_id)`,
+  `CREATE TABLE IF NOT EXISTS debt_payments (id TEXT PRIMARY KEY, debt_id TEXT NOT NULL, nest_id TEXT NOT NULL, member_id TEXT NOT NULL, amount_cents INTEGER NOT NULL, date TEXT NOT NULL, entry_id TEXT, created_at INTEGER NOT NULL)`,
+  `CREATE INDEX IF NOT EXISTS idx_debtpay_nest ON debt_payments(nest_id)`,
 ];
-const ENTRY_COLUMNS = [["split_mode", "TEXT"], ["split_value", "INTEGER"], ["shares", "TEXT"], ["private", "INTEGER NOT NULL DEFAULT 0"], ["recurring_id", "TEXT"], ["occ_date", "TEXT"]];
+const NEW_COLUMNS = {
+  entries: [["split_mode", "TEXT"], ["split_value", "INTEGER"], ["shares", "TEXT"], ["private", "INTEGER NOT NULL DEFAULT 0"], ["recurring_id", "TEXT"], ["occ_date", "TEXT"]],
+  members: [["setup_done", "INTEGER NOT NULL DEFAULT 1"], ["xp", "INTEGER NOT NULL DEFAULT 0"], ["streak", "INTEGER NOT NULL DEFAULT 0"],
+    ["best_streak", "INTEGER NOT NULL DEFAULT 0"], ["last_day", "TEXT"], ["day_xp", "INTEGER NOT NULL DEFAULT 0"],
+    ["week_key", "TEXT"], ["week_xp", "INTEGER NOT NULL DEFAULT 0"], ["logs", "INTEGER NOT NULL DEFAULT 0"]],
+  nests: [["goals_migrated", "INTEGER NOT NULL DEFAULT 0"], ["kind", "TEXT NOT NULL DEFAULT 'couple'"]],
+  jar_moves: [["goal_id", "TEXT"]],
+};
 
 let schemaReady = null;
 function ensureSchema(env) {
@@ -42,13 +57,52 @@ function ensureSchema(env) {
 }
 async function migrate(env) {
   await env.DB.batch(TABLES.map((s) => env.DB.prepare(s)));
-  const cols = (await env.DB.prepare("PRAGMA table_info(entries)").all()).results.map((c) => c.name);
-  for (const [name, type] of ENTRY_COLUMNS) {
-    if (cols.includes(name)) continue;
-    try { await env.DB.prepare(`ALTER TABLE entries ADD COLUMN ${name} ${type}`).run(); }
-    catch (e) { if (!String(e.message).includes("duplicate column")) throw e; }
+  for (const [table, columns] of Object.entries(NEW_COLUMNS)) {
+    const have = (await env.DB.prepare(`PRAGMA table_info(${table})`).all()).results.map((c) => c.name);
+    for (const [name, type] of columns) {
+      if (have.includes(name)) continue;
+      try { await env.DB.prepare(`ALTER TABLE ${table} ADD COLUMN ${name} ${type}`).run(); }
+      catch (e) { if (!String(e.message).includes("duplicate column")) throw e; }
+    }
   }
-  await env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_entries_occ ON entries(recurring_id, occ_date)").run();
+  await env.DB.batch([
+    env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_entries_occ ON entries(recurring_id, occ_date)"),
+    // move the old single savings jar into the new goals list (runs once per budget)
+    env.DB.prepare(`INSERT INTO goals (id, nest_id, name, emoji, target_cents, saved_cents, created_at)
+      SELECT lower(hex(randomblob(4)) || '-' || hex(randomblob(2)) || '-' || hex(randomblob(2)) || '-' || hex(randomblob(2)) || '-' || hex(randomblob(6))),
+             id, goal_name, '🍯', goal_target, goal_saved, created_at FROM nests WHERE goals_migrated = 0`),
+    env.DB.prepare("UPDATE jar_moves SET goal_id = (SELECT g.id FROM goals g WHERE g.nest_id = jar_moves.nest_id ORDER BY g.created_at LIMIT 1) WHERE goal_id IS NULL"),
+    env.DB.prepare("UPDATE nests SET goals_migrated = 1 WHERE goals_migrated = 0"),
+  ]);
+}
+
+// ---------- carrots, streaks & levels ----------
+const CARROTS = { entry: 10, bill: 15, payday: 15, settle: 20, save: 10, debt: 20, setup: 50, plan: 5 };
+const DAILY_CAP = 200;
+const levelFor = (xp) => { let l = 1; while (xp >= 25 * (l + 1) * l) l++; return l; }; // L2 at 50, L3 at 150, L4 at 300...
+function localDay(request) {
+  const d = request.headers.get("x-local-date") || "";
+  const utc = Date.now();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(d) && Math.abs(Date.parse(d + "T12:00:00Z") - utc) < 2 * 86400000) return d;
+  return new Date(utc).toISOString().slice(0, 10);
+}
+const dayBefore = (d) => new Date(Date.parse(d + "T12:00:00Z") - 86400000).toISOString().slice(0, 10);
+function weekKey(d) { // Monday-based week
+  const t = new Date(d + "T12:00:00Z"), dow = (t.getUTCDay() + 6) % 7;
+  return new Date(t.getTime() - dow * 86400000).toISOString().slice(0, 10);
+}
+async function award(env, request, userId, nestId, action) {
+  const m = await env.DB.prepare("SELECT xp, streak, best_streak, last_day, day_xp, week_key, week_xp, logs FROM members WHERE user_id = ? AND nest_id = ?").bind(userId, nestId).first();
+  if (!m) return null;
+  const day = localDay(request), wk = weekKey(day);
+  const newDay = m.last_day !== day;
+  const streak = !newDay ? m.streak : m.last_day === dayBefore(day) ? m.streak + 1 : 1;
+  const dayXp = newDay ? 0 : m.day_xp;
+  const gained = Math.max(0, Math.min(CARROTS[action] || 0, DAILY_CAP - dayXp));
+  const xp = m.xp + gained, weekXp = (m.week_key === wk ? m.week_xp : 0) + gained;
+  await env.DB.prepare("UPDATE members SET xp = ?, streak = ?, best_streak = ?, last_day = ?, day_xp = ?, week_key = ?, week_xp = ?, logs = ? WHERE user_id = ? AND nest_id = ?")
+    .bind(xp, streak, Math.max(m.best_streak, streak), day, dayXp + gained, wk, weekXp, m.logs + (action === "entry" ? 1 : 0), userId, nestId).run();
+  return { gained, xp, level: levelFor(xp), leveled: levelFor(xp) > levelFor(m.xp), streak, streak_up: newDay && streak > 1, first_today: newDay };
 }
 
 // ---------- responses ----------
@@ -274,7 +328,7 @@ async function handle(request, env, url) {
   const appUrl = (env.APP_URL || url.origin).replace(/\/$/, "");
 
   let body = {};
-  if (method === "POST" || method === "PATCH") {
+  if (method === "POST" || method === "PATCH" || method === "PUT") {
     body = await request.json().catch(() => null);
     if (!body || typeof body !== "object") throw new HttpError("Invalid request.");
   }
@@ -393,9 +447,10 @@ async function handle(request, env, url) {
   if (path === "/api/nests" && method === "POST") {
     if (await membership(env, user.id)) throw new HttpError("You're already in a budget.", 409);
     const id = crypto.randomUUID();
+    const kind = ["solo", "couple", "family"].includes(body.kind) ? body.kind : "couple";
     await env.DB.batch([
-      env.DB.prepare("INSERT INTO nests (id, name, invite_code, created_by, created_at) VALUES (?, ?, ?, ?, ?)").bind(id, cleanText(body.name, 24), inviteCode(), user.id, now()),
-      env.DB.prepare("INSERT INTO members (nest_id, user_id, emoji, color, joined_at) VALUES (?, ?, ?, ?, ?)").bind(id, user.id, EMOJIS[0], COLORS[0], now()),
+      env.DB.prepare("INSERT INTO nests (id, name, invite_code, kind, goals_migrated, created_by, created_at) VALUES (?, ?, ?, ?, 1, ?, ?)").bind(id, cleanText(body.name, 24), inviteCode(), kind, user.id, now()),
+      env.DB.prepare("INSERT INTO members (nest_id, user_id, emoji, color, joined_at, setup_done) VALUES (?, ?, ?, ?, ?, 0)").bind(id, user.id, EMOJIS[0], COLORS[0], now()),
     ]);
     return json({ ok: true, nest_id: id }, 201);
   }
@@ -415,7 +470,7 @@ async function handle(request, env, url) {
     if (members.length >= MAX_MEMBERS) throw new HttpError("This budget is full.", 409);
     const emoji = EMOJIS.find((e) => !members.some((m) => m.emoji === e)) || EMOJIS[0];
     const color = COLORS.find((c) => !members.some((m) => m.color === c)) || COLORS[0];
-    await env.DB.prepare("INSERT INTO members (nest_id, user_id, emoji, color, joined_at) VALUES (?, ?, ?, ?, ?)").bind(nest.id, user.id, emoji, color, now()).run();
+    await env.DB.prepare("INSERT INTO members (nest_id, user_id, emoji, color, joined_at, setup_done) VALUES (?, ?, ?, ?, ?, 0)").bind(nest.id, user.id, emoji, color, now()).run();
     return json({ ok: true, nest_id: nest.id });
   }
 
@@ -426,9 +481,9 @@ async function handle(request, env, url) {
     const month = url.searchParams.get("month") || "";
     if (!/^\d{4}-\d{2}$/.test(month)) throw new HttpError("Bad month.");
     const since = new Date(Date.now() - 45 * 86400000).toISOString().slice(0, 10);
-    const [nest, members, entries, sharedAll, settlements, recurring, logged, jar] = await env.DB.batch([
-      env.DB.prepare("SELECT id, name, invite_code, accent, goal_name, goal_target, goal_saved FROM nests WHERE id = ?").bind(nestId),
-      env.DB.prepare("SELECT u.id, u.name, m.emoji, m.color FROM members m JOIN users u ON u.id = m.user_id WHERE m.nest_id = ? ORDER BY m.joined_at").bind(nestId),
+    const [nest, members, entries, sharedAll, settlements, recurring, logged, jar, goals, budgets, debts, debtPays, mine] = await env.DB.batch([
+      env.DB.prepare("SELECT id, name, invite_code, accent, kind FROM nests WHERE id = ?").bind(nestId),
+      env.DB.prepare("SELECT u.id, u.name, m.emoji, m.color, m.xp, m.streak, m.best_streak, m.last_day, m.week_key, m.week_xp, m.logs FROM members m JOIN users u ON u.id = m.user_id WHERE m.nest_id = ? ORDER BY m.joined_at").bind(nestId),
       env.DB.prepare(
         `SELECT id, member_id, type, amount_cents, label, category, shared, split_mode, split_value, shares, private, date, recurring_id, occ_date, created_at
          FROM entries WHERE nest_id = ? AND date >= ? AND date <= ? AND (private = 0 OR member_id = ?) ORDER BY date DESC, created_at DESC`
@@ -437,7 +492,12 @@ async function handle(request, env, url) {
       env.DB.prepare("SELECT id, from_id, to_id, amount_cents, date, created_at FROM settlements WHERE nest_id = ? ORDER BY date DESC, created_at DESC").bind(nestId),
       env.DB.prepare("SELECT id, type, label, amount_cents, category, member_id, shared, split_mode, split_value, freq, anchor_date FROM recurring WHERE nest_id = ? ORDER BY type DESC, label").bind(nestId),
       env.DB.prepare("SELECT recurring_id, occ_date FROM entries WHERE nest_id = ? AND recurring_id IS NOT NULL AND occ_date >= ?").bind(nestId, since),
-      env.DB.prepare("SELECT id, member_id, amount_cents, created_at FROM jar_moves WHERE nest_id = ? ORDER BY created_at DESC LIMIT 12").bind(nestId),
+      env.DB.prepare("SELECT id, goal_id, member_id, amount_cents, created_at FROM jar_moves WHERE nest_id = ? ORDER BY created_at DESC LIMIT 60").bind(nestId),
+      env.DB.prepare("SELECT id, name, emoji, target_cents, saved_cents FROM goals WHERE nest_id = ? ORDER BY created_at").bind(nestId),
+      env.DB.prepare("SELECT category, limit_cents FROM budgets WHERE nest_id = ?").bind(nestId),
+      env.DB.prepare("SELECT d.id, d.name, d.start_cents, d.apr_bp, d.min_cents, COALESCE((SELECT SUM(p.amount_cents) FROM debt_payments p WHERE p.debt_id = d.id), 0) AS paid_cents FROM debts d WHERE d.nest_id = ? ORDER BY d.created_at").bind(nestId),
+      env.DB.prepare("SELECT id, debt_id, member_id, amount_cents, date FROM debt_payments WHERE nest_id = ? ORDER BY date DESC, created_at DESC LIMIT 10").bind(nestId),
+      env.DB.prepare("SELECT setup_done FROM members WHERE user_id = ?").bind(user.id),
     ]);
 
     // running "who owes whom" balance across all time (positive = others owe you)
@@ -457,20 +517,20 @@ async function handle(request, env, url) {
     return json({
       me, nest: nest.results[0], members: members.results, entries: entries.results,
       balances, settlements: settlements.results.slice(0, 10), recurring: recurring.results,
-      logged: logged.results, jar: jar.results,
+      logged: logged.results, jar: jar.results, goals: goals.results, budgets: budgets.results,
+      debts: debts.results, debt_payments: debtPays.results, setup_done: !!mine.results[0]?.setup_done,
     });
   }
 
   if (path === "/api/nest" && method === "PATCH") {
     if (body.name !== undefined) await env.DB.prepare("UPDATE nests SET name = ? WHERE id = ?").bind(cleanText(body.name, 24), nestId).run();
+    if (body.kind !== undefined) {
+      if (!["solo", "couple", "family"].includes(body.kind)) throw new HttpError("Unknown budget type.");
+      await env.DB.prepare("UPDATE nests SET kind = ? WHERE id = ?").bind(body.kind, nestId).run();
+    }
     if (body.accent !== undefined) {
       if (!ACCENTS.includes(body.accent)) throw new HttpError("Unknown theme.");
       await env.DB.prepare("UPDATE nests SET accent = ? WHERE id = ?").bind(body.accent, nestId).run();
-    }
-    if (body.goal_name !== undefined || body.goal_target !== undefined) {
-      const name = cleanText(body.goal_name, 30);
-      if (!name) throw new HttpError("Name your goal.");
-      await env.DB.prepare("UPDATE nests SET goal_name = ?, goal_target = ? WHERE id = ?").bind(name, toCents(body.goal_target, "a target"), nestId).run();
     }
     return json({ ok: true });
   }
@@ -485,33 +545,146 @@ async function handle(request, env, url) {
     await env.DB.prepare("DELETE FROM members WHERE user_id = ? AND nest_id = ?").bind(user.id, nestId).run();
     const left = await env.DB.prepare("SELECT COUNT(*) AS n FROM members WHERE nest_id = ?").bind(nestId).first();
     if (left.n === 0) {
-      await env.DB.batch(["entries", "settlements", "jar_moves", "recurring"].map((t) => env.DB.prepare(`DELETE FROM ${t} WHERE nest_id = ?`).bind(nestId))
+      await env.DB.batch(["entries", "settlements", "jar_moves", "recurring", "goals", "budgets", "debts", "debt_payments"].map((t) => env.DB.prepare(`DELETE FROM ${t} WHERE nest_id = ?`).bind(nestId))
         .concat([env.DB.prepare("DELETE FROM nests WHERE id = ?").bind(nestId)]));
     }
     return json({ ok: true });
   }
 
-  // ----- savings jar -----
-  if (path === "/api/jar" && method === "POST") {
-    const cents = toCents(body.amount);
-    const signed = body.direction === "out" ? -cents : cents;
-    const nest = await env.DB.prepare("SELECT goal_saved FROM nests WHERE id = ?").bind(nestId).first();
-    if (nest.goal_saved + signed < 0) throw new HttpError("You can't take out more than is in the jar.");
+  // ----- savings goals -----
+  function readGoal() {
+    const name = cleanText(body.name, 30);
+    if (!name) throw new HttpError("Name your goal.");
+    return { name, emoji: GOAL_EMOJIS.includes(body.emoji) ? body.emoji : GOAL_EMOJIS[0], target: toCents(body.target, "a target") };
+  }
+  if (path === "/api/goals" && method === "POST") {
+    const g = readGoal(), id = crypto.randomUUID();
+    await env.DB.prepare("INSERT INTO goals (id, nest_id, name, emoji, target_cents, saved_cents, created_at) VALUES (?, ?, ?, ?, ?, 0, ?)").bind(id, nestId, g.name, g.emoji, g.target, now()).run();
+    return json({ ok: true, id }, 201);
+  }
+  const goalId = path.match(/^\/api\/goals\/([0-9a-f-]{32,36})$/);
+  if (goalId && method === "PATCH") {
+    const g = readGoal();
+    await env.DB.prepare("UPDATE goals SET name = ?, emoji = ?, target_cents = ? WHERE id = ? AND nest_id = ?").bind(g.name, g.emoji, g.target, goalId[1], nestId).run();
+    return json({ ok: true });
+  }
+  if (goalId && method === "DELETE") {
     await env.DB.batch([
-      env.DB.prepare("INSERT INTO jar_moves (id, nest_id, member_id, amount_cents, created_at) VALUES (?, ?, ?, ?, ?)").bind(crypto.randomUUID(), nestId, user.id, signed, now()),
-      env.DB.prepare("UPDATE nests SET goal_saved = goal_saved + ? WHERE id = ?").bind(signed, nestId),
+      env.DB.prepare("DELETE FROM jar_moves WHERE goal_id = ? AND nest_id = ?").bind(goalId[1], nestId),
+      env.DB.prepare("DELETE FROM goals WHERE id = ? AND nest_id = ?").bind(goalId[1], nestId),
     ]);
     return json({ ok: true });
   }
-  const jarDel = path.match(/^\/api\/jar\/([0-9a-f-]{36})$/);
+  if (path === "/api/jar" && method === "POST") {
+    const goal = await env.DB.prepare("SELECT id, saved_cents FROM goals WHERE id = ? AND nest_id = ?").bind(String(body.goal_id ?? ""), nestId).first();
+    if (!goal) throw new HttpError("Pick a savings goal.");
+    const cents = toCents(body.amount);
+    const signed = body.direction === "out" ? -cents : cents;
+    if (goal.saved_cents + signed < 0) throw new HttpError("You can't take out more than you've saved for this goal.");
+    await env.DB.batch([
+      env.DB.prepare("INSERT INTO jar_moves (id, nest_id, goal_id, member_id, amount_cents, created_at) VALUES (?, ?, ?, ?, ?, ?)").bind(crypto.randomUUID(), nestId, goal.id, user.id, signed, now()),
+      env.DB.prepare("UPDATE goals SET saved_cents = saved_cents + ? WHERE id = ?").bind(signed, goal.id),
+    ]);
+    return json({ ok: true, reward: signed > 0 ? await award(env, request, user.id, nestId, "save") : null });
+  }
+  const jarDel = path.match(/^\/api\/jar\/([0-9a-f-]{32,36})$/);
   if (jarDel && method === "DELETE") {
-    const move = await env.DB.prepare("SELECT amount_cents FROM jar_moves WHERE id = ? AND nest_id = ?").bind(jarDel[1], nestId).first();
+    const move = await env.DB.prepare("SELECT amount_cents, goal_id FROM jar_moves WHERE id = ? AND nest_id = ?").bind(jarDel[1], nestId).first();
     if (!move) throw new HttpError("Not found.", 404);
     await env.DB.batch([
       env.DB.prepare("DELETE FROM jar_moves WHERE id = ?").bind(jarDel[1]),
-      env.DB.prepare("UPDATE nests SET goal_saved = MAX(0, goal_saved - ?) WHERE id = ?").bind(move.amount_cents, nestId),
+      env.DB.prepare("UPDATE goals SET saved_cents = MAX(0, saved_cents - ?) WHERE id = ?").bind(move.amount_cents, move.goal_id),
     ]);
     return json({ ok: true });
+  }
+
+  // ----- monthly category budgets -----
+  if (path === "/api/budgets" && method === "PUT") {
+    const items = Array.isArray(body.items) ? body.items.slice(0, CATEGORIES.length) : [];
+    const stmts = [env.DB.prepare("DELETE FROM budgets WHERE nest_id = ?").bind(nestId)];
+    for (const it of items) {
+      if (!CATEGORIES.includes(it.category)) continue;
+      const n = Number(it.limit);
+      if (!Number.isFinite(n) || n <= 0) continue;
+      if (n > 10_000_000) throw new HttpError("That budget is too big.");
+      stmts.push(env.DB.prepare("INSERT INTO budgets (nest_id, category, limit_cents) VALUES (?, ?, ?)").bind(nestId, it.category, Math.round(n * 100)));
+    }
+    await env.DB.batch(stmts);
+    return json({ ok: true });
+  }
+
+  // ----- debts -----
+  function readDebt() {
+    const name = cleanText(body.name, 30);
+    if (!name) throw new HttpError("Name the debt.");
+    const apr = Number(body.apr ?? 0), min = Number(body.min ?? 0);
+    if (!Number.isFinite(apr) || apr < 0 || apr > 100) throw new HttpError("Enter an interest rate from 0 to 100%.");
+    if (!Number.isFinite(min) || min < 0 || min > 10_000_000) throw new HttpError("Enter a valid minimum payment.");
+    return { name, start: toCents(body.balance, "a balance"), apr: Math.round(apr * 100), min: Math.round(min * 100) };
+  }
+  if (path === "/api/debts" && method === "POST") {
+    const d = readDebt(), id = crypto.randomUUID();
+    await env.DB.prepare("INSERT INTO debts (id, nest_id, name, start_cents, apr_bp, min_cents, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)").bind(id, nestId, d.name, d.start, d.apr, d.min, now()).run();
+    return json({ ok: true, id }, 201);
+  }
+  const debtId = path.match(/^\/api\/debts\/([0-9a-f-]{36})$/);
+  if (debtId && method === "PATCH") {
+    const d = readDebt();
+    await env.DB.prepare("UPDATE debts SET name = ?, start_cents = ?, apr_bp = ?, min_cents = ? WHERE id = ? AND nest_id = ?").bind(d.name, d.start, d.apr, d.min, debtId[1], nestId).run();
+    return json({ ok: true });
+  }
+  if (debtId && method === "DELETE") {
+    await env.DB.batch([
+      env.DB.prepare("DELETE FROM debt_payments WHERE debt_id = ? AND nest_id = ?").bind(debtId[1], nestId),
+      env.DB.prepare("DELETE FROM debts WHERE id = ? AND nest_id = ?").bind(debtId[1], nestId),
+    ]);
+    return json({ ok: true });
+  }
+  const debtPay = path.match(/^\/api\/debts\/([0-9a-f-]{36})\/pay$/);
+  if (debtPay && method === "POST") {
+    const debt = await env.DB.prepare("SELECT id, name FROM debts WHERE id = ? AND nest_id = ?").bind(debtPay[1], nestId).first();
+    if (!debt) throw new HttpError("That debt doesn't exist anymore.", 404);
+    const ids = await memberIds(env, nestId);
+    const payer = ids.includes(body.member_id) ? body.member_id : user.id;
+    const amount = toCents(body.amount), date = isDate(body.date) ? body.date : todayStr();
+    // also log it as an expense so it counts in the month's spending
+    const entryId = await insertEntry(env, nestId, user, {
+      type: "expense", amount, memberId: payer, shared: 0, priv: 0, split: { mode: null, value: null }, shares: null,
+      category: "debt", label: "Payment: " + debt.name, date,
+    });
+    await env.DB.prepare("INSERT INTO debt_payments (id, debt_id, nest_id, member_id, amount_cents, date, entry_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+      .bind(crypto.randomUUID(), debt.id, nestId, payer, amount, date, entryId, now()).run();
+    return json({ ok: true, reward: await award(env, request, user.id, nestId, "debt") }, 201);
+  }
+  const payDel = path.match(/^\/api\/debt-payments\/([0-9a-f-]{36})$/);
+  if (payDel && method === "DELETE") {
+    const p = await env.DB.prepare("SELECT entry_id FROM debt_payments WHERE id = ? AND nest_id = ?").bind(payDel[1], nestId).first();
+    if (!p) throw new HttpError("Not found.", 404);
+    await env.DB.batch([
+      env.DB.prepare("DELETE FROM debt_payments WHERE id = ?").bind(payDel[1]),
+      env.DB.prepare("DELETE FROM entries WHERE id = ? AND nest_id = ?").bind(p.entry_id || "", nestId),
+    ]);
+    return json({ ok: true });
+  }
+
+  // ----- year overview + export -----
+  if (path === "/api/year" && method === "GET") {
+    const year = url.searchParams.get("year") || "";
+    if (!/^\d{4}$/.test(year)) throw new HttpError("Bad year.");
+    const from = Date.UTC(+year, 0, 1) / 1000, to = Date.UTC(+year + 1, 0, 1) / 1000;
+    const [entries, jar] = await env.DB.batch([
+      env.DB.prepare("SELECT type, amount_cents, category, label, member_id, shared, private, date FROM entries WHERE nest_id = ? AND date >= ? AND date <= ? AND (private = 0 OR member_id = ?) ORDER BY date")
+        .bind(nestId, year + "-01-01", year + "-12-31", user.id),
+      env.DB.prepare("SELECT amount_cents, created_at FROM jar_moves WHERE nest_id = ? AND created_at >= ? AND created_at < ?").bind(nestId, from, to),
+    ]);
+    return json({ entries: entries.results, jar: jar.results });
+  }
+
+  // ----- first-time setup -----
+  if (path === "/api/setup/done" && method === "POST") {
+    const already = await env.DB.prepare("SELECT setup_done FROM members WHERE user_id = ? AND nest_id = ?").bind(user.id, nestId).first();
+    await env.DB.prepare("UPDATE members SET setup_done = 1 WHERE user_id = ? AND nest_id = ?").bind(user.id, nestId).run();
+    return json({ ok: true, reward: already && !already.setup_done ? await award(env, request, user.id, nestId, "setup") : null });
   }
 
   // ----- settle up -----
@@ -521,7 +694,7 @@ async function handle(request, env, url) {
     if (!ids.includes(from) || !ids.includes(to) || from === to) throw new HttpError("Pick who paid who.");
     await env.DB.prepare("INSERT INTO settlements (id, nest_id, from_id, to_id, amount_cents, date, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
       .bind(crypto.randomUUID(), nestId, from, to, toCents(body.amount), isDate(body.date) ? body.date : todayStr(), user.id, now()).run();
-    return json({ ok: true }, 201);
+    return json({ ok: true, reward: await award(env, request, user.id, nestId, "settle") }, 201);
   }
   const setDel = path.match(/^\/api\/settlements\/([0-9a-f-]{36})$/);
   if (setDel && method === "DELETE") {
@@ -537,7 +710,8 @@ async function handle(request, env, url) {
       const r = await env.DB.prepare("SELECT id FROM recurring WHERE id = ? AND nest_id = ?").bind(String(body.recurring_id), nestId).first();
       if (r && isDate(body.occ_date)) { rid = r.id; occ = body.occ_date; }
     }
-    return json({ ok: true, id: await insertEntry(env, nestId, user, e, rid, occ) }, 201);
+    const id = await insertEntry(env, nestId, user, e, rid, occ);
+    return json({ ok: true, id, reward: body.restore ? null : await award(env, request, user.id, nestId, "entry") }, 201);
   }
   const entryId = path.match(/^\/api\/entries\/([0-9a-f-]{36})$/);
   if (entryId && method === "PATCH") {
@@ -569,7 +743,7 @@ async function handle(request, env, url) {
       "INSERT INTO recurring (id, nest_id, type, label, amount_cents, category, member_id, shared, split_mode, split_value, freq, anchor_date, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
     ).bind(id, nestId, r.type, r.label, r.amount, r.category, r.memberId, r.shared, r.split.mode, r.split.value, r.freq, r.anchor, user.id, now()).run();
     if (body.log_now) await insertEntry(env, nestId, user, { ...r, priv: 0 }, id, r.anchor);
-    return json({ ok: true, id }, 201);
+    return json({ ok: true, id, reward: await award(env, request, user.id, nestId, "plan") }, 201);
   }
   const recId = path.match(/^\/api\/recurring\/([0-9a-f-]{36})$/);
   if (recId && method === "PATCH") {
@@ -600,7 +774,7 @@ async function handle(request, env, url) {
       category: r.category, label: r.label, date: todayStr(),
     };
     await insertEntry(env, nestId, user, e, r.id, body.occ_date);
-    return json({ ok: true }, 201);
+    return json({ ok: true, reward: await award(env, request, user.id, nestId, r.type === "income" ? "payday" : "bill") }, 201);
   }
 
   throw new HttpError("Not found.", 404);
