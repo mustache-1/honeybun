@@ -140,6 +140,52 @@ async function sendEmail(env, to, subject, text, html) {
   if (!res.ok) { console.error("Resend error", res.status, await res.text()); throw new HttpError("Couldn't send the email. Try again in a minute.", 502); }
 }
 
+// ---------- email template ----------
+const escHtml = (v) => String(v).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+function resetEmail(name, link, appUrl) {
+  const n = escHtml(name), url = escHtml(link), home = escHtml(appUrl);
+  const text = `Hi ${name},
+
+Someone (hopefully you) asked to reset your Honeybun password.
+
+Choose a new password here:
+${link}
+
+This link works for ${RESET_MINUTES} minutes and can only be used once.
+If you didn't ask for this, you can ignore this email. Your password won't change.
+
+Honeybun, a little budget for two
+${appUrl}`;
+  const html = `<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light only"><title>Reset your Honeybun password</title></head>
+<body style="margin:0;padding:0;background:#F3F5FA;">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;">Choose a new password. This link works for ${RESET_MINUTES} minutes.</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F3F5FA;">
+<tr><td align="center" style="padding:40px 16px;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:440px;">
+    <tr><td align="center" style="padding-bottom:20px;">
+      <img src="${home}/icon-192.png" width="64" height="64" alt="Honeybun" style="display:block;border-radius:18px;border:0;">
+    </td></tr>
+    <tr><td style="background:#FFFFFF;border-radius:24px;padding:36px 32px;font-family:'Nunito','Segoe UI',Helvetica,Arial,sans-serif;color:#2B2733;">
+      <h1 style="margin:0 0 12px;font-size:22px;line-height:1.3;font-weight:700;color:#2B2733;">Forgot your password? No worries.</h1>
+      <p style="margin:0 0 24px;font-size:16px;line-height:1.6;color:#4A4453;">Hi ${n}, tap the button below to choose a new password for Honeybun.</p>
+      <table role="presentation" cellpadding="0" cellspacing="0" width="100%"><tr><td align="center">
+        <a href="${url}" style="display:inline-block;background:#6F93DB;color:#FFFFFF;text-decoration:none;font-weight:700;font-size:16px;padding:14px 28px;border-radius:14px;">Choose a new password</a>
+      </td></tr></table>
+      <p style="margin:24px 0 0;font-size:14px;line-height:1.6;color:#8E8898;">This link works for ${RESET_MINUTES} minutes and can only be used once. If you didn't ask for this, you can ignore this email. Your password won't change.</p>
+      <hr style="border:0;border-top:1px solid #EAE7EF;margin:24px 0;">
+      <p style="margin:0;font-size:12px;line-height:1.6;color:#A7A1B0;word-break:break-all;">Button not working? Copy this link into your browser:<br><a href="${url}" style="color:#6F93DB;">${url}</a></p>
+    </td></tr>
+    <tr><td align="center" style="padding:20px 0 0;font-family:'Nunito','Segoe UI',Helvetica,Arial,sans-serif;font-size:12px;color:#A7A1B0;">
+      Honeybun, a little budget for two<br><a href="${home}" style="color:#A7A1B0;">honeybun.me</a>
+    </td></tr>
+  </table>
+</td></tr></table>
+</body></html>`;
+  return { text, html };
+}
+
 // ---------- validation ----------
 const cleanText = (v, max) => String(v ?? "").replace(/[\u0000-\u001f\u007f]/g, "").trim().slice(0, max);
 const isEmail = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e) && e.length <= 254;
@@ -281,14 +327,8 @@ async function handle(request, env, url) {
         env.DB.prepare("INSERT INTO password_resets (token_hash, user_id, expires_at) VALUES (?, ?, ?)").bind(await sha256(token), user.id, now() + RESET_MINUTES * 60),
       ]);
       const link = `${appUrl}/reset/${token}`;
-      await sendEmail(env, email, "Reset your Honeybun password",
-        `Hi ${user.name},\n\nTap this link to choose a new Honeybun password:\n${link}\n\nIt works for ${RESET_MINUTES} minutes. If you didn't ask for this, you can ignore this email.`,
-        `<div style="font-family:system-ui,sans-serif;max-width:420px;margin:auto;color:#2B2733">
-          <p>Hi ${user.name.replace(/[<>&"]/g, "")},</p>
-          <p>Tap the button to choose a new Honeybun password.</p>
-          <p><a href="${link}" style="display:inline-block;background:#6F93DB;color:#fff;padding:12px 20px;border-radius:12px;text-decoration:none;font-weight:700">Choose a new password</a></p>
-          <p style="color:#8E8898;font-size:14px">This link works for ${RESET_MINUTES} minutes. If you didn't ask for this, you can ignore this email.</p>
-        </div>`);
+      const mail = resetEmail(user.name, link, appUrl);
+      await sendEmail(env, email, "Reset your Honeybun password 🐰", mail.text, mail.html);
     }
     // same answer either way, so nobody can use this to check who has an account
     return json({ ok: true });
