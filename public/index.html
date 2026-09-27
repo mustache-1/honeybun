@@ -18,12 +18,12 @@
 <meta property="og:site_name" content="Honeybun">
 <meta property="og:url" content="https://honeybun.me/">
 <meta property="og:title" content="Honeybun — a cute little budget">
-<meta property="og:description" content="Track money together, split costs, and fill your savings jar.">
-<meta property="og:image" content="https://honeybun.me/og-image.png">
+<meta property="og:description" content="Track spending, bills, and savings goals on your own, as a couple, or as a family. Build a daily streak with your bunny.">
+<meta property="og:image" content="https://honeybun.me/og-image.png?v=2">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://honeybun.me/og-image.png">
+<meta name="twitter:image" content="https://honeybun.me/og-image.png?v=2">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -443,6 +443,8 @@ header.top.scrolled{border-bottom-color:var(--line)}
 .lang-row button[aria-pressed="true"]{border-color:var(--pink);background:var(--pink-t);color:var(--pink-d)}
 .legal{text-align:center;font-size:.78rem;color:var(--soft);margin-top:14px}
 .legal a{color:var(--soft)}
+.legal.credit{margin-top:6px}
+.legal.credit a{color:var(--pink-d);font-weight:700;text-decoration:none}
 .toggle{display:flex;align-items:center;gap:12px;padding:8px 0;font-weight:700;font-size:.92rem;cursor:pointer}
 .toggle span{flex:1}
 .toggle small{display:block;font-weight:600;color:var(--soft);font-size:.78rem}
@@ -458,6 +460,24 @@ header.top.scrolled{border-bottom-color:var(--line)}
 .filters select{width:auto;flex:none;min-height:38px;padding:6px 30px 6px 12px;border-radius:999px;font-size:14px}
 .recap-cta{margin-top:18px}
 .recap-canvas{width:100%;height:auto;border-radius:18px;margin-top:10px;display:block;background:var(--bg)}
+
+/* update notice + boot fallback */
+.boot{display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center;padding:0 24px}
+#bootMsg{display:flex;flex-direction:column;gap:4px;font-size:.95rem;color:var(--soft)}
+#bootMsg b{color:var(--ink)}
+#bootMsg[hidden],#bootBtn[hidden]{display:none}
+#bootBtn{width:auto;padding:12px 26px}
+.update-card{position:fixed;left:12px;right:12px;bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:30;max-width:440px;margin:0 auto;
+  background:var(--card);border-radius:22px;padding:14px;display:flex;align-items:center;gap:12px;box-shadow:0 10px 40px rgba(43,39,51,.18);border:1px solid var(--line);animation:ucIn .45s cubic-bezier(.2,.9,.3,1.3)}
+.update-card[hidden]{display:none}
+.update-card svg{width:52px;height:56px;flex:none;animation:ucHop 1.6s ease-in-out infinite}
+.uc-text{flex:1;min-width:0;display:flex;flex-direction:column;font-size:.85rem;color:var(--soft);font-weight:600}
+.uc-text b{color:var(--ink);font-size:.95rem}
+.uc-btns{display:flex;flex-direction:column;align-items:center;gap:2px}
+.uc-btns .go{width:auto;margin:0;padding:9px 16px;font-size:.9rem}
+.uc-btns .linkbtn{font-size:.8rem;min-height:26px;padding:2px 0;color:var(--soft)}
+@keyframes ucIn{from{transform:translateY(30px);opacity:0}}
+@keyframes ucHop{0%,60%,100%{transform:none}30%{transform:translateY(-6px)}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 /* ---------- login / setup ---------- */
 .gate{min-height:calc(100vh - 60px);display:flex;flex-direction:column;justify-content:center;padding:24px 0 40px}
@@ -485,7 +505,11 @@ header.top.scrolled{border-bottom-color:var(--line)}
 <body>
 <div class="app">
 
-  <div id="scr-loading" class="loading"><img src="/icon-192.png" alt="Loading Honeybun"></div>
+  <div id="scr-loading" class="loading"><div class="boot">
+    <img src="/icon-192.png" alt="Loading Honeybun">
+    <div id="bootMsg" hidden><b>Honeybun is getting a fresh update…</b><span>Hang tight, refreshing in a few seconds 🐰</span></div>
+    <button class="go" id="bootBtn" hidden>Refresh</button>
+  </div></div>
 
   <!-- LOGIN / SIGN UP / FORGOT -->
   <main id="scr-auth" class="gate" hidden>
@@ -519,6 +543,7 @@ header.top.scrolled{border-bottom-color:var(--line)}
     </div>
     <div class="lang-row" data-lang-picker></div>
     <p class="legal">By continuing you agree to the <a href="/terms.html">Terms</a> and <a href="/privacy.html">Privacy Policy</a>.</p>
+    <p class="legal credit">Developed by Rodrigo · Questions? <a href="mailto:help@honeybun.me">help@honeybun.me</a></p>
   </main>
 
   <!-- NEW PASSWORD -->
@@ -785,7 +810,8 @@ header.top.scrolled{border-bottom-color:var(--line)}
       <p>Open <b>honeybun.me</b> in Safari or Chrome, then choose Share → Add to Home Screen.</p>
     </div>
     <p class="center" style="font-size:.82rem;color:var(--soft);margin-top:14px" id="signedAs"></p>
-    <p class="legal"><a href="/privacy.html">Privacy Policy</a> · <a href="/terms.html">Terms</a> · <a href="mailto:hello@honeybun.me">Contact</a></p>
+    <p class="legal"><a href="/privacy.html">Privacy Policy</a> · <a href="/terms.html">Terms</a></p>
+    <p class="legal credit">Developed by Rodrigo · Questions? <a href="mailto:help@honeybun.me">help@honeybun.me</a></p>
   </main>
 </div>
 
@@ -798,6 +824,12 @@ header.top.scrolled{border-bottom-color:var(--line)}
     <button data-go="us"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg><span id="usLabel">Together</span></button>
   </div>
 </nav>
+
+<div class="update-card" id="updateCard" role="status" hidden>
+  <svg viewBox="0 0 120 128" aria-hidden="true"><g fill="#fff" stroke="#2B2733" stroke-width="5" stroke-linecap="round"><path d="M44 52 C34 30 34 8 42 6 C50 4 54 28 54 46"/><path d="M76 52 C86 30 86 8 78 6 C70 4 66 28 66 46"/><ellipse cx="60" cy="82" rx="38" ry="34"/><circle cx="47" cy="78" r="3.5" fill="#2B2733" stroke="none"/><circle cx="73" cy="78" r="3.5" fill="#2B2733" stroke="none"/><ellipse cx="38" cy="90" rx="6" ry="3.5" fill="#F6B7CB" stroke="none"/><ellipse cx="82" cy="90" rx="6" ry="3.5" fill="#F6B7CB" stroke="none"/><path d="M52 89 q8 8 16 0" fill="none" stroke-width="3.5"/></g><text x="96" y="30" font-size="22">✨</text></svg>
+  <div class="uc-text"><b>A fresh update just hopped in!</b><span>Refresh to get the newest Honeybun.</span></div>
+  <div class="uc-btns"><button class="go" id="updateNow">Refresh</button><button class="linkbtn" id="updateLater">Later</button></div>
+</div>
 
 <div class="toast" id="toast" role="status"><span id="toastText"></span><button id="toastBtn" hidden>Undo</button></div>
 
@@ -907,6 +939,7 @@ header.top.scrolled{border-bottom-color:var(--line)}
   <div class="acts"><button class="small" id="askNo">Cancel</button><button class="go" id="askYes">Yes</button></div>
 </dialog>
 
+<script src="/boot.js"></script>
 <script src="/i18n.js" defer></script>
 <script src="/app.js" defer></script>
 </body>
