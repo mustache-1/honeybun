@@ -15,6 +15,41 @@
     { id: "debt", e: "💳", n: "Debt payments", c: "#E88AA8" },
     { id: "other", e: "✨", n: "Other", c: "#B7A9C4" },
   ];
+  // line icons (replace emoji in the UI)
+  const ICONS = {
+    house: '<path d="M3 11l9-7 9 7v9H3z"/><path d="M10 20v-5h4v5"/>',
+    cart: '<path d="M3 4h2l2.4 11h11L21 8H7"/><circle cx="9" cy="19" r="1.4"/><circle cx="17" cy="19" r="1.4"/>',
+    cup: '<path d="M4 10h13v3a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5zM17 11h1.5a2.5 2.5 0 0 1 0 5H16"/><path d="M8 6c0-1 1-1 1-2M12 6c0-1 1-1 1-2"/>',
+    heart: '<path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/>',
+    bolt: '<path d="M13 3L5 14h6l-1 7 8-11h-6z"/>',
+    tv: '<rect x="3" y="5" width="18" height="12" rx="3"/><path d="M9 21h6M12 17v4"/>',
+    car: '<path d="M5 16l1.5-6h11L19 16M4 16h16v3H4zM7 19v2M17 19v2"/>',
+    gift: '<rect x="4" y="9" width="16" height="11" rx="2"/><path d="M12 9v11M4 13h16M12 9c-2-4-6-3-5 0M12 9c2-4 6-3 5 0"/>',
+    paw: '<ellipse cx="12" cy="16" rx="4.5" ry="3.8"/><circle cx="6.5" cy="10.5" r="1.8"/><circle cx="10" cy="7" r="1.8"/><circle cx="14" cy="7" r="1.8"/><circle cx="17.5" cy="10.5" r="1.8"/>',
+    card: '<rect x="3" y="6" width="18" height="13" rx="3"/><path d="M3 10h18M7 15h4"/>',
+    sparkle: '<path d="M12 4v4M12 16v4M4 12h4M16 12h4M7 7l2 2M15 15l2 2M17 7l-2 2M9 15l-2 2"/>',
+    coin: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5v9M14.5 9.6c0-1-1.1-1.7-2.5-1.7s-2.5.7-2.5 1.8 1 1.5 2.5 1.8 2.5.9 2.5 2-1.1 1.8-2.5 1.8-2.5-.8-2.5-1.8"/>',
+    carrot: '<path d="M6 20l10-11 3 3z"/><path d="M16 9l1-4M17 10l4-2M18 11h4"/>',
+    star: '<path d="M12 4l2.3 4.8 5.2.7-3.8 3.6.9 5.2L12 15.9 7.4 18.3l.9-5.2-3.8-3.6 5.2-.7z"/>',
+    medal: '<circle cx="12" cy="14" r="5.5"/><path d="M8.5 9.5L6 3h4l2 4 2-4h4l-2.5 6.5"/>',
+    basket: '<path d="M3 10h18l-2 9H5z"/><path d="M8 10l3-6M16 10l-3-6M9 14v2M15 14v2"/>',
+    cal: '<rect x="4" y="5" width="16" height="15" rx="3"/><path d="M4 10h16M9 3v4M15 3v4"/>',
+    target: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r=".8"/>',
+    jar: '<path d="M8 8h8l1 2v9a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-9z"/><rect x="8" y="4" width="8" height="4" rx="1.5"/>',
+    party: '<path d="M4 20l4-11 7 7z"/><path d="M13 4v3M17 7l2-2M18 11h3"/>',
+    home2: '<path d="M4 20V10l8-6 8 6v10z"/><path d="M9 20v-5h6v5"/>',
+    moon: '<path d="M19 14.5A7.5 7.5 0 1 1 9.5 5a6 6 0 0 0 9.5 9.5z"/>',
+    crown: '<path d="M4 18l2-10 6 4 6-4 2 10z"/>',
+    calcheck: '<rect x="4" y="5" width="16" height="15" rx="3"/><path d="M4 10h16M9 14l2 2 4-4"/>',
+    lock: '<rect x="6" y="11" width="12" height="9" rx="2.5"/><path d="M8.5 11V8.5a3.5 3.5 0 0 1 7 0V11"/>',
+    chev: '<path d="M9 6l6 6-6 6"/>',
+  };
+  const icon = (k, w = 1.8) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[k] || ICONS.sparkle}</svg>`;
+  const CAT_LOOK = { home: ["house", "blue"], groc: ["cart", "green"], food: ["cup", "honey"], date: ["heart", "rose"], bills: ["bolt", "lilac"], subs: ["tv", "lilac"],
+    car: ["car", "blue"], fun: ["gift", "rose"], pets: ["paw", "honey"], debt: ["card", "rose"], other: ["sparkle", "gray"] };
+  const tileHtml = (k, tint, size = 38) => `<span class="ct t-${tint}" style="width:${size}px;height:${size}px;border-radius:${Math.round(size * 0.34)}px">${icon(k)}</span>`;
+  const catTile = (id, size) => { const [k, t] = CAT_LOOK[id] || CAT_LOOK.other; return tileHtml(k, t, size); };
+  const incTile = (size) => tileHtml("coin", "green", size);
   const catOf = (id) => CATS.find((c) => c.id === id) || CATS[CATS.length - 1];
   const NEEDS = ["home", "groc", "bills", "car", "pets", "debt"];
   const WANTS = ["food", "date", "fun", "subs", "other"];
@@ -202,7 +237,7 @@
 
   // ---------- state ----------
   let ME = null, NEST = null, MEMBERS = [], ENTRIES = [], BAL = {}, SETTLES = [], RECUR = [], LOGGED = new Set(), JAR = [];
-  let GOALS = [], BUDGETS = {}, DEBTS = [], DEBTPAYS = [], SETUP_DONE = true;
+  let GOALS = [], BUDGETS = {}, DEBTS = [], DEBTPAYS = [], SETUP_DONE = true, INBOX = { unread: 0, latest: null };
   let MONTH = today().slice(0, 7), YEAR = new Date().getFullYear(), YDATA = null;
   let screen = "loading", filter = null, authMode = "signup", newKind = "couple", calSel = null;
   let mode = "expense", cat = "groc", who = null, shared = true, splitMode = "equal", editing = null;
@@ -224,14 +259,14 @@
   const loggedToday = () => meMember()?.last_day === today();
 
   // ---------- screens ----------
-  const APP_SCREENS = ["home", "plan", "add", "stats", "us"];
+  const APP_SCREENS = ["home", "plan", "add", "stats", "us", "inbox"];
   const ALL_SCREENS = ["loading", "auth", "reset", "verify", "setup", "onboard", ...APP_SCREENS];
   function show(s) {
     screen = s;
     ALL_SCREENS.forEach((k) => ($("scr-" + k).hidden = k !== s));
     const inApp = APP_SCREENS.includes(s);
     $("nav").hidden = !inApp; $("topBar").hidden = !inApp;
-    $("monthNav").style.visibility = s === "stats" || s === "add" ? "hidden" : "";
+    $("monthNav").style.display = ["home", "stats", "add", "inbox"].includes(s) ? "none" : "";
     document.querySelectorAll("nav.bottom [data-go]").forEach((b) => b.dataset.go === s ? b.setAttribute("aria-current", "page") : b.removeAttribute("aria-current"));
     window.scrollTo(0, 0);
     if (s === "stats") loadYear();
@@ -366,10 +401,16 @@
       id: q.pending_id, pending: true, member_id: q.member_id, type: q.type, amount: +q.amount, amount_cents: Math.round(q.amount * 100),
       label: q.label, category: q.category, shared: !!q.shared, split_mode: q.split_mode, split_value: q.split_value, private: !!q.private, date: q.date }));
     BAL = d.balances; SETTLES = d.settlements; RECUR = d.recurring; JAR = d.jar;
-    document.documentElement.setAttribute("data-accent", d.nest.accent || "blueberry");
+    document.documentElement.setAttribute("data-accent", d.nest.accent || "blush");
     GOALS = d.goals; DEBTS = d.debts; DEBTPAYS = d.debt_payments; SETUP_DONE = d.setup_done;
     BUDGETS = Object.fromEntries(d.budgets.map((b) => [b.category, b.limit_cents / 100]));
     LOGGED = new Set(d.logged.map((l) => l.recurring_id + "|" + l.occ_date));
+    if (d.inbox) {
+      const prev = INBOX.unread; let latest = null;
+      if (d.inbox.latest) { const [id, kind, ...rest] = d.inbox.latest.split("|"); try { latest = { id, kind, data: JSON.parse(rest.join("|")) }; } catch {} }
+      INBOX = { unread: d.inbox.unread || 0, latest };
+      if (INBOX.unread > prev && prev >= 0 && document.getElementById("inboxBtn")) { const b = $("inboxBtn"); b.classList.remove("wiggle"); void b.offsetWidth; b.classList.add("wiggle"); }
+    }
     if (!MEMBERS.some((m) => m.id === who)) who = ME.id;
     if (filter && !MEMBERS.some((m) => m.id === filter)) filter = null;
     if (APP_SCREENS.includes(screen)) render();
@@ -429,32 +470,33 @@
   function renderPill() {
     const m = meMember(); if (!m) return;
     const li = levelInfo(m.xp || 0), st = streakOf(m), done = loggedToday();
-    $("burrowPill").innerHTML = `<span class="today-dot ${done ? "done" : ""}"></span>
-      <span class="st ${st ? "" : "cold"}">🐾 ${st}</span>
-      <span class="lv">Lv ${li.l} · ${esc(li.title)}<small>${done ? "You hopped today ♡" : st ? "Log one thing today to keep your streak" : "Log one thing today to start a streak"}</small>
-      <span class="xpbar" style="display:block"><i style="width:${li.pct * 100}%"></i></span></span>
-      <span class="st">🥕 ${m.xp || 0}</span>`;
+    $("streakTile").innerHTML = `${tileHtml("paw", "honey", 40)}<span class="tt"><b>${st === 1 ? "1 day" : st + " days"}</b>
+      <small class="${done ? "" : "todo"}">${done ? "hop streak" : "Log today to hop"}</small></span>`;
+    $("levelTile").innerHTML = `${tileHtml("carrot", "rose", 40)}<span class="tt"><b>Level ${li.l}</b><small>${m.xp || 0} carrots</small>
+      <span class="xp"><i style="width:${li.pct * 100}%"></i></span></span>`;
     $("gear").innerHTML = gearSvg(li.l);
   }
-  $("burrowPill").onclick = () => show("stats");
+  $("streakTile").onclick = () => show("stats");
+  $("levelTile").onclick = () => show("stats");
+
 
   const BADGES = [
-    { e: "🐣", n: "First hop", d: "Log your first thing", ok: (m) => m.logs >= 1 },
-    { e: "🐾", n: "3-day hop", d: "Keep a 3-day streak", ok: (m) => m.best_streak >= 3 },
-    { e: "🌟", n: "Week hopper", d: "Keep a 7-day streak", ok: (m) => m.best_streak >= 7 },
-    { e: "🏅", n: "Month marathon", d: "Keep a 30-day streak", ok: (m) => m.best_streak >= 30 },
-    { e: "🥕", n: "Carrot counter", d: "Log 50 things", ok: (m) => m.logs >= 50 },
-    { e: "🧺", n: "Carrot basket", d: "Log 200 things", ok: (m) => m.logs >= 200 },
-    { e: "💰", n: "Payday planner", d: "Add a payday", ok: () => RECUR.some((r) => r.type === "income") },
-    { e: "📅", n: "Bill boss", d: "Add 3 bills", ok: () => RECUR.filter((r) => r.type === "expense").length >= 3 },
-    { e: "🎯", n: "Limit setter", d: "Set a monthly budget", ok: () => Object.keys(BUDGETS).length > 0 },
-    { e: "🍯", n: "Goal getter", d: "Reach a savings goal", ok: () => GOALS.some((g) => g.saved_cents >= g.target_cents) },
-    { e: "🎉", n: "Debt free-ish", d: "Pay off a debt", ok: () => DEBTS.some((d) => d.paid_cents >= d.start_cents) },
-    { e: "💞", n: "Better together", d: "Share your budget", ok: () => MEMBERS.length >= 2 },
-    { e: "🏡", n: "Burrow builder", d: "Reach level 5", ok: (m) => levelFor(m.xp) >= 5 },
-    { e: "🌙", n: "Moon hopper", d: "Reach level 9", ok: (m) => levelFor(m.xp) >= 9 },
-    { e: "👑", n: "Legend", d: "Reach level 10", ok: (m) => levelFor(m.xp) >= 10 },
-    { e: "🗓️", n: "Year in review", d: "Log something in 6 different months", ok: () => YDATA && new Set(YDATA.entries.map((e) => e.date.slice(0, 7))).size >= 6 },
+    { k: "star", e: "🐣", n: "First hop", d: "Log your first thing", ok: (m) => m.logs >= 1 },
+    { k: "paw", e: "🐾", n: "3-day hop", d: "Keep a 3-day streak", ok: (m) => m.best_streak >= 3 },
+    { k: "sparkle", e: "🌟", n: "Week hopper", d: "Keep a 7-day streak", ok: (m) => m.best_streak >= 7 },
+    { k: "medal", e: "🏅", n: "Month marathon", d: "Keep a 30-day streak", ok: (m) => m.best_streak >= 30 },
+    { k: "carrot", e: "🥕", n: "Carrot counter", d: "Log 50 things", ok: (m) => m.logs >= 50 },
+    { k: "basket", e: "🧺", n: "Carrot basket", d: "Log 200 things", ok: (m) => m.logs >= 200 },
+    { k: "coin", e: "💰", n: "Payday planner", d: "Add a payday", ok: () => RECUR.some((r) => r.type === "income") },
+    { k: "calcheck", e: "📅", n: "Bill boss", d: "Add 3 bills", ok: () => RECUR.filter((r) => r.type === "expense").length >= 3 },
+    { k: "target", e: "🎯", n: "Limit setter", d: "Set a monthly budget", ok: () => Object.keys(BUDGETS).length > 0 },
+    { k: "jar", e: "🍯", n: "Goal getter", d: "Reach a savings goal", ok: () => GOALS.some((g) => g.saved_cents >= g.target_cents) },
+    { k: "party", e: "🎉", n: "Debt free-ish", d: "Pay off a debt", ok: () => DEBTS.some((d) => d.paid_cents >= d.start_cents) },
+    { k: "heart", e: "💞", n: "Better together", d: "Share your budget", ok: () => MEMBERS.length >= 2 },
+    { k: "home2", e: "🏡", n: "Burrow builder", d: "Reach level 5", ok: (m) => levelFor(m.xp) >= 5 },
+    { k: "moon", e: "🌙", n: "Moon hopper", d: "Reach level 9", ok: (m) => levelFor(m.xp) >= 9 },
+    { k: "crown", e: "👑", n: "Legend", d: "Reach level 10", ok: (m) => levelFor(m.xp) >= 10 },
+    { k: "cal", e: "🗓️", n: "Year in review", d: "Log something in 6 different months", ok: () => YDATA && new Set(YDATA.entries.map((e) => e.date.slice(0, 7))).size >= 6 },
   ];
   function renderBurrow() {
     const m = meMember(); if (!m) return;
@@ -465,19 +507,19 @@
     if (m.last_day && st) for (let i = 0; i < Math.min(st, 7); i++) streakDays.add(toS(addDays(parseD(m.last_day), -i)));
     const week = [0, 1, 2, 3, 4, 5, 6].map((i) => {
       const d = toS(addDays(mon, i)), n = addDays(mon, i).toLocaleDateString(LOCALE, { weekday: "narrow" });
-      return `<div><i class="${streakDays.has(d) ? "on" : ""} ${d === today() ? "today" : ""}">${streakDays.has(d) ? "🐾" : ""}</i>${n}</div>`;
+      return `<div><i class="${streakDays.has(d) ? "on" : ""} ${d === today() ? "today" : ""}">${streakDays.has(d) ? icon("paw") : ""}</i>${n}</div>`;
     }).join("");
-    $("burrow").innerHTML = `<svg viewBox="0 0 120 128" aria-hidden="true">${bunnySvg(li.l)}</svg>
+    $("burrow").innerHTML = `<span class="bun-circle"><svg viewBox="0 0 120 128" aria-hidden="true">${bunnySvg(li.l)}</svg></span>
       <div class="info"><div class="kick">Level ${li.l}</div><h2>${esc(li.title)}</h2>
       <div class="xpbar"><i style="width:${li.pct * 100}%"></i></div>
-      <div class="nums"><span>🥕 ${m.xp || 0}</span><span>${li.hi - (m.xp || 0)} to level ${li.l + 1}</span></div>
-      <div class="chips"><span>🐾 ${st}-day streak</span><span>Best ${m.best_streak || 0}</span></div>
-      <div class="week">${week}</div></div>`;
+      <div class="nums"><span>${m.xp || 0} carrots</span><span>${li.hi - (m.xp || 0)} to level ${li.l + 1}</span></div>
+      <div class="week">${week}</div>
+      <div class="chips"><span>🐾 ${st}-day streak</span><span>Best ${m.best_streak || 0}</span></div></div>`;
     const bg = $("badges"); bg.innerHTML = ""; let got = 0;
     BADGES.forEach((b) => {
       const on = !!b.ok(m); if (on) got++;
       const el = document.createElement("button"); el.className = "badge" + (on ? " on" : "");
-      el.innerHTML = `<i>${b.e}</i>${esc(b.n)}`;
+      el.innerHTML = `<i>${on ? icon(b.k) : icon("lock")}</i>${esc(b.n)}`;
       el.onclick = () => toast(on ? `${b.n}: unlocked ♡` : `${b.n}: ${b.d}`);
       bg.appendChild(el);
     });
@@ -508,7 +550,7 @@
   function recurRow(r) {
     const isIn = r.type === "income", n = nextOcc(r);
     const li = document.createElement("li");
-    li.innerHTML = `<span>${isIn ? "💰" : catOf(r.category).e}</span><span class="t">${esc(r.label)} · ${fmt(r.amount_cents / 100)}<small>${FREQ_NAME[r.freq]}${n ? ", next " + shortDay(n) : ""}${isIn ? ", " + esc(member(r.member_id).name) : r.shared ? ", split" : ""}</small></span><button aria-label="Remove">✕</button>`;
+    li.innerHTML = `${isIn ? incTile(32) : catTile(r.category, 32)}<span class="t">${esc(r.label)} · ${fmt(r.amount_cents / 100)}<small>${FREQ_NAME[r.freq]}${n ? ", next " + shortDay(n) : ""}${isIn ? ", " + esc(member(r.member_id).name) : r.shared ? ", split" : ""}</small></span><button aria-label="Remove">✕</button>`;
     li.querySelector("button").onclick = async () => { try { await api("/api/recurring/" + r.id, { method: "DELETE" }); await loadNest(); drawOb(); } catch (e) { $("obErr").textContent = e.message; } };
     return li;
   }
@@ -583,7 +625,7 @@
         <button class="small" id="obBillAdd" style="margin-top:12px">Add bill</button>
         <ul class="added" id="obBills"></ul>`;
       QUICK_BILLS.forEach((q) => {
-        const el = document.createElement("button"); el.type = "button"; el.textContent = `${q.e} ${q.n}`;
+        const el = document.createElement("button"); el.type = "button"; el.textContent = q.n;
         el.setAttribute("aria-pressed", b.pick === q.n ? "true" : "false");
         el.onclick = () => { b.pick = q.n; b.label = q.n === "Something else" ? "" : q.n; b.cat = q.c; b.shared = MEMBERS.length > 1 && q.s; drawOb(); (q.n === "Something else" ? $("obBillName") : $("obBillAmt")).focus(); };
         $("obQuick").appendChild(el);
@@ -723,7 +765,7 @@
   function entryLi(e) {
     const m = member(e.member_id), c = CATS.find((x) => x.id === e.category) || CATS[8], isIn = e.type === "income";
     const li = document.createElement("li"); li.className = "clickable";
-    li.innerHTML = `<div class="ic" style="${isIn ? "background:var(--mint-t)" : ""}">${isIn ? "💰" : c.e}</div>
+    li.innerHTML = `<div class="ic">${isIn ? incTile(38) : catTile(c.id, 38)}</div>
       <div class="mid"><div class="t">${esc(e.label)}${e.private ? ' <span class="lock" title="Only you can see this">🔒</span>' : ""}</div>
       <div class="s">${esc(m.emoji)} ${esc(m.name)}, ${shortDay(parseD(e.date))}${isIn ? "" : ", " + esc(splitText(e))}</div></div>
       <div class="amt ${isIn ? "in" : ""}">${isIn ? "+" : "−"}${fmt(e.amount)}</div>
@@ -765,7 +807,7 @@
     bills.forEach((b) => {
       const c = CATS.find((x) => x.id === b.r.category) || CATS[4];
       const row = document.createElement("div"); row.className = "due-row";
-      row.innerHTML = `<div class="ic">${c.e}</div><div class="mid"><div class="t">${esc(b.r.label)}</div>
+      row.innerHTML = `<div class="ic">${catTile(c.id, 38)}</div><div class="mid"><div class="t">${esc(b.r.label)}</div>
         <div class="s ${b.late ? "late" : ""}">${b.late ? "Overdue, was due " : "Due "}${shortDay(b.d)}</div></div>
         <div class="amt">${fmt(b.r.amount_cents / 100)}</div><button class="mini">Paid</button>`;
       row.querySelector("button").onclick = (ev) => logOcc(b.r, b.d, ev.currentTarget);
@@ -774,7 +816,7 @@
     pays.forEach((p) => {
       const m = member(p.r.member_id);
       const row = document.createElement("div"); row.className = "due-row";
-      row.innerHTML = `<div class="ic" style="background:var(--mint-t)">💰</div><div class="mid"><div class="t">${esc(p.r.label)}</div>
+      row.innerHTML = `<div class="ic">${incTile(38)}</div><div class="mid"><div class="t">${esc(p.r.label)}</div>
         <div class="s">${esc(m.name)} gets paid ${shortDay(p.d)}</div></div>
         <div class="amt" style="color:var(--mint-d)">+${fmt(p.r.amount_cents / 100)}</div><button class="mini inc">Got it</button>`;
       row.querySelector("button").onclick = (ev) => logOcc(p.r, p.d, ev.currentTarget);
@@ -793,11 +835,15 @@
 
   function render() {
     if (!NEST) return;
-    document.documentElement.setAttribute("data-accent", NEST.accent || "blueberry");
+    document.documentElement.setAttribute("data-accent", NEST.accent || "blush");
     $("monthLbl").textContent = monthName(MONTH, true);
     const names = MEMBERS.map((m) => m.name);
     $("hi").textContent = NEST.name || (MEMBERS.length === 2 ? `${names[0]} & ${names[1]}` : MEMBERS.length === 1 ? names[0] : "Our family");
+    const hr = new Date().getHours();
+    $("greet").textContent = hr < 12 ? "Good morning" : hr < 18 ? "Good afternoon" : "Good evening";
+    $("hdrAvs").innerHTML = MEMBERS.slice(0, 3).map((m) => `<span class="av" style="background:${esc(m.color)}">${esc(m.emoji)}</span>`).join("");
     $("usLabel").textContent = KIND() === "solo" && MEMBERS.length < 2 ? "Me" : "Together";
+    $("inboxBadge").hidden = !INBOX.unread; $("inboxBadge").textContent = INBOX.unread > 9 ? "9+" : INBOX.unread;
 
     const all = ENTRIES, view = filter ? all.filter((e) => e.member_id === filter) : all;
     const sum = (arr, t) => arr.filter((e) => e.type === t).reduce((s, e) => s + e.amount, 0);
@@ -805,13 +851,27 @@
 
     if (screen === "home") {
       const lbl = { solo: "Left for me this month", couple: "Left for us this month", family: "Left for our family this month" }[KIND()];
-      $("leftLbl").textContent = filter ? member(filter).name + "'s balance" : lbl;
-      $("leftAmt").textContent = fmt(left); $("leftAmt").classList.toggle("neg", left < 0);
+      $("leftLbl").textContent = filter ? member(filter).name + "'s balance in" : "Left in";
+      $("heroMonth").textContent = new Date(+MONTH.slice(0, 4), +MONTH.slice(5) - 1, 1).toLocaleDateString(LOCALE, { month: "long" });
+      { const [whole, cents] = fmt(left).split("."); $("leftAmt").innerHTML = `${esc(whole)}${cents ? `<span class="cents">.${esc(cents)}</span>` : ""}`; }
+      $("leftAmt").classList.toggle("neg", left < 0);
+      const chip = $("heroChip"), ratio = inc > 0 ? out / inc : out > 0 ? 2 : 0;
+      chip.hidden = !inc && !out;
+      chip.className = "chip " + (ratio > 1 ? "over" : ratio > 0.85 ? "warn" : "ok");
+      chip.textContent = ratio > 1 ? "Over budget" : ratio > 0.85 ? "Almost there" : "On track";
       $("meter").style.width = inc > 0 ? Math.min(100, (out / inc) * 100) + "%" : out > 0 ? "100%" : "0";
-      $("flowIn").textContent = "+" + fmt(inc) + " in"; $("flowOut").textContent = fmt(out) + " out";
+      $("flowIn").textContent = fmt(inc); $("flowOut").textContent = fmt(out);
+      $("billsDue").textContent = MONTH === today().slice(0, 7) && RECUR.length ? fmt(upcoming().bills.reduce((a, b) => a + b.r.amount_cents / 100, 0)) : "–";
       setBunny(left, inc, out, view.length > 0);
+      $("bunNote").onclick = openInbox;
+      const bub = $("bubble");
+      if (INBOX.unread && INBOX.latest) {
+        const t = msgText(INBOX.latest);
+        bub.classList.add("has-msg"); bub.setAttribute("data-nt", "");
+        bub.textContent = t;
+      } else { bub.classList.remove("has-msg"); bub.removeAttribute("data-nt"); }
       renderPill();
-      $("verifyBanner").hidden = !!ME.verified;
+      $("verifyBanner").hidden = !!ME.verified || +(store.get("hb-verify-hide") || 0) > Date.now();
       const isThisMonth = MONTH === today().slice(0, 7);
       $("dueCard").hidden = !isThisMonth;
       if (isThisMonth) renderDue(sum(all, "income") - sum(all, "expense"));
@@ -819,7 +879,7 @@
       // budget heads-up
       const by = spentByCat();
       const warn = Object.entries(BUDGETS).map(([c, lim]) => ({ c, lim, sp: by[c] || 0 })).filter((x) => x.sp >= x.lim * 0.8).sort((a, b) => b.sp / b.lim - a.sp / a.lim).slice(0, 2);
-      $("homeBud").innerHTML = warn.map((x) => `<div class="home-bud"><span>${catOf(x.c).e} ${esc(catOf(x.c).n)}</span>
+      $("homeBud").innerHTML = [].map((x) => `<div class="home-bud"><span>${esc(catOf(x.c).n)}</span>
         <small>${x.sp > x.lim ? "Over by " + fmt(x.sp - x.lim) : fmt(x.lim - x.sp) + " left"}</small></div>`).join("");
       $("homeBud").onclick = () => show("plan");
 
@@ -891,6 +951,7 @@
       ["mailBills", "mailStreak", "mailWeekly"].forEach((id) => ($(id).disabled = !ME.verified));
       $("mailHint").hidden = !!ME.verified;
       drawLangPickers();
+      mailLinks();
 
       $("inviteTitle").textContent = { solo: "Invite someone (optional)", couple: "Invite your partner", family: "Invite your family" }[KIND()];
       $("inviteCode").textContent = prettyCode(NEST.invite_code);
@@ -928,7 +989,7 @@
         <div class="trk"><i class="${totS > totL ? "over" : totS > totL * 0.8 ? "warn" : ""}" style="width:${Math.min(100, (totS / totL) * 100)}%"></i></div></div>` +
         cats.map((c) => ({ c, lim: BUDGETS[c], sp: by[c] || 0 })).sort((a, b) => b.sp / b.lim - a.sp / a.lim).map((x) => {
           const r = x.sp / x.lim;
-          return `<div class="bud"><div class="l"><span>${catOf(x.c).e} ${esc(catOf(x.c).n)}</span><small class="${r > 1 ? "over" : ""}">${r > 1 ? "Over by " + fmt(x.sp - x.lim) : fmt(x.lim - x.sp) + " left of " + fmt(x.lim)}</small></div>
+          return `<div class="bud"><div class="l"><span>${esc(catOf(x.c).n)}</span><small class="${r > 1 ? "over" : r > 0.8 ? "warnt" : ""}">${r > 1 ? "Over by " + fmt(x.sp - x.lim) : fmt(x.lim - x.sp) + " left of " + fmt(x.lim)}</small></div>
             <div class="trk"><i class="${r > 1 ? "over" : r > 0.8 ? "warn" : ""}" style="width:${Math.min(100, r * 100)}%"></i></div></div>`;
         }).join("");
     }
@@ -939,7 +1000,7 @@
     RECUR.forEach((r) => {
       const isIn = r.type === "income", n = nextOcc(r);
       const li = document.createElement("li"); li.className = "clickable";
-      li.innerHTML = `<div class="ic" style="${isIn ? "background:var(--mint-t)" : ""}">${isIn ? "💰" : catOf(r.category).e}</div>
+      li.innerHTML = `<div class="ic">${isIn ? incTile(38) : catTile(r.category, 38)}</div>
         <div class="mid"><div class="t">${esc(r.label)}</div><div class="s">${FREQ_NAME[r.freq]}${n ? ", next " + shortDay(n) : ""}, ${esc(member(r.member_id).name)}</div></div>
         <div class="amt ${isIn ? "in" : ""}">${isIn ? "+" : ""}${fmt(r.amount_cents / 100)}</div>`;
       li.onclick = () => openEditRecurring(r);
@@ -952,7 +1013,7 @@
     const box = $("budgetEdit"); box.innerHTML = "";
     CATS.forEach((c) => {
       const l = document.createElement("label");
-      l.innerHTML = `${c.e} <span>${esc(c.n)}</span><input type="number" inputmode="decimal" min="0" step="1" data-cat="${c.id}" placeholder="No limit">`;
+      l.innerHTML = `${catTile(c.id, 30)} <span>${esc(c.n)}</span><input type="number" inputmode="decimal" min="0" step="1" data-cat="${c.id}" placeholder="No limit">`;
       l.querySelector("input").value = BUDGETS[c.id] ?? "";
       box.appendChild(l);
     });
@@ -990,20 +1051,27 @@
     if (!calSel) { dayBox.innerHTML = `<p class="hint" style="margin:0">Tap a day to see what's due. Pink dots are bills, green are paydays.</p>`; return; }
     const items = byDay[+calSel.slice(8)] || [];
     dayBox.innerHTML = `<p class="hint" style="margin:0 0 4px">${dayName(parseD(calSel))}</p>` + (items.length ? items.map((x) =>
-      `<div><span>${x.r.type === "income" ? "💰" : catOf(x.r.category).e} ${esc(x.r.label)}</span><span>${x.r.type === "income" ? "+" : ""}${fmt(x.r.amount_cents / 100)} · ${x.paid ? "Done ✓" : x.d < parseD(t) ? "Overdue" : x.r.type === "income" ? "Expected" : "Due"}</span></div>`).join("")
+      `<div><span>${esc(x.r.label)}</span><span>${x.r.type === "income" ? "+" : ""}${fmt(x.r.amount_cents / 100)} · ${x.paid ? "Done ✓" : x.d < parseD(t) ? "Overdue" : x.r.type === "income" ? "Expected" : "Due"}</span></div>`).join("")
       : `<p class="hint" style="margin:0">Nothing due this day.</p>`);
   }
 
   // ---------- plan: savings goals ----------
+  function jarSvg(pct, fill, id) {
+    const h = Math.round(34 * Math.min(100, pct) / 100), y = 44 - h;
+    return `<svg viewBox="0 0 40 50" aria-hidden="true"><defs><clipPath id="jc${id}"><path d="M9 12h22q3 0 3 4v26q0 5-5 5H11q-5 0-5-5V16q0-4 3-4z"/></clipPath></defs>
+      <rect x="0" y="${y}" width="40" height="${h + 8}" fill="${fill}" clip-path="url(#jc${id})"/>
+      <path d="M9 12h22q3 0 3 4v26q0 5-5 5H11q-5 0-5-5V16q0-4 3-4z" fill="none" stroke="currentColor" stroke-width="1.8"/>
+      <rect x="11" y="5" width="18" height="7" rx="2.5" fill="var(--card)" stroke="currentColor" stroke-width="1.8"/></svg>`;
+  }
   function renderGoals() {
     const box = $("goals");
-    if (!GOALS.length) { box.innerHTML = `<p class="empty" style="margin:0;padding:14px 0">Save for a trip, a ring, or a rainy day. Tap New goal to start.</p>`; return; }
-    box.innerHTML = "";
-    GOALS.forEach((g) => {
+    if (!GOALS.length) { box.className = ""; box.innerHTML = `<div class="panel pad"><p class="empty" style="margin:0">Save for a trip, a ring, or a rainy day. Tap New jar to start.</p></div>`; return; }
+    box.className = "goals-grid"; box.innerHTML = "";
+    const fills = ["#F4D48A", "#A9DCC3", "#F6B8CB", "#BFD0F5", "#D2C6F3"];
+    GOALS.forEach((g, i) => {
       const saved = g.saved_cents / 100, target = g.target_cents / 100, pct = target ? Math.min(100, (saved / target) * 100) : 0;
-      const el = document.createElement("div"); el.className = "goal";
-      el.innerHTML = `<span class="em">${esc(g.emoji)}</span><div class="mid"><div class="t"><span>${esc(g.name)}</span><small>${Math.round(pct)}%</small></div>
-        <div class="s">${fmt(saved)} of ${fmt(target)}${pct >= 100 ? " · reached ♡" : ""}</div><div class="trk"><i style="width:${pct}%"></i></div></div>`;
+      const el = document.createElement("button"); el.className = "jar-card";
+      el.innerHTML = `${jarSvg(pct, fills[i % fills.length], i)}<span class="tt"><span>${esc(g.name)}</span><b>${fmt(saved)}</b><small>${pct >= 100 ? "reached ♡" : "of " + fmt(target)}</small></span>`;
       el.onclick = () => openGoal(g);
       box.appendChild(el);
     });
@@ -1106,7 +1174,7 @@
     sorted.forEach((d, i) => {
       const rem = Math.max(0, d.start_cents - d.paid_cents) / 100, pct = d.start_cents ? Math.min(100, (d.paid_cents / d.start_cents) * 100) : 0;
       const el = document.createElement("div"); el.className = "goal debt";
-      el.innerHTML = `<span class="em">${rem <= 0 ? "🎉" : "💳"}</span><div class="mid"><div class="t"><span>${rem > 0 ? `${i + 1}. ` : ""}${esc(d.name)}</span><small>${fmt(rem)} left</small></div>
+      el.innerHTML = `<span class="em">${rem <= 0 ? tileHtml("party", "green", 38) : tileHtml("card", "rose", 38)}</span><div class="mid"><div class="t"><span>${rem > 0 ? `${i + 1}. ` : ""}${esc(d.name)}</span><small>${fmt(rem)} left</small></div>
         <div class="s">${(d.apr_bp / 100).toFixed(2).replace(/\.00$/, "")}% APR · min ${fmt(d.min_cents / 100)}${plan.done[d.id] ? " · paid off ~" + monthsOut(plan.done[d.id]) : ""}</div>
         <div class="trk"><i style="width:${pct}%"></i></div></div>${rem > 0 ? '<button class="mini inc">Pay</button>' : ""}`;
       el.onclick = () => openDebt(d);
@@ -1218,7 +1286,7 @@
     $("barsMonth").textContent = monthName(MONTH);
     const bars = (el, data) => {
       const rows = CATS.filter((c) => data[c.id]).sort((a, b) => data[b.id] - data[a.id]).slice(0, 8), mx = Math.max(1, ...rows.map((c) => data[c.id]));
-      el.innerHTML = rows.length ? rows.map((c) => `<div class="bar"><div class="l"><span>${c.e} ${c.n}</span><span>${fmt(data[c.id])}</span></div><div class="trk"><i style="width:${(data[c.id] / mx) * 100}%;background:${c.c}"></i></div></div>`).join("")
+      el.innerHTML = rows.length ? rows.map((c) => `<div class="bar"><div class="l"><span>${c.n}</span><span>${fmt(data[c.id])}</span></div><div class="trk"><i style="width:${(data[c.id] / mx) * 100}%;background:${c.c}"></i></div></div>`).join("")
         : `<p class="empty" style="margin:0">No spending yet.</p>`;
     };
     bars($("bars"), by); bars($("yCats"), yc);
@@ -1265,7 +1333,7 @@
 
     const c = $("cats"); c.innerHTML = "";
     CATS.forEach((k) => {
-      const b = document.createElement("button"); b.type = "button"; b.innerHTML = `<b>${k.e}</b>${k.n}`;
+      const b = document.createElement("button"); b.type = "button"; b.innerHTML = `${catTile(k.id, 54)}<span>${k.n}</span>`;
       b.setAttribute("aria-pressed", k.id === cat ? "true" : "false"); b.onclick = () => { cat = k.id; renderForm(); }; c.appendChild(b);
     });
     const w = $("whos"); w.innerHTML = "";
@@ -1465,11 +1533,147 @@
   $("nextM").onclick = () => shift(1);
   $("seeAll").onclick = () => { show("us"); setTimeout(() => $("allH").scrollIntoView({ behavior: "smooth" }), 40); };
 
+  // ---------- Bun's inbox ----------
+  const money = (c) => fmt((c || 0) / 100);
+  const catName = (id) => tr(catOf(id).n);
+  const dayDiff = (occ) => Math.round((parseD(occ) - parseD(today())) / 86400000);
+  const MSG = {
+    en: {
+      welcome: (d) => `Hi ${d.name}! I'm Bun 🐰 I'll pop in here with bill reminders, paydays, and streak check-ins.`,
+      bill_soon: (d, n) => `${d.label} (${money(d.amount)}) is due ${n === 1 ? "tomorrow" : `in ${n} days`} 🐰`,
+      bill_today: (d) => `${d.label} (${money(d.amount)}) is due today. Tap Paid once it's done ✓`,
+      bill_late: (d) => `${d.label} (${money(d.amount)}) was due ${shortDay(parseD(d.occ))}. Did it get paid?`,
+      payday: (d) => `It's payday! ${d.label} (${money(d.amount)}) should land today 💰`,
+      streak_risk: (d) => `Your ${d.n}-day streak ends at midnight 🐾 Log one thing to keep hopping!`,
+      streak_milestone: (d) => `${d.n}-day hop streak! You're on a roll 🐾✨`,
+      level: (d, _, title, unlock) => `Level ${d.level}! You're now a ${title}.${unlock ? ` I got ${unlock} to wear 🎀` : " Keep hopping!"}`,
+      budget_warn: (d) => `Heads up: ${catName(d.cat)} is at ${Math.round((d.spent / d.limit) * 100)}% of its budget (${money(d.spent)} of ${money(d.limit)}) 🥕`,
+      budget_over: (d) => `${catName(d.cat)} went over budget by ${money(d.over)}. No stress, next month is a fresh start ♡`,
+      week: (d) => `Last week you spent ${money(d.spent)}${d.cat ? `, mostly on ${catName(d.cat).toLowerCase()}` : ""}. You earned ${d.xp} carrots 🥕`,
+      goal_done: (d) => `You reached your "${d.goal}" goal! 🍯 So proud of you.`,
+      debt_done: (d) => `${d.debt} is paid off! 🎉 One less thing to carry.`,
+      joined: (d) => `${d.name} joined your budget 💞 Say hi!`,
+      settled: (d) => d.you_paid ? `${d.name} marked your ${money(d.amount)} payment as received 💸` : `${d.name} marked ${money(d.amount)} as paid to you 💸`,
+      shared_expense: (d) => `${d.name} added ${d.label} (${money(d.amount)}) and split it with you.`,
+    },
+    es: {
+      welcome: (d) => `¡Hola, ${d.name}! Soy Bun 🐰 Aquí te avisaré de facturas, días de pago y tu racha.`,
+      bill_soon: (d, n) => `${d.label} (${money(d.amount)}) vence ${n === 1 ? "mañana" : `en ${n} días`} 🐰`,
+      bill_today: (d) => `${d.label} (${money(d.amount)}) vence hoy. Toca Pagado cuando esté listo ✓`,
+      bill_late: (d) => `${d.label} (${money(d.amount)}) vencía el ${shortDay(parseD(d.occ))}. ¿Ya se pagó?`,
+      payday: (d) => `¡Hoy es día de pago! ${d.label} (${money(d.amount)}) debería llegar hoy 💰`,
+      streak_risk: (d) => `Tu racha de ${d.n} días termina a medianoche 🐾 ¡Registra algo para seguir brincando!`,
+      streak_milestone: (d) => `¡Racha de ${d.n} días! Vas súper bien 🐾✨`,
+      level: (d, _, title, unlock) => `¡Nivel ${d.level}! Ahora eres ${title}.${unlock ? ` Me dieron ${unlock} para ponerme 🎀` : " ¡Sigue brincando!"}`,
+      budget_warn: (d) => `Ojo: ${catName(d.cat)} va en ${Math.round((d.spent / d.limit) * 100)}% de su presupuesto (${money(d.spent)} de ${money(d.limit)}) 🥕`,
+      budget_over: (d) => `${catName(d.cat)} se pasó del presupuesto por ${money(d.over)}. Tranqui, el próximo mes empieza de nuevo ♡`,
+      week: (d) => `La semana pasada gastaste ${money(d.spent)}${d.cat ? `, sobre todo en ${catName(d.cat).toLowerCase()}` : ""}. Ganaste ${d.xp} zanahorias 🥕`,
+      goal_done: (d) => `¡Lograste tu meta "${d.goal}"! 🍯 Estoy muy orgulloso.`,
+      debt_done: (d) => `¡${d.debt} está pagada! 🎉 Una carga menos.`,
+      joined: (d) => `${d.name} se unió a tu presupuesto 💞 ¡Salúdalo!`,
+      settled: (d) => d.you_paid ? `${d.name} marcó tu pago de ${money(d.amount)} como recibido 💸` : `${d.name} marcó ${money(d.amount)} como pagado para ti 💸`,
+      shared_expense: (d) => `${d.name} agregó ${d.label} (${money(d.amount)}) y lo dividió contigo.`,
+    },
+    zh: {
+      welcome: (d) => `${d.name}，你好！我是 Bun 🐰 账单提醒、发薪日和连续记录，我都会在这里告诉你。`,
+      bill_soon: (d, n) => `${d.label}（${money(d.amount)}）${n === 1 ? "明天" : `${n} 天后`}到期 🐰`,
+      bill_today: (d) => `${d.label}（${money(d.amount)}）今天到期。付完后点「已付」✓`,
+      bill_late: (d) => `${d.label}（${money(d.amount)}）原定 ${shortDay(parseD(d.occ))} 到期，付了吗？`,
+      payday: (d) => `今天发薪啦！${d.label}（${money(d.amount)}）应该今天到账 💰`,
+      streak_risk: (d) => `你的 ${d.n} 天连续记录将在午夜中断 🐾 记一笔继续保持吧！`,
+      streak_milestone: (d) => `连续记录 ${d.n} 天！状态超棒 🐾✨`,
+      level: (d, _, title, unlock) => `升到 ${d.level} 级啦！你现在是「${title}」。${unlock ? `我得到了${unlock} 🎀` : "继续加油！"}`,
+      budget_warn: (d) => `提醒：${catName(d.cat)} 已用掉预算的 ${Math.round((d.spent / d.limit) * 100)}%（${money(d.spent)} / ${money(d.limit)}）🥕`,
+      budget_over: (d) => `${catName(d.cat)} 超支了 ${money(d.over)}。别担心，下个月重新开始 ♡`,
+      week: (d) => `上周你花了 ${money(d.spent)}${d.cat ? `，主要花在${catName(d.cat)}` : ""}。获得了 ${d.xp} 根胡萝卜 🥕`,
+      goal_done: (d) => `你达成了「${d.goal}」目标！🍯 为你骄傲。`,
+      debt_done: (d) => `「${d.debt}」还清啦！🎉 少了一份负担。`,
+      joined: (d) => `${d.name} 加入了你的预算 💞 打个招呼吧！`,
+      settled: (d) => d.you_paid ? `${d.name} 确认收到了你的 ${money(d.amount)} 💸` : `${d.name} 标记已付给你 ${money(d.amount)} 💸`,
+      shared_expense: (d) => `${d.name} 添加了 ${d.label}（${money(d.amount)}），和你一起分摊。`,
+    },
+  };
+  function msgText(m) {
+    const T = MSG[LANG] || MSG.en, d = m.data || {};
+    let kind = m.kind, n = 0;
+    if (["bill_soon", "bill_today", "bill_late"].includes(kind) && d.occ) {
+      n = dayDiff(d.occ); kind = n < 0 ? "bill_late" : n === 0 ? "bill_today" : "bill_soon"; // keep the wording up to date
+    }
+    const l = d.level || 1;
+    const fn = T[kind] || MSG.en[kind];
+    return fn ? fn(d, n, tr(TITLES[Math.min(l, TITLES.length) - 1]), UNLOCKS[l] ? tr(UNLOCKS[l]) : null) : "";
+  }
+  function msgActions(m, box) {
+    const d = m.data || {}, add = (label, cls, fn) => { const b = document.createElement("button"); b.className = "mini " + cls; b.textContent = tr(label); b.onclick = fn; box.appendChild(b); };
+    if (["bill_soon", "bill_today", "bill_late", "payday"].includes(m.kind)) {
+      const r = RECUR.find((x) => x.id === d.rid);
+      if (!r) return;
+      if (LOGGED.has(r.id + "|" + d.occ)) { box.insertAdjacentHTML("afterend", `<span class="ok">${esc(tr(m.kind === "payday" ? "Got it" : "Paid"))} ✓</span>`); return; }
+      add(m.kind === "payday" ? "Got it" : "Paid", m.kind === "payday" ? "inc" : "", async (ev) => { await logOcc(r, parseD(d.occ), ev.currentTarget); drawChat(CHAT, false); });
+    }
+    if (m.kind === "streak_risk") add("Log something", "", () => openAdd());
+    if (m.kind === "budget_warn" || m.kind === "budget_over") add("See budgets", "", () => show("plan"));
+    if (m.kind === "goal_done" || m.kind === "debt_done") add("See Plan", "", () => show("plan"));
+    if (m.kind === "week") add("See stats", "", () => show("stats"));
+    if (m.kind === "level" || m.kind === "streak_milestone") add("See my bunny", "", () => show("stats"));
+  }
+  let CHAT = [];
+  function drawChat(msgs, animateNew) {
+    const box = $("chat"); box.innerHTML = "";
+    if (!msgs.length) { box.innerHTML = `<div class="chat-empty">${esc(tr("No messages yet. I'll hop in when something's coming up 🐰"))}</div>`; return; }
+    let lastDay = "", prevDay = null;
+    const t = today(), y = yesterday();
+    msgs.forEach((m, i) => {
+      const dt = new Date(m.created_at * 1000), ds = toS(dt);
+      if (ds !== lastDay) {
+        lastDay = ds; prevDay = null;
+        box.insertAdjacentHTML("beforeend", `<div class="chat-day">${esc(ds === t ? tr("Today") : ds === y ? tr("Yesterday") : dayName(dt))}</div>`);
+      }
+      const el = document.createElement("div");
+      el.className = "msg" + (prevDay !== ds ? " first" : "") + (!m.read_at ? " new" : "") + (animateNew && !m.read_at ? " pop" : "");
+      el.innerHTML = `<div class="av"><img src="/icon-192.png" alt=""></div><div class="b"><p></p><div class="acts"></div><time>${dt.toLocaleTimeString(LOCALE, { hour: "numeric", minute: "2-digit" })}</time></div>`;
+      el.querySelector("p").textContent = msgText(m);
+      msgActions(m, el.querySelector(".acts"));
+      if (animateNew && !m.read_at) el.style.animationDelay = (i * 0.06) + "s";
+      box.appendChild(el);
+      prevDay = ds;
+    });
+  }
+  async function openInbox() {
+    show("inbox");
+    const box = $("chat");
+    box.innerHTML = `<div class="msg first typing"><div class="av"><img src="/icon-192.png" alt=""></div><div class="b"><i></i><i></i><i></i></div></div>`;
+    try {
+      const [d] = await Promise.all([api("/api/inbox"), new Promise((r) => setTimeout(r, INBOX.unread ? 700 : 250))]);
+      CHAT = d.messages;
+      drawChat(CHAT, true);
+      window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+      if (CHAT.some((m) => !m.read_at)) {
+        api("/api/inbox/read", { method: "POST" }).then(() => { INBOX = { unread: 0, latest: null }; CHAT.forEach((m) => (m.read_at = m.read_at || 1)); render(); }).catch(() => {});
+      }
+    } catch (e) { box.innerHTML = `<div class="chat-empty">${esc(e.message)}</div>`; }
+  }
+  $("inboxBtn").onclick = openInbox;
+
+  // email us (help + suggestions), with a little context so replies are easier
+  function mailLinks() {
+    const info = `\n\n— — —\n${tr("App info (helps us help you)")}: ${LANG} · ${KIND()} · ${navigator.userAgent.includes("iPhone") ? "iPhone" : navigator.userAgent.includes("Android") ? "Android" : "Web"}${ME ? " · " + ME.email : ""}`;
+    const mk = (subject, body) => `mailto:help@honeybun.me?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body + info)}`;
+    $("mailHelp").href = mk(tr("Honeybun help"), tr("Hi! I need help with:") + "\n\n");
+    $("mailIdea").href = mk(tr("Honeybun suggestion"), tr("Hi! I have an idea for Honeybun:") + "\n\n");
+  }
+  $("inboxBack").onclick = () => show("home");
+  $("qrDue").onclick = () => show("plan");
+  $("qrStreak").onclick = () => show("stats");
+  $("qrAdd").onclick = () => openAdd();
+  $("heroPrev").onclick = () => shift(-1);
+  $("heroNext").onclick = () => shift(1);
+
   // ---------- search & filters ----------
   const searching = () => !!($("q").value.trim() || $("fType").value || $("fCat").value || $("fWho").value);
   function drawFilters() {
     const fc = $("fCat");
-    if (fc.options.length !== CATS.length + 1) CATS.forEach((c) => fc.add(new Option(`${c.e} ${tr(c.n)}`, c.id)));
+    if (fc.options.length !== CATS.length + 1) CATS.forEach((c) => fc.add(new Option(tr(c.n), c.id)));
     const fw = $("fWho"), cur = fw.value;
     while (fw.options.length > 1) fw.remove(1);
     MEMBERS.forEach((m) => fw.add(new Option(`${m.emoji} ${m.name}`, m.id)));
@@ -1494,6 +1698,7 @@
   ["fType", "fCat", "fWho"].forEach((id) => ($(id).onchange = runSearch));
 
   // ---------- email, account & data ----------
+  $("hideVerify").onclick = () => { store.set("hb-verify-hide", String(Date.now() + 3 * 86400000)); $("verifyBanner").hidden = true; };
   $("resendVerify").onclick = async () => {
     try { const r = await api("/api/email/resend", { method: "POST" }); if (r.already) { ME.verified = true; render(); toast("Your email is already confirmed ♡"); } else toast("Sent! Check your inbox."); }
     catch (e) { toast(e.message); }
