@@ -1,0 +1,2 @@
+    $("obSkip").style.visibility = step === "done" ? "hidden" : "";
+    $("obErr").textContent = "";
