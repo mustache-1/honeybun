@@ -482,7 +482,14 @@
     $("levelTile").innerHTML = `${tileHtml("carrot", "rose", 40)}<span class="tt"><b>Level ${li.l}</b><small>${m.xp || 0} carrots</small>
       <span class="xp"><i style="width:${li.pct * 100}%"></i></span></span>`;
     $("gear").innerHTML = gearSvg(li.l);
+    const sp = $("streakPill");
+    sp.hidden = false; sp.classList.toggle("todo", !done);
+    sp.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3c2 4 6 6 6 11a6 6 0 0 1-12 0c0-2 1-3 2-4 0 2 1 3 2 3 0-4 1-7 2-10z"/></svg><span class="d"></span><span class="lv"></span>`;
+    sp.querySelector(".d").textContent = st === 1 ? "1 day" : st + " days";
+    sp.querySelector(".lv").textContent = " · Lv " + li.l;
+    sp.setAttribute("aria-label", `${st}-day hop streak, level ${li.l}${done ? "" : ", log today to keep it"}`);
   }
+  $("streakPill").onclick = () => show("stats");
   $("streakTile").onclick = () => show("stats");
   $("levelTile").onclick = () => show("stats");
 
@@ -811,7 +818,8 @@
     const total = bills.reduce((s, b) => s + b.r.amount_cents / 100, 0);
     box.innerHTML = `<div class="due-h"><h2>${payday ? "Before payday" : "Coming up"}</h2><span>${payday ? dayName(payday) : "next 30 days"}</span></div>`;
     if (!bills.length) box.insertAdjacentHTML("beforeend", `<p class="due-empty">Nothing due${payday ? " before payday" : " soon"} ♡</p>`);
-    bills.forEach((b) => {
+    const moreBills = Math.max(0, bills.length - 3), morePays = Math.max(0, pays.length - 1);
+    bills.slice(0, 3).forEach((b) => {
       const c = CATS.find((x) => x.id === b.r.category) || CATS[4];
       const row = document.createElement("div"); row.className = "due-row";
       row.innerHTML = `<div class="ic">${catTile(c.id, 38)}</div><div class="mid"><div class="t">${esc(b.r.label)}</div>
@@ -820,7 +828,7 @@
       row.querySelector("button").onclick = (ev) => logOcc(b.r, b.d, ev.currentTarget);
       box.appendChild(row);
     });
-    pays.forEach((p) => {
+    pays.slice(0, 1).forEach((p) => {
       const m = member(p.r.member_id);
       const row = document.createElement("div"); row.className = "due-row";
       row.innerHTML = `<div class="ic">${incTile(38)}</div><div class="mid"><div class="t">${esc(p.r.label)}</div>
@@ -829,6 +837,10 @@
       row.querySelector("button").onclick = (ev) => logOcc(p.r, p.d, ev.currentTarget);
       box.appendChild(row);
     });
+    if (moreBills + morePays > 0) {
+      const more = document.createElement("button"); more.className = "due-more linkbtn";
+      more.textContent = `${moreBills + morePays} more in Plan`; more.onclick = () => show("plan"); box.appendChild(more);
+    }
     if (bills.length) box.insertAdjacentHTML("beforeend",
       `<div class="due-foot"><span>Due ${fmt(total)}</span><span class="${left - total < 0 ? "neg" : ""}">Left after bills ${fmt(left - total)}</span></div>`);
   }
@@ -916,8 +928,8 @@
 
       const rc = $("recent"); rc.innerHTML = "";
       if (!view.length) rc.innerHTML = `<li class="empty" style="justify-content:center;border:0">Nothing yet for ${esc(monthName(MONTH))}. Tap + to add something.</li>`;
-      view.slice(0, 5).forEach((e) => rc.appendChild(entryLi(e)));
-      $("seeAll").hidden = view.length <= 5;
+      view.slice(0, 4).forEach((e) => rc.appendChild(entryLi(e)));
+      $("seeAll").hidden = view.length <= 4;
     }
 
     if (screen === "add") renderForm();
