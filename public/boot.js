@@ -57,10 +57,11 @@
   function initUiBits() {
     root.setAttribute("data-theme", "dark");
 
-    // One visual layer only. The real application DOM/logic remains in index.html.
-    addStyle("/hb-rebuild.css?v=1", "data-hb-rebuild");
+    // Main clean visual layer + desktop sizing layer.
+    addStyle("/hb-rebuild.css?v=2", "data-hb-rebuild");
+    addStyle("/hb-desktop-v2.css?v=1", "data-hb-desktop-v2");
 
-    // Existing functional helpers remain wired.
+    // Existing functional helper remains wired.
     addScript("/hb-bun.js?v=2", "data-hb-bun");
 
     removeThemeToggle();
