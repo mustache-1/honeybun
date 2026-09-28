@@ -1,0 +1,259 @@
+    } catch (e) { $("pdErr").textContent = e.message; }
+  };
+
+  // ---------- stats ----------
+  async function loadYear() {
+    try { YDATA = await api("/api/year?year=" + YEAR); } catch (e) { YDATA = { entries: [], jar: [] }; toast(e.message); }
+    if (screen === "stats") renderStats();
+  }
+  $("prevY").onclick = () => { YEAR--; YDATA = null; renderStats(); loadYear(); };
+  $("nextY").onclick = () => { YEAR++; YDATA = null; renderStats(); loadYear(); };
+  function renderStats() {
+    renderBurrow();
+    {
+      const mIn = ENTRIES.filter((e) => e.type === "income").reduce((a, e) => a + e.amount, 0);
+      const mOut = ENTRIES.filter((e) => e.type === "expense").reduce((a, e) => a + e.amount, 0);
+      const bills = MONTH === today().slice(0, 7) && RECUR.length ? upcoming().bills.reduce((a, b) => a + b.r.amount_cents / 100, 0) : 0;
+      const whole = (n) => fmt(n).replace(/\.\d\d$/, "");
+      $("kpis").innerHTML = `<div class="kpi"><b>${whole(mOut)}</b><small>${esc(tr("spent this month"))}</small></div>
+        <div class="kpi"><b>${whole(bills)}</b><small>${esc(tr("bills due"))}</small></div>
+        <div class="kpi"><b>${mIn ? Math.max(0, Math.round(((mIn - mOut) / mIn) * 100)) + "%" : "–"}</b><small>${esc(tr("month left"))}</small></div>`;
+    }
+    $("yearLbl").textContent = YEAR;
+    const ents = YDATA ? YDATA.entries : [];
+    const inc = Array(12).fill(0), out = Array(12).fill(0), yc = {};
+    ents.forEach((e) => {
+      const m = +e.date.slice(5, 7) - 1, a = e.amount_cents / 100;
+      if (e.type === "income") inc[m] += a; else { out[m] += a; yc[e.category] = (yc[e.category] || 0) + a; }
+    });
+    const ti = inc.reduce((a, b) => a + b, 0), to = out.reduce((a, b) => a + b, 0);
+    $("yIn").textContent = fmt(ti); $("yOut").textContent = fmt(to); $("yKeep").textContent = ti ? Math.round(((ti - to) / ti) * 100) + "%" : "–";
+    // chart
+    const W = 340, H = 150, top = Math.max(1, ...inc, ...out), gw = W / 12, bw = 9;
+    let svg = `<svg viewBox="0 0 ${W} ${H + 18}" role="img" aria-label="Earned and spent by month">`;
+    for (let i = 0; i < 12; i++) {
+      const x = i * gw + gw / 2, hi = (inc[i] / top) * H, ho = (out[i] / top) * H, name = new Date(YEAR, i, 1).toLocaleDateString(LOCALE, { month: "short" });
+      svg += `<rect x="${x - bw - 1}" y="${H - hi}" width="${bw}" height="${Math.max(hi, 1.5)}" rx="3" fill="var(--mint)" opacity="${inc[i] ? 1 : 0.25}"><title>${name}: earned ${fmt(inc[i])}</title></rect>`;
+      svg += `<rect x="${x + 1}" y="${H - ho}" width="${bw}" height="${Math.max(ho, 1.5)}" rx="3" fill="var(--pink)" opacity="${out[i] ? 1 : 0.25}"><title>${name}: spent ${fmt(out[i])}</title></rect>`;
+      svg += `<text x="${x}" y="${H + 14}" text-anchor="middle" font-size="9" font-weight="700" fill="var(--soft)">${LANG === "zh" ? i + 1 : name.slice(0, 1).toUpperCase()}</text>`;
+    }
+    $("yChart").innerHTML = svg + "</svg>";
+    // 50/30/20 for the selected month
+    $("ruleMonth").textContent = monthName(MONTH);
+    const mInc = ENTRIES.filter((e) => e.type === "income").reduce((s, e) => s + e.amount, 0);
+    const by = spentByCat(), needs = NEEDS.reduce((s, c) => s + (by[c] || 0), 0), wants = WANTS.reduce((s, c) => s + (by[c] || 0), 0);
+    if (!mInc) $("rule").innerHTML = `<p class="empty" style="margin:0">Add this month's income to see how your money splits between needs, wants, and savings.</p>`;
+    else {
+      const sav = Math.max(0, mInc - needs - wants);
+      $("rule").innerHTML = [["Needs", needs, 50, "#9BB8FF", "rent, groceries, bills, car, debt"], ["Wants", wants, 30, "var(--pink)", "eating out, fun, subscriptions"], ["Savings", sav, 20, "var(--mint)", "what's left over"]]
+        .map(([n, v, goal, c, d]) => { const p = (v / mInc) * 100; return `<div class="rule"><div class="l"><span>${n} <small>${d}</small></span><span>${Math.round(p)}% <small>/ ${goal}%</small></span></div>
+          <div class="trk"><i style="width:${Math.min(100, p)}%;background:${c}"></i><b style="left:${goal}%"></b></div></div>`; }).join("") +
+        `<p class="hint">The line marks the classic 50/30/20 target.</p>`;
+    }
+    // where it went (month) + year categories
+    $("barsMonth").textContent = monthName(MONTH);
+    const bars = (el, data) => {
+      const rows = CATS.filter((c) => data[c.id]).sort((a, b) => data[b.id] - data[a.id]).slice(0, 8), mx = Math.max(1, ...rows.map((c) => data[c.id]));
+      el.innerHTML = rows.length ? rows.map((c) => `<div class="bar"><div class="l"><span>${c.n}</span><span>${fmt(data[c.id])}</span></div><div class="trk"><i style="width:${(data[c.id] / mx) * 100}%;background:${c.c}"></i></div></div>`).join("")
+        : `<p class="empty" style="margin:0">No spending yet.</p>`;
+    };
+    bars($("bars"), by); bars($("yCats"), yc);
+  }
+  $("exportCsv").onclick = () => {
+    if (!YDATA) return;
+    const q = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const rows = [["Date", "Type", "Category", "Description", "Who", "Amount", "Split", "Private"]].concat(YDATA.entries.map((e) =>
+      [e.date, tr(e.type === "income" ? "Income" : "Expense"), tr(e.type === "income" ? "Income" : catOf(e.category).n), e.label, member(e.member_id).name,
+       ((e.type === "income" ? 1 : -1) * e.amount_cents / 100).toFixed(2), e.shared ? "Yes" : "No", e.private ? "Yes" : "No"]));
+    const blob = new Blob(["\ufeff" + rows.map((r) => r.map(q).join(",")).join("\r\n")], { type: "text/csv;charset=utf-8" });
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `honeybun-${YEAR}.csv`;
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  };
+
+  // ---------- add / edit form ----------
+  function resetForm(opts = {}) {
+    mode = opts.type || "expense"; cat = "groc"; who = ME.id; shared = MEMBERS.length > 1; splitMode = "equal";
+    $("amt").value = ""; $("lbl").value = ""; $("splitVal").value = ""; $("priv").checked = false;
+    $("repeat").value = opts.repeat || ""; $("dt").value = today(); $("paidNow").checked = false; $("err").textContent = "";
+  }
+  function openAdd(opts) { editing = null; resetForm(opts); show("add"); setTimeout(() => $("amt").focus(), 60); }
+  function fillForm(x, isRec) {
+    mode = x.type; cat = x.category || "groc"; who = x.member_id; shared = !!x.shared; splitMode = x.split_mode || "equal";
+    $("amt").value = (isRec ? x.amount_cents / 100 : x.amount).toFixed(2);
+    $("lbl").value = x.label;
+    $("splitVal").value = x.split_mode === "owed" ? (x.split_value / 100).toFixed(2) : x.split_mode === "percent" ? x.split_value : "";
+    $("priv").checked = !!x.private;
+    $("dt").value = isRec ? toS(nextOcc(x) || parseD(x.anchor_date)) : x.date;
+    $("repeat").value = isRec ? x.freq : "";
+    $("err").textContent = "";
+  }
+  function openEditEntry(e) {
+    if (e.pending) { toast("This will sync when you're back online. Edit it after."); return; } editing = { kind: "entry", x: e }; fillForm(e, false); show("add"); }
+  function openEditRecurring(r) { editing = { kind: "recurring", x: r }; fillForm(r, true); show("add"); }
+  $("cancelEdit").onclick = () => { const back = editing?.kind === "recurring" ? "plan" : "home"; editing = null; show(back); };
+  $("addBill").onclick = () => openAdd({ repeat: "monthly" });
+
+  function renderForm() {
+    const isInc = mode === "income", rep = $("repeat").value, editingRec = editing?.kind === "recurring";
+    $("editBar").hidden = !editing;
+    $("editTitle").textContent = editingRec ? (isInc ? "Edit payday" : "Edit bill") : "Edit entry";
+    document.querySelectorAll("#scr-add .tabs button").forEach((b) => b.setAttribute("aria-selected", b.dataset.t === mode ? "true" : "false"));
+
+    const c = $("cats"); c.innerHTML = "";
+    CATS.forEach((k) => {
+      const b = document.createElement("button"); b.type = "button"; b.innerHTML = `${catTile(k.id, 54)}<span>${k.n}</span>`;
+      b.setAttribute("aria-pressed", k.id === cat ? "true" : "false"); b.onclick = () => { cat = k.id; renderForm(); }; c.appendChild(b);
+    });
+    const w = $("whos"); w.innerHTML = "";
+    if (!MEMBERS.some((m) => m.id === who)) who = ME.id;
+    MEMBERS.forEach((m) => {
+      const b = document.createElement("button"); b.type = "button";
+      b.innerHTML = `<i style="background:${esc(m.color)}">${esc(m.emoji)}</i>${esc(m.name)}`;
+      b.setAttribute("aria-pressed", m.id === who ? "true" : "false"); b.onclick = () => { who = m.id; renderForm(); }; w.appendChild(b);
+    });
+    $("catField").hidden = isInc;
+    $("lblLabel").textContent = rep || editingRec ? "Name" : "Note (optional)";
+    $("lbl").placeholder = isInc ? "Paycheck" : rep ? "Rent" : "Date night tacos";
+    $("whoLabel").textContent = isInc ? "Who gets paid?" : "Who pays?";
+
+    // split
+    const canSplit = !isInc && MEMBERS.length > 1;
+    $("splitField").hidden = !canSplit;
+    $("spShared").setAttribute("aria-pressed", shared ? "true" : "false");
+    $("spMine").setAttribute("aria-pressed", shared ? "false" : "true");
+    $("splitOpts").hidden = !shared;
+    document.querySelectorAll("#splitModes button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.mode === splitMode ? "true" : "false"));
+    const o = others(who), payer = member(who), oName = o.length === 1 ? o[0].name : "Everyone else";
+    $("splitValWrap").hidden = splitMode === "equal";
+    if (splitMode === "percent") {
+      $("splitPre").textContent = payer.name + " covers"; $("splitPost").textContent = "%";
+      $("splitVal").step = "1"; $("splitVal").placeholder = "70";
+      const v = parseFloat($("splitVal").value);
+      $("splitHint").textContent = v >= 0 && v <= 100 ? `${oName} ${o.length === 1 ? "covers" : "cover"} ${100 - v}%${o.length > 1 ? ", split between them" : ""}.` : "";
+    } else if (splitMode === "owed") {
+      $("splitPre").textContent = oName + (o.length === 1 ? " owes $" : " owe $"); $("splitPost").textContent = o.length > 1 ? "total" : "";
+      $("splitVal").step = "0.01"; $("splitVal").placeholder = "40";
+      $("splitHint").textContent = `Use this when ${payer.name} paid and just needs part of it back.`;
+    } else $("splitHint").textContent = MEMBERS.length === 2 ? "Each of you covers half." : "Everyone covers the same amount.";
+
+    // privacy: only for your own, unshared, non-repeating entries
+    $("privWrap").hidden = !(who === ME.id && (!shared || !canSplit) && !rep && !editingRec);
+
+    // repeating
+    $("repeatField").hidden = editing?.kind === "entry";
+    $("dtLabel").textContent = rep ? (editingRec ? "Next date" : "Next (or last) date") : "Date";
+    $("paidNowWrap").hidden = !rep || editingRec;
+    $("paidNowTxt").textContent = isInc ? "Already got this one" : "Already paid this one";
+    $("delRecWrap").hidden = !editingRec;
+
+    const hasAmt = parseFloat($("amt").value) > 0;
+    $("goBtn").disabled = !hasAmt;
+    $("goBtn").textContent = !hasAmt ? "Type an amount above $0 first" : editing ? "Save changes" : rep ? (isInc ? "Add payday" : "Add bill") : isInc ? "Add income" : "Add expense";
+    $("goBtn").classList.toggle("inc", isInc);
+  }
+  document.querySelectorAll("#scr-add .tabs button").forEach((b) => (b.onclick = () => { mode = b.dataset.t; $("err").textContent = ""; renderForm(); }));
+  $("spShared").onclick = () => { shared = true; renderForm(); };
+  $("spMine").onclick = () => { shared = false; renderForm(); };
+  document.querySelectorAll("#splitModes button").forEach((b) => (b.onclick = () => { splitMode = b.dataset.mode; $("splitVal").value = ""; renderForm(); if (splitMode !== "equal") $("splitVal").focus(); }));
+  $("splitVal").oninput = () => { if (splitMode === "percent") renderForm(); };
+  $("amt").addEventListener("input", () => { if (screen === "add") renderForm(); });
+  $("repeat").onchange = () => { $("paidNow").checked = $("dt").value <= today(); renderForm(); };
+  $("dt").onchange = () => { if ($("repeat").value && !editing) $("paidNow").checked = $("dt").value <= today(); };
+
+  $("goBtn").onclick = async () => {
+    const amount = parseFloat($("amt").value);
+    if (!(amount > 0)) { $("err").textContent = "Type an amount above $0 first."; $("amt").focus(); return; }
+    const rep = $("repeat").value, isShared = mode === "expense" && shared && MEMBERS.length > 1;
+    let split_value = null;
+    if (isShared && splitMode !== "equal") {
+      split_value = parseFloat($("splitVal").value);
+      if (splitMode === "percent" && !(split_value >= 0 && split_value <= 100)) { $("err").textContent = "Enter a percent from 0 to 100."; $("splitVal").focus(); return; }
+      if (splitMode === "owed" && !(split_value > 0 && split_value <= amount)) { $("err").textContent = "The amount owed has to be more than $0 and no more than the total."; $("splitVal").focus(); return; }
+    }
+    const date = $("dt").value || today();
+    const label = $("lbl").value.trim() || tr(mode === "income" ? "Paycheck" : CATS.find((c) => c.id === cat).n);
+    const body = {
+      type: mode, amount, label, category: cat, member_id: who, shared: isShared,
+      split_mode: isShared ? splitMode : null, split_value, private: $("priv").checked && !$("privWrap").hidden, date,
+    };
+    busy($("goBtn"), true); $("err").textContent = "";
+    try {
+      if (editing?.kind === "entry") {
+        await api("/api/entries/" + editing.x.id, { method: "PATCH", body });
+        MONTH = ym(date); editing = null; await loadNest(); toast("Changes saved"); show("home");
+      } else if (editing?.kind === "recurring") {
+        if (!rep) { $("err").textContent = "Pick how often it repeats."; return; }
+        await api("/api/recurring/" + editing.x.id, { method: "PATCH", body: { ...body, freq: rep } });
+        editing = null; await loadNest(); toast("Saved"); show("plan");
+      } else if (rep) {
+        const res = await api("/api/recurring", { method: "POST", body: { ...body, freq: rep, log_now: $("paidNow").checked } });
+        await loadNest(); rewardToast(res.reward, mode === "income" ? "Payday added" : "Bill added"); show("plan");
+      } else {
+        const res = await api("/api/entries", { method: "POST", body });
+        MONTH = ym(date); await loadNest();
+        if (res.queued) toast("Saved offline. It'll sync when you're back."); else rewardToast(res.reward, mode === "income" ? "Income added" : "Expense added");
+        show("home"); bunnyHop();
+      }
+    } catch (e) { $("err").textContent = e.message; }
+    finally { busy($("goBtn"), false); }
+  };
+  $("delRec").onclick = async () => {
+    const r = editing?.x; if (!r) return;
+    if (!(await ask(`Delete ${r.label}?`, "It stops showing up as due. Anything already logged stays.", "Delete"))) return;
+    try { await api("/api/recurring/" + r.id, { method: "DELETE" }); editing = null; await loadNest(); toast("Deleted"); show("plan"); }
+    catch (e) { toast(e.message); }
+  };
+
+  // ---------- settle up ----------
+  let settling = null;
+  function openSettle(p) {
+    settling = p;
+    $("sdText").textContent = `${p.from.name} paid ${p.to.name} back.`;
+    $("sdAmt").value = p.amount.toFixed(2); $("sdErr").textContent = "";
+    $("settleDlg").showModal();
+  }
+  $("sdCancel").onclick = () => $("settleDlg").close();
+  $("sdSave").onclick = async () => {
+    const amount = parseFloat($("sdAmt").value);
+    if (!(amount > 0)) { $("sdErr").textContent = "Enter the amount that was paid."; return; }
+    try {
+      const res = await api("/api/settlements", { method: "POST", body: { from_id: settling.from.id, to_id: settling.to.id, amount, date: today() } });
+      $("settleDlg").close(); await loadNest(); rewardToast(res.reward, "Marked as paid ♡");
+    } catch (e) { $("sdErr").textContent = e.message; }
+  };
+
+  // ---------- edit yourself ----------
+  let pickE, pickC;
+  function drawPick() {
+    const ep = $("emojiPick"); ep.innerHTML = "";
+    EMOJIS.forEach((e) => { const b = document.createElement("button"); b.type = "button"; b.textContent = e; b.setAttribute("aria-pressed", e === pickE ? "true" : "false"); b.onclick = () => { pickE = e; drawPick(); }; ep.appendChild(b); });
+    const cp = $("colorPick"); cp.innerHTML = "";
+    COLORS.forEach((c) => { const b = document.createElement("button"); b.type = "button"; b.style.background = c; b.setAttribute("aria-label", "Color"); b.setAttribute("aria-pressed", c === pickC ? "true" : "false"); b.onclick = () => { pickC = c; drawPick(); }; cp.appendChild(b); });
+  }
+  function openMe() {
+    const m = meMember(); if (!m) return;
+    $("mName").value = m.name; pickE = m.emoji; pickC = m.color; $("mErr").textContent = "";
+    drawPick(); $("memberDlg").showModal();
+  }
+  $("mCancel").onclick = () => $("memberDlg").close();
+  $("mSave").onclick = async () => {
+    const name = $("mName").value.trim(); if (!name) { $("mName").focus(); return; }
+    try { await api("/api/me", { method: "PATCH", body: { name, emoji: pickE, color: pickC } }); $("memberDlg").close(); await loadNest(); }
+    catch (e) { $("mErr").textContent = e.message; }
+  };
+
+  // ---------- password change ----------
+  $("changePw").onclick = () => { $("pwCur").value = ""; $("pwNew").value = ""; $("pwErr").textContent = ""; $("pwDlg").showModal(); };
+  $("pwCancel").onclick = () => $("pwDlg").close();
+  $("pwSave").onclick = async () => {
+    if ($("pwNew").value.length < 8) { $("pwErr").textContent = "Use a password with at least 8 characters."; return; }
+    try {
+      await api("/api/password/change", { method: "POST", body: { current: $("pwCur").value, password: $("pwNew").value } });
+      $("pwDlg").close(); toast("Password changed. Other devices were logged out.");
+    } catch (e) { $("pwErr").textContent = e.message; }
+  };
+
+  // ---------- password change ----------
+  $("changePw").onclick = () => { $("pwCur").value = ""; $("pwNew").value = ""; $("pwErr").textContent = ""; $("pwDlg").showModal(); };
+  $("pwCancel").onclick = () => $("pwDlg").close();
+  $("pwSave").onclick = async () => {
