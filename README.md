@@ -11,6 +11,8 @@ A little budget for two. Cloudflare Workers + D1, deployed from GitHub.
 - Bills & paydays that repeat weekly, every 2 weeks, or monthly, with "what's due before payday" on Home
 - Private personal entries ("Only I can see this")
 - Savings jar with add, take out, and a correctable history
+- One-tap repeats: your five most common expenses sit on the Add screen and log with one tap
+- Apple Pay auto-logging: an iPhone Shortcut automation posts each tap-to-pay purchase to Honeybun (no bank connection)
 
 ## Database
 The Worker creates and updates its own tables automatically. `schema.sql` is only a reference
@@ -23,6 +25,21 @@ The Worker creates and updates its own tables automatically. `schema.sql` is onl
    Type **Secret**, name `RESEND_API_KEY`, paste the key → Deploy.
 
 Emails come from `hello@honeybun.me`. Change `MAIL_FROM` in `wrangler.jsonc` to use another address.
+
+## Apple Pay auto-logging (iPhone Shortcuts)
+Each person makes a key in Settings → Apple Pay auto-logging. The key is shown once and stored hashed.
+A Shortcuts "Transaction" automation then calls:
+
+    POST https://honeybun.me/api/log
+    Authorization: Bearer hb_...
+    Content-Type: application/json
+    {"amount": "$84.00", "store": "Costco"}
+
+Optional fields: `category` (home, groc, food, date, bills, subs, car, fun, pets, debt, other), `shared` (true/false),
+`private` (true/false), `date` (YYYY-MM-DD). Form-encoded bodies work too. When category or split isn't given,
+Honeybun reuses whatever you did the last time you logged that store, otherwise it guesses the category from the store name.
+The response includes a `message` like "Logged $84.00 at Costco (Groceries, split) 🐰" that a Show Notification action can display.
+The endpoint is rate-limited per IP and skips the same-origin check because it never reads the session cookie.
 
 ## Local testing
     npm install

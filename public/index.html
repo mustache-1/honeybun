@@ -714,6 +714,27 @@ nav.bottom .plus{width:50px;height:50px;background:var(--ink);color:var(--card);
 .msg .b{box-shadow:var(--shadow);border-radius:20px 20px 20px 6px}
 .msg.new .b{box-shadow:0 0 0 2px var(--t-rose),var(--shadow)}
 .chat-day{background:none;padding:0;font-weight:700}
+.repeats-field{margin-top:6px}
+.repeats-field .lbl small{font-weight:600;color:var(--soft);opacity:.8}
+.repeats{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 6px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.repeats::-webkit-scrollbar{display:none}
+.repeats button{flex:none;display:flex;align-items:center;gap:8px;border:1px solid var(--line);background:var(--card);border-radius:16px;padding:8px 12px 8px 8px;text-align:left;box-shadow:var(--shadow)}
+.repeats button:active{transform:scale(.97)}
+.repeats button svg{width:32px;height:32px;flex:none}
+.repeats button b{display:block;font-size:.86rem;line-height:1.15;max-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.repeats button small{display:block;font-size:.76rem;font-weight:700;color:var(--soft)}
+.repeats button[disabled]{opacity:.6}
+.shortcut-dlg{width:min(94vw,420px);max-height:90vh;overflow:auto}
+.shortcut-dlg p.sub{margin:0 0 10px;color:var(--soft);font-size:.9rem}
+.shortcut-dlg .acts{margin-top:14px}
+.shortcut-dlg .acts + .acts{margin-top:8px}
+.keybox{display:flex;gap:8px;align-items:center;margin-top:10px}
+.keybox code{flex:1;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.8rem;word-break:break-all;background:var(--panel2,var(--bg));border:1px solid var(--line);border-radius:12px;padding:10px 12px;user-select:all;-webkit-user-select:all}
+.sc-steps{margin-top:12px;border:1px solid var(--line);border-radius:14px;padding:10px 12px}
+.sc-steps summary{font-weight:800;font-size:.9rem;cursor:pointer}
+.sc-steps ol{margin:10px 0 0;padding-left:20px;font-size:.86rem;line-height:1.5;display:grid;gap:8px}
+.sc-steps code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.8rem;background:var(--panel2,var(--bg));border-radius:6px;padding:1px 5px;word-break:break-all}
+.danger-btn{color:var(--pink-d)}
 .quick-replies{display:flex;gap:8px;margin-top:16px}
 .quick-replies button{flex:1;border:0;border-radius:999px;padding:11px 6px;font-weight:700;font-size:.82rem;background:var(--card);color:var(--ink);box-shadow:var(--shadow)}
 
@@ -1106,6 +1127,22 @@ dialog::backdrop{background:rgba(0,0,0,.55)}
 .lp-split{display:grid;grid-template-columns:1fr;gap:28px;align-items:center}
 .lp-split p{color:var(--soft);font-size:16px;line-height:1.6;margin:14px 0 18px}
 .lp-ticks{list-style:none;padding:0;margin:0;display:grid;gap:10px;font-weight:700;font-size:14px}
+.lp-pay{display:grid;grid-template-columns:minmax(0,1fr);gap:10px;justify-items:center;max-width:360px;margin:0 auto;width:100%}
+.lp-pay>*{min-width:0}
+.lp-pay-card{position:relative;width:100%;aspect-ratio:1.7;border-radius:22px;padding:20px;background:linear-gradient(135deg,#2b2733,#3a3440 55%,#4a4256);color:#fff;box-shadow:0 24px 60px rgba(0,0,0,.35);display:flex;flex-direction:column;justify-content:flex-end}
+.lp-pay-chip{position:absolute;top:22px;left:22px;width:38px;height:28px;border-radius:7px;background:linear-gradient(135deg,#f3d27a,#c99a3a)}
+.lp-pay-wave{position:absolute;top:20px;right:22px;width:28px;height:28px;opacity:.85}
+.lp-pay-card b{font-size:20px;letter-spacing:-.02em}
+.lp-pay-card small{font-size:13px;opacity:.75;font-weight:700}
+.lp-pay-arrow{width:24px;height:24px;color:var(--soft);animation:lp-bob 1.6s ease-in-out infinite}
+@keyframes lp-bob{0%,100%{transform:translateY(-3px)}50%{transform:translateY(3px)}}
+.lp-pay-note{width:100%;display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--line);border-radius:20px;padding:12px 14px;box-shadow:var(--shadow)}
+.lp-pay-bun{width:40px;height:40px;border-radius:12px;background:var(--pink-t);display:grid;place-items:center;font-size:22px;flex:none}
+.lp-pay-note span:nth-child(2){flex:1;min-width:0}
+.lp-pay-note b{display:block;font-size:14px}
+.lp-pay-note small{display:block;font-size:13px;color:var(--soft);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lp-pay-note em{font-style:normal;font-size:12px;color:var(--soft);align-self:flex-start}
+@media (prefers-reduced-motion:reduce){.lp-pay-arrow{animation:none}}
 .lp-shot{background:var(--card);border:1px solid var(--line);border-radius:28px;padding:10px;max-width:420px;margin:0 auto;box-shadow:0 24px 60px rgba(0,0,0,.35)}
 .lp-shot img{display:block;width:100%;height:auto;border-radius:20px}
 .lp-steps{display:grid;grid-template-columns:1fr;gap:14px}
@@ -1132,6 +1169,7 @@ dialog::backdrop{background:rgba(0,0,0,.55)}
   .lp-grid3{grid-template-columns:repeat(3,1fr)}
   .lp-steps{grid-template-columns:repeat(3,1fr)}
   .lp-split{grid-template-columns:1fr 1fr}
+  .lp-split-rev .lp-split-copy{order:2}
 }
 @media (min-width:960px){
   .lp-hero{grid-template-columns:1.1fr .9fr;padding:70px 20px 40px}
@@ -1198,6 +1236,20 @@ dialog::backdrop{background:rgba(0,0,0,.55)}
       <div class="lp-shot"><img src="/lp-us.webp" alt="Together screen showing Jordan owes Alex $21.34 with a Settle up button" loading="lazy" width="390" height="320"></div>
     </section>
 
+    <section class="lp-section lp-split lp-split-rev" id="lp-applepay">
+      <div class="lp-split-copy">
+        <span class="lp-eyebrow">Effortless logging</span>
+        <h2>Tap to pay. Logged.</h2>
+        <p>Typing in every coffee gets old fast. With an iPhone Shortcut, every Apple Pay purchase sends the amount and store to Honeybun on its own. No bank connection, ever.</p>
+        <ul class="lp-ticks"><li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l4 4 10-10"/></svg>Category picked from the store name</li><li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l4 4 10-10"/></svg>Remembers how you split each store</li><li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l4 4 10-10"/></svg>One-tap repeats for your usual spends</li></ul>
+      </div>
+      <div class="lp-pay" aria-hidden="true">
+        <div class="lp-pay-card"><span class="lp-pay-chip"></span><span class="lp-pay-wave"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 8a8 8 0 0 1 0 8M9.5 10a4 4 0 0 1 0 4M14.5 10a4 4 0 0 0 0 4M18 8a8 8 0 0 0 0 8"/></svg></span><b>Costco</b><small>$84.00 · Apple Pay</small></div>
+        <div class="lp-pay-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v14M6 12l6 6 6-6"/></svg></div>
+        <div class="lp-pay-note"><span class="lp-pay-bun">🐰</span><span><b>Honeybun</b><small>Logged $84 at Costco · Groceries</small></span><em>now</em></div>
+      </div>
+    </section>
+
     <section class="lp-section" id="lp-how">
       <div class="lp-head"><span class="lp-eyebrow">How it works</span><h2>Set up in about a minute</h2></div>
       <div class="lp-steps">
@@ -1225,6 +1277,7 @@ dialog::backdrop{background:rgba(0,0,0,.55)}
       <div class="lp-faq faq">
         <details><summary>Is Honeybun free?</summary><p>Yes. Honeybun is free to use.</p></details>
         <details><summary>Do I have to connect my bank?</summary><p>No. You add what you spend yourself, so your bank logins stay with you.</p></details>
+        <details><summary>How does Apple Pay auto-logging work?</summary><p>In Settings you make a key, then set up a two-minute iPhone Shortcut automation. Every time you tap to pay, your phone sends the amount and store to Honeybun. No bank access is involved, and you can turn it off anytime.</p></details>
         <details><summary>Is there an app to download?</summary><p>Honeybun works in your browser on any phone or computer. On iPhone or Android, open honeybun.me and choose Add to Home Screen to use it like an app.</p></details>
         <details><summary>Can my partner see everything?</summary><p>People in your budget see shared spending, bills, and goals. Anything you mark "Only I can see this" stays private.</p></details>
         <details><summary>Can I delete my data?</summary><p>Anytime. Settings lets you download a copy of your data or delete your account.</p></details>
@@ -1468,6 +1521,7 @@ dialog::backdrop{background:rgba(0,0,0,.55)}
       <button role="tab" data-t="income" aria-selected="false">Got paid</button>
     </div>
     <div class="add-bun" aria-hidden="true"><svg viewBox="0 0 120 128"><g fill="#FFFFFF" stroke="#2F2A36" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"><path d="M44 54 C33 30 34 7 42 6 C50 5 54 28 55 48"/><path d="M76 54 C87 30 86 7 78 6 C70 5 66 28 65 48"/><ellipse cx="60" cy="84" rx="38" ry="34"/></g><circle cx="47" cy="81" r="4.5" fill="#2F2A36"/><circle cx="73" cy="81" r="4.5" fill="#2F2A36"/><ellipse cx="36" cy="93" rx="7" ry="4" fill="#F6B8CB"/><ellipse cx="84" cy="93" rx="7" ry="4" fill="#F6B8CB"/><path d="M53 92 q3.5 4 7 0 q3.5 4 7 0" fill="none" stroke="#2F2A36" stroke-width="4" stroke-linecap="round"/></svg></div>
+    <div class="field repeats-field" id="repeatsField" hidden><span class="lbl">One tap <small>(your usual spends)</small></span><div class="repeats" id="repeats"></div></div>
     <label class="bigamt" for="amt"><span>$</span><input id="amt" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0" aria-label="Amount"></label>
     <div class="field" id="catField"><span class="lbl">What for?</span><div class="cats" id="cats"></div></div>
     <div class="field"><label for="lbl" id="lblLabel">Note (optional)</label><input id="lbl" type="text" maxlength="40" placeholder="Date night tacos"></div>
@@ -1596,6 +1650,7 @@ dialog::backdrop{background:rgba(0,0,0,.55)}
         <div class="setting-row col"><span class="sicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg></span><span class="copy"><b>Language</b><small>Choose the app language</small><span class="lang-row left" data-lang-picker></span></span></div>
         <div class="setting-row col"><span class="sicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 0 18c1 0 1.5-.8 1.5-1.6 0-1.3 1-2.4 2.3-2.4H18a3 3 0 0 0 3-3A9 9 0 0 0 12 3z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10" cy="7" r="1"/><circle cx="15" cy="7" r="1"/></svg></span><span class="copy"><b>Theme color</b><small>Shared with everyone in your budget</small><span class="swatches" id="swatches"></span></span></div>
         <button class="setting-row" id="rerunSetup"><span class="sicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="15" rx="3"/><path d="M4 10h16M9 3v4M15 3v4"/></svg></span><span class="copy"><b>Paydays &amp; bills</b><small>Run the quick setup again</small></span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></button>
+        <button class="setting-row" id="openShortcut"><span class="sicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 3L5 14h6l-1 7 9-11h-6z"/></svg></span><span class="copy"><b>Apple Pay auto-logging</b><small id="shortcutSub">Log every tap-to-pay with an iPhone Shortcut</small></span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></button>
       </div>
       <div class="card pad blk">
         <div class="title"><h2>Data</h2><span>control</span></div>
@@ -1730,6 +1785,36 @@ dialog::backdrop{background:rgba(0,0,0,.55)}
   <div class="field"><label for="pwNew">New password</label><input id="pwNew" type="password" autocomplete="new-password" placeholder="At least 8 characters"></div>
   <p class="err" id="pwErr"></p>
   <div class="acts"><button class="small" id="pwCancel">Cancel</button><button class="go" id="pwSave">Save password</button></div>
+</dialog>
+
+<dialog id="shortcutDlg" class="shortcut-dlg" aria-labelledby="scTitle">
+  <h2 id="scTitle">Apple Pay auto-logging</h2>
+  <p class="sub">Every time you tap to pay, your iPhone can send the amount and store to Honeybun. No bank connection needed.</p>
+  <div id="scOff">
+    <p class="hint">Step 1 is making a key. It's like a password just for your Shortcut, so keep it to yourself.</p>
+    <div class="acts"><button class="go" id="scMake">Make my key</button></div>
+  </div>
+  <div id="scNew" hidden>
+    <p class="hint"><b>Copy this key now.</b> For safety it's only shown once. If you lose it, make a new one.</p>
+    <div class="keybox"><code id="scKey" data-nt></code><button class="small" id="scCopy">Copy</button></div>
+  </div>
+  <div id="scOn" hidden>
+    <p class="hint" id="scStatus"></p>
+    <details class="sc-steps">
+      <summary>Set up the Shortcut (2 minutes)</summary>
+      <ol>
+        <li>Open the <b>Shortcuts</b> app, go to <b>Automation</b>, tap <b>+</b>, and pick <b>Transaction</b>. Choose your card, leave it on <b>Run Immediately</b>, and tap Next.</li>
+        <li>Tap <b>New Blank Automation</b> and add the action <b>Get Contents of URL</b>.</li>
+        <li>Set the URL to <code id="scUrl" data-nt></code>, Method to <b>POST</b>, and under Headers add <b>Authorization</b> with the value <b>Bearer</b> followed by a space and your key.</li>
+        <li>Under Request Body (JSON) add <b>amount</b> → the <i>Amount</i> from the Transaction, and <b>store</b> → the <i>Merchant</i>.</li>
+        <li>Optional: add a <b>Show Notification</b> action with the <i>message</i> from the result, so Bun confirms each log.</li>
+      </ol>
+      <p class="hint">Honeybun picks the category from the store name and remembers how you split each store. You can edit anything after, like any other entry.</p>
+    </details>
+    <div class="acts"><button class="small danger-btn" id="scRevoke">Turn off</button><button class="small" id="scRenew">New key</button></div>
+  </div>
+  <p class="err" id="scErr"></p>
+  <div class="acts"><button class="small" id="scClose">Done</button></div>
 </dialog>
 
 <dialog id="levelDlg" class="level-dlg" aria-labelledby="lvTitle">

@@ -237,7 +237,7 @@
 
   // ---------- state ----------
   let ME = null, NEST = null, MEMBERS = [], ENTRIES = [], BAL = {}, SETTLES = [], RECUR = [], LOGGED = new Set(), JAR = [];
-  let GOALS = [], BUDGETS = {}, DEBTS = [], DEBTPAYS = [], SETUP_DONE = true, INBOX = { unread: 0, latest: null };
+  let GOALS = [], BUDGETS = {}, DEBTS = [], DEBTPAYS = [], SETUP_DONE = true, INBOX = { unread: 0, latest: null }, REPEATS = [];
   let MONTH = today().slice(0, 7), YEAR = new Date().getFullYear(), YDATA = null;
   let screen = "loading", filter = null, authMode = "signup", newKind = "couple", calSel = null;
   let mode = "expense", cat = "groc", who = null, shared = true, splitMode = "equal", editing = null;
@@ -409,6 +409,7 @@
     document.documentElement.setAttribute("data-accent", d.nest.accent || "blush");
     GOALS = d.goals; DEBTS = d.debts; DEBTPAYS = d.debt_payments; SETUP_DONE = d.setup_done;
     BUDGETS = Object.fromEntries(d.budgets.map((b) => [b.category, b.limit_cents / 100]));
+    REPEATS = d.repeats || [];
     LOGGED = new Set(d.logged.map((l) => l.recurring_id + "|" + l.occ_date));
     if (d.inbox) {
       const prev = INBOX.unread; let latest = null;
@@ -972,6 +973,7 @@
       $("mailBills").checked = !!ME.mail?.bills; $("mailStreak").checked = !!ME.mail?.streak; $("mailWeekly").checked = !!ME.mail?.weekly;
       ["mailBills", "mailStreak", "mailWeekly"].forEach((id) => ($(id).disabled = !ME.verified));
       $("mailHint").hidden = !!ME.verified;
+      drawShortcut();
       drawLangPickers();
       mailLinks();
 
@@ -1359,6 +1361,22 @@
     $("editTitle").textContent = editingRec ? (isInc ? "Edit payday" : "Edit bill") : "Edit entry";
     document.querySelectorAll("#scr-add .tabs button").forEach((b) => b.setAttribute("aria-selected", b.dataset.t === mode ? "true" : "false"));
 
+    // one-tap repeats: your most common expenses, tap to log again
+    const showRep = !isInc && !editing && !rep && REPEATS.length > 0;
+    $("repeatsField").hidden = !showRep;
+    if (showRep) {
+      const box = $("repeats"); box.innerHTML = "";
+      REPEATS.forEach((r) => {
+        const b = document.createElement("button"); b.type = "button";
+        b.innerHTML = `${catTile(r.category || "other", 32)}<span><b></b><small></small></span>`;
+        b.querySelector("b").textContent = r.label;
+        b.querySelector("small").textContent = fmt(r.amount_cents / 100) + (r.shared ? " · " + tr("split") : "");
+        b.setAttribute("aria-label", tr("Log") + " " + r.label + " " + fmt(r.amount_cents / 100));
+        b.onclick = () => logRepeat(r, b);
+        box.appendChild(b);
+      });
+    }
+
     const c = $("cats"); c.innerHTML = "";
     CATS.forEach((k) => {
       const b = document.createElement("button"); b.type = "button"; b.innerHTML = `${catTile(k.id, 54)}<span>${k.n}</span>`;
@@ -1420,7 +1438,19 @@
   $("repeat").onchange = () => { $("paidNow").checked = $("dt").value <= today(); renderForm(); };
   $("dt").onchange = () => { if ($("repeat").value && !editing) $("paidNow").checked = $("dt").value <= today(); };
 
-  $("goBtn").onclick = async () => {
+  async function logRepeat(r, btn) {
+    if (busyRepeat) return; busyRepeat = true;
+    document.querySelectorAll("#repeats button").forEach((b) => (b.disabled = true));
+    mode = "expense"; cat = r.category || "other"; who = ME.id; shared = !!r.shared && MEMBERS.length > 1; splitMode = r.split_mode || "equal";
+    $("amt").value = (r.amount_cents / 100).toFixed(2); $("lbl").value = r.label;
+    $("splitVal").value = r.split_mode === "owed" ? (r.split_value / 100).toFixed(2) : r.split_mode === "percent" ? r.split_value : "";
+    $("priv").checked = !!r.private; $("repeat").value = ""; $("dt").value = today();
+    renderForm();
+    try { await submitEntry(); } finally { busyRepeat = false; document.querySelectorAll("#repeats button").forEach((b) => (b.disabled = false)); }
+  }
+  let busyRepeat = false;
+  $("goBtn").onclick = () => submitEntry();
+  async function submitEntry() {
     const amount = parseFloat($("amt").value);
     if (!(amount > 0)) { $("err").textContent = "Type an amount above $0 first."; $("amt").focus(); return; }
     const rep = $("repeat").value, isShared = mode === "expense" && shared && MEMBERS.length > 1;
@@ -1456,7 +1486,7 @@
       }
     } catch (e) { $("err").textContent = e.message; }
     finally { busy($("goBtn"), false); }
-  };
+  }
   $("delRec").onclick = async () => {
     const r = editing?.x; if (!r) return;
     if (!(await ask(`Delete ${r.label}?`, "It stops showing up as due. Anything already logged stays.", "Delete"))) return;
@@ -1523,6 +1553,41 @@
       $("pwDlg").close(); toast("Password changed. Other devices were logged out.");
     } catch (e) { $("pwErr").textContent = e.message; }
   };
+
+  // ---------- Apple Pay auto-logging (iPhone Shortcut key) ----------
+  function drawShortcut() {
+    const k = ME.shortcut;
+    $("scOff").hidden = !!k; $("scOn").hidden = !k;
+    $("scUrl").textContent = location.origin + "/api/log";
+    if (k) {
+      const used = k.uses ? tr("Logged " + k.uses + " " + (k.uses === 1 ? "purchase" : "purchases") + " so far.") : tr("Nothing logged yet. Finish the Shortcut below and tap to pay once to test it.");
+      const when = k.last_used ? " " + tr("Last one") + " " + shortDay(parseD(new Date(k.last_used * 1000).toISOString().slice(0, 10))) + "." : "";
+      $("scStatus").textContent = tr("Your Shortcut key is on.") + " " + used + when;
+    }
+    if (document.getElementById("shortcutSub")) $("shortcutSub").textContent = k ? "On · " + (k.uses || 0) + " logged" : "Log every tap-to-pay with an iPhone Shortcut";
+  }
+  async function makeKey() {
+    $("scErr").textContent = "";
+    try {
+      const r = await api("/api/shortcut/key", { method: "POST" });
+      ME.shortcut = { created_at: Math.floor(Date.now() / 1000), last_used: null, uses: 0 };
+      $("scKey").textContent = r.key; $("scNew").hidden = false; drawShortcut();
+      $("scOn").querySelector("details").open = true;
+    } catch (e) { $("scErr").textContent = e.message; }
+  }
+  $("openShortcut").onclick = () => { $("scNew").hidden = true; $("scKey").textContent = ""; $("scErr").textContent = ""; drawShortcut(); $("shortcutDlg").showModal(); };
+  $("scMake").onclick = makeKey;
+  $("scRenew").onclick = async () => { if (await ask(tr("Make a new key?"), tr("Your old key stops working, so update the Shortcut with the new one."), tr("New key"))) makeKey(); };
+  $("scRevoke").onclick = async () => {
+    if (!(await ask(tr("Turn off auto-logging?"), tr("Your Shortcut will stop working until you make a new key."), tr("Turn off")))) return;
+    try { await api("/api/shortcut/key", { method: "DELETE" }); ME.shortcut = null; $("scNew").hidden = true; drawShortcut(); toast("Auto-logging is off"); }
+    catch (e) { $("scErr").textContent = e.message; }
+  };
+  $("scCopy").onclick = async () => {
+    try { await navigator.clipboard.writeText($("scKey").textContent); toast("Key copied"); }
+    catch { const r = document.createRange(); r.selectNodeContents($("scKey")); getSelection().removeAllRanges(); getSelection().addRange(r); toast("Press and hold to copy"); }
+  };
+  $("scClose").onclick = () => $("shortcutDlg").close();
 
   // ---------- settings ----------
   function drawSwatches(box) {
@@ -1713,6 +1778,8 @@
       ["How do bills and paydays work?", "Add them once in Plan, or tap + and choose how often it repeats. Home shows what's due before your next payday, and Bun reminds you."],
       ["How do monthly budgets work?", "In Plan, tap Edit next to Budget and set a limit for any category. Bun gives you a heads-up at 80%."]] },
     { t: "Adding transactions", d: "Spending, income, splits and repeats", q: [
+      ["What are the one-tap buttons on the Add screen?", "Your five most common expenses from the last 90 days. Tap one and it's logged right away with the same amount, category and split as last time. You can edit it after like any entry."],
+      ["Can Apple Pay log purchases automatically?", "Yes. In Settings, open Apple Pay auto-logging and make a key. Then an iPhone Shortcut automation runs every time you tap to pay and sends the amount and store to Honeybun. It picks the category from the store name and remembers how you split each store. No bank connection needed."],
       ["How do I split an expense?", "When adding an expense, tap Split it, then choose Evenly, By %, or Set amount owed."],
       ["Can I keep something private?", "Yes. For your own personal spending or income, turn on Only I can see this."],
       ["How do I edit or delete something?", "Tap any entry to edit it. Tap × to delete it, and you can Undo right after."]] },

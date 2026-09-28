@@ -44,6 +44,7 @@ const TABLES = [
   `CREATE TABLE IF NOT EXISTS messages (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, nest_id TEXT, kind TEXT NOT NULL, data TEXT NOT NULL DEFAULT '{}', dedupe TEXT NOT NULL, created_at INTEGER NOT NULL, read_at INTEGER)`,
   `CREATE UNIQUE INDEX IF NOT EXISTS idx_messages_dedupe ON messages(user_id, dedupe)`,
   `CREATE INDEX IF NOT EXISTS idx_messages_user ON messages(user_id, created_at)`,
+  `CREATE TABLE IF NOT EXISTS api_keys (token_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE, created_at INTEGER NOT NULL, last_used INTEGER, uses INTEGER NOT NULL DEFAULT 0)`,
 ];
 const NEW_COLUMNS = {
   users: [["email_verified", "INTEGER NOT NULL DEFAULT 0"], ["tz", "TEXT"], ["lang", "TEXT NOT NULL DEFAULT 'en'"],
@@ -458,6 +459,51 @@ async function insertEntry(env, nestId, user, e, recurringId = null, occDate = n
   return id;
 }
 
+// Your most common expenses over the last 90 days (label + category), newest amount wins.
+// Used for one-tap repeats on the Add screen and to auto-fill Shortcut logs.
+async function topRepeats(env, nestId, userId, limit = 5) {
+  const since = sDay(Date.now() - 90 * dayMs);
+  const rows = (await env.DB.prepare(
+    `SELECT label, category, amount_cents, shared, split_mode, split_value, private, date FROM entries
+     WHERE nest_id = ? AND member_id = ? AND type = 'expense' AND recurring_id IS NULL AND date >= ? ORDER BY date DESC, created_at DESC LIMIT 400`
+  ).bind(nestId, userId, since).all()).results;
+  const groups = new Map();
+  for (const r of rows) {
+    const key = r.label.toLowerCase() + "|" + (r.category || "other");
+    const g = groups.get(key);
+    if (g) { g.count++; g.amounts.push(r.amount_cents); }
+    else groups.set(key, { ...r, count: 1, amounts: [r.amount_cents] });
+  }
+  return [...groups.values()]
+    .filter((g) => g.count >= 2 || rows.length < 8) // brand-new budgets get suggestions right away
+    .sort((a, b) => b.count - a.count || (b.date < a.date ? -1 : 1))
+    .slice(0, limit)
+    .map((g) => ({ label: g.label, category: g.category, amount_cents: g.amount_cents, shared: g.shared, split_mode: g.split_mode, split_value: g.split_value, private: g.private, count: g.count }));
+}
+
+// Guess a category for a store name coming from Apple Pay (only used when the Shortcut doesn't send one)
+const STORE_HINTS = [
+  ["groc", /costco|walmart|target|kroger|safeway|aldi|trader|whole foods|publix|heb|h-e-b|wegmans|market|grocer|supermarket|food lion|meijer|winco|sprouts|sam's/i],
+  ["food", /starbucks|dunkin|coffee|cafe|caf\u00e9|mcdonald|chick|taco|pizza|burger|wendy|chipotle|subway|panera|doordash|uber ?eats|grubhub|restaurant|grill|kitchen|sushi|ramen|bbq|diner|bakery|donut|boba|\btea\b/i],
+  ["car", /shell|chevron|exxon|mobil|bp\b|arco|76\b|\bgas\b|fuel|texaco|valero|circle k|wawa|sheetz|autozone|jiffy|car wash|parking|toll|uber(?! ?eats)|lyft/i],
+  ["subs", /netflix|spotify|hulu|disney|apple\.com|icloud|youtube|amazon prime|hbo|\bmax\b|paramount|peacock|audible|patreon|openai|adobe|google (one|storage)|xbox|playstation|nintendo/i],
+  ["bills", /electric|power|water|utility|utilities|internet|comcast|xfinity|spectrum|verizon|at&t|t-mobile|insurance|rent|mortgage/i],
+  ["home", /home depot|lowe'?s|ikea|wayfair|bed bath|container store|ace hardware/i],
+  ["fun", /amc|cinema|theat|regal|steam|ticketmaster|bowling|arcade|museum|zoo|concert|eventbrite|topgolf/i],
+  ["pets", /petco|petsmart|chewy|vet\b|veterinar|pet /i],
+  ["date", /date night|florist|flowers/i],
+];
+const guessCategory = (label) => (STORE_HINTS.find(([, re]) => re.test(label)) || ["other"])[0];
+
+async function keyUser(request, env) {
+  const m = /^Bearer\s+([A-Za-z0-9_-]{20,})$/.exec(request.headers.get("authorization") || "");
+  if (!m) return null;
+  const row = await env.DB.prepare(
+    "SELECT u.id, u.email, u.name, u.lang, k.token_hash FROM api_keys k JOIN users u ON u.id = k.user_id WHERE k.token_hash = ?"
+  ).bind(await sha256(m[1])).first();
+  return row || null;
+}
+
 // ---------- routes ----------
 async function handle(request, env, url) {
   const path = url.pathname, method = request.method;
@@ -465,8 +511,11 @@ async function handle(request, env, url) {
   const appUrl = (env.APP_URL || url.origin).replace(/\/$/, "");
 
   let body = {};
-  if (method === "POST" || method === "PATCH" || method === "PUT") {
-    body = await request.json().catch(() => null);
+  if (path === "/api/log" && method === "POST" && !(request.headers.get("content-type") || "").includes("json")) {
+    body = Object.fromEntries((await request.formData().catch(() => new FormData())).entries());
+  } else if (method === "POST" || method === "PATCH" || method === "PUT") {
+    const raw = await request.text().catch(() => "");
+    body = raw.trim() ? (() => { try { return JSON.parse(raw); } catch { return null; } })() : {};
     if (!body || typeof body !== "object") throw new HttpError("Invalid request.");
   }
 
@@ -570,6 +619,46 @@ async function handle(request, env, url) {
       { status: ok ? 200 : 400, headers: { "content-type": "text/html; charset=utf-8", ...SEC_HEADERS } });
   }
 
+  // ===== Shortcuts / Apple Pay auto-logging (Bearer key instead of a cookie) =====
+  if (path === "/api/log" && method === "POST") {
+    if (await limited(env, "logip:" + ip, 120, 3600)) throw new HttpError("Too many logs from here. Try again in an hour.", 429);
+    const ku = await keyUser(request, env);
+    if (!ku) { await recordAttempt(env, "logip:" + ip); throw new HttpError("That Shortcut key isn't valid. Make a new one in Honeybun settings.", 401); }
+    const nestId = await requireNest(env, ku);
+    // Apple Pay hands Shortcuts the amount as text like "$84.00" or "84,00", so tidy it up first
+    const rawAmt = String(body.amount ?? body.total ?? "").replace(/[^0-9.,-]/g, "").replace(/,(?=\d{1,2}$)/, ".").replace(/,/g, "").replace(/-/g, "");
+    const amount = toCents(rawAmt);
+    const label = cleanText(body.store ?? body.label ?? body.merchant ?? body.name, 40) || "Apple Pay";
+    const ids = await memberIds(env, nestId);
+    // reuse how you logged this store last time (category + split), otherwise guess from the name
+    const prev = await env.DB.prepare(
+      "SELECT category, shared, split_mode, split_value, private FROM entries WHERE nest_id = ? AND member_id = ? AND type = 'expense' AND lower(label) = lower(?) ORDER BY date DESC, created_at DESC LIMIT 1"
+    ).bind(nestId, ku.id, label).first();
+    const category = CATEGORIES.includes(body.category) ? body.category : prev ? prev.category || "other" : guessCategory(label);
+    const shared = ids.length > 1 && (body.shared !== undefined ? !!body.shared && body.shared !== "false" && body.shared !== "no" : prev ? !!prev.shared : true);
+    let split = { mode: null, value: null }, shares = null;
+    if (shared) {
+      split = prev && prev.shared && SPLITS.includes(prev.split_mode) ? { mode: prev.split_mode, value: prev.split_value } : { mode: "equal", value: null };
+      if (split.mode === "owed" && split.value > amount) split = { mode: "equal", value: null };
+      shares = JSON.stringify(computeShares(amount, split.mode, split.value, ku.id, ids));
+    }
+    const priv = !shared && (body.private !== undefined ? !!body.private && body.private !== "false" : !!prev?.private) ? 1 : 0;
+    const u = await env.DB.prepare("SELECT tz FROM users WHERE id = ?").bind(ku.id).first();
+    const date = isDate(body.date) ? body.date : localNow(u?.tz).date;
+    const e = { type: "expense", amount, memberId: ku.id, shared: shared ? 1 : 0, split, shares, priv, category, label, date };
+    const id = await insertEntry(env, nestId, ku, e);
+    await env.DB.batch([
+      env.DB.prepare("UPDATE api_keys SET last_used = ?, uses = uses + 1 WHERE token_hash = ?").bind(now(), ku.token_hash),
+      env.DB.prepare("UPDATE members SET inbox_gen_at = 0 WHERE nest_id = ?").bind(nestId),
+    ]);
+    if (shared) await postToOthers(env, nestId, ku.id, "shared_expense", { name: ku.name, label, amount }, `shared:${id}`);
+    let reward = null;
+    try { reward = await award(env, { headers: new Headers({ "x-local-date": date }) }, ku.id, nestId, "entry"); } catch (err) { console.error("award", err.message); }
+    const catName = { home: "Housing", groc: "Groceries", food: "Eating out", date: "Date night", bills: "Bills", subs: "Subscriptions", car: "Car", fun: "Fun", pets: "Pets", debt: "Debt", other: "Other" }[category] || "Other";
+    return json({ ok: true, id, amount: amount / 100, label, category, shared, date,
+      message: `Logged ${money(amount)} at ${label} (${catName}${shared ? ", split" : ""}) 🐰` }, 201);
+  }
+
   // ===== signed in =====
   const user = await currentUser(request, env);
   if (!user) throw new HttpError("Please log in.", 401);
@@ -578,7 +667,25 @@ async function handle(request, env, url) {
   if (path === "/api/me" && method === "GET") {
     const m = await membership(env, user.id);
     const u = await env.DB.prepare("SELECT email_verified, tz, lang, mail_bills, mail_streak, mail_weekly FROM users WHERE id = ?").bind(user.id).first();
-    return json({ user: { ...me, verified: !!u.email_verified, tz: u.tz, lang: u.lang, mail: { bills: !!u.mail_bills, streak: !!u.mail_streak, weekly: !!u.mail_weekly } }, nest_id: m ? m.nest_id : null });
+    const k = await env.DB.prepare("SELECT created_at, last_used, uses FROM api_keys WHERE user_id = ?").bind(user.id).first();
+    return json({ user: { ...me, verified: !!u.email_verified, tz: u.tz, lang: u.lang, mail: { bills: !!u.mail_bills, streak: !!u.mail_streak, weekly: !!u.mail_weekly },
+      shortcut: k ? { created_at: k.created_at, last_used: k.last_used, uses: k.uses } : null }, nest_id: m ? m.nest_id : null });
+  }
+
+  // Shortcut key: one per person, shown once. Making a new one replaces the old one.
+  if (path === "/api/shortcut/key" && method === "POST") {
+    if (await limited(env, "key:" + user.id, 10, 3600)) throw new HttpError("Too many new keys. Try again in an hour.", 429);
+    await recordAttempt(env, "key:" + user.id);
+    const token = "hb_" + randomToken();
+    await env.DB.batch([
+      env.DB.prepare("DELETE FROM api_keys WHERE user_id = ?").bind(user.id),
+      env.DB.prepare("INSERT INTO api_keys (token_hash, user_id, created_at) VALUES (?, ?, ?)").bind(await sha256(token), user.id, now()),
+    ]);
+    return json({ ok: true, key: token, url: `${appUrl}/api/log` }, 201);
+  }
+  if (path === "/api/shortcut/key" && method === "DELETE") {
+    await env.DB.prepare("DELETE FROM api_keys WHERE user_id = ?").bind(user.id).run();
+    return json({ ok: true });
   }
 
   if (path === "/api/password/change" && method === "POST") {
@@ -757,6 +864,7 @@ async function handle(request, env, url) {
       balances, settlements: settlements.results.slice(0, 10), recurring: recurring.results,
       logged: logged.results, jar: jar.results, goals: goals.results, budgets: budgets.results,
       debts: debts.results, debt_payments: debtPays.results, setup_done: !!mine.results[0]?.setup_done,
+      repeats: await topRepeats(env, nestId, user.id),
       inbox: await env.DB.prepare("SELECT COUNT(*) AS unread, (SELECT id || '|' || kind || '|' || data FROM messages WHERE user_id = ?1 AND read_at IS NULL ORDER BY created_at DESC LIMIT 1) AS latest FROM messages WHERE user_id = ?1 AND read_at IS NULL").bind(user.id).first(),
     });
   }
@@ -1063,12 +1171,14 @@ export default {
     if (!url.pathname.startsWith("/api/")) return env.ASSETS.fetch(request);
 
     // CSRF protection: changes must come from our own site, as JSON
-    if (request.method !== "GET") {
+    // /api/log is called by iPhone Shortcuts with a Bearer key, never a cookie, so it can't be forged cross-site
+    if (request.method !== "GET" && url.pathname !== "/api/log") {
       let sameOrigin = false;
       try { sameOrigin = new URL(request.headers.get("origin")).host === url.host; } catch {}
       if (!sameOrigin) return fail("Request blocked.", 403);
       if (!(request.headers.get("content-type") || "").includes("application/json")) return fail("Expected JSON.", 415);
     }
+    if (url.pathname === "/api/log" && request.method !== "POST") return fail("Not found.", 404);
 
     try {
       await ensureSchema(env);
