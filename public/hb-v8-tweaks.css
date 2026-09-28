@@ -15,15 +15,12 @@
 #list .amt{font-size:.82rem}
 #list .del{width:22px;height:22px}
 
-/* keep the whole activity area narrower on desktop instead of a huge table */
 @media(min-width:850px){
   #allH,.search-box,#list{max-width:860px;margin-left:auto;margin-right:auto}
   #allH{margin-top:30px}
   .search-box{grid-template-columns:minmax(260px,1fr) auto}
   #list li{padding:10px 2px}
 }
-
-/* phones: stack filters cleanly without making the section tall */
 @media(max-width:620px){
   .search-box{grid-template-columns:1fr}
   .search-box .filters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
@@ -36,3 +33,127 @@
 .hb-theme-toggle:hover{background:var(--card2)}
 .hb-theme-toggle .hb-theme-icon{font-size:14px;line-height:1}
 @media(max-width:520px){.hb-theme-toggle .hb-theme-label{display:none}.hb-theme-toggle{padding:0;width:38px;min-width:38px}}
+
+/* Shared polish */
+.page-title{margin-bottom:14px}
+.section-h{margin-top:24px;margin-bottom:9px}
+.section-h h2{letter-spacing:-.012em}
+.panel,.card,.tile,.jar-card,.chat-head{transition:border-color .18s ease,background .18s ease,transform .18s ease}
+@media(hover:hover){.jar-card:hover,.home-bud:hover{transform:translateY(-1px)}}
+
+/* PLAN */
+#scr-plan>.page-title{margin-bottom:8px}
+#scr-plan>.section-h:first-of-type{margin-top:2px!important}
+#scr-plan .panel.pad{padding:16px 17px}
+#scr-plan .bud{padding:11px 0}
+#scr-plan .bud .l{font-size:.86rem;align-items:baseline}
+#scr-plan .bud .trk{height:7px;margin-top:7px;background:var(--bg2)}
+#scr-plan .cal{gap:5px}
+#scr-plan .cal .wd{padding:3px 0 5px;font-size:.66rem;letter-spacing:.03em}
+#scr-plan .cal button{border:1px solid transparent;background:var(--card2);border-radius:11px;font-size:.77rem;min-width:0}
+#scr-plan .cal button.today{box-shadow:none;border-color:var(--pink)}
+#scr-plan .cal button[aria-pressed="true"]{background:var(--pink3);border-color:color-mix(in srgb,var(--pink) 45%,var(--line))}
+#scr-plan .cal-day{margin-top:12px}
+#scr-plan .cal-day div{padding:8px 2px;font-size:.8rem}
+#scr-plan #bills{margin:0}
+#scr-plan #bills li{padding:10px 0}
+#scr-plan .goal{padding:12px 2px}
+#scr-plan .goal .em{width:38px;height:38px;border-radius:13px;background:var(--honey2)}
+#scr-plan .goal .t{font-size:.87rem}
+#scr-plan .goal .s{font-size:.72rem}
+#scr-plan .goal .trk{height:6px;background:var(--bg2)}
+#scr-plan .payoff{background:var(--card2);border:1px solid var(--line)}
+@media(min-width:900px){
+  #scr-plan{max-width:980px!important;display:grid;grid-template-columns:1fr 1fr;gap:0 18px;align-items:start}
+  #scr-plan>.page-title{grid-column:1/-1}
+  #scr-plan>#billsH,#scr-plan>#billsH+div,#scr-plan>#billsH+div+div{grid-column:2}
+  #scr-plan>.section-h:first-of-type,#scr-plan>.section-h:first-of-type+div{grid-column:1}
+  #scr-plan>.section-h:nth-of-type(n+3),#scr-plan>.section-h:nth-of-type(n+3)+div{grid-column:1/-1}
+}
+
+/* ADD MONEY */
+#scr-add{max-width:520px!important}
+#scr-add .tabs{margin-bottom:12px}
+#scr-add .add-bun{margin:2px 0 -6px}
+#scr-add .add-bun svg{width:36px;height:39px}
+#scr-add .bigamt{padding:8px 0 2px}
+#scr-add .bigamt span{font-size:1.8rem}
+#scr-add .bigamt input{font-size:2.6rem;max-width:180px}
+#scr-add .field{margin-top:15px}
+#scr-add .lbl,#scr-add .field>label{font-size:.75rem;letter-spacing:.01em}
+#scr-add .cats{gap:12px 5px}
+#scr-add .cats button{font-size:.7rem!important}
+#scr-add .cats button .ct{width:48px!important;height:48px!important;border-radius:16px!important}
+#scr-add .whos,#scr-add .split,#scr-add .sub-opts{gap:6px}
+#scr-add .whos button,#scr-add .split button,#scr-add .sub-opts button{min-height:39px;padding:7px 11px;border:1px solid var(--line);box-shadow:none;background:var(--card)}
+#scr-add .check{font-size:.82rem;color:var(--soft)}
+#scr-add .go{margin-top:20px}
+
+/* STATS / BUNNY */
+#scr-stats{max-width:900px!important}
+#scr-stats>.page-title{text-align:center;margin-bottom:12px}
+#scr-stats .burrow{border:1px solid var(--line);box-shadow:var(--shadow2);background:linear-gradient(160deg,var(--card),var(--card2));border-radius:26px}
+#scr-stats .burrow .bun-circle{width:112px;height:112px;background:var(--lav2)}
+#scr-stats .burrow .bun-circle svg{width:80px;height:86px}
+#scr-stats .burrow h2{font-size:1.2rem}
+#scr-stats .badges{gap:12px}
+#scr-stats .tile{border:1px solid var(--line);box-shadow:var(--shadow2);padding:13px 14px}
+#scr-stats .tile b{font-size:1.1rem}
+#scr-stats .chart{overflow:hidden}
+#scr-stats .rule .trk,#scr-stats .bar .trk{background:var(--bg2)}
+#scr-stats .board-row{padding:9px 1px}
+@media(min-width:900px){
+  #scr-stats .tiles{grid-template-columns:repeat(3,minmax(0,1fr));max-width:600px;margin:0 auto}
+  #scr-stats .burrow{max-width:620px;margin:0 auto 8px}
+}
+
+/* TOGETHER / SETTLE / INVITES / SETTINGS */
+#scr-us>#settleWrap,#scr-us>#inviteH,#scr-us>#inviteH+div,#scr-us>#setH,#scr-us>#setH+div,#scr-us>.install,#scr-us>.legal,#scr-us>.center{max-width:860px;margin-left:auto;margin-right:auto}
+#scr-us #settleWrap .panel{border-radius:22px}
+#scr-us .hist li{padding:8px 0}
+#scr-us .invite-code{font-size:1.25rem;letter-spacing:.09em;background:var(--card2);border:1px dashed var(--line);border-radius:13px;padding:10px 12px;margin:8px 0 4px;text-align:center}
+#scr-us .invite-link{font-size:.72rem;line-height:1.35}
+#scr-us .btn-row{gap:7px;flex-wrap:wrap}
+#scr-us .btn-row .small,#scr-us .email-btn{min-height:38px}
+#scr-us .set-row{padding:14px 2px}
+#scr-us .set-row>.lbl{font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;color:var(--soft)}
+#scr-us .toggle{padding:9px 0}
+#scr-us .toggle span{font-size:.86rem}
+#scr-us .toggle small{font-size:.7rem}
+#scr-us .swatches{gap:12px}
+#scr-us .swatches button i{width:32px;height:32px}
+#scr-us .members{gap:8px}
+#scr-us .install{border:1px solid var(--line);background:var(--card);border-radius:18px;padding:12px 14px;margin-top:18px}
+
+/* BUN INBOX */
+#scr-inbox{max-width:680px!important}
+#scr-inbox .chat-head{top:12px;padding:9px 12px;border:1px solid var(--line);background:color-mix(in srgb,var(--card) 94%,transparent);backdrop-filter:blur(18px)}
+#scr-inbox .chat-av img{width:36px;height:36px}
+#scr-inbox .chat-who b{font-size:1rem}
+#scr-inbox .chat-who small{font-size:.7rem}
+#scr-inbox .msg{max-width:82%}
+#scr-inbox .msg .b{font-size:.86rem;padding:9px 12px;border:1px solid var(--line);box-shadow:none;background:var(--card)}
+#scr-inbox .quick-replies{position:sticky;bottom:92px;z-index:3;padding-top:8px;background:linear-gradient(transparent,var(--bg) 30%)}
+#scr-inbox .quick-replies button{padding:9px 6px;font-size:.75rem;background:var(--card)}
+
+/* ONBOARDING */
+.ob{max-width:520px;margin:0 auto}
+.ob-top{margin-bottom:18px}.ob-prog{height:5px;background:var(--bg2)}
+.ob-art{width:58px;height:58px;border-radius:18px;background:var(--pink3);border:1px solid var(--line)}
+.ob-art img{width:58px;height:58px;border-radius:18px}
+.ob h1{font-size:1.42rem;letter-spacing:-.02em}.ob .lead{font-size:.88rem}
+.quick button{background:var(--card);border-color:var(--line);font-size:.8rem;padding:7px 11px}
+.added li{border:1px solid var(--line);box-shadow:none;background:var(--card)}
+
+/* Desktop density + rhythm */
+@media(min-width:850px){
+  .page-title{font-size:1.55rem}
+  .section-h{margin-top:22px}
+  nav.bottom{width:560px}
+  nav.bottom .in{max-width:540px}
+}
+@media(max-width:620px){
+  #scr-stats .badges{grid-template-columns:repeat(3,1fr)}
+  #scr-plan .panel.pad{padding:14px}
+  #scr-us .btn-row .small,#scr-us .email-btn{flex:1 1 auto}
+}
