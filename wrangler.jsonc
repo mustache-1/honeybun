@@ -14,7 +14,8 @@
 
   "vars": {
     "APP_URL": "https://honeybun.me",
-    "MAIL_FROM": "Honeybun <hello@honeybun.me>"
+    "MAIL_FROM": "Honeybun <hello@honeybun.me>",
+    "VAPID_PUBLIC_KEY": "BHjyvkWiHefn7q62ZHG6qfqggldq33oUfD7fB41sesTXIP0Dx8CIiMXkM0Lb8fIFut2UgwE034FQQhP_0X02d8c"
   },
 
   "d1_databases": [

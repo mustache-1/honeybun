@@ -237,7 +237,7 @@
 
   // ---------- state ----------
   let ME = null, NEST = null, MEMBERS = [], ENTRIES = [], BAL = {}, SETTLES = [], RECUR = [], LOGGED = new Set(), JAR = [];
-  let GOALS = [], BUDGETS = {}, DEBTS = [], DEBTPAYS = [], SETUP_DONE = true, INBOX = { unread: 0, latest: null };
+  let GOALS = [], BUDGETS = {}, DEBTS = [], DEBTPAYS = [], SETUP_DONE = true, INBOX = { unread: 0, latest: null }, REPEATS = [], CARRY = {}, PASSKEYS = [];
   let MONTH = today().slice(0, 7), YEAR = new Date().getFullYear(), YDATA = null;
   let screen = "loading", filter = null, authMode = "signup", newKind = "couple", calSel = null;
   let mode = "expense", cat = "groc", who = null, shared = true, splitMode = "equal", editing = null;
@@ -263,6 +263,7 @@
   const ALL_SCREENS = ["loading", "landing", "auth", "reset", "verify", "setup", "onboard", ...APP_SCREENS];
   function show(s) {
     screen = s;
+    fitDesktop();
     ALL_SCREENS.forEach((k) => ($("scr-" + k).hidden = k !== s));
     const inApp = APP_SCREENS.includes(s);
     $("nav").hidden = !inApp; $("topBar").hidden = !inApp;
@@ -293,6 +294,7 @@
     $("aPass").setAttribute("autocomplete", m === "signup" ? "new-password" : "current-password");
     $("aPass").placeholder = m === "signup" ? "At least 8 characters" : "";
     $("authBtn").textContent = m === "signup" ? "Create account" : "Log in";
+    $("passkeyWrap").hidden = $("passkeyLogin").hidden = !(m === "login" && hasPasskeys());
     $("authErr").textContent = "";
   }
   document.querySelectorAll("[data-auth]").forEach((b) => (b.onclick = () => setAuthMode(b.dataset.auth)));
@@ -409,6 +411,7 @@
     document.documentElement.setAttribute("data-accent", d.nest.accent || "blush");
     GOALS = d.goals; DEBTS = d.debts; DEBTPAYS = d.debt_payments; SETUP_DONE = d.setup_done;
     BUDGETS = Object.fromEntries(d.budgets.map((b) => [b.category, b.limit_cents / 100]));
+    REPEATS = d.repeats || []; CARRY = d.carry || {};
     LOGGED = new Set(d.logged.map((l) => l.recurring_id + "|" + l.occ_date));
     if (d.inbox) {
       const prev = INBOX.unread; let latest = null;
@@ -440,16 +443,16 @@
     return g;
   }
   function bunnySvg(l) {
-    return `<g fill="var(--card)" stroke="var(--ink)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+    return `<g fill="var(--bun-body, #f8f4f8)" stroke="#141217" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
       <path d="M44 52 C34 30 34 8 42 6 C50 4 54 28 54 46"/><path d="M76 52 C86 30 86 8 78 6 C70 4 66 28 66 46"/>
       <ellipse cx="60" cy="82" rx="38" ry="34"/>
-      <circle cx="47" cy="78" r="3.5" fill="var(--ink)" stroke="none"/><circle cx="73" cy="78" r="3.5" fill="var(--ink)" stroke="none"/>
+      <circle cx="47" cy="78" r="3.5" fill="#141217" stroke="none"/><circle cx="73" cy="78" r="3.5" fill="#141217" stroke="none"/>
       <ellipse cx="38" cy="90" rx="6" ry="3.5" fill="#F6B7CB" stroke="none"/><ellipse cx="82" cy="90" rx="6" ry="3.5" fill="#F6B7CB" stroke="none"/>
       <path d="M52 89 q8 8 16 0" fill="none" stroke-width="3"/>${gearSvg(l)}</g>`;
   }
-  function rewardToast(rw, msg) {
-    if (!rw) { toast(msg); return; }
-    toast(rw.gained > 0 ? `${msg}  +${rw.gained} 🥕` : msg);
+  function rewardToast(rw, msg, undo) {
+    if (!rw) { toast(msg, undo ? tr("Undo") : undefined, undo); return; }
+    toast(rw.gained > 0 ? `${msg}  +${rw.gained} 🥕` : msg, undo ? tr("Undo") : undefined, undo);
     if (rw.leveled) setTimeout(() => showLevelUp(rw.level), 700);
     else if (rw.streak_up) setTimeout(() => toast(`🐾 ${rw.streak}-day hop streak!`), 2000);
     else if (rw.first_today && rw.streak === 1) setTimeout(() => toast("🐾 Streak started. Come back tomorrow!"), 2000);
@@ -849,6 +852,9 @@
     $("hdrAvs").innerHTML = MEMBERS.slice(0, 3).map((m) => `<span class="av" style="background:${esc(m.color)}">${esc(m.emoji)}</span>`).join("");
     $("usLabel").textContent = KIND() === "solo" && MEMBERS.length < 2 ? "Me" : "Together";
     $("inboxBadge").hidden = !INBOX.unread; $("inboxBadge").textContent = INBOX.unread > 9 ? "9+" : INBOX.unread;
+    $("sideBadge").hidden = !INBOX.unread; $("sideBadge").textContent = INBOX.unread > 9 ? "9+" : INBOX.unread;
+    $("sideAvs").innerHTML = $("hdrAvs").innerHTML; $("sideName").textContent = $("hi").textContent;
+    { const m = meMember() || {}; $("sideSub").textContent = tr({ solo: "Just me", couple: "Couple", family: "Family" }[KIND()]) + " · Lv " + levelInfo(m.xp || 0).l; }
 
     const all = ENTRIES, view = filter ? all.filter((e) => e.member_id === filter) : all;
     const sum = (arr, t) => arr.filter((e) => e.type === t).reduce((s, e) => s + e.amount, 0);
@@ -867,6 +873,12 @@
       $("meter").style.width = inc > 0 ? Math.min(100, (out / inc) * 100) + "%" : out > 0 ? "100%" : "0";
       $("flowIn").textContent = fmt(inc); $("flowOut").textContent = fmt(out);
       $("billsDue").textContent = MONTH === today().slice(0, 7) && RECUR.length ? fmt(upcoming().bills.reduce((a, b) => a + b.r.amount_cents / 100, 0)) : "–";
+      $("monthLeft").textContent = inc ? Math.max(0, Math.round(((inc - out) / inc) * 100)) + "%" : "–";
+      const hj = $("homeJars");
+      hj.innerHTML = GOALS.length ? `<div class="home-jars"><div class="hj-h"><h2>Honey jars</h2><button class="linkbtn" data-go-plan>Plan</button></div>${GOALS.slice(0, 3).map((g) => {
+        const saved = g.saved_cents / 100, target = g.target_cents / 100, pct = target ? Math.min(100, (saved / target) * 100) : 0;
+        return `<div class="hj"><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 8h8l1 2v9a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-9z"/><rect x="8" y="4" width="8" height="4" rx="1.5"/></svg></i><span><span class="l"><span>${esc(g.name)}</span><small>${fmt(saved).replace(/\.00$/, "")} of ${fmt(target).replace(/\.00$/, "")}</small></span><span class="trk"><b style="width:${pct}%"></b></span></span></div>`; }).join("")}</div>` : "";
+      hj.querySelector("[data-go-plan]")?.addEventListener("click", () => show("plan"));
       setBunny(left, inc, out, view.length > 0);
       $("bunNote").onclick = openInbox;
       const bub = $("bubble");
@@ -914,8 +926,9 @@
 
       const rc = $("recent"); rc.innerHTML = "";
       if (!view.length) rc.innerHTML = `<li class="empty" style="justify-content:center;border:0">Nothing yet for ${esc(monthName(MONTH))}. Tap + to add something.</li>`;
-      view.slice(0, 5).forEach((e) => rc.appendChild(entryLi(e)));
-      $("seeAll").hidden = view.length <= 5;
+      const latestN = matchMedia("(min-width: 900px)").matches ? 10 : 5; // desktop has room for two columns of five
+      view.slice(0, latestN).forEach((e) => rc.appendChild(entryLi(e)));
+      $("seeAll").hidden = view.length <= latestN;
     }
 
     if (screen === "add") renderForm();
@@ -972,6 +985,8 @@
       $("mailBills").checked = !!ME.mail?.bills; $("mailStreak").checked = !!ME.mail?.streak; $("mailWeekly").checked = !!ME.mail?.weekly;
       ["mailBills", "mailStreak", "mailWeekly"].forEach((id) => ($(id).disabled = !ME.verified));
       $("mailHint").hidden = !!ME.verified;
+      drawShortcut(); drawPush(); drawPasskeys();
+      applyTheme(store.get("hb-theme") || "auto");
       drawLangPickers();
       mailLinks();
 
@@ -1003,18 +1018,21 @@
       box.innerHTML = `<p class="empty" style="margin:0;padding:4px 0 10px">Give each category a monthly limit, like $400 for groceries. We'll warn you before you go over.</p><button class="small" id="budStart">Set budgets</button>`;
       $("budStart").onclick = openBudgets;
     } else {
-      const totL = cats.reduce((s, c) => s + BUDGETS[c], 0), totS = cats.reduce((s, c) => s + (by[c] || 0), 0);
-      box.innerHTML = `<div class="bud"><div class="l"><span>All budgets</span><small class="${totS > totL ? "over" : ""}">${fmt(totS)} of ${fmt(totL)}</small></div>
+      const limOf = (c) => BUDGETS[c] + (CARRY[c] || 0) / 100;
+      const totL = cats.reduce((s, c) => s + limOf(c), 0), totS = cats.reduce((s, c) => s + (by[c] || 0), 0), totC = cats.reduce((s, c) => s + (CARRY[c] || 0), 0) / 100;
+      box.innerHTML = `<div class="bud"><div class="l"><span>All budgets</span><small class="${totS > totL ? "over" : ""}">${fmt(totS)} of ${fmt(totL)}${totC > 0 ? ` <span class="carry">(+${fmt(totC)} rolled over)</span>` : ""}</small></div>
         <div class="trk"><i class="${totS > totL ? "over" : totS > totL * 0.8 ? "warn" : ""}" style="width:${Math.min(100, (totS / totL) * 100)}%"></i></div></div>` +
-        cats.map((c) => ({ c, lim: BUDGETS[c], sp: by[c] || 0 })).sort((a, b) => b.sp / b.lim - a.sp / a.lim).map((x) => {
+        cats.map((c) => ({ c, lim: limOf(c), sp: by[c] || 0, carry: (CARRY[c] || 0) / 100 })).sort((a, b) => b.sp / b.lim - a.sp / a.lim).map((x) => {
           const r = x.sp / x.lim;
-          return `<div class="bud"><div class="l"><span>${esc(catOf(x.c).n)}</span><small class="${r > 1 ? "over" : r > 0.8 ? "warnt" : ""}">${r > 1 ? "Over by " + fmt(x.sp - x.lim) : fmt(x.lim - x.sp) + " left of " + fmt(x.lim)}</small></div>
+          return `<div class="bud"><div class="l"><span>${esc(catOf(x.c).n)}</span><small class="${r > 1 ? "over" : r > 0.8 ? "warnt" : ""}">${r > 1 ? "Over by " + fmt(x.sp - x.lim) : fmt(x.lim - x.sp) + " left of " + fmt(x.lim)}${x.carry > 0 ? ` <span class="carry">(+${fmt(x.carry)} rolled over)</span>` : ""}</small></div>
             <div class="trk"><i class="${r > 1 ? "over" : r > 0.8 ? "warn" : ""}" style="width:${Math.min(100, r * 100)}%"></i></div></div>`;
         }).join("");
     }
     renderCalendar();
     // bills list
     const bl = $("bills"); bl.innerHTML = "";
+    { const up = MONTH === today().slice(0, 7) && RECUR.length ? upcoming() : null; const tot = up ? up.bills.reduce((a, b) => a + b.r.amount_cents / 100, 0) : 0;
+      $("billsDueSub").textContent = up && up.bills.length ? `${fmt(tot)} due${up.payday ? " before " + shortDay(up.payday) : " soon"}` : ""; }
     if (!RECUR.length) bl.innerHTML = `<li class="empty" style="justify-content:center;border:0">Rent, subscriptions, paychecks. Add them once.</li>`;
     RECUR.forEach((r) => {
       const isIn = r.type === "income", n = nextOcc(r);
@@ -1036,13 +1054,14 @@
       l.querySelector("input").value = BUDGETS[c.id] ?? "";
       box.appendChild(l);
     });
+    $("bdRollover").checked = !!NEST.rollover;
     $("bdErr").textContent = ""; $("budgetDlg").showModal();
   }
   $("editBudgets").onclick = openBudgets;
   $("bdCancel").onclick = () => $("budgetDlg").close();
   $("bdSave").onclick = async () => {
     const items = [...document.querySelectorAll("#budgetEdit input")].map((i) => ({ category: i.dataset.cat, limit: parseFloat(i.value) || 0 }));
-    try { await api("/api/budgets", { method: "PUT", body: { items } }); $("budgetDlg").close(); await loadNest(); toast("Budgets saved"); }
+    try { await api("/api/budgets", { method: "PUT", body: { items, rollover: $("bdRollover").checked } }); $("budgetDlg").close(); await loadNest(); toast("Budgets saved"); }
     catch (e) { $("bdErr").textContent = e.message; }
   };
 
@@ -1067,7 +1086,7 @@
       box.appendChild(b);
     }
     const dayBox = $("calDay");
-    if (!calSel) { dayBox.innerHTML = `<p class="hint" style="margin:0">Tap a day to see what's due. Pink dots are bills, green are paydays.</p>`; return; }
+    if (!calSel) { dayBox.innerHTML = `<p class="hint phone-only" style="margin:0">Tap a day to see what's due. Pink dots are bills, green are paydays.</p><div class="cal-legend desk-only"><span><i></i>Bill</span><span><i class="in"></i>Payday</span><span class="r">Tap a day to see what's due</span></div>`; return; }
     const items = byDay[+calSel.slice(8)] || [];
     dayBox.innerHTML = `<p class="hint" style="margin:0 0 4px">${dayName(parseD(calSel))}</p>` + (items.length ? items.map((x) =>
       `<div><span>${esc(x.r.label)}</span><span>${x.r.type === "income" ? "+" : ""}${fmt(x.r.amount_cents / 100)} · ${x.paid ? "Done ✓" : x.d < parseD(t) ? "Overdue" : x.r.type === "income" ? "Expected" : "Due"}</span></div>`).join("")
@@ -1084,8 +1103,9 @@
   }
   function renderGoals() {
     const box = $("goals");
-    if (!GOALS.length) { box.className = ""; box.innerHTML = `<div class="panel pad"><p class="empty" style="margin:0">Save for a trip, a ring, or a rainy day. Tap New jar to start.</p></div>`; return; }
     box.className = "goals-grid"; box.innerHTML = "";
+    const addTile = () => { const a = document.createElement("button"); a.className = "jar-add desk-only"; a.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span>Save for a trip, a ring, or a rainy day</span>`; a.onclick = () => $("addGoal").click(); box.appendChild(a); };
+    if (!GOALS.length) { box.insertAdjacentHTML("beforeend", `<div class="panel pad phone-only"><p class="empty" style="margin:0">Save for a trip, a ring, or a rainy day. Tap New jar to start.</p></div>`); addTile(); return; }
     const fills = ["#F4D48A", "#A9DCC3", "#F6B8CB", "#BFD0F5", "#D2C6F3"];
     GOALS.forEach((g, i) => {
       const saved = g.saved_cents / 100, target = g.target_cents / 100, pct = target ? Math.min(100, (saved / target) * 100) : 0;
@@ -1094,6 +1114,7 @@
       el.onclick = () => openGoal(g);
       box.appendChild(el);
     });
+    if (GOALS.length < 4) addTile();
   }
   let goalOpen = null, goalEmoji = GOAL_EMOJIS[0];
   function drawGoalView() {
@@ -1175,7 +1196,7 @@
   const monthsOut = (n) => { const d = new Date(); d.setMonth(d.getMonth() + n); return d.toLocaleDateString(LOCALE, { month: "short", year: "numeric" }); };
   function renderDebts() {
     const box = $("debts");
-    if (!DEBTS.length) { box.innerHTML = `<p class="empty" style="margin:0;padding:4px 0">Track credit cards, car loans, or student loans and see when you'll be debt-free.</p>`; return; }
+    if (!DEBTS.length) { box.innerHTML = `<p class="empty phone-only" style="margin:0;padding:4px 0">Track credit cards, car loans, or student loans and see when you'll be debt-free.</p><div class="empty-row desk-only"><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18"/></svg></i><span>Track credit cards, car loans, or student loans and see when you'll be debt-free.</span><button class="small" id="debtStart">Add debt</button></div>`; $("debtStart").onclick = () => $("addDebt").click(); return; }
     const left = DEBTS.reduce((s, d) => s + Math.max(0, d.start_cents - d.paid_cents), 0) / 100;
     const paid = DEBTS.reduce((s, d) => s + d.paid_cents, 0) / 100;
     const extra = parseFloat(store.get("hb-debt-extra") || "0") || 0;
@@ -1352,12 +1373,29 @@
   function openEditRecurring(r) { editing = { kind: "recurring", x: r }; fillForm(r, true); show("add"); }
   $("cancelEdit").onclick = () => { const back = editing?.kind === "recurring" ? "plan" : "home"; editing = null; show(back); };
   $("addBill").onclick = () => openAdd({ repeat: "monthly" });
+  $("billsAdd").onclick = () => openAdd({ repeat: "monthly" });
 
   function renderForm() {
     const isInc = mode === "income", rep = $("repeat").value, editingRec = editing?.kind === "recurring";
     $("editBar").hidden = !editing;
     $("editTitle").textContent = editingRec ? (isInc ? "Edit payday" : "Edit bill") : "Edit entry";
     document.querySelectorAll("#scr-add .tabs button").forEach((b) => b.setAttribute("aria-selected", b.dataset.t === mode ? "true" : "false"));
+
+    // one-tap repeats: your most common expenses, tap to log again
+    const showRep = !isInc && !editing && !rep && REPEATS.length > 0;
+    $("repeatsField").hidden = !showRep;
+    if (showRep) {
+      const box = $("repeats"); box.innerHTML = "";
+      REPEATS.forEach((r) => {
+        const b = document.createElement("button"); b.type = "button";
+        b.innerHTML = `${catTile(r.category || "other", 32)}<span><b></b><small></small></span>`;
+        b.querySelector("b").textContent = r.label;
+        b.querySelector("small").textContent = fmt(r.amount_cents / 100) + (r.shared ? " · " + tr("split") : "");
+        b.setAttribute("aria-label", tr("Log") + " " + r.label + " " + fmt(r.amount_cents / 100));
+        b.onclick = () => logRepeat(r, b);
+        box.appendChild(b);
+      });
+    }
 
     const c = $("cats"); c.innerHTML = "";
     CATS.forEach((k) => {
@@ -1420,7 +1458,19 @@
   $("repeat").onchange = () => { $("paidNow").checked = $("dt").value <= today(); renderForm(); };
   $("dt").onchange = () => { if ($("repeat").value && !editing) $("paidNow").checked = $("dt").value <= today(); };
 
-  $("goBtn").onclick = async () => {
+  async function logRepeat(r, btn) {
+    if (busyRepeat) return; busyRepeat = true;
+    document.querySelectorAll("#repeats button").forEach((b) => (b.disabled = true));
+    mode = "expense"; cat = r.category || "other"; who = ME.id; shared = !!r.shared && MEMBERS.length > 1; splitMode = r.split_mode || "equal";
+    $("amt").value = (r.amount_cents / 100).toFixed(2); $("lbl").value = r.label;
+    $("splitVal").value = r.split_mode === "owed" ? (r.split_value / 100).toFixed(2) : r.split_mode === "percent" ? r.split_value : "";
+    $("priv").checked = !!r.private; $("repeat").value = ""; $("dt").value = today();
+    renderForm();
+    try { await submitEntry(); } finally { busyRepeat = false; document.querySelectorAll("#repeats button").forEach((b) => (b.disabled = false)); }
+  }
+  let busyRepeat = false;
+  $("goBtn").onclick = () => submitEntry();
+  async function submitEntry() {
     const amount = parseFloat($("amt").value);
     if (!(amount > 0)) { $("err").textContent = "Type an amount above $0 first."; $("amt").focus(); return; }
     const rep = $("repeat").value, isShared = mode === "expense" && shared && MEMBERS.length > 1;
@@ -1451,12 +1501,15 @@
       } else {
         const res = await api("/api/entries", { method: "POST", body });
         MONTH = ym(date); await loadNest();
-        if (res.queued) toast("Saved offline. It'll sync when you're back."); else rewardToast(res.reward, mode === "income" ? "Income added" : "Expense added");
+        if (res.queued) toast("Saved offline. It'll sync when you're back.");
+        else rewardToast(res.reward, `${label} · ${fmt(amount)}`, res.id ? async () => {
+          try { await api("/api/entries/" + res.id, { method: "DELETE" }); await loadNest(); toast("Undone"); } catch (e) { toast(e.message); }
+        } : null);
         show("home"); bunnyHop();
       }
     } catch (e) { $("err").textContent = e.message; }
     finally { busy($("goBtn"), false); }
-  };
+  }
   $("delRec").onclick = async () => {
     const r = editing?.x; if (!r) return;
     if (!(await ask(`Delete ${r.label}?`, "It stops showing up as due. Anything already logged stays.", "Delete"))) return;
@@ -1524,6 +1577,143 @@
     } catch (e) { $("pwErr").textContent = e.message; }
   };
 
+  // ---------- appearance ----------
+  function applyTheme(v) {
+    if (v === "light" || v === "dark") document.documentElement.setAttribute("data-theme", v); else document.documentElement.removeAttribute("data-theme");
+    store.set("hb-theme", v === "light" || v === "dark" ? v : "auto");
+    const dark = v === "dark" || (v !== "light" && matchMedia("(prefers-color-scheme: dark)").matches);
+    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", dark ? "#1D1B21" : "#F6F5F8");
+    document.querySelectorAll("#themePick button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.themeOpt === (store.get("hb-theme") || "auto") ? "true" : "false"));
+  }
+  document.querySelectorAll("#themePick button").forEach((b) => (b.onclick = () => applyTheme(b.dataset.themeOpt)));
+  applyTheme(store.get("hb-theme") || "auto");
+  matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", () => applyTheme(store.get("hb-theme") || "auto"));
+
+  // ---------- passkeys ----------
+  const bufB64u = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  const b64uBuf = (s) => Uint8Array.from(atob(s.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((s.length + 3) % 4)), (c) => c.charCodeAt(0));
+  function hasPasskeys() { return !!(window.PublicKeyCredential && navigator.credentials && isSecureContext); }
+  function deviceName() {
+    const ua = navigator.userAgent;
+    if (/iPhone/.test(ua)) return "iPhone"; if (/iPad/.test(ua)) return "iPad"; if (/Android/.test(ua)) return "Android phone";
+    if (/Mac/.test(ua)) return "Mac"; if (/Windows/.test(ua)) return "Windows PC"; if (/CrOS/.test(ua)) return "Chromebook"; return "This device";
+  }
+  async function passkeyLogin() {
+    const btn = $("passkeyLogin"); busy(btn, true); $("authErr").textContent = "";
+    try {
+      const o = await api("/api/passkeys/login/options", { method: "POST" });
+      const cred = await navigator.credentials.get({ publicKey: { challenge: b64uBuf(o.challenge), rpId: o.rpId, timeout: o.timeout, userVerification: o.userVerification, allowCredentials: [] } });
+      const r = cred.response;
+      await api("/api/passkeys/login", { method: "POST", body: { id: cred.id, clientDataJSON: bufB64u(r.clientDataJSON), authenticatorData: bufB64u(r.authenticatorData), signature: bufB64u(r.signature) } });
+      await afterAuth();
+    } catch (e) {
+      if (e.name === "NotAllowedError" || e.name === "AbortError") $("authErr").textContent = "";
+      else $("authErr").textContent = e.message || "That didn't work. Try your password instead.";
+    } finally { busy(btn, false); }
+  }
+  $("passkeyLogin").onclick = passkeyLogin;
+  async function addPasskey() {
+    $("pkErr").textContent = ""; busy($("pkAdd"), true);
+    try {
+      const o = await api("/api/passkeys/options", { method: "POST" });
+      const pub = { ...o, challenge: b64uBuf(o.challenge), user: { ...o.user, id: b64uBuf(o.user.id) }, excludeCredentials: o.excludeCredentials.map((c) => ({ ...c, id: b64uBuf(c.id) })) };
+      const cred = await navigator.credentials.create({ publicKey: pub });
+      const r = cred.response;
+      if (!r.getPublicKey) throw new Error("This browser is too old for passkeys here. Try updating it.");
+      await api("/api/passkeys", { method: "POST", body: { id: cred.id, publicKey: bufB64u(r.getPublicKey()), alg: r.getPublicKeyAlgorithm(), clientDataJSON: bufB64u(r.clientDataJSON), authenticatorData: bufB64u(r.getAuthenticatorData()), name: deviceName() } });
+      toast("Passkey added ♡"); await drawPasskeys();
+    } catch (e) {
+      if (e.name === "InvalidStateError") $("pkErr").textContent = "This device already has a passkey for your account.";
+      else if (e.name !== "NotAllowedError" && e.name !== "AbortError") $("pkErr").textContent = e.message;
+    } finally { busy($("pkAdd"), false); }
+  }
+  async function drawPasskeys() {
+    const ok = hasPasskeys();
+    $("pkUnsupported").hidden = ok; $("pkAdd").hidden = !ok;
+    try { PASSKEYS = (await api("/api/passkeys")).passkeys; } catch { PASSKEYS = []; }
+    const l = $("pkList"); l.innerHTML = "";
+    $("pkNone").hidden = PASSKEYS.length > 0;
+    PASSKEYS.forEach((k) => {
+      const li = document.createElement("li");
+      li.innerHTML = `<div class="mid"><div class="t"></div><div class="s"></div></div><button aria-label="Remove">✕</button>`;
+      li.querySelector(".t").textContent = k.name;
+      li.querySelector(".s").textContent = tr("Added") + " " + shortDay(parseD(new Date(k.created_at * 1000).toISOString().slice(0, 10))) + (k.last_used ? " · " + tr("last used") + " " + shortDay(parseD(new Date(k.last_used * 1000).toISOString().slice(0, 10))) : "");
+      li.querySelector("button").onclick = async () => {
+        if (!(await ask(tr("Remove this passkey?"), tr("You can still log in with your password or another passkey."), tr("Remove")))) return;
+        try { await api("/api/passkeys/" + encodeURIComponent(k.id), { method: "DELETE" }); await drawPasskeys(); } catch (e) { $("pkErr").textContent = e.message; }
+      };
+      l.appendChild(li);
+    });
+    if (document.getElementById("passkeySub")) $("passkeySub").textContent = PASSKEYS.length ? PASSKEYS.length + " " + tr(PASSKEYS.length === 1 ? "passkey" : "passkeys") : tr("Log in with Face ID, Touch ID, or your phone");
+  }
+  $("openPasskeys").onclick = async () => { $("pkErr").textContent = ""; $("passkeyDlg").showModal(); await drawPasskeys(); };
+  $("pkAdd").onclick = addPasskey;
+  $("pkClose").onclick = () => $("passkeyDlg").close();
+
+  // ---------- push notifications ----------
+  const hasPush = () => "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+  async function drawPush() {
+    const iosNoPwa = /iPhone|iPad/.test(navigator.userAgent) && !navigator.standalone;
+    $("pushHint").hidden = !(iosNoPwa && !hasPush());
+    $("pushToggle").disabled = !hasPush();
+    if (!hasPush()) { $("pushToggle").checked = false; return; }
+    try { const reg = await navigator.serviceWorker.ready; $("pushToggle").checked = !!(await reg.pushManager.getSubscription()) && Notification.permission === "granted"; }
+    catch { $("pushToggle").checked = false; }
+  }
+  $("pushToggle").onchange = async () => {
+    const on = $("pushToggle").checked;
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      if (on) {
+        if ((await Notification.requestPermission()) !== "granted") { $("pushToggle").checked = false; toast("Notifications are blocked for Honeybun in your browser settings."); return; }
+        const { key } = await api("/api/push/key");
+        if (!key) throw new Error("Push isn't set up on the server yet.");
+        const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64uBuf(key) });
+        await api("/api/push/subscribe", { method: "POST", body: { endpoint: sub.endpoint } });
+        toast("Push is on for this device 🐰");
+      } else {
+        const sub = await reg.pushManager.getSubscription();
+        if (sub) { await api("/api/push/subscribe", { method: "DELETE", body: { endpoint: sub.endpoint } }).catch(() => {}); await sub.unsubscribe(); }
+        toast("Push is off for this device");
+      }
+    } catch (e) { $("pushToggle").checked = !on; toast(e.message); }
+  };
+
+  // ---------- Apple Pay auto-logging (iPhone Shortcut key) ----------
+  function drawShortcut() {
+    const k = ME.shortcut;
+    $("scOff").hidden = !!k; $("scOn").hidden = !k;
+    $("scUrl").textContent = location.origin + "/api/log";
+    if (k) {
+      const used = k.uses ? tr("Logged " + k.uses + " " + (k.uses === 1 ? "purchase" : "purchases") + " so far.") : tr("Nothing logged yet. Finish the Shortcut below and tap to pay once to test it.");
+      const when = k.last_used ? " " + tr("Last one") + " " + shortDay(parseD(new Date(k.last_used * 1000).toISOString().slice(0, 10))) + "." : "";
+      $("scStatus").textContent = tr("Your Shortcut key is on.") + " " + used + when;
+    }
+    if (document.getElementById("shortcutSub")) $("shortcutSub").textContent = k ? "On · " + (k.uses || 0) + " logged" : "Log every tap-to-pay with an iPhone Shortcut";
+  }
+  async function makeKey() {
+    $("scErr").textContent = "";
+    try {
+      const r = await api("/api/shortcut/key", { method: "POST" });
+      ME.shortcut = { created_at: Math.floor(Date.now() / 1000), last_used: null, uses: 0 };
+      $("scKey").textContent = r.key; $("scNew").hidden = false; drawShortcut();
+      $("scOn").querySelector("details").open = true;
+    } catch (e) { $("scErr").textContent = e.message; }
+  }
+  $("openShortcut").onclick = () => { $("scNew").hidden = true; $("scKey").textContent = ""; $("scErr").textContent = ""; drawShortcut(); $("shortcutDlg").showModal(); };
+  $("scMake").onclick = makeKey;
+  $("scRenew").onclick = async () => { if (await ask(tr("Make a new key?"), tr("Your old key stops working, so update the Shortcut with the new one."), tr("New key"))) makeKey(); };
+  $("scRevoke").onclick = async () => {
+    if (!(await ask(tr("Turn off auto-logging?"), tr("Your Shortcut will stop working until you make a new key."), tr("Turn off")))) return;
+    try { await api("/api/shortcut/key", { method: "DELETE" }); ME.shortcut = null; $("scNew").hidden = true; drawShortcut(); toast("Auto-logging is off"); }
+    catch (e) { $("scErr").textContent = e.message; }
+  };
+  $("scCopy").onclick = async () => {
+    try { await navigator.clipboard.writeText($("scKey").textContent); toast("Key copied"); }
+    catch { const r = document.createRange(); r.selectNodeContents($("scKey")); getSelection().removeAllRanges(); getSelection().addRange(r); toast("Press and hold to copy"); }
+  };
+  $("scClose").onclick = () => $("shortcutDlg").close();
+
   // ---------- settings ----------
   function drawSwatches(box) {
     box.innerHTML = "";
@@ -1540,6 +1730,26 @@
     clearTimeout(nameTimer);
     nameTimer = setTimeout(() => api("/api/nest", { method: "PATCH", body: { name: NEST.name } }).catch((err) => toast(err.message)), 600);
   };
+  // Desktop only: scale the 1440px layout up to fill wider screens (and slightly down on small laptops)
+  function fitDesktop() {
+    const w = window.innerWidth;
+    const inApp = APP_SCREENS.includes(screen);
+    document.documentElement.style.zoom = w >= 900 && inApp ? String(Math.min(1.6, Math.max(0.9, w / 1440))) : "";
+  }
+  window.addEventListener("resize", fitDesktop);
+  // Desktop only: move a few blocks into the columns the wide layout expects. Phones keep the original order.
+  if (matchMedia("(min-width: 900px)").matches) {
+    $("dueCard").after($("bunNote"));
+    const top = $("statsTop"), blk = document.querySelectorAll("#scr-stats .grid2 > .blk");
+    top.append($("burrow"), $("kpis"));
+    const right = blk[1], left = blk[0];
+    // left: where it went + 50/30/20; right: year, badges, carrots, biggest categories, recap
+    const yearH = right.querySelector(".year-h");
+    const toRight = [...left.children]; // badges header, badges panel, board wrap
+    while (right.firstElementChild !== yearH) left.appendChild(right.firstElementChild);
+    const catsH = [...right.querySelectorAll(".section-h")].pop();
+    toRight.forEach((el) => right.insertBefore(el, catsH));
+  }
   $("hiBtn").onclick = () => show("settings");
   $("setBtn").onclick = () => show("settings");
   $("helpBtn").onclick = () => show("help");
@@ -1691,6 +1901,7 @@
     } catch (e) { box.innerHTML = `<div class="chat-empty">${esc(e.message)}</div>`; }
   }
   $("inboxBtn").onclick = openInbox;
+  $("sideInbox").onclick = openInbox; $("sideHelp").onclick = () => show("help"); $("sideSet").onclick = () => show("settings"); $("sideHouse").onclick = () => show("settings");
 
   // email us (help + suggestions), with a little context so replies are easier
   function mailLinks() {
@@ -1713,6 +1924,8 @@
       ["How do bills and paydays work?", "Add them once in Plan, or tap + and choose how often it repeats. Home shows what's due before your next payday, and Bun reminds you."],
       ["How do monthly budgets work?", "In Plan, tap Edit next to Budget and set a limit for any category. Bun gives you a heads-up at 80%."]] },
     { t: "Adding transactions", d: "Spending, income, splits and repeats", q: [
+      ["What are the one-tap buttons on the Add screen?", "Your five most common expenses from the last 90 days. Tap one and it's logged right away with the same amount, category and split as last time. You can edit it after like any entry."],
+      ["Can Apple Pay log purchases automatically?", "Yes. In Settings, open Apple Pay auto-logging and make a key. Then an iPhone Shortcut automation runs every time you tap to pay and sends the amount and store to Honeybun. It picks the category from the store name and remembers how you split each store. No bank connection needed."],
       ["How do I split an expense?", "When adding an expense, tap Split it, then choose Evenly, By %, or Set amount owed."],
       ["Can I keep something private?", "Yes. For your own personal spending or income, turn on Only I can see this."],
       ["How do I edit or delete something?", "Tap any entry to edit it. Tap × to delete it, and you can Undo right after."]] },
@@ -1751,7 +1964,8 @@
   $("helpQ").oninput = renderHelp;
 
   // ---------- search & filters ----------
-  const searching = () => !!($("q").value.trim() || $("fType").value || $("fCat").value || $("fWho").value);
+  const searching = () => !!($("q").value.trim() || $("fType").value || $("fCat").value || $("fWho").value || $("fMin").value || $("fMax").value || $("fFrom").value || $("fTo").value);
+  $("fMore").onclick = () => { const open = $("fMoreBox").hidden; $("fMoreBox").hidden = !open; $("fMore").setAttribute("aria-expanded", String(open)); };
   function drawFilters() {
     const fc = $("fCat");
     if (fc.options.length !== CATS.length + 1) CATS.forEach((c) => fc.add(new Option(tr(c.n), c.id)));
@@ -1763,7 +1977,8 @@
   let searchTimer;
   async function runSearch() {
     if (!searching()) { $("searchHint").hidden = true; render(); return; }
-    const params = new URLSearchParams({ q: $("q").value.trim(), type: $("fType").value, cat: $("fCat").value, member: $("fWho").value });
+    const params = new URLSearchParams({ q: $("q").value.trim(), type: $("fType").value, cat: $("fCat").value, member: $("fWho").value,
+      min: $("fMin").value, max: $("fMax").value, from: $("fFrom").value, to: $("fTo").value });
     try {
       const d = await api("/api/search?" + params);
       const rows = d.entries.map((e) => ({ ...e, amount: e.amount_cents / 100, shared: !!e.shared, private: !!e.private }));
@@ -1776,7 +1991,8 @@
     } catch (e) { toast(e.message); }
   }
   $("q").oninput = () => { clearTimeout(searchTimer); searchTimer = setTimeout(runSearch, 300); };
-  ["fType", "fCat", "fWho"].forEach((id) => ($(id).onchange = runSearch));
+  ["fType", "fCat", "fWho", "fFrom", "fTo"].forEach((id) => ($(id).onchange = runSearch));
+  ["fMin", "fMax"].forEach((id) => ($(id).oninput = () => { clearTimeout(searchTimer); searchTimer = setTimeout(runSearch, 300); }));
 
   // ---------- email, account & data ----------
   $("hideVerify").onclick = () => { store.set("hb-verify-hide", String(Date.now() + 3 * 86400000)); $("verifyBanner").hidden = true; };
