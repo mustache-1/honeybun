@@ -1053,6 +1053,94 @@ dialog::backdrop{background:rgba(0,0,0,.55)}
 .burrow .week i{width:24px;height:24px}
 .due-row:has(+ .due-foot),.due-row:has(+ .due-row:last-child)~.due-row{border-bottom:0}
 .due-row:has(+ .due-foot){border-bottom:0}
+
+/* =================== landing page =================== */
+.app:has(#scr-landing:not([hidden])){max-width:none;padding:0}
+.lp{--lp-w:1120px;color:var(--ink)}
+.lp a{color:inherit;text-decoration:none}
+.lp-nav{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:16px;padding:14px max(18px,calc((100% - var(--lp-w))/2));background:rgba(20,18,23,.82);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid rgba(53,48,59,.6)}
+.lp-brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:17px;letter-spacing:-.02em}
+.lp-brand img{width:34px;height:34px;border-radius:11px}
+.lp-links{display:none;gap:22px;margin-left:18px;font-size:13px;font-weight:600;color:var(--soft)}
+.lp-links a:hover{color:var(--ink)}
+.lp-navbtns{margin-left:auto;display:flex;gap:8px;align-items:center}
+.lp-cta{border:0;border-radius:14px;background:var(--pink);color:#17151b;font:900 15px Inter,system-ui,sans-serif;padding:15px 22px;cursor:pointer;box-shadow:0 10px 30px rgba(234,120,164,.22)}
+.lp-cta.sm{padding:10px 14px;font-size:13px;box-shadow:none;border-radius:12px}
+.lp-cta:hover{filter:brightness(1.06)}
+.lp-ghost{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:12px;padding:10px 14px;font:800 13px Inter,system-ui,sans-serif;cursor:pointer;display:inline-flex;align-items:center}
+.lp-actions .lp-ghost{padding:15px 20px;font-size:15px;border-radius:14px}
+.lp-hero{display:grid;grid-template-columns:1fr;gap:34px;align-items:center;padding:44px 20px 30px;max-width:var(--lp-w);margin:0 auto}
+.lp-kicker{display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:800;color:var(--mint);background:var(--mint-t);border:1px solid #2c4a39;border-radius:999px;padding:6px 12px}
+.lp-kicker i{width:7px;height:7px;border-radius:50%;background:var(--mint)}
+.lp-hero h1{font-size:clamp(38px,9vw,66px);line-height:1.02;letter-spacing:-.055em;font-weight:900;margin:18px 0 16px}
+.lp-hero h1 span{color:var(--pink)}
+.lp-lead{font-size:clamp(16px,2.2vw,19px);line-height:1.55;color:var(--soft);margin:0 0 24px;max-width:540px}
+.lp-actions{display:flex;flex-wrap:wrap;gap:10px}
+.lp-trust{list-style:none;padding:0;margin:22px 0 0;display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--soft);font-weight:600}
+.lp-trust li,.lp-ticks li{display:flex;align-items:center;gap:7px}
+.lp-trust svg,.lp-ticks svg{width:16px;height:16px;color:var(--mint);flex:none}
+.lp-hero-art{position:relative;display:flex;justify-content:center;padding:10px 0 20px}
+.lp-hero-art::before{content:"";position:absolute;inset:6% 12%;background:radial-gradient(circle,rgba(234,120,164,.25),transparent 65%);filter:blur(10px)}
+.lp-phone{position:relative;width:min(300px,78vw);border-radius:44px;padding:10px;background:#0b0a0d;border:1px solid #3a3440;box-shadow:0 30px 80px rgba(0,0,0,.5)}
+.lp-phone img{display:block;width:100%;height:auto;border-radius:34px}
+.lp-float{position:absolute;display:flex;flex-direction:column;gap:2px;background:rgba(29,26,33,.94);border:1px solid var(--line);border-radius:18px;padding:12px 14px 12px 50px;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);box-shadow:0 14px 40px rgba(0,0,0,.35);min-width:210px}
+.lp-float b{font-size:13px}.lp-float small{font-size:11px;color:var(--soft)}
+.lp-float .lp-dot{position:absolute;left:14px;top:50%;margin-top:-13px;width:26px;height:26px;border-radius:9px}
+.lp-float .lp-dot::after{content:"";position:absolute;inset:8px;border-radius:50%;background:var(--mint)}
+.lp-float .lp-bun{position:absolute;left:12px;top:50%;margin-top:-16px;width:30px;height:32px}
+.lp-float .lp-bun svg{width:100%;height:100%}
+.lp-float-a{left:0;top:18%}.lp-float-b{right:0;bottom:16%}
+@media (max-width:620px){.lp-float{min-width:0;padding:10px 12px 10px 44px}.lp-float-a{left:-4px;top:12%}.lp-float-b{right:-4px;bottom:10%}.lp-float small{display:none}.lp-float .lp-bun{width:26px;height:28px;margin-top:-14px;left:10px}}
+.lp-section{max-width:var(--lp-w);margin:0 auto;padding:54px 20px}
+.lp-head{text-align:center;max-width:680px;margin:0 auto 28px}
+.lp-eyebrow{display:inline-block;font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--pink);margin-bottom:10px}
+.lp-head h2,.lp-split h2,.lp-final h2{font-size:clamp(28px,5vw,42px);line-height:1.1;letter-spacing:-.045em;font-weight:900;margin:0}
+.lp-grid3{display:grid;grid-template-columns:1fr;gap:14px}
+.lp-card{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:22px}
+.lp-card.center{text-align:center}
+.lp-card h3{font-size:17px;font-weight:800;margin:14px 0 6px;letter-spacing:-.02em}
+.lp-card p{margin:0;color:var(--soft);font-size:14px;line-height:1.55}
+.lp-ic{width:44px;height:44px;border-radius:14px;display:grid;place-items:center}
+.lp-ic svg{width:22px;height:22px}
+.lp-emo{font-size:30px;letter-spacing:-.2em;display:block}
+.lp-split{display:grid;grid-template-columns:1fr;gap:28px;align-items:center}
+.lp-split p{color:var(--soft);font-size:16px;line-height:1.6;margin:14px 0 18px}
+.lp-ticks{list-style:none;padding:0;margin:0;display:grid;gap:10px;font-weight:700;font-size:14px}
+.lp-shot{background:var(--card);border:1px solid var(--line);border-radius:28px;padding:10px;max-width:420px;margin:0 auto;box-shadow:0 24px 60px rgba(0,0,0,.35)}
+.lp-shot img{display:block;width:100%;height:auto;border-radius:20px}
+.lp-steps{display:grid;grid-template-columns:1fr;gap:14px}
+.lp-step{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:22px}
+.lp-step b{display:grid;place-items:center;width:34px;height:34px;border-radius:11px;background:var(--pink-t);color:var(--pink);font-weight:900}
+.lp-step h3{font-size:17px;margin:14px 0 6px;font-weight:800}
+.lp-step p{margin:0;color:var(--soft);font-size:14px;line-height:1.55}
+.lp-shots{display:flex;justify-content:center;gap:18px;margin-top:30px}
+.lp-shots img{width:min(46%,260px);height:auto;border-radius:30px;border:1px solid var(--line);box-shadow:0 24px 60px rgba(0,0,0,.35)}
+.lp-shots img:last-child{transform:translateY(28px)}
+.lp-faq{max-width:720px;margin:0 auto;background:var(--card);border:1px solid var(--line);border-radius:22px;padding:6px 20px}
+.lp-faq details:last-child{border-bottom:0}
+.lp-faq summary{font-size:15px;padding:6px 0}
+.lp-faq p{font-size:14px}
+.lp-final{text-align:center;max-width:720px;margin:20px auto 0;padding:48px 24px;background:linear-gradient(145deg,#211d25,#2a2027);border:1px solid #37313d;border-radius:32px}
+.lp-final-bun{display:block;width:62px;height:66px;margin:0 auto 12px}
+.lp-final-bun svg{width:100%;height:100%}
+.lp-final p{color:var(--soft);margin:12px 0 22px;font-size:16px}
+.lp-foot{text-align:center;padding:40px 20px 60px;color:var(--soft);font-size:13px}
+.lp-foot p{margin:10px 0 0}
+.lp-foot a:hover{color:var(--ink)}
+@media (min-width:760px){
+  .lp-links{display:flex}
+  .lp-grid3{grid-template-columns:repeat(3,1fr)}
+  .lp-steps{grid-template-columns:repeat(3,1fr)}
+  .lp-split{grid-template-columns:1fr 1fr}
+}
+@media (min-width:960px){
+  .lp-hero{grid-template-columns:1.1fr .9fr;padding:70px 20px 40px}
+  .lp-section{padding:70px 20px}
+}
+.auth-back{margin:0 0 6px;text-align:left}
+.auth-back .linkbtn{color:var(--soft);text-decoration:none;font-weight:700}
+.lp-float-a{top:auto;bottom:34%;left:-6px}.lp-float-b{bottom:8%}
+@media (max-width:620px){.lp-float-a{top:auto;bottom:40%;left:-6px}.lp-float-b{bottom:6%}}
 </style>
 </head>
 <body>
@@ -1064,8 +1152,102 @@ dialog::backdrop{background:rgba(0,0,0,.55)}
     <button class="go" id="bootBtn" hidden>Refresh</button>
   </div></div>
 
+
+  <!-- LANDING (first-time visitors) -->
+  <main id="scr-landing" class="lp" hidden>
+    <nav class="lp-nav" aria-label="Site">
+      <a class="lp-brand" href="/"><img src="/icon-192.png" alt=""><span>Honeybun</span></a>
+      <div class="lp-links"><a href="#lp-features">Features</a><a href="#lp-how">How it works</a><a href="#lp-faq">FAQ</a></div>
+      <div class="lp-navbtns"><button class="lp-ghost" data-auth-go="login">Log in</button><button class="lp-cta sm" data-auth-go="signup">Get started</button></div>
+    </nav>
+
+    <section class="lp-hero">
+      <div class="lp-hero-copy">
+        <span class="lp-kicker"><i></i>Free · no bank connection needed</span>
+        <h1>Money, together.<br><span>Minus the stress.</span></h1>
+        <p class="lp-lead">Honeybun is a cute little budget for you, your partner, or your whole family. See what's left, split costs fairly, and never miss a bill, with a bunny cheering you on.</p>
+        <div class="lp-actions"><button class="lp-cta" data-auth-go="signup">Get started, it's free</button><a class="lp-ghost" href="#lp-how">See how it works</a></div>
+        <ul class="lp-trust"><li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l4 4 10-10"/></svg>Works on any phone or computer</li><li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l4 4 10-10"/></svg>English · Español · 中文</li><li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l4 4 10-10"/></svg>Delete your data anytime</li></ul>
+      </div>
+      <div class="lp-hero-art">
+        <div class="lp-phone"><img src="/lp-home.webp" alt="Honeybun home screen showing money left this month, upcoming bills, and a streak" width="390" height="844"></div>
+        <div class="lp-float lp-float-a"><span class="lp-dot t-green"></span><b>Jordan owes Alex $21.34</b><small>Settle up in one tap</small></div>
+        <div class="lp-float lp-float-b"><span class="lp-bun"><svg viewBox="0 0 120 128" aria-hidden="true"><g fill="#f8f4f8" stroke="#141217" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"><path d="M44 54 C33 30 34 7 42 6 C50 5 54 28 55 48"/><path d="M76 54 C87 30 86 7 78 6 C70 5 66 28 65 48"/><ellipse cx="60" cy="84" rx="38" ry="34"/></g><circle cx="47" cy="81" r="4.5" fill="#141217"/><circle cx="73" cy="81" r="4.5" fill="#141217"/><ellipse cx="36" cy="93" rx="7" ry="4" fill="#F6B8CB"/><ellipse cx="84" cy="93" rx="7" ry="4" fill="#F6B8CB"/><path d="M53 92 q3.5 4 7 0 q3.5 4 7 0" fill="none" stroke="#141217" stroke-width="4" stroke-linecap="round"/></svg></span><b>Rent is due in 3 days</b><small>Bun reminds you</small></div>
+      </div>
+    </section>
+
+    <section class="lp-section" id="lp-features">
+      <div class="lp-head"><span class="lp-eyebrow">Why people like it</span><h2>Everything a household needs. Nothing it doesn't.</h2></div>
+      <div class="lp-grid3">
+        <article class="lp-card"><span class="lp-ic t-rose"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v6a5 5 0 0 0 5 5M17 4v6a5 5 0 0 1-5 5v5"/></svg></span><h3>Split costs fairly</h3><p>Split evenly, by percent, or set exactly what's owed. Honeybun keeps a running balance, so nobody keeps score.</p></article>
+        <article class="lp-card"><span class="lp-ic t-blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="3"/><path d="M4 10h16M9 3v4M15 3v4"/></svg></span><h3>Bills before payday</h3><p>Add rent, subscriptions, and paychecks once. See what's due before your next payday and what's left after.</p></article>
+        <article class="lp-card"><span class="lp-ic t-lilac"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12a8 7 0 1 1 3.6 5.8L4 19.5l1.2-3.4A6.7 6.7 0 0 1 4 12z"/></svg></span><h3>Bun keeps you on track</h3><p>Friendly check-ins when a bill is due, a budget is almost used up, or your partner adds something shared.</p></article>
+        <article class="lp-card"><span class="lp-ic t-honey"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="16" rx="4.5" ry="3.8"/><circle cx="6.5" cy="10.5" r="1.8"/><circle cx="10" cy="7" r="1.8"/><circle cx="14" cy="7" r="1.8"/><circle cx="17.5" cy="10.5" r="1.8"/></svg></span><h3>Streaks that feel good</h3><p>Earn carrots, keep a daily hop streak, level up your bunny, and collect badges along the way.</p></article>
+        <article class="lp-card"><span class="lp-ic t-green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 8h8l1 2v9a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-9z"/><rect x="8" y="4" width="8" height="4" rx="1.5"/></svg></span><h3>Honey jar goals</h3><p>Save for a trip, a ring, or a rainy day, and pay down debt with a clear debt-free date.</p></article>
+        <article class="lp-card"><span class="lp-ic t-gray"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></span><h3>Private when you want</h3><p>Keep personal spending just for you. No bank logins, no ads, and we never sell your data.</p></article>
+      </div>
+    </section>
+
+    <section class="lp-section lp-split">
+      <div class="lp-split-copy">
+        <span class="lp-eyebrow">Together</span>
+        <h2>No more "who paid for what?"</h2>
+        <p>Every shared expense is split automatically. When one of you pays the other back, tap Settle up and the balance starts fresh.</p>
+        <ul class="lp-ticks"><li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l4 4 10-10"/></svg>Everyone sees the same bills and goals</li><li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l4 4 10-10"/></svg>Invite with one link</li><li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l4 4 10-10"/></svg>Works for couples, roommates, and families</li></ul>
+      </div>
+      <div class="lp-shot"><img src="/lp-us.webp" alt="Together screen showing Jordan owes Alex $21.34 with a Settle up button" loading="lazy" width="390" height="320"></div>
+    </section>
+
+    <section class="lp-section" id="lp-how">
+      <div class="lp-head"><span class="lp-eyebrow">How it works</span><h2>Set up in about a minute</h2></div>
+      <div class="lp-steps">
+        <div class="lp-step"><b>1</b><h3>Start your budget</h3><p>Create a free account and pick Just me, Couple, or Family.</p></div>
+        <div class="lp-step"><b>2</b><h3>Add bills and paydays</h3><p>Rent, subscriptions, paychecks. Add them once and Honeybun remembers.</p></div>
+        <div class="lp-step"><b>3</b><h3>Invite and hop</h3><p>Send your partner the invite link, log what you spend, and watch your streak grow.</p></div>
+      </div>
+      <div class="lp-shots">
+        <img src="/lp-plan.webp" alt="Plan screen with budgets and a bill calendar" loading="lazy" width="390" height="844">
+        <img src="/lp-stats.webp" alt="Stats screen with the bunny's level, badges, and weekly carrots" loading="lazy" width="390" height="844">
+      </div>
+    </section>
+
+    <section class="lp-section lp-for">
+      <div class="lp-head"><span class="lp-eyebrow">Made for</span><h2>You, your partner, or everyone at home</h2></div>
+      <div class="lp-grid3">
+        <div class="lp-card center"><span class="lp-emo">🐰</span><h3>Just me</h3><p>A calm, cute way to see where your money goes.</p></div>
+        <div class="lp-card center"><span class="lp-emo">🐰🐻</span><h3>Couples</h3><p>Shared bills, fair splits, and goals you build together.</p></div>
+        <div class="lp-card center"><span class="lp-emo">🐰🐻🐥</span><h3>Families</h3><p>One budget the whole household can see and add to.</p></div>
+      </div>
+    </section>
+
+    <section class="lp-section" id="lp-faq">
+      <div class="lp-head"><span class="lp-eyebrow">Questions</span><h2>Good to know</h2></div>
+      <div class="lp-faq faq">
+        <details><summary>Is Honeybun free?</summary><p>Yes. Honeybun is free to use.</p></details>
+        <details><summary>Do I have to connect my bank?</summary><p>No. You add what you spend yourself, so your bank logins stay with you.</p></details>
+        <details><summary>Is there an app to download?</summary><p>Honeybun works in your browser on any phone or computer. On iPhone or Android, open honeybun.me and choose Add to Home Screen to use it like an app.</p></details>
+        <details><summary>Can my partner see everything?</summary><p>People in your budget see shared spending, bills, and goals. Anything you mark "Only I can see this" stays private.</p></details>
+        <details><summary>Can I delete my data?</summary><p>Anytime. Settings lets you download a copy of your data or delete your account.</p></details>
+      </div>
+    </section>
+
+    <section class="lp-final">
+      <span class="lp-final-bun"><svg viewBox="0 0 120 128" aria-hidden="true"><g fill="#f8f4f8" stroke="#141217" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"><path d="M44 54 C33 30 34 7 42 6 C50 5 54 28 55 48"/><path d="M76 54 C87 30 86 7 78 6 C70 5 66 28 65 48"/><ellipse cx="60" cy="84" rx="38" ry="34"/></g><circle cx="47" cy="81" r="4.5" fill="#141217"/><circle cx="73" cy="81" r="4.5" fill="#141217"/><ellipse cx="36" cy="93" rx="7" ry="4" fill="#F6B8CB"/><ellipse cx="84" cy="93" rx="7" ry="4" fill="#F6B8CB"/><path d="M53 92 q3.5 4 7 0 q3.5 4 7 0" fill="none" stroke="#141217" stroke-width="4" stroke-linecap="round"/></svg></span>
+      <h2>Ready to hop in?</h2>
+      <p>Start your budget in about a minute. Bun will take it from there.</p>
+      <button class="lp-cta" data-auth-go="signup">Get started, it's free</button>
+    </section>
+
+    <footer class="lp-foot">
+      <div class="lang-row" data-lang-picker></div>
+      <p><a href="/privacy.html">Privacy Policy</a> · <a href="/terms.html">Terms</a> · <a href="mailto:help@honeybun.me">help@honeybun.me</a></p>
+      <p>Developed by Rodrigo · © 2026 Honeybun</p>
+    </footer>
+  </main>
+
   <!-- LOGIN / SIGN UP / FORGOT -->
   <main id="scr-auth" class="gate" hidden>
+    <p class="auth-back" id="authBackWrap"><button class="linkbtn" id="authBack">‹ Back</button></p>
     <img class="logo" src="/icon-192.png" alt="">
     <h1>Honeybun</h1>
     <p class="tag">A cute little budget for you and yours</p>
