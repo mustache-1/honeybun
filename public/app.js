@@ -443,10 +443,10 @@
     return g;
   }
   function bunnySvg(l) {
-    return `<g fill="var(--card)" stroke="var(--ink)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+    return `<g fill="var(--bun-body, #f8f4f8)" stroke="#141217" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
       <path d="M44 52 C34 30 34 8 42 6 C50 4 54 28 54 46"/><path d="M76 52 C86 30 86 8 78 6 C70 4 66 28 66 46"/>
       <ellipse cx="60" cy="82" rx="38" ry="34"/>
-      <circle cx="47" cy="78" r="3.5" fill="var(--ink)" stroke="none"/><circle cx="73" cy="78" r="3.5" fill="var(--ink)" stroke="none"/>
+      <circle cx="47" cy="78" r="3.5" fill="#141217" stroke="none"/><circle cx="73" cy="78" r="3.5" fill="#141217" stroke="none"/>
       <ellipse cx="38" cy="90" rx="6" ry="3.5" fill="#F6B7CB" stroke="none"/><ellipse cx="82" cy="90" rx="6" ry="3.5" fill="#F6B7CB" stroke="none"/>
       <path d="M52 89 q8 8 16 0" fill="none" stroke-width="3"/>${gearSvg(l)}</g>`;
   }
