@@ -260,7 +260,7 @@
 
   // ---------- screens ----------
   const APP_SCREENS = ["home", "plan", "add", "stats", "us", "inbox", "settings", "help"];
-  const ALL_SCREENS = ["loading", "auth", "reset", "verify", "setup", "onboard", ...APP_SCREENS];
+  const ALL_SCREENS = ["loading", "landing", "auth", "reset", "verify", "setup", "onboard", ...APP_SCREENS];
   function show(s) {
     screen = s;
     ALL_SCREENS.forEach((k) => ($("scr-" + k).hidden = k !== s));
@@ -280,6 +280,7 @@
   // ---------- auth ----------
   function showAuth() {
     $("inviteNotice").hidden = !pendingCode;
+    $("authBackWrap").hidden = !!pendingCode;
     $("authCard").hidden = false; $("forgotCard").hidden = true;
     setAuthMode(authMode);
     show("auth");
@@ -371,6 +372,9 @@
     authMode = "login"; showAuth();
   }
   $("setupLogout").onclick = logout;
+  document.querySelectorAll("[data-auth-go]").forEach((b) => (b.onclick = () => { authMode = b.dataset.authGo; showAuth(); }));
+  $("authBack").onclick = () => show("landing");
+  document.querySelectorAll('#scr-landing a[href^="#lp-"]').forEach((a) => (a.onclick = (ev) => { ev.preventDefault(); document.querySelector(a.getAttribute("href"))?.scrollIntoView({ behavior: "smooth" }); }));
   $("logoutBtn").onclick = logout;
 
   // ---------- start or join ----------
@@ -1925,7 +1929,10 @@
     if (verifyToken) { runVerify(); return; }
     try { await afterAuth(); }
     catch (e) {
-      if (e.status === 401) { authMode = pendingCode ? "signup" : store.get("hb-had-account") ? "login" : "signup"; showAuth(); }
+      if (e.status === 401) {
+        if (!pendingCode && !store.get("hb-had-account")) { show("landing"); return; }
+        authMode = pendingCode ? "signup" : store.get("hb-had-account") ? "login" : "signup"; showAuth();
+      }
       else { showAuth(); $("authErr").textContent = e.message; }
     }
   })();

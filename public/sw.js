@@ -1,6 +1,6 @@
 // Honeybun service worker: makes the app open offline.
 // Pages and code are fetched fresh when online (so updates show right away) and served from cache when offline.
-const CACHE = "honeybun-v5";
+const CACHE = "honeybun-v6";
 const SHELL = ["/", "/index.html", "/app.js", "/i18n.js", "/boot.js", "/icon-192.png", "/apple-touch-icon.png", "/favicon-32.png", "/manifest.webmanifest"];
 
 self.addEventListener("install", (e) => {
