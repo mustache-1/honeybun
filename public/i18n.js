@@ -82,7 +82,7 @@ window.HB_I18N = (() => {
       "The whole app": "Toda la app", "Four screens. That's the whole app.": "Cuatro pantallas. Eso es toda la app.", "What's left, what's due, what's new.": "Qué queda, qué vence, qué hay de nuevo.", "Budgets, calendar, jars, and debts.": "Presupuestos, calendario, frascos y deudas.", "Where it went, streaks, and badges.": "A dónde se fue, rachas e insignias.", "Who owes whom, one tap to settle.": "Quién debe a quién, un toque para saldar.",
       "No. You add what you spend yourself, or let an Apple Pay Shortcut do it. Your bank logins stay with you.": "No. Tú agregas lo que gastas, o deja que un Atajo de Apple Pay lo haga. Tus claves del banco se quedan contigo.",
       "Set up takes about a minute. Bun takes it from there.": "Configurarlo toma un minuto. Bun se encarga del resto.", "Create a free account": "Crea una cuenta gratis", "Add bills and paydays": "Agrega facturas y sueldos", "Invite your partner and hop": "Invita a tu pareja y a saltar",
-      "Updates": "Novedades", "What's new": "Lo nuevo", "Everything we've shipped, newest first. Bun keeps this list honest.": "Todo lo que hemos lanzado, lo más nuevo primero. Bun mantiene esta lista al día.", "Back": "Volver", "New": "Nuevo", "Improved": "Mejorado", "Fixed": "Arreglado", "Design": "Diseño", "Security": "Seguridad", "update": "novedad", "updates": "novedades",
+      "Updates": "Novedades", "Previous page": "Página anterior", "Next page": "Página siguiente", "What's new": "Lo nuevo", "Everything we've shipped, newest first. Bun keeps this list honest.": "Todo lo que hemos lanzado, lo más nuevo primero. Bun mantiene esta lista al día.", "Back": "Volver", "New": "Nuevo", "Improved": "Mejorado", "Fixed": "Arreglado", "Design": "Diseño", "Security": "Seguridad", "update": "novedad", "updates": "novedades",
       "🎁 Rewards": "🎁 Premios", "Referral rewards": "Premios por referidos", "Share Honeybun, get a $10 gift card": "Comparte Honeybun y gana una tarjeta de regalo de $10",
       "Invite friends with your personal link. For every 10 friends who use Honeybun for a week, Bun sends you a $10 gift card. There's no limit.": "Invita amigos con tu enlace personal. Por cada 10 amigos que usen Honeybun una semana, Bun te envía una tarjeta de regalo de $10. Sin límite.",
       "Get my link, it's free": "Obtener mi enlace, es gratis", "I have an account": "Ya tengo cuenta", "10 friends = $10": "10 amigos = $10", "Every friend who sticks around fills a dot": "Cada amigo que se queda llena un punto",
@@ -440,6 +440,7 @@ window.HB_I18N = (() => {
       "Enter the amount that was paid.": "Escribe el monto que se pagó.",
     },
     patterns: [
+      [/^(\d+)–(\d+) of (\d+)$/, "$1–$2 de $3"],
       [/^(−?\$[\d,.]+) spent this month$/, "$1 gastado este mes"],
       [/^(\d+) days$/, "$1 días"], [/^(\d+) carrots$/, "$1 zanahorias"], [/^of (\$[\d,.]+)$/, "de $1"], [/^(.+)'s balance in$/, "Saldo de $1 en"],
       [/^Hi (.+)!$/, "¡Hola, $1!"], [/^Hi, (.+)!$/, "¡Hola, $1!"],
@@ -556,7 +557,7 @@ window.HB_I18N = (() => {
       "The whole app": "整个应用", "Four screens. That's the whole app.": "四个页面，就是整个应用。", "What's left, what's due, what's new.": "剩多少、该付什么、有什么新动态。", "Budgets, calendar, jars, and debts.": "预算、日历、存钱罐和债务。", "Where it went, streaks, and badges.": "钱去哪了、连续记录和徽章。", "Who owes whom, one tap to settle.": "谁欠谁，一键结清。",
       "No. You add what you spend yourself, or let an Apple Pay Shortcut do it. Your bank logins stay with you.": "不需要。你自己记录支出，或者让 Apple Pay 快捷指令代劳。银行账号信息只在你手里。",
       "Set up takes about a minute. Bun takes it from there.": "设置只需一分钟，剩下的交给 Bun。", "Create a free account": "免费注册", "Add bills and paydays": "添加账单和发薪日", "Invite your partner and hop": "邀请伴侣，一起跳",
-      "Updates": "更新", "What's new": "最新动态", "Everything we've shipped, newest first. Bun keeps this list honest.": "我们发布的所有内容，最新的在前。Bun 保证这份清单真实。", "Back": "返回", "New": "新功能", "Improved": "改进", "Fixed": "修复", "Design": "设计", "Security": "安全", "update": "项更新", "updates": "项更新",
+      "Updates": "更新", "Previous page": "上一页", "Next page": "下一页", "What's new": "最新动态", "Everything we've shipped, newest first. Bun keeps this list honest.": "我们发布的所有内容，最新的在前。Bun 保证这份清单真实。", "Back": "返回", "New": "新功能", "Improved": "改进", "Fixed": "修复", "Design": "设计", "Security": "安全", "update": "项更新", "updates": "项更新",
       "🎁 Rewards": "🎁 奖励", "Referral rewards": "邀请奖励", "Share Honeybun, get a $10 gift card": "分享 Honeybun，赢取 $10 礼品卡",
       "Invite friends with your personal link. For every 10 friends who use Honeybun for a week, Bun sends you a $10 gift card. There's no limit.": "用你的专属链接邀请好友。每有 10 位好友使用 Honeybun 满一周，Bun 就送你一张 $10 礼品卡，上不封顶。",
       "Get my link, it's free": "获取我的链接（免费）", "I have an account": "我已有账户", "10 friends = $10": "10 位好友 = $10", "Every friend who sticks around fills a dot": "每位坚持使用的好友点亮一个圆点",
@@ -863,6 +864,7 @@ window.HB_I18N = (() => {
       "We already sent a few. Check your inbox and spam, or try again in an hour.": "已经发过几封了。请查看收件箱和垃圾邮件，或一小时后再试。", "Enter the amount that was paid.": "请输入已付金额。",
     },
     patterns: [
+      [/^(\d+)–(\d+) of (\d+)$/, "$1–$2，共 $3 条"],
       [/^(−?\$[\d,.]+) spent this month$/, "本月支出 $1"],
       [/^(\d+) days$/, "$1 天"], [/^(\d+) carrots$/, "$1 根胡萝卜"], [/^of (\$[\d,.]+)$/, "目标 $1"], [/^(.+)'s balance in$/, "$1 的余额 ·"],
       [/^Hi (.+)!$/, "$1，你好！"], [/^Hi, (.+)!$/, "$1，你好！"],

@@ -993,9 +993,8 @@
       drawFilters();
       if (!searching()) {
         $("allTitle").textContent = "Everything this month";
-        const l = $("list"); l.innerHTML = "";
-        if (!all.length) l.innerHTML = `<li class="empty" style="justify-content:center;border:0">Nothing logged for ${esc(monthName(MONTH))}.</li>`;
-        all.forEach((e) => l.appendChild(entryLi(e)));
+        if (!all.length) { $("list").innerHTML = `<li class="empty" style="justify-content:center;border:0">Nothing logged for ${esc(monthName(MONTH))}.</li>`; $("listPager").hidden = true; }
+        else drawPaged(all, "m:" + MONTH);
       }
       $("inviteTitle").textContent = { solo: "Invite someone (optional)", couple: "Invite your partner", family: "Invite your family" }[KIND()];
       $("inviteCode").textContent = prettyCode(NEST.invite_code);
@@ -2168,6 +2167,35 @@
     MEMBERS.forEach((m) => fw.add(new Option(`${m.emoji} ${m.name}`, m.id)));
     fw.value = cur; fw.hidden = MEMBERS.length < 2;
   }
+  // "Everything this month" and search results: 8 per page with page buttons underneath
+  const PAGE_SIZE = 8;
+  let listPage = 0, listKey = "";
+  function drawPaged(rows, key) {
+    if (key !== listKey) { listKey = key; listPage = 0; }
+    const pages = Math.ceil(rows.length / PAGE_SIZE);
+    listPage = Math.min(listPage, pages - 1);
+    const l = $("list"); l.innerHTML = "";
+    rows.slice(listPage * PAGE_SIZE, (listPage + 1) * PAGE_SIZE).forEach((e) => l.appendChild(entryLi(e)));
+    const pg = $("listPager");
+    pg.hidden = pages < 2;
+    if (pages < 2) return;
+    const go = (i) => { listPage = i; drawPaged(rows, key); $("allH").scrollIntoView({ behavior: "smooth", block: "start" }); };
+    // page numbers: first, last, and the ones around the current page
+    const nums = [];
+    for (let i = 0; i < pages; i++) if (i === 0 || i === pages - 1 || Math.abs(i - listPage) <= 1) nums.push(i); else if (nums[nums.length - 1] !== "…") nums.push("…");
+    pg.innerHTML = "";
+    const btn = (label, i, cls, aria) => {
+      const b = document.createElement("button"); b.type = "button"; b.className = cls; b.textContent = label;
+      if (aria) b.setAttribute("aria-label", aria);
+      if (i === null) b.disabled = true; else b.onclick = () => go(i);
+      pg.appendChild(b);
+    };
+    btn("‹", listPage > 0 ? listPage - 1 : null, "pg-arrow", tr("Previous page"));
+    nums.forEach((n) => n === "…" ? pg.insertAdjacentHTML("beforeend", '<span class="pg-gap">…</span>') : btn(String(n + 1), n === listPage ? null : n, "pg-num" + (n === listPage ? " on" : ""), null));
+    btn("›", listPage < pages - 1 ? listPage + 1 : null, "pg-arrow", tr("Next page"));
+    const from = listPage * PAGE_SIZE + 1, to = Math.min(rows.length, (listPage + 1) * PAGE_SIZE);
+    pg.insertAdjacentHTML("beforeend", `<span class="pg-info">${esc(tr(`${from}–${to} of ${rows.length}`))}</span>`);
+  }
   let searchTimer;
   async function runSearch() {
     if (!searching()) { $("searchHint").hidden = true; render(); return; }
@@ -2180,8 +2208,7 @@
       const total = rows.reduce((s, e) => s + (e.type === "income" ? e.amount : -e.amount), 0);
       $("searchHint").hidden = false;
       $("searchHint").textContent = rows.length ? `${rows.length} found · net ${fmt(total)}` : "Nothing matches that.";
-      const l = $("list"); l.innerHTML = "";
-      rows.forEach((e) => l.appendChild(entryLi(e)));
+      if (rows.length) drawPaged(rows, "s:" + params); else { $("list").innerHTML = ""; $("listPager").hidden = true; }
     } catch (e) { toast(e.message); }
   }
   $("q").oninput = () => { clearTimeout(searchTimer); searchTimer = setTimeout(runSearch, 300); };

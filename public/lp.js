@@ -66,7 +66,8 @@
   var LOG = [
     { v: "1.6", date: "2026-09-28", name: "Referral rewards", items: [
       { t: "Invite friends, earn gift cards", d: "Share your personal link. For every 10 friends who use Honeybun for a week, you get a $10 gift card. Find it on Home, in Settings, or in the sidebar.", tags: ["new"], icon: "bell" },
-      { t: "Ask Bun about your referrals", d: "Tap Referrals in Bun's inbox and Bun tells you who signed up, who counts, and how close you are to your next gift card.", tags: ["new"], icon: "bell" }
+      { t: "Ask Bun about your referrals", d: "Tap Referrals in Bun's inbox and Bun tells you who signed up, who counts, and how close you are to your next gift card.", tags: ["new"], icon: "bell" },
+      { t: "Pages for your monthly list", d: "Everything this month and search results show 8 at a time with page buttons underneath, so the Together screen stays short.", tags: ["improved"], icon: "landing" }
     ] },
     { v: "1.5", date: "2026-09-28", name: "Desktop polish and fit to screen", items: [
       { t: "Desktop fits your screen", d: "The wide layout now scales to your monitor, so a big screen sees the same composition, just larger. Sidebar gets Bun's inbox, Help, Settings, and your household at the bottom.", tags: ["improved", "design"], icon: "landing" },

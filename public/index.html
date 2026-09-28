@@ -1458,6 +1458,12 @@ dialog::backdrop{background:var(--backdrop)}
 .lp-rv.pre{opacity:0;transform:translateY(26px)}
 @media(prefers-reduced-motion:reduce){.lp *,.lp *::before,.lp *::after{animation:none!important;transition:none!important}.lp-rv.pre{opacity:1;transform:none}}
 
+.pager{display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap;margin:12px 0 4px}
+.pager button{min-width:38px;height:38px;padding:0 10px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--ink);font:inherit;font-weight:800;font-size:13px;cursor:pointer}
+.pager button.on{background:var(--pink);border-color:var(--pink);color:var(--on-pink,#fff)}
+.pager button:disabled:not(.on){opacity:.35;cursor:default}
+.pager .pg-gap{color:var(--soft);font-weight:800;padding:0 2px}
+.pager .pg-info{width:100%;text-align:center;font-size:12px;font-weight:700;color:var(--soft);margin-top:2px}
 /* ---------- referrals ---------- */
 .ref-card{display:flex;align-items:center;gap:12px;width:100%;margin-top:12px;border:0;border-radius:20px;padding:14px;text-align:left;color:var(--ink);
   background:linear-gradient(120deg,var(--t-honey,#FDF3DA),var(--t-rose,#FCEBF1));border:1px solid var(--line);position:relative;overflow:hidden;font-family:inherit}
@@ -2057,6 +2063,7 @@ dialog::backdrop{background:var(--backdrop)}
           <p class="hint" id="searchHint" hidden></p>
         </div>
         <div class="panel"><ul class="list" id="list"></ul></div>
+        <nav class="pager" id="listPager" aria-label="Pages" hidden></nav>
       </div>
     </div>
   </main>
