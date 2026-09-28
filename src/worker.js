@@ -45,16 +45,21 @@ const TABLES = [
   `CREATE UNIQUE INDEX IF NOT EXISTS idx_messages_dedupe ON messages(user_id, dedupe)`,
   `CREATE INDEX IF NOT EXISTS idx_messages_user ON messages(user_id, created_at)`,
   `CREATE TABLE IF NOT EXISTS api_keys (token_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE, created_at INTEGER NOT NULL, last_used INTEGER, uses INTEGER NOT NULL DEFAULT 0)`,
+  `CREATE TABLE IF NOT EXISTS passkeys (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, public_key TEXT NOT NULL, alg INTEGER NOT NULL, counter INTEGER NOT NULL DEFAULT 0, name TEXT NOT NULL DEFAULT '', created_at INTEGER NOT NULL, last_used INTEGER)`,
+  `CREATE INDEX IF NOT EXISTS idx_passkeys_user ON passkeys(user_id)`,
+  `CREATE TABLE IF NOT EXISTS challenges (id TEXT PRIMARY KEY, user_id TEXT, kind TEXT NOT NULL, expires_at INTEGER NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS push_subs (endpoint TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, created_at INTEGER NOT NULL)`,
+  `CREATE INDEX IF NOT EXISTS idx_push_user ON push_subs(user_id)`,
 ];
 const NEW_COLUMNS = {
   users: [["email_verified", "INTEGER NOT NULL DEFAULT 0"], ["tz", "TEXT"], ["lang", "TEXT NOT NULL DEFAULT 'en'"],
     ["mail_bills", "INTEGER NOT NULL DEFAULT 1"], ["mail_streak", "INTEGER NOT NULL DEFAULT 1"], ["mail_weekly", "INTEGER NOT NULL DEFAULT 1"],
-    ["last_bill_mail", "TEXT"], ["last_streak_mail", "TEXT"], ["last_week_mail", "TEXT"], ["unsub_token", "TEXT"]],
+    ["last_bill_mail", "TEXT"], ["last_streak_mail", "TEXT"], ["last_week_mail", "TEXT"], ["unsub_token", "TEXT"], ["last_bill_push", "TEXT"], ["last_streak_push", "TEXT"]],
   entries: [["split_mode", "TEXT"], ["split_value", "INTEGER"], ["shares", "TEXT"], ["private", "INTEGER NOT NULL DEFAULT 0"], ["recurring_id", "TEXT"], ["occ_date", "TEXT"]],
   members: [["setup_done", "INTEGER NOT NULL DEFAULT 1"], ["xp", "INTEGER NOT NULL DEFAULT 0"], ["streak", "INTEGER NOT NULL DEFAULT 0"],
     ["best_streak", "INTEGER NOT NULL DEFAULT 0"], ["last_day", "TEXT"], ["day_xp", "INTEGER NOT NULL DEFAULT 0"],
     ["week_key", "TEXT"], ["week_xp", "INTEGER NOT NULL DEFAULT 0"], ["logs", "INTEGER NOT NULL DEFAULT 0"], ["inbox_gen_at", "INTEGER NOT NULL DEFAULT 0"]],
-  nests: [["goals_migrated", "INTEGER NOT NULL DEFAULT 0"], ["kind", "TEXT NOT NULL DEFAULT 'couple'"]],
+  nests: [["goals_migrated", "INTEGER NOT NULL DEFAULT 0"], ["kind", "TEXT NOT NULL DEFAULT 'couple'"], ["rollover", "INTEGER NOT NULL DEFAULT 0"], ["rollover_since", "TEXT"]],
   jar_moves: [["goal_id", "TEXT"]],
 };
 
@@ -92,7 +97,50 @@ async function postMessage(env, userId, nestId, kind, data, dedupe) {
 }
 async function postToOthers(env, nestId, exceptId, kind, data, dedupe) {
   const ids = (await env.DB.prepare("SELECT user_id FROM members WHERE nest_id = ? AND user_id != ?").bind(nestId, exceptId).all()).results.map((r) => r.user_id);
-  for (const id of ids) await postMessage(env, id, nestId, kind, data, dedupe);
+  const langs = Object.fromEntries((await env.DB.prepare("SELECT id, lang FROM users WHERE id IN (SELECT user_id FROM members WHERE nest_id = ?)").bind(nestId).all()).results.map((r) => [r.id, r.lang]));
+  for (const id of ids) {
+    await postMessage(env, id, nestId, kind, data, dedupe);
+    try { await sendPush(env, id, pushText(kind, data, langs[id])); } catch (e) { console.error("push", e.message); }
+  }
+}
+
+// ---------- Web Push (no payload: the service worker asks /api/push/latest for the text) ----------
+const PUSH_TEXT = {
+  en: { shared_expense: (d) => `${d.name} added ${money(d.amount)} for ${d.label}, split with you.`, joined: (d) => `${d.name} joined your budget 🎉`,
+        bills: (d) => d.n === 1 ? `${d.label} (${money(d.amount)}) is due ${d.when}.` : `${d.n} bills are due in the next 3 days.`,
+        streak: (d) => `Log one thing today to keep your ${d.streak}-day hop streak 🐾`, other: () => "Bun has something for you 🐰" },
+  es: { shared_expense: (d) => `${d.name} agregó ${money(d.amount)} de ${d.label}, dividido contigo.`, joined: (d) => `${d.name} se unió a tu presupuesto 🎉`,
+        bills: (d) => d.n === 1 ? `${d.label} (${money(d.amount)}) vence ${d.when}.` : `${d.n} facturas vencen en los próximos 3 días.`,
+        streak: (d) => `Registra algo hoy para mantener tu racha de ${d.streak} días 🐾`, other: () => "Bun tiene algo para ti 🐰" },
+  zh: { shared_expense: (d) => `${d.name} 记了一笔 ${money(d.amount)}（${d.label}），和你分摊。`, joined: (d) => `${d.name} 加入了你的预算 🎉`,
+        bills: (d) => d.n === 1 ? `${d.label}（${money(d.amount)}）${d.when}到期。` : `未来 3 天有 ${d.n} 笔账单到期。`,
+        streak: (d) => `今天记一笔，保持你 ${d.streak} 天的连续记录 🐾`, other: () => "Bun 有话对你说 🐰" },
+};
+const pushText = (kind, data, lang) => { const T = PUSH_TEXT[lang] || PUSH_TEXT.en; return { kind, body: (T[kind] || T.other)(data || {}) }; };
+
+async function vapidHeaders(env, endpoint) {
+  const origin = new URL(endpoint).origin, exp = now() + 12 * 3600;
+  const jwk = JSON.parse(env.VAPID_PRIVATE_KEY);
+  const key = await crypto.subtle.importKey("jwk", jwk, { name: "ECDSA", namedCurve: "P-256" }, false, ["sign"]);
+  const part = (o) => b64u(enc.encode(JSON.stringify(o)));
+  const input = `${part({ typ: "JWT", alg: "ES256" })}.${part({ aud: origin, exp, sub: "mailto:help@honeybun.me" })}`;
+  const sig = await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, key, enc.encode(input));
+  return { authorization: `vapid t=${input}.${b64u(sig)}, k=${env.VAPID_PUBLIC_KEY}`, ttl: "86400", urgency: "normal" };
+}
+// Send a "something's new" push to all of a person's devices. The text is stored so the service worker can fetch it.
+async function sendPush(env, userId, text) {
+  if (!env.VAPID_PRIVATE_KEY || !env.VAPID_PUBLIC_KEY) return;
+  const subs = (await env.DB.prepare("SELECT endpoint FROM push_subs WHERE user_id = ?").bind(userId).all()).results;
+  if (!subs.length) return;
+  await env.DB.prepare("INSERT OR REPLACE INTO challenges (id, user_id, kind, expires_at) VALUES (?, ?, ?, ?)")
+    .bind("push:" + userId, userId, JSON.stringify(text), now() + 3600).run();
+  for (const sub of subs) {
+    try {
+      const res = await fetch(sub.endpoint, { method: "POST", headers: await vapidHeaders(env, sub.endpoint) });
+      if (res.status === 404 || res.status === 410) await env.DB.prepare("DELETE FROM push_subs WHERE endpoint = ?").bind(sub.endpoint).run();
+      else if (!res.ok) console.error("push failed", res.status, await res.text().catch(() => ""));
+    } catch (e) { console.error("push error", e.message); }
+  }
 }
 const STREAK_MILESTONES = [3, 7, 14, 30, 50, 100, 200, 365];
 async function generateInbox(env, request, user, nestId, force) {
@@ -130,7 +178,9 @@ async function generateInbox(env, request, user, nestId, force) {
   if (L.hour >= 18 && m.streak >= 2 && m.last_day === sDay(pDay(day) - dayMs)) add("streak_risk", { n: m.streak }, `risk:${day}`);
   // budgets at 80% / over
   const spent = Object.fromEntries(spend.results.map((r) => [r.category, r.c]));
+  const carry = await budgetCarry(env, nestId, user.id, month);
   for (const b of budgets.results) {
+    b.limit_cents += carry[b.category] || 0;
     const sp = spent[b.category] || 0, month = day.slice(0, 7);
     if (sp > b.limit_cents) add("budget_over", { cat: b.category, over: sp - b.limit_cents }, `over:${b.category}:${month}`);
     else if (sp >= b.limit_cents * 0.8) add("budget_warn", { cat: b.category, spent: sp, limit: b.limit_cents }, `warn:${b.category}:${month}`);
@@ -481,6 +531,72 @@ async function topRepeats(env, nestId, userId, limit = 5) {
     .map((g) => ({ label: g.label, category: g.category, amount_cents: g.amount_cents, shared: g.shared, split_mode: g.split_mode, split_value: g.split_value, private: g.private, count: g.count }));
 }
 
+// Budget rollover: unspent budget carries into the next month (chained, up to 12 months back).
+// Returns { category: carry_cents } for the given month, or {} when rollover is off.
+async function budgetCarry(env, nestId, userId, month) {
+  const nest = await env.DB.prepare("SELECT rollover, rollover_since FROM nests WHERE id = ?").bind(nestId).first();
+  if (!nest || !nest.rollover) return {};
+  const since = nest.rollover_since || month;
+  const budgets = (await env.DB.prepare("SELECT category, limit_cents FROM budgets WHERE nest_id = ?").bind(nestId).all()).results;
+  if (!budgets.length) return {};
+  const [y, m] = month.split("-").map(Number);
+  const months = [];
+  for (let i = 12; i >= 1; i--) { const d = new Date(Date.UTC(y, m - 1 - i, 1)).toISOString().slice(0, 7); if (d >= since) months.push(d); }
+  if (!months.length) return {};
+  const spent = (await env.DB.prepare(
+    "SELECT substr(date, 1, 7) AS ym, category, SUM(amount_cents) AS c FROM entries WHERE nest_id = ? AND type = 'expense' AND date >= ? AND date < ? AND (private = 0 OR member_id = ?) GROUP BY ym, category"
+  ).bind(nestId, months[0] + "-01", month + "-01", userId).all()).results;
+  const by = {}; for (const r of spent) by[r.ym + "|" + r.category] = r.c;
+  const carry = {};
+  for (const b of budgets) {
+    let c = 0;
+    for (const ym of months) c = Math.max(0, b.limit_cents + c - (by[ym + "|" + b.category] || 0));
+    carry[b.category] = c;
+  }
+  return carry;
+}
+
+// ---------- passkeys (WebAuthn, no library) ----------
+const derToRaw = (der) => { // ECDSA DER signature -> raw r||s (64 bytes)
+  const b = new Uint8Array(der); let i = 2; const out = new Uint8Array(64);
+  for (let k = 0; k < 2; k++) { if (b[i++] !== 2) throw new HttpError("Bad signature."); let len = b[i++], start = i; while (len > 32) { start++; len--; } out.set(b.slice(start, start + len), k * 32 + (32 - len)); i = start + len; }
+  return out;
+};
+async function verifyWebauthn(key, alg, authData, clientDataJSON, signature) {
+  const hash = new Uint8Array(await crypto.subtle.digest("SHA-256", clientDataJSON));
+  const data = new Uint8Array(authData.length + 32); data.set(authData); data.set(hash, authData.length);
+  if (alg === -7) {
+    const k = await crypto.subtle.importKey("spki", key, { name: "ECDSA", namedCurve: "P-256" }, false, ["verify"]);
+    return crypto.subtle.verify({ name: "ECDSA", hash: "SHA-256" }, k, derToRaw(signature), data);
+  }
+  if (alg === -257) {
+    const k = await crypto.subtle.importKey("spki", key, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["verify"]);
+    return crypto.subtle.verify("RSASSA-PKCS1-v1_5", k, signature, data);
+  }
+  return false;
+}
+async function takeChallenge(env, id, kind) {
+  const row = await env.DB.prepare("SELECT user_id, expires_at FROM challenges WHERE id = ? AND kind = ?").bind(id, kind).first();
+  await env.DB.prepare("DELETE FROM challenges WHERE id = ?").bind(id).run();
+  if (!row || row.expires_at < now()) throw new HttpError("That took too long. Try again.", 400);
+  return row;
+}
+// wrangler dev rewrites Host/Origin to the production host, so local testing needs DEV_ORIGIN in .dev.vars
+const rpOrigin = (env, url) => (env.DEV_ORIGIN ? new URL(env.DEV_ORIGIN) : url);
+async function checkClientData(env, raw, type, kind, url) {
+  let cd; try { cd = JSON.parse(new TextDecoder().decode(raw)); } catch { throw new HttpError("Bad passkey data."); }
+  if (cd.type !== type) throw new HttpError("Bad passkey data.");
+  if (cd.origin !== rpOrigin(env, url).origin) throw new HttpError("This passkey was made for a different site.");
+  return takeChallenge(env, String(cd.challenge || ""), kind);
+}
+async function checkAuthData(env, authData, url, needUserPresent) {
+  const rpHash = new Uint8Array(await crypto.subtle.digest("SHA-256", enc.encode(rpOrigin(env, url).hostname)));
+  for (let i = 0; i < 32; i++) if (authData[i] !== rpHash[i]) throw new HttpError("This passkey was made for a different site.");
+  if (needUserPresent && !(authData[32] & 1)) throw new HttpError("Passkey check failed.");
+  const dv = new DataView(authData.buffer, authData.byteOffset);
+  return dv.getUint32(33);
+}
+
 // Guess a category for a store name coming from Apple Pay (only used when the Shortcut doesn't send one)
 const STORE_HINTS = [
   ["groc", /costco|walmart|target|kroger|safeway|aldi|trader|whole foods|publix|heb|h-e-b|wegmans|market|grocer|supermarket|food lion|meijer|winco|sprouts|sam's/i],
@@ -619,6 +735,29 @@ async function handle(request, env, url) {
       { status: ok ? 200 : 400, headers: { "content-type": "text/html; charset=utf-8", ...SEC_HEADERS } });
   }
 
+  // ===== passkey login (public) =====
+  if (path === "/api/passkeys/login/options" && method === "POST") {
+    if (await limited(env, "pklogin:" + ip, 60, 900)) throw new HttpError("Too many tries. Wait 15 minutes.", 429);
+    const challenge = randomToken();
+    await env.DB.prepare("INSERT INTO challenges (id, user_id, kind, expires_at) VALUES (?, NULL, 'login', ?)").bind(challenge, now() + 300).run();
+    return json({ challenge, rpId: rpOrigin(env, url).hostname, timeout: 120000, userVerification: "preferred" });
+  }
+  if (path === "/api/passkeys/login" && method === "POST") {
+    if (await limited(env, "pklogin:" + ip, 60, 900)) throw new HttpError("Too many tries. Wait 15 minutes.", 429);
+    await recordAttempt(env, "pklogin:" + ip);
+    const id = cleanText(body.id, 1024);
+    const pk = await env.DB.prepare("SELECT id, user_id, public_key, alg, counter FROM passkeys WHERE id = ?").bind(id).first();
+    if (!pk) throw new HttpError("That passkey isn't registered here. Log in with your password and add it in Settings.", 404);
+    const clientData = fromB64u(String(body.clientDataJSON || "")), authData = fromB64u(String(body.authenticatorData || "")), sig = fromB64u(String(body.signature || ""));
+    await checkClientData(env, clientData, "webauthn.get", "login", url);
+    const counter = await checkAuthData(env, authData, url, true);
+    if (!(await verifyWebauthn(fromB64u(pk.public_key), pk.alg, authData, clientData, sig))) throw new HttpError("Passkey check failed.", 401);
+    if (counter && pk.counter && counter <= pk.counter) throw new HttpError("Passkey check failed.", 401);
+    await env.DB.prepare("UPDATE passkeys SET counter = ?, last_used = ? WHERE id = ?").bind(counter, now(), pk.id).run();
+    return json({ ok: true }, 200, { "set-cookie": await createSession(env, pk.user_id) });
+  }
+  if (path === "/api/push/key" && method === "GET") return json({ key: env.VAPID_PUBLIC_KEY || null });
+
   // ===== Shortcuts / Apple Pay auto-logging (Bearer key instead of a cookie) =====
   if (path === "/api/log" && method === "POST") {
     if (await limited(env, "logip:" + ip, 120, 3600)) throw new HttpError("Too many logs from here. Try again in an hour.", 429);
@@ -670,6 +809,66 @@ async function handle(request, env, url) {
     const k = await env.DB.prepare("SELECT created_at, last_used, uses FROM api_keys WHERE user_id = ?").bind(user.id).first();
     return json({ user: { ...me, verified: !!u.email_verified, tz: u.tz, lang: u.lang, mail: { bills: !!u.mail_bills, streak: !!u.mail_streak, weekly: !!u.mail_weekly },
       shortcut: k ? { created_at: k.created_at, last_used: k.last_used, uses: k.uses } : null }, nest_id: m ? m.nest_id : null });
+  }
+
+  // ----- passkeys (signed in) -----
+  if (path === "/api/passkeys" && method === "GET") {
+    const rows = (await env.DB.prepare("SELECT id, name, created_at, last_used FROM passkeys WHERE user_id = ? ORDER BY created_at").bind(user.id).all()).results;
+    return json({ passkeys: rows });
+  }
+  if (path === "/api/passkeys/options" && method === "POST") {
+    const challenge = randomToken();
+    await env.DB.prepare("INSERT INTO challenges (id, user_id, kind, expires_at) VALUES (?, ?, 'register', ?)").bind(challenge, user.id, now() + 300).run();
+    const existing = (await env.DB.prepare("SELECT id FROM passkeys WHERE user_id = ?").bind(user.id).all()).results.map((r) => ({ type: "public-key", id: r.id }));
+    return json({
+      challenge, rp: { id: rpOrigin(env, url).hostname, name: "Honeybun" },
+      user: { id: b64u(enc.encode(user.id)), name: user.email, displayName: user.name },
+      pubKeyCredParams: [{ type: "public-key", alg: -7 }, { type: "public-key", alg: -257 }],
+      authenticatorSelection: { residentKey: "required", userVerification: "preferred" },
+      excludeCredentials: existing, timeout: 120000, attestation: "none",
+    });
+  }
+  if (path === "/api/passkeys" && method === "POST") {
+    const count = await env.DB.prepare("SELECT COUNT(*) AS n FROM passkeys WHERE user_id = ?").bind(user.id).first();
+    if (count.n >= 10) throw new HttpError("You already have 10 passkeys. Remove one first.");
+    const id = cleanText(body.id, 1024), alg = Number(body.alg), pub = String(body.publicKey || "");
+    if (!id || ![-7, -257].includes(alg) || !pub) throw new HttpError("Your browser didn't return a usable passkey. Try a newer browser.");
+    const clientData = fromB64u(String(body.clientDataJSON || "")), authData = fromB64u(String(body.authenticatorData || ""));
+    const ch = await checkClientData(env, clientData, "webauthn.create", "register", url);
+    if (ch.user_id !== user.id) throw new HttpError("Bad passkey data.");
+    const counter = await checkAuthData(env, authData, url, false);
+    try { await crypto.subtle.importKey("spki", fromB64u(pub), alg === -7 ? { name: "ECDSA", namedCurve: "P-256" } : { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["verify"]); }
+    catch { throw new HttpError("Your browser didn't return a usable passkey. Try a newer browser."); }
+    if (await env.DB.prepare("SELECT 1 FROM passkeys WHERE id = ?").bind(id).first()) throw new HttpError("That passkey is already registered.", 409);
+    await env.DB.prepare("INSERT INTO passkeys (id, user_id, public_key, alg, counter, name, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)")
+      .bind(id, user.id, pub, alg, counter, cleanText(body.name, 40) || "Passkey", now()).run();
+    return json({ ok: true }, 201);
+  }
+  const pkId = path.match(/^\/api\/passkeys\/(.+)$/);
+  if (pkId && method === "DELETE") {
+    await env.DB.prepare("DELETE FROM passkeys WHERE id = ? AND user_id = ?").bind(decodeURIComponent(pkId[1]), user.id).run();
+    return json({ ok: true });
+  }
+  if (pkId && method === "PATCH") {
+    await env.DB.prepare("UPDATE passkeys SET name = ? WHERE id = ? AND user_id = ?").bind(cleanText(body.name, 40) || "Passkey", decodeURIComponent(pkId[1]), user.id).run();
+    return json({ ok: true });
+  }
+
+  // ----- push notifications (signed in) -----
+  if (path === "/api/push/subscribe" && method === "POST") {
+    const endpoint = String(body.endpoint || "");
+    if (!/^https:\/\/[^\s]{10,2000}$/.test(endpoint)) throw new HttpError("Bad subscription.");
+    await env.DB.prepare("INSERT OR REPLACE INTO push_subs (endpoint, user_id, created_at) VALUES (?, ?, ?)").bind(endpoint, user.id, now()).run();
+    return json({ ok: true });
+  }
+  if (path === "/api/push/subscribe" && method === "DELETE") {
+    await env.DB.prepare("DELETE FROM push_subs WHERE endpoint = ? AND user_id = ?").bind(String(body.endpoint || ""), user.id).run();
+    return json({ ok: true });
+  }
+  if (path === "/api/push/latest" && method === "GET") {
+    const row = await env.DB.prepare("SELECT kind FROM challenges WHERE id = ? AND expires_at > ?").bind("push:" + user.id, now()).first();
+    let text = null; try { text = row ? JSON.parse(row.kind) : null; } catch {}
+    return json({ title: "Honeybun", body: text ? text.body : "Bun has something for you 🐰", url: "/" });
   }
 
   // Shortcut key: one per person, shown once. Making a new one replaces the old one.
@@ -827,7 +1026,7 @@ async function handle(request, env, url) {
     if (!/^\d{4}-\d{2}$/.test(month)) throw new HttpError("Bad month.");
     const since = new Date(Date.now() - 45 * 86400000).toISOString().slice(0, 10);
     const [nest, members, entries, sharedAll, settlements, recurring, logged, jar, goals, budgets, debts, debtPays, mine] = await env.DB.batch([
-      env.DB.prepare("SELECT id, name, invite_code, accent, kind FROM nests WHERE id = ?").bind(nestId),
+      env.DB.prepare("SELECT id, name, invite_code, accent, kind, rollover FROM nests WHERE id = ?").bind(nestId),
       env.DB.prepare("SELECT u.id, u.name, m.emoji, m.color, m.xp, m.streak, m.best_streak, m.last_day, m.week_key, m.week_xp, m.logs FROM members m JOIN users u ON u.id = m.user_id WHERE m.nest_id = ? ORDER BY m.joined_at").bind(nestId),
       env.DB.prepare(
         `SELECT id, member_id, type, amount_cents, label, category, shared, split_mode, split_value, shares, private, date, recurring_id, occ_date, created_at
@@ -865,6 +1064,7 @@ async function handle(request, env, url) {
       logged: logged.results, jar: jar.results, goals: goals.results, budgets: budgets.results,
       debts: debts.results, debt_payments: debtPays.results, setup_done: !!mine.results[0]?.setup_done,
       repeats: await topRepeats(env, nestId, user.id),
+      carry: await budgetCarry(env, nestId, user.id, month),
       inbox: await env.DB.prepare("SELECT COUNT(*) AS unread, (SELECT id || '|' || kind || '|' || data FROM messages WHERE user_id = ?1 AND read_at IS NULL ORDER BY created_at DESC LIMIT 1) AS latest FROM messages WHERE user_id = ?1 AND read_at IS NULL").bind(user.id).first(),
     });
   }
@@ -960,6 +1160,13 @@ async function handle(request, env, url) {
       if (n > 10_000_000) throw new HttpError("That budget is too big.");
       stmts.push(env.DB.prepare("INSERT INTO budgets (nest_id, category, limit_cents) VALUES (?, ?, ?)").bind(nestId, it.category, Math.round(n * 100)));
     }
+    if (body.rollover !== undefined) {
+      const cur = await env.DB.prepare("SELECT rollover FROM nests WHERE id = ?").bind(nestId).first();
+      const on = body.rollover ? 1 : 0;
+      // carrying starts the month it's switched on, so old months don't pile up
+      stmts.push(on && !cur.rollover ? env.DB.prepare("UPDATE nests SET rollover = 1, rollover_since = ? WHERE id = ?").bind(localDay(request).slice(0, 7), nestId)
+        : env.DB.prepare("UPDATE nests SET rollover = ? WHERE id = ?").bind(on, nestId));
+    }
     stmts.push(env.DB.prepare("UPDATE members SET inbox_gen_at = 0 WHERE nest_id = ?").bind(nestId));
     await env.DB.batch(stmts);
     return json({ ok: true });
@@ -1043,6 +1250,12 @@ async function handle(request, env, url) {
     if (type === "income" || type === "expense") { sql += " AND type = ?"; args.push(type); }
     if (CATEGORIES.includes(cat)) { sql += " AND category = ?"; args.push(cat); }
     if (who) { sql += " AND member_id = ?"; args.push(who); }
+    const min = Number(url.searchParams.get("min")), max = Number(url.searchParams.get("max"));
+    if (url.searchParams.get("min") && Number.isFinite(min) && min > 0) { sql += " AND amount_cents >= ?"; args.push(Math.round(min * 100)); }
+    if (url.searchParams.get("max") && Number.isFinite(max) && max > 0) { sql += " AND amount_cents <= ?"; args.push(Math.round(max * 100)); }
+    const from = url.searchParams.get("from") || "", to = url.searchParams.get("to") || "";
+    if (isDate(from)) { sql += " AND date >= ?"; args.push(from); }
+    if (isDate(to)) { sql += " AND date <= ?"; args.push(to); }
     sql += " ORDER BY date DESC, created_at DESC LIMIT 150";
     return json({ entries: (await env.DB.prepare(sql).bind(...args).all()).results });
   }
@@ -1200,11 +1413,52 @@ export default {
         env.DB.prepare("DELETE FROM verify_tokens WHERE expires_at < ?").bind(now()),
         env.DB.prepare("DELETE FROM messages WHERE created_at < ?").bind(now() - 60 * 86400),
         env.DB.prepare("DELETE FROM auth_attempts WHERE ts < ?").bind(now() - 86400),
+        env.DB.prepare("DELETE FROM challenges WHERE expires_at < ?").bind(now()),
       ]);
     }
     if (env.RESEND_API_KEY) await sendReminders(env);
+    if (env.VAPID_PRIVATE_KEY) await pushReminders(env);
   },
 };
+
+// Bills due (9am) and streak nudges (7pm) as push notifications, for anyone with a subscribed device
+async function pushReminders(env) {
+  const people = (await env.DB.prepare(
+    `SELECT DISTINCT u.id, u.name, u.tz, u.lang, u.last_bill_push, u.last_streak_push, m.nest_id, m.streak, m.last_day
+     FROM users u JOIN members m ON m.user_id = u.id JOIN push_subs p ON p.user_id = u.id`
+  ).all()).results;
+  const cache = {};
+  for (const p of people) {
+    try {
+      const L = localNow(p.tz);
+      if (L.hour === 9 && p.last_bill_push !== L.date) {
+        const due = (await nestBillsDue(env, cache, p.nest_id, L.date, sDay(pDay(L.date) + 3 * dayMs))).filter((x) => x.r.shared || x.r.member_id === p.id);
+        if (due.length) {
+          const d = due[0], diff = Math.round((pDay(d.d) - pDay(L.date)) / dayMs);
+          const when = { en: ["today", "tomorrow", `in ${diff} days`], es: ["hoy", "mañana", `en ${diff} días`], zh: ["今天", "明天", `${diff} 天后`] }[PUSH_TEXT[p.lang] ? p.lang : "en"][Math.min(diff, 2)];
+          await sendPush(env, p.id, pushText("bills", { n: due.length, label: d.r.label, amount: d.r.amount_cents, when }, p.lang));
+          await env.DB.prepare("UPDATE users SET last_bill_push = ? WHERE id = ?").bind(L.date, p.id).run();
+        }
+      }
+      if (L.hour === 19 && p.last_streak_push !== L.date && p.streak >= 2 && p.last_day === sDay(pDay(L.date) - dayMs)) {
+        await sendPush(env, p.id, pushText("streak", { streak: p.streak }, p.lang));
+        await env.DB.prepare("UPDATE users SET last_streak_push = ? WHERE id = ?").bind(L.date, p.id).run();
+      }
+    } catch (e) { console.error("push reminder failed", p.id, e.message); }
+  }
+}
+async function nestBillsDue(env, cache, nestId, from, to) {
+  if (!cache[nestId]) {
+    const [rec, logged] = await env.DB.batch([
+      env.DB.prepare("SELECT id, type, label, amount_cents, member_id, shared, freq, anchor_date FROM recurring WHERE nest_id = ? AND type = 'expense'").bind(nestId),
+      env.DB.prepare("SELECT recurring_id, occ_date FROM entries WHERE nest_id = ? AND recurring_id IS NOT NULL AND occ_date >= ?").bind(nestId, sDay(Date.now() - 40 * dayMs)),
+    ]);
+    cache[nestId] = { rec: rec.results, logged: new Set(logged.results.map((l) => l.recurring_id + "|" + l.occ_date)) };
+  }
+  const c = cache[nestId], out = [];
+  for (const r of c.rec) for (const d of occurrencesS(r, from, to)) if (!c.logged.has(r.id + "|" + d)) out.push({ r, d });
+  return out.sort((a, b) => a.d.localeCompare(b.d));
+}
 
 async function sendReminders(env) {
   const appUrl = (env.APP_URL || "https://honeybun.me").replace(/\/$/, "");
@@ -1214,18 +1468,7 @@ async function sendReminders(env) {
      FROM users u JOIN members m ON m.user_id = u.id WHERE u.email_verified = 1 AND (u.mail_bills = 1 OR u.mail_streak = 1 OR u.mail_weekly = 1)`
   ).all()).results;
   const nestCache = {};
-  async function nestBills(nestId, from, to) {
-    if (!nestCache[nestId]) {
-      const [rec, logged] = await env.DB.batch([
-        env.DB.prepare("SELECT id, type, label, amount_cents, member_id, shared, freq, anchor_date FROM recurring WHERE nest_id = ? AND type = 'expense'").bind(nestId),
-        env.DB.prepare("SELECT recurring_id, occ_date FROM entries WHERE nest_id = ? AND recurring_id IS NOT NULL AND occ_date >= ?").bind(nestId, sDay(Date.now() - 40 * dayMs)),
-      ]);
-      nestCache[nestId] = { rec: rec.results, logged: new Set(logged.results.map((l) => l.recurring_id + "|" + l.occ_date)) };
-    }
-    const c = nestCache[nestId], out = [];
-    for (const r of c.rec) for (const d of occurrencesS(r, from, to)) if (!c.logged.has(r.id + "|" + d)) out.push({ r, d });
-    return out.sort((a, b) => a.d.localeCompare(b.d));
-  }
+  const nestBills = (nestId, from, to) => nestBillsDue(env, nestCache, nestId, from, to);
   for (const p of people) {
     try {
       const L = localNow(p.tz), t = mailT(p.lang);
