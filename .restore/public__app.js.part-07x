@@ -1,0 +1,246 @@
+    if ($("pwNew").value.length < 8) { $("pwErr").textContent = "Use a password with at least 8 characters."; return; }
+    try {
+      await api("/api/password/change", { method: "POST", body: { current: $("pwCur").value, password: $("pwNew").value } });
+      $("pwDlg").close(); toast("Password changed. Other devices were logged out.");
+    } catch (e) { $("pwErr").textContent = e.message; }
+  };
+
+  // ---------- settings ----------
+  function drawSwatches(box) {
+    box.innerHTML = "";
+    THEMES.forEach((t) => {
+      const b = document.createElement("button"); b.type = "button"; b.setAttribute("aria-pressed", NEST.accent === t.id ? "true" : "false");
+      b.innerHTML = `<i style="background:${t.c}"></i>${t.n}`;
+      b.onclick = async () => { NEST.accent = t.id; render(); drawSwatches(box); try { await api("/api/nest", { method: "PATCH", body: { accent: t.id } }); } catch (e) { toast(e.message); } };
+      box.appendChild(b);
+    });
+  }
+  let nameTimer;
+  $("nestName").oninput = (e) => {
+    NEST.name = e.target.value.trim(); render();
+    clearTimeout(nameTimer);
+    nameTimer = setTimeout(() => api("/api/nest", { method: "PATCH", body: { name: NEST.name } }).catch((err) => toast(err.message)), 600);
+  };
+  $("hiBtn").onclick = () => show("settings");
+  $("setBtn").onclick = () => show("settings");
+  $("helpBtn").onclick = () => show("help");
+  $("openHelp").onclick = () => show("help");
+  $("openProfile").onclick = () => openMe();
+  $("helpBun").onclick = () => openInbox();
+  $("exportCsv2").onclick = async () => { if (!YDATA) { try { YDATA = await api("/api/year?year=" + YEAR); } catch (e) { toast(e.message); return; } } $("exportCsv").click(); };
+  $("copyInvite").onclick = async () => { try { await navigator.clipboard.writeText(inviteUrl()); toast("Link copied"); } catch { toast("Couldn't copy. Press and hold the link instead."); } };
+  $("shareInvite").onclick = async () => { try { await navigator.share({ title: "Join my Honeybun budget", text: "Join my budget on Honeybun 🐰", url: inviteUrl() }); } catch {} };
+  $("newCode").onclick = async () => {
+    if (!(await ask("Make a new code?", "The old code and link will stop working. People already in the budget stay in.", "Make new code"))) return;
+    try { await api("/api/nest/invite", { method: "POST" }); await loadNest(); toast("New code ready"); } catch (e) { toast(e.message); }
+  };
+  $("leaveBtn").onclick = async () => {
+    const alone = MEMBERS.length === 1;
+    if (!(await ask("Leave this budget?", alone ? "You're the only one here, so the budget and everything in it will be deleted." : "You can rejoin later with an invite code.", "Leave"))) return;
+    try { await api("/api/nest/leave", { method: "POST" }); NEST = null; filter = null; await afterAuth(); } catch (e) { toast(e.message); }
+  };
+
+  // months
+  async function shift(k) {
+    const [y, mo] = MONTH.split("-").map(Number); const d = new Date(y, mo - 1 + k, 1);
+    MONTH = d.getFullYear() + "-" + pad(d.getMonth() + 1);
+    render();
+    try { await loadNest(); } catch (e) { toast(e.message); }
+  }
+  $("prevM").onclick = () => shift(-1);
+  $("nextM").onclick = () => shift(1);
+  $("seeAll").onclick = () => { show("us"); setTimeout(() => $("allH").scrollIntoView({ behavior: "smooth" }), 40); };
+
+  // ---------- Bun's inbox ----------
+  const money = (c) => fmt((c || 0) / 100);
+  const catName = (id) => tr(catOf(id).n);
+  const dayDiff = (occ) => Math.round((parseD(occ) - parseD(today())) / 86400000);
+  const MSG = {
+    en: {
+      welcome: (d) => `Hi ${d.name}! I'm Bun 🐰 I'll pop in here with bill reminders, paydays, and streak check-ins.`,
+      bill_soon: (d, n) => `${d.label} (${money(d.amount)}) is due ${n === 1 ? "tomorrow" : `in ${n} days`} 🐰`,
+      bill_today: (d) => `${d.label} (${money(d.amount)}) is due today. Tap Paid once it's done ✓`,
+      bill_late: (d) => `${d.label} (${money(d.amount)}) was due ${shortDay(parseD(d.occ))}. Did it get paid?`,
+      payday: (d) => `It's payday! ${d.label} (${money(d.amount)}) should land today 💰`,
+      streak_risk: (d) => `Your ${d.n}-day streak ends at midnight 🐾 Log one thing to keep hopping!`,
+      streak_milestone: (d) => `${d.n}-day hop streak! You're on a roll 🐾✨`,
+      level: (d, _, title, unlock) => `Level ${d.level}! You're now a ${title}.${unlock ? ` I got ${unlock} to wear 🎀` : " Keep hopping!"}`,
+      budget_warn: (d) => `Heads up: ${catName(d.cat)} is at ${Math.round((d.spent / d.limit) * 100)}% of its budget (${money(d.spent)} of ${money(d.limit)}) 🥕`,
+      budget_over: (d) => `${catName(d.cat)} went over budget by ${money(d.over)}. No stress, next month is a fresh start ♡`,
+      week: (d) => `Last week you spent ${money(d.spent)}${d.cat ? `, mostly on ${catName(d.cat).toLowerCase()}` : ""}. You earned ${d.xp} carrots 🥕`,
+      goal_done: (d) => `You reached your "${d.goal}" goal! 🍯 So proud of you.`,
+      debt_done: (d) => `${d.debt} is paid off! 🎉 One less thing to carry.`,
+      joined: (d) => `${d.name} joined your budget 💞 Say hi!`,
+      settled: (d) => d.you_paid ? `${d.name} marked your ${money(d.amount)} payment as received 💸` : `${d.name} marked ${money(d.amount)} as paid to you 💸`,
+      shared_expense: (d) => `${d.name} added ${d.label} (${money(d.amount)}) and split it with you.`,
+    },
+    es: {
+      welcome: (d) => `¡Hola, ${d.name}! Soy Bun 🐰 Aquí te avisaré de facturas, días de pago y tu racha.`,
+      bill_soon: (d, n) => `${d.label} (${money(d.amount)}) vence ${n === 1 ? "mañana" : `en ${n} días`} 🐰`,
+      bill_today: (d) => `${d.label} (${money(d.amount)}) vence hoy. Toca Pagado cuando esté listo ✓`,
+      bill_late: (d) => `${d.label} (${money(d.amount)}) vencía el ${shortDay(parseD(d.occ))}. ¿Ya se pagó?`,
+      payday: (d) => `¡Hoy es día de pago! ${d.label} (${money(d.amount)}) debería llegar hoy 💰`,
+      streak_risk: (d) => `Tu racha de ${d.n} días termina a medianoche 🐾 ¡Registra algo para seguir brincando!`,
+      streak_milestone: (d) => `¡Racha de ${d.n} días! Vas súper bien 🐾✨`,
+      level: (d, _, title, unlock) => `¡Nivel ${d.level}! Ahora eres ${title}.${unlock ? ` Me dieron ${unlock} para ponerme 🎀` : " ¡Sigue brincando!"}`,
+      budget_warn: (d) => `Ojo: ${catName(d.cat)} va en ${Math.round((d.spent / d.limit) * 100)}% de su presupuesto (${money(d.spent)} de ${money(d.limit)}) 🥕`,
+      budget_over: (d) => `${catName(d.cat)} se pasó del presupuesto por ${money(d.over)}. Tranqui, el próximo mes empieza de nuevo ♡`,
+      week: (d) => `La semana pasada gastaste ${money(d.spent)}${d.cat ? `, sobre todo en ${catName(d.cat).toLowerCase()}` : ""}. Ganaste ${d.xp} zanahorias 🥕`,
+      goal_done: (d) => `¡Lograste tu meta "${d.goal}"! 🍯 Estoy muy orgulloso.`,
+      debt_done: (d) => `¡${d.debt} está pagada! 🎉 Una carga menos.`,
+      joined: (d) => `${d.name} se unió a tu presupuesto 💞 ¡Salúdalo!`,
+      settled: (d) => d.you_paid ? `${d.name} marcó tu pago de ${money(d.amount)} como recibido 💸` : `${d.name} marcó ${money(d.amount)} como pagado para ti 💸`,
+      shared_expense: (d) => `${d.name} agregó ${d.label} (${money(d.amount)}) y lo dividió contigo.`,
+    },
+    zh: {
+      welcome: (d) => `${d.name}，你好！我是 Bun 🐰 账单提醒、发薪日和连续记录，我都会在这里告诉你。`,
+      bill_soon: (d, n) => `${d.label}（${money(d.amount)}）${n === 1 ? "明天" : `${n} 天后`}到期 🐰`,
+      bill_today: (d) => `${d.label}（${money(d.amount)}）今天到期。付完后点「已付」✓`,
+      bill_late: (d) => `${d.label}（${money(d.amount)}）原定 ${shortDay(parseD(d.occ))} 到期，付了吗？`,
+      payday: (d) => `今天发薪啦！${d.label}（${money(d.amount)}）应该今天到账 💰`,
+      streak_risk: (d) => `你的 ${d.n} 天连续记录将在午夜中断 🐾 记一笔继续保持吧！`,
+      streak_milestone: (d) => `连续记录 ${d.n} 天！状态超棒 🐾✨`,
+      level: (d, _, title, unlock) => `升到 ${d.level} 级啦！你现在是「${title}」。${unlock ? `我得到了${unlock} 🎀` : "继续加油！"}`,
+      budget_warn: (d) => `提醒：${catName(d.cat)} 已用掉预算的 ${Math.round((d.spent / d.limit) * 100)}%（${money(d.spent)} / ${money(d.limit)}）🥕`,
+      budget_over: (d) => `${catName(d.cat)} 超支了 ${money(d.over)}。别担心，下个月重新开始 ♡`,
+      week: (d) => `上周你花了 ${money(d.spent)}${d.cat ? `，主要花在${catName(d.cat)}` : ""}。获得了 ${d.xp} 根胡萝卜 🥕`,
+      goal_done: (d) => `你达成了「${d.goal}」目标！🍯 为你骄傲。`,
+      debt_done: (d) => `「${d.debt}」还清啦！🎉 少了一份负担。`,
+      joined: (d) => `${d.name} 加入了你的预算 💞 打个招呼吧！`,
+      settled: (d) => d.you_paid ? `${d.name} 确认收到了你的 ${money(d.amount)} 💸` : `${d.name} 标记已付给你 ${money(d.amount)} 💸`,
+      shared_expense: (d) => `${d.name} 添加了 ${d.label}（${money(d.amount)}），和你一起分摊。`,
+    },
+  };
+  function msgText(m) {
+    const T = MSG[LANG] || MSG.en, d = m.data || {};
+    let kind = m.kind, n = 0;
+    if (["bill_soon", "bill_today", "bill_late"].includes(kind) && d.occ) {
+      n = dayDiff(d.occ); kind = n < 0 ? "bill_late" : n === 0 ? "bill_today" : "bill_soon";
+    }
+    const l = d.level || 1;
+    const fn = T[kind] || MSG.en[kind];
+    return fn ? fn(d, n, tr(TITLES[Math.min(l, TITLES.length) - 1]), UNLOCKS[l] ? tr(UNLOCKS[l]) : null) : "";
+  }
+  function msgActions(m, box) {
+    const d = m.data || {}, add = (label, cls, fn) => { const b = document.createElement("button"); b.className = "mini " + cls; b.textContent = tr(label); b.onclick = fn; box.appendChild(b); };
+    if (["bill_soon", "bill_today", "bill_late", "payday"].includes(m.kind)) {
+      const r = RECUR.find((x) => x.id === d.rid);
+      if (!r) return;
+      if (LOGGED.has(r.id + "|" + d.occ)) { box.insertAdjacentHTML("afterend", `<span class="ok">${esc(tr(m.kind === "payday" ? "Got it" : "Paid"))} ✓</span>`); return; }
+      add(m.kind === "payday" ? "Got it" : "Paid", m.kind === "payday" ? "inc" : "", async (ev) => { await logOcc(r, parseD(d.occ), ev.currentTarget); drawChat(CHAT, false); });
+    }
+    if (m.kind === "streak_risk") add("Log something", "", () => openAdd());
+    if (m.kind === "budget_warn" || m.kind === "budget_over") add("See budgets", "", () => show("plan"));
+    if (m.kind === "goal_done" || m.kind === "debt_done") add("See Plan", "", () => show("plan"));
+    if (m.kind === "week") add("See stats", "", () => show("stats"));
+    if (m.kind === "level" || m.kind === "streak_milestone") add("See my bunny", "", () => show("stats"));
+  }
+  let CHAT = [];
+  function drawChat(msgs, animateNew) {
+    const box = $("chat"); box.innerHTML = "";
+    if (!msgs.length) { box.innerHTML = `<div class="chat-empty">${esc(tr("No messages yet. I'll hop in when something's coming up 🐰"))}</div>`; return; }
+    let lastDay = "", prevDay = null;
+    const t = today(), y = yesterday();
+    msgs.forEach((m, i) => {
+      const dt = new Date(m.created_at * 1000), ds = toS(dt);
+      if (ds !== lastDay) {
+        lastDay = ds; prevDay = null;
+        box.insertAdjacentHTML("beforeend", `<div class="chat-day">${esc(ds === t ? tr("Today") : ds === y ? tr("Yesterday") : dayName(dt))}</div>`);
+      }
+      const el = document.createElement("div");
+      el.className = "msg" + (prevDay !== ds ? " first" : "") + (!m.read_at ? " new" : "") + (animateNew && !m.read_at ? " pop" : "");
+      el.innerHTML = `<div class="av"><img src="/icon-192.png" alt=""></div><div class="b"><p></p><div class="acts"></div><time>${dt.toLocaleTimeString(LOCALE, { hour: "numeric", minute: "2-digit" })}</time></div>`;
+      el.querySelector("p").textContent = msgText(m);
+      msgActions(m, el.querySelector(".acts"));
+      if (animateNew && !m.read_at) el.style.animationDelay = (i * 0.06) + "s";
+      box.appendChild(el);
+      prevDay = ds;
+    });
+  }
+  async function openInbox() {
+    show("inbox");
+    const box = $("chat");
+    box.innerHTML = `<div class="msg first typing"><div class="av"><img src="/icon-192.png" alt=""></div><div class="b"><i></i><i></i><i></i></div></div>`;
+    try {
+      const [d] = await Promise.all([api("/api/inbox"), new Promise((r) => setTimeout(r, INBOX.unread ? 700 : 250))]);
+      CHAT = d.messages;
+      drawChat(CHAT, true);
+      window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+      if (CHAT.some((m) => !m.read_at)) {
+        api("/api/inbox/read", { method: "POST" }).then(() => { INBOX = { unread: 0, latest: null }; CHAT.forEach((m) => (m.read_at = m.read_at || 1)); render(); }).catch(() => {});
+      }
+    } catch (e) { box.innerHTML = `<div class="chat-empty">${esc(e.message)}</div>`; }
+  }
+  $("inboxBtn").onclick = openInbox;
+
+  // email us (help + suggestions), with a little context so replies are easier
+  function mailLinks() {
+    const info = `\n\n— — —\n${tr("App info (helps us help you)")}: ${LANG} · ${KIND()} · ${navigator.userAgent.includes("iPhone") ? "iPhone" : navigator.userAgent.includes("Android") ? "Android" : "Web"}${ME ? " · " + ME.email : ""}`;
+    const mk = (subject, body) => `mailto:help@honeybun.me?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body + info)}`;
+    $("mailHelp").href = mk(tr("Honeybun help"), tr("Hi! I need help with:") + "\n\n");
+    $("mailIdea").href = mk(tr("Honeybun suggestion"), tr("Hi! I have an idea for Honeybun:") + "\n\n");
+  }
+  $("inboxBack").onclick = () => show("home");
+  $("qrDue").onclick = () => show("plan");
+  $("qrStreak").onclick = () => show("stats");
+  $("qrAdd").onclick = () => openAdd();
+  $("heroPrev").onclick = () => shift(-1);
+  $("heroNext").onclick = () => shift(1);
+
+  // ---------- help ----------
+  const HELP = [
+    { t: "Getting started", d: "Budgets, bills, goals and household setup", q: [
+      ["How do I invite my partner or family?", "Go to Together and share your invite link or code. When they sign up with it, you'll share one budget."],
+      ["How do bills and paydays work?", "Add them once in Plan, or tap + and choose how often it repeats. Home shows what's due before your next payday, and Bun reminds you."],
+      ["How do monthly budgets work?", "In Plan, tap Edit next to Budget and set a limit for any category. Bun gives you a heads-up at 80%."]] },
+    { t: "Adding transactions", d: "Spending, income, splits and repeats", q: [
+      ["How do I split an expense?", "When adding an expense, tap Split it, then choose Evenly, By %, or Set amount owed."],
+      ["Can I keep something private?", "Yes. For your own personal spending or income, turn on Only I can see this."],
+      ["How do I edit or delete something?", "Tap any entry to edit it. Tap × to delete it, and you can Undo right after."]] },
+    { t: "Together", d: "Shared expenses, balances and settling up", q: [
+      ["How does Settle up work?", "Honeybun adds up every split expense. When one of you pays the other back, tap Settle up so the balance resets."],
+      ["Can I use Honeybun on my own?", "Yes. Pick Just me when you start, or change the budget type anytime in Settings."]] },
+    { t: "Stats & exports", d: "Monthly insights, badges and CSV exports", q: [
+      ["How do carrots and streaks work?", "You earn carrots when you log spending, pay bills, save, or settle up. Log one thing each day to keep your hop streak and level up your bunny."],
+      ["Can I export my data?", "Yes. In Settings, under Data, you can download a spreadsheet (CSV) or a full copy of your data."]] },
+  ];
+  let helpTopic = null;
+  function renderHelp() {
+    const q = ($("helpQ").value || "").trim().toLowerCase();
+    const tb = $("helpTopics"); tb.innerHTML = "";
+    HELP.forEach((h, i) => {
+      const b = document.createElement("button"); b.className = "help-card"; b.setAttribute("aria-pressed", helpTopic === i ? "true" : "false");
+      b.innerHTML = `<b>${esc(tr(h.t))}</b><small>${esc(tr(h.d))}</small>`;
+      b.onclick = () => { helpTopic = helpTopic === i ? null : i; renderHelp(); };
+      tb.appendChild(b);
+    });
+    const list = $("faq"); list.innerHTML = "";
+    HELP.forEach((h, i) => {
+      if (helpTopic !== null && helpTopic !== i) return;
+      h.q.forEach(([qq, a]) => {
+        const Q = tr(qq), A = tr(a);
+        if (q && !(Q + " " + A).toLowerCase().includes(q)) return;
+        const d = document.createElement("details");
+        d.innerHTML = "<summary></summary><p></p>"; d.querySelector("summary").textContent = Q; d.querySelector("p").textContent = A;
+        list.appendChild(d);
+      });
+    });
+    if (!list.children.length) list.innerHTML = `<div class="none">${esc(tr("No answers match that. Email us and we'll help."))}</div>`;
+    const bug = `mailto:help@honeybun.me?subject=${encodeURIComponent(tr("Honeybun problem report"))}&body=${encodeURIComponent(tr("What happened, and what did you expect?") + "\n\n")}`;
+    $("helpBug").href = bug; $("helpMail").href = $("mailHelp").href;
+  }
+  $("helpQ").oninput = renderHelp;
+
+  // ---------- search & filters ----------
+  const searching = () => !!($("q").value.trim() || $("fType").value || $("fCat").value || $("fWho").value);
+  function drawFilters() {
+    const fc = $("fCat");
+    if (fc.options.length !== CATS.length + 1) CATS.forEach((c) => fc.add(new Option(tr(c.n), c.id)));
+    const fw = $("fWho"), cur = fw.value;
+    while (fw.options.length > 1) fw.remove(1);
+    MEMBERS.forEach((m) => fw.add(new Option(`${m.emoji} ${m.name}`, m.id)));
+    fw.value = cur; fw.hidden = MEMBERS.length < 2;
+  }
+  let searchTimer;
+  async function runSearch() {
+    if (!searching()) { $("searchHint").hidden = true; render(); return; }
