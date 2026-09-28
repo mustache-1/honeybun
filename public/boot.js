@@ -60,6 +60,7 @@
     root.setAttribute("data-theme", "dark");
     addStyle("/hb-v8-tweaks.css?v=4", "data-hb-v8-tweaks");
     addStyle("/hb-mobile.css?v=5", "data-hb-mobile");
+    addStyle("/hb-mobile-hotfix.css?v=1", "data-hb-mobile-hotfix");
     addScript("/hb-bun.js?v=2", "data-hb-bun");
     removeThemeToggle();
     syncThemeColor();
