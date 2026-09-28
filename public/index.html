@@ -1107,9 +1107,22 @@ dialog::backdrop{background:var(--backdrop)}
 
 
 /* =================== desktop shell (900px and up; phones untouched) =================== */
-.side-brand{display:none}
+.side-brand,.side-foot{display:none}
 @media (min-width:900px){
-  .app:has(#scr-landing[hidden]){max-width:none;margin:0;padding:28px 40px 60px 276px}
+  .app:has(#scr-landing[hidden]){max-width:1500px;margin:0;padding:28px 40px 60px 276px}
+  header.top #helpBtn,header.top #setBtn,header.top #inboxBtn{display:none}
+  .side-foot{display:flex;flex-direction:column;gap:4px;margin-top:auto}
+  .side-foot button{display:flex;align-items:center;gap:12px;height:40px;padding:0 12px;border-radius:12px;border:0;background:transparent;color:var(--soft);font-weight:700;font-size:13px;font-family:inherit;width:100%;text-align:left}
+  .side-foot button svg{width:18px;height:18px;flex:none}
+  .side-foot button:hover{background:var(--panel2);color:var(--ink)}
+  .side-badge{margin-left:auto;min-width:20px;height:20px;padding:0 6px;border-radius:10px;background:var(--pink);color:var(--on-pink);font-size:11px;font-weight:900;display:grid;place-items:center}
+  .side-house{margin-top:8px;height:auto!important;padding:10px 12px!important;background:var(--panel2)!important;border-radius:14px!important;color:var(--ink)!important}
+  .side-house .avs{display:flex}
+  .side-house .avs .av{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-size:14px;border:2px solid var(--panel2)}
+  .side-house .avs .av+.av{margin-left:-8px}
+  .side-house-txt{display:flex;flex-direction:column;line-height:1.15;min-width:0}
+  .side-house-txt b{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .side-house-txt small{font-size:11px;color:var(--soft);font-weight:600}
   header.top{margin-bottom:22px}
   nav.bottom{left:0;right:auto;top:0;bottom:0;transform:none;width:236px;border-radius:0;border:0;border-right:1px solid var(--line);background:var(--card);padding:22px 16px;display:flex;flex-direction:column;gap:6px;backdrop-filter:none;-webkit-backdrop-filter:none}
   .side-brand{display:flex;align-items:center;gap:10px;padding:4px 8px 18px;font-weight:800;font-size:17px;color:var(--ink)}
@@ -1945,6 +1958,12 @@ dialog::backdrop{background:var(--backdrop)}
     <button class="plus" data-go="add" aria-label="Add money"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
     <button data-go="stats"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 20V11M12 20V5M19 20v-7"/></svg>Stats</button>
     <button data-go="us"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg><span id="usLabel">Together</span></button>
+  </div>
+  <div class="side-foot">
+    <button type="button" id="sideInbox"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12a8 7 0 1 1 3.6 5.8L4 19.5l1.2-3.4A6.7 6.7 0 0 1 4 12z"/></svg><span>Bun's inbox</span><b class="side-badge" id="sideBadge" hidden></b></button>
+    <button type="button" id="sideHelp"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .9-1 1.6v.4M12 17h.01"/></svg><span>Help</span></button>
+    <button type="button" id="sideSet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><span>Settings</span></button>
+    <button type="button" class="side-house" id="sideHouse"><span class="avs" id="sideAvs"></span><span class="side-house-txt"><b id="sideName"></b><small id="sideSub"></small></span></button>
   </div>
 </nav>
 

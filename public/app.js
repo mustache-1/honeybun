@@ -851,6 +851,9 @@
     $("hdrAvs").innerHTML = MEMBERS.slice(0, 3).map((m) => `<span class="av" style="background:${esc(m.color)}">${esc(m.emoji)}</span>`).join("");
     $("usLabel").textContent = KIND() === "solo" && MEMBERS.length < 2 ? "Me" : "Together";
     $("inboxBadge").hidden = !INBOX.unread; $("inboxBadge").textContent = INBOX.unread > 9 ? "9+" : INBOX.unread;
+    $("sideBadge").hidden = !INBOX.unread; $("sideBadge").textContent = INBOX.unread > 9 ? "9+" : INBOX.unread;
+    $("sideAvs").innerHTML = $("hdrAvs").innerHTML; $("sideName").textContent = $("hi").textContent;
+    { const m = meMember() || {}; $("sideSub").textContent = tr({ solo: "Just me", couple: "Couple", family: "Family" }[KIND()]) + " · Lv " + levelInfo(m.xp || 0).l; }
 
     const all = ENTRIES, view = filter ? all.filter((e) => e.member_id === filter) : all;
     const sum = (arr, t) => arr.filter((e) => e.type === t).reduce((s, e) => s + e.amount, 0);
@@ -1865,6 +1868,7 @@
     } catch (e) { box.innerHTML = `<div class="chat-empty">${esc(e.message)}</div>`; }
   }
   $("inboxBtn").onclick = openInbox;
+  $("sideInbox").onclick = openInbox; $("sideHelp").onclick = () => show("help"); $("sideSet").onclick = () => show("settings"); $("sideHouse").onclick = () => show("settings");
 
   // email us (help + suggestions), with a little context so replies are easier
   function mailLinks() {
