@@ -1,0 +1,168 @@
+    $("obNext").textContent = step === "done" ? "Go to my budget" : step === "bills" ? "Finish" : "Next";
+    const isSolo = KIND() === "solo";
+    if (step === "buddy") {
+      body.innerHTML = `<div class="ob-art"><img src="/icon-192.png" alt=""></div><h1>Hi ${esc(ME.name)}!</h1>
+        <p class="lead">Let's set up your budget. It takes about a minute. First, pick the little buddy that shows next to everything you add.</p>
+        <div class="emojis" id="obEmojis"></div>`;
+      const mine = meMember(), g = $("obEmojis");
+      EMOJIS.forEach((e) => {
+        const b = document.createElement("button"); b.type = "button"; b.textContent = e;
+        b.setAttribute("aria-pressed", mine && mine.emoji === e ? "true" : "false");
+        b.onclick = async () => { if (mine) mine.emoji = e; drawOb(); try { await api("/api/me", { method: "PATCH", body: { emoji: e } }); } catch (err) { $("obErr").textContent = err.message; } };
+        g.appendChild(b);
+      });
+    }
+    if (step === "invite") {
+      const who = KIND() === "family" ? "your family" : "your partner";
+      body.innerHTML = `<div class="ob-art">${ICON.heart}</div><h1>Invite ${who}</h1>
+        <p class="lead">Send them this link. When they join, you'll share one budget and see the same bills.</p>
+        <div class="big-code">${esc(prettyCode(NEST.invite_code))}</div>
+        <div class="btn-row" style="justify-content:center;margin-top:12px">${navigator.share ? '<button class="small" id="obShare">Share link</button>' : ""}<button class="small" id="obCopy">Copy link</button></div>
+        <p class="hint center" style="margin-top:12px">You can always find this later in Together.</p>`;
+      $("obCopy").onclick = $("copyInvite").onclick;
+      if ($("obShare")) $("obShare").onclick = $("shareInvite").onclick;
+    }
+    if (step === "paydays") {
+      const p = ob.pay, pays = RECUR.filter((r) => r.type === "income");
+      body.innerHTML = `<div class="ob-art">${ICON.coin}</div><h1>When do you get paid?</h1>
+        <p class="lead">Add each paycheck once. Honeybun uses it to show what's due before payday.</p>
+        ${MEMBERS.length > 1 ? '<div class="field" style="margin-top:0"><span class="lbl">Who gets paid?</span><div class="whos" id="obPayWho"></div></div>' : ""}
+        <div class="row2"><div class="field"><label for="obPayAmt">Amount</label><input id="obPayAmt" type="number" inputmode="decimal" min="0" step="0.01" placeholder="1,800"></div>
+        <div class="field"><label for="obPayFreq">How often</label><select id="obPayFreq"><option value="weekly">Every week</option><option value="biweekly">Every 2 weeks</option><option value="monthly">Every month</option></select></div></div>
+        <div class="field"><label for="obPayDate">Next payday</label><input id="obPayDate" type="date"></div>
+        <button class="small" id="obPayAdd" style="margin-top:12px">Add payday</button>
+        <ul class="added" id="obPays"></ul>`;
+      $("obPayAmt").value = p.amount; $("obPayFreq").value = p.freq; $("obPayDate").value = p.date;
+      $("obPayAmt").oninput = (e) => (p.amount = e.target.value);
+      $("obPayFreq").onchange = (e) => (p.freq = e.target.value);
+      $("obPayDate").onchange = (e) => (p.date = e.target.value);
+      if ($("obPayWho")) MEMBERS.forEach((m) => {
+        const b = document.createElement("button"); b.type = "button"; b.innerHTML = `<i style="background:${esc(m.color)}">${esc(m.emoji)}</i>${esc(m.name)}`;
+        b.setAttribute("aria-pressed", m.id === p.who ? "true" : "false"); b.onclick = () => { p.who = m.id; drawOb(); }; $("obPayWho").appendChild(b);
+      });
+      pays.forEach((r) => $("obPays").appendChild(recurRow(r)));
+      $("obPayAdd").onclick = async () => {
+        if (!(parseFloat(p.amount) > 0)) { $("obErr").textContent = "Enter how much you get paid."; $("obPayAmt").focus(); return; }
+        if (!p.date) { $("obErr").textContent = "Pick your next payday."; return; }
+        try {
+          await api("/api/recurring", { method: "POST", body: { type: "income", amount: parseFloat(p.amount), label: tr(member(p.who).name + "'s paycheck"), member_id: p.who, freq: p.freq, date: p.date } });
+          ob.pay = freshPay(); ob.pay.who = p.who; await loadNest(); drawOb(); toast("Payday added");
+        } catch (e) { $("obErr").textContent = e.message; }
+      };
+    }
+    if (step === "bills") {
+      const b = ob.bill, bills = RECUR.filter((r) => r.type === "expense");
+      body.innerHTML = `<div class="ob-art">${ICON.cal}</div><h1>Rent, bills & subscriptions</h1>
+        <p class="lead">Add the things you pay every month. We'll show them before they're due${isSolo ? "" : " and split them for you"}.</p>
+        <div class="quick" id="obQuick"></div>
+        <div class="field"><label for="obBillName">Name</label><input id="obBillName" maxlength="40" placeholder="Rent"></div>
+        <div class="row2"><div class="field"><label for="obBillAmt">Amount</label><input id="obBillAmt" type="number" inputmode="decimal" min="0" step="0.01" placeholder="1,500"></div>
+        <div class="field"><label for="obBillDate">Next due date</label><input id="obBillDate" type="date"></div></div>
+        <div class="field"><label for="obBillFreq">How often</label><select id="obBillFreq"><option value="monthly">Every month</option><option value="biweekly">Every 2 weeks</option><option value="weekly">Every week</option></select></div>
+        ${MEMBERS.length > 1 ? '<div class="field"><span class="lbl">Split</span><div class="split"><button type="button" id="obSplit">Split evenly</button><button type="button" id="obMine">Just mine</button></div></div>' : ""}
+        <button class="small" id="obBillAdd" style="margin-top:12px">Add bill</button>
+        <ul class="added" id="obBills"></ul>`;
+      QUICK_BILLS.forEach((q) => {
+        const el = document.createElement("button"); el.type = "button"; el.textContent = q.n;
+        el.setAttribute("aria-pressed", b.pick === q.n ? "true" : "false");
+        el.onclick = () => { b.pick = q.n; b.label = q.n === "Something else" ? "" : q.n; b.cat = q.c; b.shared = MEMBERS.length > 1 && q.s; drawOb(); (q.n === "Something else" ? $("obBillName") : $("obBillAmt")).focus(); };
+        $("obQuick").appendChild(el);
+      });
+      $("obBillName").value = b.label; $("obBillAmt").value = b.amount; $("obBillDate").value = b.date; $("obBillFreq").value = b.freq;
+      $("obBillName").oninput = (e) => (b.label = e.target.value);
+      $("obBillAmt").oninput = (e) => (b.amount = e.target.value);
+      $("obBillDate").onchange = (e) => (b.date = e.target.value);
+      $("obBillFreq").onchange = (e) => (b.freq = e.target.value);
+      if ($("obSplit")) {
+        $("obSplit").setAttribute("aria-pressed", b.shared ? "true" : "false"); $("obMine").setAttribute("aria-pressed", b.shared ? "false" : "true");
+        $("obSplit").onclick = () => { b.shared = true; drawOb(); }; $("obMine").onclick = () => { b.shared = false; drawOb(); };
+      }
+      bills.forEach((r) => $("obBills").appendChild(recurRow(r)));
+      $("obBillAdd").onclick = async () => {
+        if (!b.label.trim()) { $("obErr").textContent = "Name the bill, or tap one above."; $("obBillName").focus(); return; }
+        if (!(parseFloat(b.amount) > 0)) { $("obErr").textContent = "Enter the amount."; $("obBillAmt").focus(); return; }
+        if (!b.date) { $("obErr").textContent = "Pick the next due date."; $("obBillDate").focus(); return; }
+        try {
+          await api("/api/recurring", { method: "POST", body: { type: "expense", amount: parseFloat(b.amount), label: tr(b.label.trim()), category: b.cat, member_id: ME.id, shared: b.shared, split_mode: "equal", freq: b.freq, date: b.date } });
+          ob.bill = freshBill(); await loadNest(); drawOb(); toast(`${b.label.trim()} added`);
+        } catch (e) { $("obErr").textContent = e.message; }
+      };
+    }
+    if (step === "done") {
+      const np = RECUR.filter((r) => r.type === "income").length, nb = RECUR.filter((r) => r.type === "expense").length;
+      body.innerHTML = `<div class="ob-art"><img src="/icon-192.png" alt=""></div><h1>You're all set</h1>
+        <p class="lead">${np} payday${np === 1 ? "" : "s"} and ${nb} bill${nb === 1 ? "" : "s"} added. You can change them anytime in Plan.</p>
+        <div class="card" style="text-align:left"><h2 style="font-size:1rem">How your bunny grows 🥕</h2>
+        <p class="sub" style="margin-top:6px">Earn carrots every time you log spending, pay a bill, or save. Log something each day to build your hop streak 🐾, level up, and unlock outfits for your bunny.</p></div>`;
+    }
+  }
+  $("obBack").onclick = () => { if (ob.i > 0) { ob.i--; drawOb(); window.scrollTo(0, 0); } };
+  $("obSkip").onclick = () => { ob.i = Math.min(ob.i + 1, ob.steps.length - 1); drawOb(); window.scrollTo(0, 0); };
+  $("obNext").onclick = async () => {
+    if (ob.steps[ob.i] !== "done") { ob.i++; drawOb(); window.scrollTo(0, 0); return; }
+    let rw = null;
+    try { rw = (await api("/api/setup/done", { method: "POST" })).reward; } catch {}
+    await loadNest(); show("home"); bunnyHop();
+    if (rw) rewardToast(rw, "Setup complete");
+  };
+  $("rerunSetup").onclick = () => openOnboard(true);
+
+  // ---------- bills & paydays: upcoming ----------
+  function occurrences(r, from, to) {
+    const out = [], a = parseD(r.anchor_date);
+    if (r.freq === "monthly") {
+      const day = a.getDate();
+      let y = from.getFullYear(), m = from.getMonth();
+      for (let i = 0; i < 26; i++) {
+        const d = new Date(y, m, Math.min(day, new Date(y, m + 1, 0).getDate()));
+        if (d > to) break;
+        if (d >= from && d >= a) out.push(d);
+        if (++m > 11) { m = 0; y++; }
+      }
+    } else {
+      const step = r.freq === "weekly" ? 7 : 14;
+      let d = a;
+      if (d < from) d = addDays(a, Math.ceil(Math.round((from - a) / 86400000) / step) * step);
+      for (let i = 0; d <= to && i < 60; i++) { out.push(d); d = addDays(d, step); }
+    }
+    return out;
+  }
+  const isLogged = (r, d) => LOGGED.has(r.id + "|" + toS(d));
+  function nextOcc(r) { const t = parseD(today()); return occurrences(r, t, addDays(t, 400))[0]; }
+  function upcoming() {
+    const t = parseD(today());
+    let payday = null, pays = [];
+    for (const r of RECUR.filter((r) => r.type === "income")) {
+      const d = occurrences(r, t, addDays(t, 62)).find((d) => !isLogged(r, d));
+      if (!d) continue;
+      if (!payday || d < payday) { payday = d; pays = [{ r, d }]; }
+      else if (+d === +payday) pays.push({ r, d });
+    }
+    const until = payday ? addDays(payday, -1) : addDays(t, 30);
+    const bills = [];
+    for (const r of RECUR.filter((r) => r.type === "expense"))
+      for (const d of occurrences(r, addDays(t, -31), until)) if (!isLogged(r, d)) bills.push({ r, d, late: d < t });
+    bills.sort((a, b) => a.d - b.d);
+    return { payday, pays, bills };
+  }
+  async function logOcc(r, d, btn) {
+    if (btn) busy(btn, true);
+    try {
+      const res = await api(`/api/recurring/${r.id}/log`, { method: "POST", body: { occ_date: toS(d) } });
+      await loadNest();
+      rewardToast(res.reward, r.type === "income" ? "Payday logged" : r.label + " marked paid");
+      bunnyHop();
+    } catch (e) { toast(e.message); if (btn) busy(btn, false); }
+  }
+
+
+  // ---------- rendering ----------
+  function setBunny(left, inc, out, any) {
+    const r = inc > 0 ? out / inc : out > 0 ? 2 : 0;
+    let msg, path = "M53 90 q3.5 4 7 0 q3.5 4 7 0", p = "";
+    if (!any) msg = loggedToday() ? "Add your first paycheck to begin." : "Log something today to start your hop streak 🐾";
+    else if (inc === 0) { msg = "No income logged yet."; path = "M54 91 h12"; }
+    else if (r > 1) { msg = "A little over this month."; path = "M53 93 q7 -5 14 0"; }
+    else if (r > 0.8) { msg = "Almost at the limit."; path = "M54 91 q6 1.5 12 0"; }
+    else {
+      msg = Math.round((1 - r) * 100) + `% of this month is still ${KIND() === "solo" ? "yours" : "ours"}.`;
