@@ -1,11 +1,10 @@
-// Honeybun boot helpers: theme, Bun assistant, mobile polish, deploy recovery.
+// Honeybun boot helpers: light theme, Bun assistant, mobile polish, deploy recovery.
 (function () {
   var root = document.documentElement;
 
-  // Apply saved theme as early as possible.
-  var savedTheme = null;
-  try { savedTheme = localStorage.getItem("hb-theme"); } catch (e) {}
-  if (savedTheme === "light" || savedTheme === "dark") root.setAttribute("data-theme", savedTheme);
+  // Honeybun is light-mode only now.
+  root.setAttribute("data-theme", "light");
+  try { localStorage.removeItem("hb-theme"); } catch (e) {}
 
   // iPhone / iPad + installed Home Screen detection.
   var ua = navigator.userAgent || "";
@@ -14,10 +13,9 @@
   root.setAttribute("data-ios", isiOS ? "1" : "0");
   root.setAttribute("data-standalone", standalone ? "1" : "0");
 
-  // Better iOS standalone appearance. Safari's URL bar itself cannot be hidden in a normal browser tab;
-  // installed Home Screen mode removes it and Honeybun already ships as a PWA.
+  // Use a light iPhone status bar treatment.
   var appleStatus = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
-  if (appleStatus) appleStatus.setAttribute("content", "black-translucent");
+  if (appleStatus) appleStatus.setAttribute("content", "default");
 
   function addStyle(href, attr) {
     if (document.querySelector('link[' + attr + ']')) return;
@@ -37,12 +35,6 @@
     document.head.appendChild(s);
   }
 
-  function currentTheme() {
-    var explicit = root.getAttribute("data-theme");
-    if (explicit === "light" || explicit === "dark") return explicit;
-    return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-  }
-
   function syncThemeColor() {
     var meta = document.querySelector('meta[name="theme-color"]');
     if (!meta) {
@@ -50,36 +42,12 @@
       meta.name = "theme-color";
       document.head.appendChild(meta);
     }
-    meta.content = currentTheme() === "dark" ? "#19171c" : "#f7f5f2";
+    meta.content = "#f7f5f2";
   }
 
-  function mountThemeToggle() {
-    if (document.getElementById("hbThemeToggle")) return;
-    var top = document.getElementById("topBar") || document.querySelector("header.top") || document.querySelector(".top");
-    if (!top) return;
-
-    var btn = document.createElement("button");
-    btn.type = "button";
-    btn.id = "hbThemeToggle";
-    btn.className = "hb-theme-toggle";
-    btn.setAttribute("aria-label", "Switch light or dark mode");
-
-    function paint() {
-      var t = currentTheme();
-      btn.innerHTML = '<span class="hb-theme-icon">' + (t === "dark" ? "☾" : "☀") + '</span><span class="hb-theme-label">' + (t === "dark" ? "Dark" : "Light") + '</span>';
-      btn.title = "Switch to " + (t === "dark" ? "light" : "dark") + " mode";
-      syncThemeColor();
-    }
-
-    btn.addEventListener("click", function () {
-      var next = currentTheme() === "dark" ? "light" : "dark";
-      root.setAttribute("data-theme", next);
-      try { localStorage.setItem("hb-theme", next); } catch (e) {}
-      paint();
-    });
-
-    top.appendChild(btn);
-    paint();
+  function removeThemeToggle() {
+    var btn = document.getElementById("hbThemeToggle");
+    if (btn) btn.remove();
   }
 
   function mountIOSInstallTip() {
@@ -98,10 +66,11 @@
   }
 
   function initUiBits() {
+    root.setAttribute("data-theme", "light");
     addStyle("/hb-v8-tweaks.css?v=3", "data-hb-v8-tweaks");
-    addStyle("/hb-mobile.css?v=1", "data-hb-mobile");
+    addStyle("/hb-mobile.css?v=3", "data-hb-mobile");
     addScript("/hb-bun.js?v=1", "data-hb-bun");
-    mountThemeToggle();
+    removeThemeToggle();
     mountIOSInstallTip();
     syncThemeColor();
   }
@@ -122,7 +91,13 @@
       setTimeout(function () { location.reload(); }, 3000);
     } else {
       var btn = document.getElementById("bootBtn");
-      if (btn) { btn.hidden = false; btn.onclick = function () { try { sessionStorage.removeItem("hb-boot"); } catch (e) {} location.reload(); }; }
+      if (btn) {
+        btn.hidden = false;
+        btn.onclick = function () {
+          try { sessionStorage.removeItem("hb-boot"); } catch (e) {}
+          location.reload();
+        };
+      }
     }
   }, 8000);
 })();
