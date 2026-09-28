@@ -57,9 +57,9 @@
   function initUiBits() {
     root.setAttribute("data-theme", "dark");
 
-    // Main clean visual layer + desktop sizing layer.
-    addStyle("/hb-rebuild.css?v=2", "data-hb-rebuild");
-    addStyle("/hb-desktop-v2.css?v=1", "data-hb-desktop-v2");
+    // Keep the real app wired, then apply the approved preview look on top.
+    addStyle("/hb-rebuild.css?v=3", "data-hb-rebuild");
+    addStyle("/hb-preview-parity.css?v=1", "data-hb-preview-parity");
 
     // Existing functional helper remains wired.
     addScript("/hb-bun.js?v=2", "data-hb-bun");
