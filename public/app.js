@@ -176,9 +176,18 @@
   }
   function busy(btn, on) { btn.disabled = on; btn.style.opacity = on ? ".6" : ""; }
 
+  const DEVICE = (() => {
+    let d = store.get("hb-device");
+    if (!d || !/^[A-Za-z0-9_-]{16,64}$/.test(d)) {
+      const abc = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+      d = Array.from(crypto.getRandomValues(new Uint8Array(22)), (b) => abc[b % 64]).join(""); store.set("hb-device", d);
+    }
+    return d;
+  })();
   async function api(path, { method = "GET", body } = {}) {
     const opts = { method, credentials: "same-origin", headers: {} };
     opts.headers["x-local-date"] = today();
+    opts.headers["x-hb-device"] = DEVICE;
     if (method !== "GET") { opts.headers["content-type"] = "application/json"; opts.body = JSON.stringify(body ?? {}); }
     let res;
     try { res = await fetch(path, opts); }
@@ -249,7 +258,15 @@
     if (r) resetToken = r[1];
     const v = location.pathname.match(/^\/verify\/([A-Za-z0-9_-]{20,100})\/?$/);
     if (v) verifyToken = v[1];
+    // referral links: /r/CODE or ?ref=CODE (remembered for 60 days until signup)
+    const rf = location.pathname.match(/^\/r\/([A-Za-z0-9]{4,16})\/?$/), rq = new URLSearchParams(location.search).get("ref");
+    const rc = rf ? rf[1] : rq && /^[A-Za-z0-9]{4,16}$/.test(rq) ? rq : null;
+    if (rc) { store.set("hb-ref", JSON.stringify({ c: rc.toUpperCase(), t: Date.now() })); history.replaceState(null, "", "/" + location.hash); }
   }
+  // "Buy me a coffee" support link: paste the page address here and the buttons appear
+  const COFFEE_URL = "";
+  if (COFFEE_URL) document.querySelectorAll("[data-coffee]").forEach((a) => { a.href = COFFEE_URL; a.closest("[data-coffee-wrap]").hidden = false; });
+  function pendingRef() { try { const r = JSON.parse(store.get("hb-ref") || "null"); return r && Date.now() - r.t < 60 * 86400000 ? r.c : null; } catch { return null; } }
   const member = (id) => MEMBERS.find((m) => m.id === id) || { name: "Someone", emoji: "❔", color: "#EEE" };
   const meMember = () => MEMBERS.find((m) => m.id === ME?.id);
   const others = (id) => MEMBERS.filter((m) => m.id !== id);
@@ -259,7 +276,7 @@
   const loggedToday = () => meMember()?.last_day === today();
 
   // ---------- screens ----------
-  const APP_SCREENS = ["home", "plan", "add", "stats", "us", "inbox", "settings", "help"];
+  const APP_SCREENS = ["home", "plan", "add", "stats", "us", "inbox", "settings", "help", "refer"];
   const ALL_SCREENS = ["loading", "landing", "auth", "reset", "verify", "setup", "onboard", ...APP_SCREENS];
   function show(s) {
     screen = s;
@@ -272,6 +289,7 @@
     document.querySelectorAll("nav.bottom [data-go]").forEach((b) => b.dataset.go === s ? b.setAttribute("aria-current", "page") : b.removeAttribute("aria-current"));
     window.scrollTo(0, 0);
     if (s === "stats") loadYear();
+    if (s === "refer" && ME) loadRef();
     if (inApp) render();
   }
   document.querySelectorAll("nav.bottom [data-go]").forEach((b) => (b.onclick = () => {
@@ -281,6 +299,7 @@
   // ---------- auth ----------
   function showAuth() {
     $("inviteNotice").hidden = !pendingCode;
+    $("refNotice").hidden = !!pendingCode || !pendingRef();
     $("authBackWrap").hidden = !!pendingCode;
     $("authCard").hidden = false; $("forgotCard").hidden = true;
     setAuthMode(authMode);
@@ -306,7 +325,8 @@
     if (authMode === "signup" && password.length < 8) { $("authErr").textContent = "Use a password with at least 8 characters."; $("aPass").focus(); return; }
     busy($("authBtn"), true); $("authErr").textContent = "";
     try {
-      await api(authMode === "signup" ? "/api/signup" : "/api/login", { method: "POST", body: { name, email, password, lang: LANG } });
+      await api(authMode === "signup" ? "/api/signup" : "/api/login", { method: "POST", body: { name, email, password, lang: LANG, ...(authMode === "signup" && pendingRef() ? { ref: pendingRef() } : {}) } });
+      if (authMode === "signup") store.set("hb-ref", "");
       $("aPass").value = "";
       await afterAuth();
     } catch (e) {
@@ -402,7 +422,7 @@
   // ---------- data ----------
   async function loadNest() {
     const d = await api("/api/nest?month=" + MONTH);
-    ME = d.me; NEST = d.nest; MEMBERS = d.members;
+    { const keep = ME && ME.ref; ME = d.me; if (keep && ME && !ME.ref) ME.ref = keep; } NEST = d.nest; MEMBERS = d.members;
     ENTRIES = d.entries.map((e) => ({ ...e, amount: e.amount_cents / 100, shared: !!e.shared, private: !!e.private }));
     queued().filter((q) => (q.date || "").slice(0, 7) === MONTH).forEach((q) => ENTRIES.unshift({
       id: q.pending_id, pending: true, member_id: q.member_id, type: q.type, amount: +q.amount, amount_cents: Math.round(q.amount * 100),
@@ -888,6 +908,7 @@
         bub.textContent = t;
       } else { bub.classList.remove("has-msg"); bub.removeAttribute("data-nt"); }
       renderPill();
+      renderRefCard();
       $("verifyBanner").hidden = !!ME.verified || +(store.get("hb-verify-hide") || 0) > Date.now();
       const isThisMonth = MONTH === today().slice(0, 7);
       $("dueCard").hidden = !isThisMonth;
@@ -981,7 +1002,10 @@
       $("inviteLink").textContent = inviteUrl();
       $("shareInvite").hidden = !navigator.share;
     }
+    if (screen === "refer") renderRefer();
     if (screen === "settings") {
+      if (ME.ref) { $("refRowT").textContent = R(`Invite friends, earn ${refAmt(ME.ref)}`, `Invita amigos y gana ${refAmt(ME.ref)}`, `邀请好友，赢 ${refAmt(ME.ref)}`); $("refRowS").textContent = refSub(ME.ref); }
+      $("openRefer").hidden = !ME.ref;
       $("mailBills").checked = !!ME.mail?.bills; $("mailStreak").checked = !!ME.mail?.streak; $("mailWeekly").checked = !!ME.mail?.weekly;
       ["mailBills", "mailStreak", "mailWeekly"].forEach((id) => ($(id).disabled = !ME.verified));
       $("mailHint").hidden = !!ME.verified;
@@ -1840,6 +1864,33 @@
       shared_expense: (d) => `${d.name} 添加了 ${d.label}（${money(d.amount)}），和你一起分摊。`,
     },
   };
+  {
+    const A = (d) => fmt(((d && d.amount) || 1000) / 100).replace(/\.00$/, "");
+    Object.assign(MSG.en, {
+      ref_intro: (d) => `Psst 🎁 Share Honeybun with friends and earn a ${A(d)} gift card for every ${d.goal} who stick around for a week. Tap below for your link!`,
+      ref_nudge: (d) => `Know someone who'd love a cute budget? Every ${d.goal} friends who join with your link = a ${A(d)} gift card 🎁`,
+      ref_signup: (d) => `${d.name} just signed up with your link! 🎉 They'll count once they've used Honeybun for a week.`,
+      ref_qualified: (d) => `${d.name} counts now! That's ${d.n} of ${d.goal} toward your next gift card 🥕`,
+      reward_earned: (d) => `You did it! ${d.n} friends counted, so you earned a ${A(d)} gift card 🎁 It'll be emailed to you within a few days.`,
+      reward_sent: (d) => `Your ${A(d)} gift card was sent! Check your email 💌 Thanks for sharing Honeybun.`,
+    });
+    Object.assign(MSG.es, {
+      ref_intro: (d) => `Psst 🎁 Comparte Honeybun y gana una tarjeta de regalo de ${A(d)} por cada ${d.goal} amigos que se queden una semana. ¡Toca abajo para tu enlace!`,
+      ref_nudge: (d) => `¿Conoces a alguien que amaría un presupuesto lindo? Cada ${d.goal} amigos con tu enlace = una tarjeta de ${A(d)} 🎁`,
+      ref_signup: (d) => `¡${d.name} se registró con tu enlace! 🎉 Contará cuando use Honeybun por una semana.`,
+      ref_qualified: (d) => `¡${d.name} ya cuenta! Llevas ${d.n} de ${d.goal} para tu próxima tarjeta 🥕`,
+      reward_earned: (d) => `¡Lo lograste! ${d.n} amigos contaron y ganaste una tarjeta de ${A(d)} 🎁 Te llegará por correo en unos días.`,
+      reward_sent: (d) => `¡Tu tarjeta de ${A(d)} fue enviada! Revisa tu correo 💌 Gracias por compartir Honeybun.`,
+    });
+    Object.assign(MSG.zh, {
+      ref_intro: (d) => `悄悄告诉你 🎁 分享 Honeybun，每有 ${d.goal} 位好友使用满一周，你就能获得 ${A(d)} 礼品卡。点下面获取你的链接！`,
+      ref_nudge: (d) => `身边有人想要可爱的记账本吗？每 ${d.goal} 位通过你链接加入的好友 = ${A(d)} 礼品卡 🎁`,
+      ref_signup: (d) => `${d.name} 刚通过你的链接注册了！🎉 使用满一周后就会计入。`,
+      ref_qualified: (d) => `${d.name} 已计入！距离下一张礼品卡：${d.n}/${d.goal} 🥕`,
+      reward_earned: (d) => `你做到了！${d.n} 位好友已计入，你获得了 ${A(d)} 礼品卡 🎁 几天内会通过邮件发送给你。`,
+      reward_sent: (d) => `你的 ${A(d)} 礼品卡已发送！请查收邮件 💌 感谢分享 Honeybun。`,
+    });
+  }
   function msgText(m) {
     const T = MSG[LANG] || MSG.en, d = m.data || {};
     let kind = m.kind, n = 0;
@@ -1863,6 +1914,8 @@
     if (m.kind === "goal_done" || m.kind === "debt_done") add("See Plan", "", () => show("plan"));
     if (m.kind === "week") add("See stats", "", () => show("stats"));
     if (m.kind === "level" || m.kind === "streak_milestone") add("See my bunny", "", () => show("stats"));
+    if (["ref_intro", "ref_nudge"].includes(m.kind)) add("Get my link", "", () => show("refer"));
+    if (["ref_signup", "ref_qualified", "reward_earned", "reward_sent"].includes(m.kind)) add("See referrals", "", () => show("refer"));
   }
   let CHAT = [];
   function drawChat(msgs, animateNew) {
@@ -1917,10 +1970,151 @@
   $("heroPrev").onclick = () => shift(-1);
   $("heroNext").onclick = () => shift(1);
 
+  // ---------- referrals: invite friends, earn gift cards ----------
+  const R = (en, es, zh) => (LANG === "es" ? es : LANG === "zh" ? zh : en);
+  let REF_FULL = null;
+  const refAmt = (r) => fmt(((r && r.reward_cents) || 1000) / 100).replace(/\.00$/, "");
+  const refInCycle = (r) => r.qualified % r.goal;
+  function refPips(r, el, cls) {
+    const got = refInCycle(r), wait = Math.min(r.pending, r.goal - got);
+    el.innerHTML = Array.from({ length: r.goal }, (_, i) => `<i class="${i < got ? "on" : i < got + wait ? "wait" : i === r.goal - 1 && cls ? "gift" : ""}">${cls && i < got ? "✓" : cls && i === r.goal - 1 && i >= got + wait ? "🎁" : ""}</i>`).join("");
+  }
+  function refSub(r) {
+    const got = refInCycle(r);
+    if (!r.qualified && !r.pending) return R(`Invite ${r.goal} friends who stick around for a week`, `Invita a ${r.goal} amigos que se queden una semana`, `邀请 ${r.goal} 位好友使用满一周`);
+    return R(`${got} of ${r.goal} counted`, `${got} de ${r.goal} cuentan`, `已计入 ${got}/${r.goal}`) + (r.pending ? R(` · ${r.pending} on the way`, ` · ${r.pending} en camino`, ` · ${r.pending} 位进行中`) : "");
+  }
+  function renderRefCard() {
+    const r = ME && ME.ref, c = $("refCard");
+    if (!r) { c.hidden = true; return; }
+    c.hidden = false;
+    $("refCardT").textContent = R(`Get a ${refAmt(r)} gift card`, `Gana una tarjeta de regalo de ${refAmt(r)}`, `赢取 ${refAmt(r)} 礼品卡`);
+    $("refCardSub").textContent = refSub(r);
+    refPips(r, $("refCardPips"));
+    $("refNew").hidden = store.get("hb-ref-seen") === "1";
+    $("refNew").textContent = R("NEW", "NUEVO", "新");
+    c.onclick = () => { store.set("hb-ref-seen", "1"); show("refer"); };
+  }
+  function refLink(r) { return (REF_FULL && REF_FULL.link) || location.origin + "/r/" + r.code; }
+  async function loadRef() {
+    try {
+      REF_FULL = await api("/api/referrals");
+      ME.ref = { code: REF_FULL.code, goal: REF_FULL.goal, reward_cents: REF_FULL.reward_cents, qualified: REF_FULL.qualified, pending: REF_FULL.pending, rejected: REF_FULL.rejected };
+      if (screen === "refer") renderRefer();
+    } catch (e) { if (screen === "refer") $("refList").innerHTML = `<li class="ref-empty">${esc(e.message)}</li>`; }
+  }
+  const REF_WHY = {
+    same_device: () => R("Signed up on your device", "Se registró en tu dispositivo", "在你的设备上注册"),
+    same_household: () => R("Joined your own budget", "Se unió a tu propio presupuesto", "加入了你自己的预算"),
+    inactive: () => R("Didn't stick around for a week", "No se quedó una semana", "没有坚持使用一周"),
+    unverified: () => R("Never confirmed their email", "No confirmó su correo", "未确认邮箱"),
+    left: () => R("Deleted their account", "Eliminó su cuenta", "已删除账户"),
+  };
+  function renderRefer() {
+    const r = ME && ME.ref;
+    if (!r) return;
+    const amt = refAmt(r), full = REF_FULL, days = (full && full.days_needed) || 7, act = (full && full.active_days_needed) || 4;
+    $("refH1").textContent = R("Invite friends", "Invita amigos", "邀请好友");
+    $("refH1p").textContent = R("Share Honeybun and earn gift cards.", "Comparte Honeybun y gana tarjetas de regalo.", "分享 Honeybun，赢取礼品卡。");
+    $("refHeroT").textContent = R(`Invite ${r.goal} friends, get a ${amt} gift card`, `Invita a ${r.goal} amigos y gana una tarjeta de ${amt}`, `邀请 ${r.goal} 位好友，得 ${amt} 礼品卡`);
+    $("refHeroP").textContent = R(`When a friend signs up with your link and uses Honeybun for a week, they count. Every ${r.goal} friends = a ${amt} gift card, and there's no limit.`,
+      `Cuando un amigo se registra con tu enlace y usa Honeybun por una semana, cuenta. Cada ${r.goal} amigos = una tarjeta de ${amt}, sin límite.`,
+      `好友通过你的链接注册并使用 Honeybun 满一周即计入。每 ${r.goal} 位好友 = 一张 ${amt} 礼品卡，上不封顶。`);
+    refPips(r, $("refDots"), true);
+    const got = refInCycle(r), left = r.goal - got;
+    $("refProg").textContent = r.qualified >= r.goal && got === 0
+      ? R(`You earned ${r.qualified / r.goal} gift card${r.qualified / r.goal > 1 ? "s" : ""}! 🎉 Keep going for the next one.`, `¡Ganaste ${r.qualified / r.goal} tarjeta(s)! 🎉 Sigue por la próxima.`, `你已获得 ${r.qualified / r.goal} 张礼品卡！🎉 继续加油。`)
+      : R(`${got} of ${r.goal} · ${left} more to your next gift card`, `${got} de ${r.goal} · faltan ${left} para tu próxima tarjeta`, `${got}/${r.goal} · 再邀请 ${left} 位即可获得礼品卡`);
+    $("refLink").textContent = refLink(r).replace(/^https?:\/\//, "");
+    $("refCopy").textContent = R("Copy", "Copiar", "复制");
+    $("refShare").textContent = R("Share link", "Compartir", "分享链接"); $("refShare").hidden = !navigator.share;
+    $("refText").textContent = R("Text a friend", "Enviar mensaje", "发短信");
+    $("refAsk").textContent = R("Ask Bun 🐰", "Pregúntale a Bun 🐰", "问问 Bun 🐰");
+    $("refHowT").textContent = R("How it works", "Cómo funciona", "如何运作");
+    const steps = [
+      [R("Share your link", "Comparte tu enlace", "分享你的链接"), R("Send it to friends, family, or post it anywhere.", "Envíalo a amigos o familia, o publícalo donde quieras.", "发给朋友、家人，或发布到任何地方。")],
+      [R("They sign up", "Se registran", "他们注册"), R("They create a free account with your link and confirm their email. Bun tells you right away.", "Crean una cuenta gratis con tu enlace y confirman su correo. Bun te avisa al instante.", "他们用你的链接创建免费账户并确认邮箱，Bun 会立刻通知你。")],
+      [R("They use it for a week", "La usan una semana", "使用满一周"), R(`Once they've logged on ${act} different days and are still using it after ${days} days, they count. Alone or with a partner, both work.`, `Cuando registran algo en ${act} días distintos y siguen usándola después de ${days} días, cuentan. Solos o en pareja.`, `当他们在 ${act} 个不同的日子记账，并且 ${days} 天后仍在使用时即计入。单人或情侣都可以。`)],
+      [R(`Get your ${amt} gift card`, `Recibe tu tarjeta de ${amt}`, `领取 ${amt} 礼品卡`), R(`Every ${r.goal} friends who count = a ${amt} gift card, emailed to you.`, `Cada ${r.goal} amigos que cuentan = una tarjeta de ${amt} por correo.`, `每 ${r.goal} 位计入的好友 = 一张 ${amt} 礼品卡，通过邮件发送给你。`)],
+    ];
+    $("refSteps").innerHTML = steps.map(([t, d], i) => `<li><b>${i + 1}</b><span><strong>${esc(t)}</strong>${esc(d)}</span></li>`).join("");
+    $("refFriendsT").textContent = R("Your friends", "Tus amigos", "你的好友");
+    const ppl = full ? full.people : null;
+    $("refCount").textContent = ppl ? R(`${ppl.length} signed up`, `${ppl.length} registrados`, `${ppl.length} 人已注册`) : "";
+    const list = $("refList");
+    if (!ppl) list.innerHTML = `<li class="ref-empty">${esc(R("Loading…", "Cargando…", "加载中…"))}</li>`;
+    else if (!ppl.length) list.innerHTML = `<li class="ref-empty">${esc(R("No one yet. Share your link and Bun will let you know the moment someone joins 🐰", "Nadie aún. Comparte tu enlace y Bun te avisará cuando alguien se una 🐰", "还没有人。分享你的链接，有人加入时 Bun 会第一时间告诉你 🐰"))}</li>`;
+    else list.innerHTML = ppl.map((p) => {
+      const nm = p.name || R("Former member", "Ex miembro", "前成员"), day = Math.min(days, Math.floor((Date.now() / 1000 - p.created_at) / 86400) + 1);
+      let sub, chip;
+      if (p.status === "qualified") { sub = R("Counts toward your gift card", "Cuenta para tu tarjeta", "已计入礼品卡"); chip = `<span class="ref-chip ok">${esc(R("Counted ✓", "Cuenta ✓", "已计入 ✓"))}</span>`; }
+      else if (p.status === "pending") {
+        const pct = Math.min(100, Math.round(((Math.min(day, days) / days) * 0.5 + (Math.min(p.active_days, act) / act) * 0.5) * 100));
+        sub = R(`Day ${day} of ${days} · active ${Math.min(p.active_days, act)} of ${act} days`, `Día ${day} de ${days} · activo ${Math.min(p.active_days, act)} de ${act} días`, `第 ${day}/${days} 天 · 活跃 ${Math.min(p.active_days, act)}/${act} 天`) + `</small><span class="ref-bar"><i style="width:${pct}%"></i></span><small hidden>`;
+        chip = `<span class="ref-chip wait">${esc(R("On the way", "En camino", "进行中"))}</span>`;
+      } else { sub = (REF_WHY[p.reason] || REF_WHY.inactive)(); chip = `<span class="ref-chip no">${esc(R("Not counted", "No cuenta", "未计入"))}</span>`; }
+      const safeSub = p.status === "pending" ? sub.replace(/^[^<]*/, (t) => esc(t)) : esc(sub);
+      return `<li><span class="face">${esc((nm[0] || "?").toUpperCase())}</span><span class="nm"><b>${esc(nm)}</b><small>${safeSub}</small></span>${chip}</li>`;
+    }).join("");
+    const rw = full ? full.rewards : [];
+    $("refRewardsCard").hidden = !rw.length;
+    $("refCardsT").textContent = R("Your gift cards", "Tus tarjetas de regalo", "你的礼品卡");
+    $("refRewards").innerHTML = rw.map((w) => `<li><span class="face">🎁</span><span class="nm"><b>${esc(fmt(w.amount_cents / 100))} ${esc(R("gift card", "tarjeta de regalo", "礼品卡"))}</b><small>${esc(new Date((w.sent_at || w.created_at) * 1000).toLocaleDateString(LOCALE))}</small></span><span class="ref-chip ${w.status === "sent" ? "ok" : "wait"}">${esc(w.status === "sent" ? R("Sent 💌", "Enviada 💌", "已发送 💌") : R("On its way", "En camino", "发送中"))}</span></li>`).join("");
+    $("refFine").innerHTML = esc(R(`Friends must be new to Honeybun, confirm their email, and sign up on their own phone or computer. People in your own budget and accounts made on your devices don't count. Gift cards are sent by email within about 5 business days.`,
+      `Tus amigos deben ser nuevos en Honeybun, confirmar su correo y registrarse en su propio teléfono o computadora. Las personas de tu propio presupuesto y las cuentas creadas en tus dispositivos no cuentan. Las tarjetas se envían por correo en unos 5 días hábiles.`,
+      `好友必须是 Honeybun 新用户、确认邮箱，并在自己的手机或电脑上注册。你自己预算中的成员以及在你设备上创建的账户不计入。礼品卡约在 5 个工作日内通过邮件发送。`)) + ` <a href="/terms.html#referrals">${esc(R("Full rules", "Reglas completas", "完整规则"))}</a>`;
+  }
+  function refReport(d) {
+    const p = d.people || [], amt = refAmt(d);
+    if (!p.length) return R(`No one has signed up with your link yet. Share it and I'll tell you the moment someone joins! Every ${d.goal} friends who stick around = a ${amt} gift card 🎁`,
+      `Nadie se ha registrado con tu enlace todavía. ¡Compártelo y te aviso en cuanto alguien se una! Cada ${d.goal} amigos = una tarjeta de ${amt} 🎁`,
+      `还没有人通过你的链接注册。分享出去，有人加入我会第一时间告诉你！每 ${d.goal} 位好友 = ${amt} 礼品卡 🎁`);
+    const wait = p.filter((x) => x.status === "pending").map((x) => x.name).filter(Boolean), got = refInCycle(d);
+    let t = R(`${p.length} ${p.length === 1 ? "person has" : "people have"} signed up with your link 🎉 ${d.qualified} counted, ${d.pending} still in their first week${d.rejected ? `, and ${d.rejected} didn't count` : ""}.`,
+      `${p.length} ${p.length === 1 ? "persona se registró" : "personas se registraron"} con tu enlace 🎉 ${d.qualified} cuentan, ${d.pending} en su primera semana${d.rejected ? ` y ${d.rejected} no contaron` : ""}.`,
+      `已有 ${p.length} 人通过你的链接注册 🎉 已计入 ${d.qualified} 人，${d.pending} 人还在第一周${d.rejected ? `，${d.rejected} 人未计入` : ""}。`);
+    if (wait.length) t += " " + R(`Still hopping through week one: ${wait.slice(0, 5).join(", ")}.`, `Aún en su primera semana: ${wait.slice(0, 5).join(", ")}.`, `第一周进行中：${wait.slice(0, 5).join("、")}。`);
+    t += " " + R(`You're ${got} of ${d.goal} toward your next ${amt} gift card 🥕`, `Llevas ${got} de ${d.goal} para tu próxima tarjeta de ${amt} 🥕`, `距离下一张 ${amt} 礼品卡：${got}/${d.goal} 🥕`);
+    const sent = (d.rewards || []).filter((w) => w.status === "sent").length, pend = (d.rewards || []).length - sent;
+    if (pend) t += " " + R(`Your gift card is on its way 💌`, `Tu tarjeta va en camino 💌`, `你的礼品卡正在路上 💌`);
+    return t;
+  }
+  async function askBunRefs() {
+    if (screen !== "inbox") await openInbox();
+    const box = $("chat");
+    const bubble = (cls, html) => { const el = document.createElement("div"); el.className = "msg first pop " + cls; el.innerHTML = `<div class="av"><img src="/icon-192.png" alt=""></div><div class="b">${html}</div>`; box.appendChild(el); window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" }); return el; };
+    const q = bubble("me", "<p></p>"); q.querySelector("p").textContent = R("How are my referrals doing?", "¿Cómo van mis referidos?", "我的邀请进展如何？");
+    const ty = bubble("typing", "<i></i><i></i><i></i>");
+    try {
+      const [d] = await Promise.all([api("/api/referrals"), new Promise((r) => setTimeout(r, 800))]);
+      REF_FULL = d; ME.ref = { code: d.code, goal: d.goal, reward_cents: d.reward_cents, qualified: d.qualified, pending: d.pending, rejected: d.rejected };
+      ty.remove();
+      const a = bubble("", `<p></p><div class="acts"></div>`);
+      a.querySelector("p").textContent = refReport(d);
+      const acts = a.querySelector(".acts");
+      const b1 = document.createElement("button"); b1.className = "mini"; b1.textContent = R("See details", "Ver detalles", "查看详情"); b1.onclick = () => show("refer"); acts.appendChild(b1);
+      const b2 = document.createElement("button"); b2.className = "mini"; b2.textContent = R("Copy my link", "Copiar mi enlace", "复制链接"); b2.onclick = () => copyRef(); acts.appendChild(b2);
+    } catch (e) { ty.remove(); bubble("", "<p></p>").querySelector("p").textContent = e.message; }
+  }
+  async function copyRef() {
+    const r = ME && ME.ref; if (!r) return;
+    try { await navigator.clipboard.writeText(refLink(r)); toast(R("Link copied 🎁", "Enlace copiado 🎁", "链接已复制 🎁")); }
+    catch { toast(R("Couldn't copy. Press and hold the link instead.", "No se pudo copiar. Mantén presionado el enlace.", "无法复制，请长按链接。")); }
+  }
+  const refShareText = () => R("I use Honeybun to budget, it's free and super cute 🐰 Try it with my link:", "Uso Honeybun para mi presupuesto, es gratis y muy lindo 🐰 Pruébalo con mi enlace:", "我在用 Honeybun 记账，免费又可爱 🐰 用我的链接试试：");
+  $("refCopy").onclick = copyRef;
+  $("refShare").onclick = async () => { try { await navigator.share({ title: "Honeybun", text: refShareText(), url: refLink(ME.ref) }); } catch {} };
+  $("refText").onclick = () => { location.href = `sms:?&body=${encodeURIComponent(refShareText() + " " + refLink(ME.ref))}`; };
+  $("refAsk").onclick = askBunRefs;
+  $("qrRefer").onclick = askBunRefs;
+  $("openRefer").onclick = () => show("refer");
+  $("sideRefer").onclick = () => show("refer");
+
   // ---------- help ----------
   const HELP = [
     { t: "Getting started", d: "Budgets, bills, goals and household setup", q: [
       ["How do I invite my partner or family?", "Go to Together and share your invite link or code. When they sign up with it, you'll share one budget."],
+      ["How do referral gift cards work?", "Open Invite friends from Home or Settings and share your link. A friend counts once they confirm their email, log spending on 4 different days, and are still using Honeybun a week after signing up. Every 10 friends who count earns you a $10 gift card by email. Ask Bun in your inbox anytime to see who signed up."],
       ["How do bills and paydays work?", "Add them once in Plan, or tap + and choose how often it repeats. Home shows what's due before your next payday, and Bun reminds you."],
       ["How do monthly budgets work?", "In Plan, tap Edit next to Budget and set a limit for any category. Bun gives you a heads-up at 80%."]] },
     { t: "Adding transactions", d: "Spending, income, splits and repeats", q: [
@@ -2022,7 +2216,7 @@
     try {
       await api("/api/account/delete", { method: "POST", body: { password: $("delPw").value } });
       $("delDlg").close();
-      try { Object.keys(localStorage).filter((k) => k.startsWith("hb-")).forEach((k) => localStorage.removeItem(k)); } catch {}
+      try { Object.keys(localStorage).filter((k) => k.startsWith("hb-") && k !== "hb-device").forEach((k) => localStorage.removeItem(k)); } catch {}
       ME = null; NEST = null; authMode = "signup"; showAuth(); toast("Your account was deleted. Take care ♡");
     } catch (e) { $("delErr").textContent = e.message; }
   };

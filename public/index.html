@@ -1252,7 +1252,7 @@ dialog::backdrop{background:var(--backdrop)}
 .lp-links a:hover{color:var(--ink)}
 .lp-navbtns{margin-left:auto;display:flex;gap:8px}
 @media(min-width:700px){.lp-links{display:flex}}
-@media(max-width:699px){.lp-links{display:flex;margin-left:0}.lp-links a:not(#lpUpdatesLink){display:none}}
+@media(max-width:699px){.lp-links{display:flex;margin-left:0}.lp-links a:not(#lpUpdatesLink):not(#lpRewardsLink){display:none}}
 .lp-hero{position:relative;padding-block:44px 28px;overflow:hidden}
 .lp-hero::before{content:"";position:absolute;inset:-200px -200px auto;height:700px;background:radial-gradient(circle at 60% 20%,var(--cta-sh),transparent 55%);pointer-events:none}
 .lp-hero .lp-wrap{position:relative;display:grid;grid-template-columns:1fr;gap:36px;align-items:center}
@@ -1399,6 +1399,28 @@ dialog::backdrop{background:var(--backdrop)}
 .lp-new{display:none;min-width:18px;height:18px;padding:0 6px;border-radius:9px;background:var(--pink);color:var(--on-pink);font-size:11px;font-weight:900;align-items:center;justify-content:center}
 .lp-new.on{display:inline-flex}
 .lp[data-view="updates"] > :not(.lp-nav):not(#lp-updates){display:none}
+.lp[data-view="rewards"] > :not(.lp-nav):not(#lp-rewards){display:none}
+.lp-rewards{padding-block:40px 60px}
+.lp-rw-hero{display:grid;gap:22px;align-items:center;margin-bottom:26px}
+@media(min-width:860px){.lp-rw-hero{grid-template-columns:minmax(0,1.2fr) minmax(0,1fr)}}
+.lp-rw-hero h2{font-size:clamp(32px,4.6vw,46px);margin:8px 0 10px}
+.lp-rw-card{background:var(--card);border:1px solid var(--line);border-radius:26px;padding:22px;text-align:center}
+.lp-rw-card .big{font-size:52px;line-height:1;margin-bottom:6px}
+.lp-rw-card b{display:block;font-size:22px;letter-spacing:-.03em}
+.lp-rw-card small{color:var(--soft);font-weight:600;font-size:13px}
+.lp-rw-dots{display:grid;grid-template-columns:repeat(10,1fr);gap:6px;margin:16px 0 4px}
+.lp-rw-dots i{aspect-ratio:1;border-radius:50%;background:var(--c-honey,#A5751C);display:grid;place-items:center;color:#fff;font-size:11px;font-style:normal;font-weight:900}
+.lp-rw-dots i.w{background:transparent;box-shadow:inset 0 0 0 2px var(--line);color:var(--soft)}
+.lp-rw-steps{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));margin-bottom:26px}
+.lp-rw-steps .lp-card b.n{width:34px;height:34px;border-radius:12px;display:grid;place-items:center;background:var(--t-honey,#FDF3DA);color:var(--c-honey,#A5751C);font-weight:900}
+.lp-rw-steps h3{margin:4px 0 0;font-size:17px}
+.lp-rw-steps p{margin:0;color:var(--soft);font-size:14px;line-height:1.5}
+.lp-rw-rules{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:18px 20px;margin-bottom:22px}
+.lp-rw-rules h3{margin:0 0 8px;font-size:16px}
+.lp-rw-rules ul{margin:0;padding-left:18px;color:var(--soft);font-size:14px;line-height:1.7}
+.coffee{display:inline-flex;align-items:center;gap:8px;margin:10px auto 0;padding:9px 16px;border-radius:999px;background:#FFDD00;color:#1d1a21!important;font-weight:800;font-size:13px;text-decoration:none!important;box-shadow:0 2px 0 rgba(0,0,0,.15)}
+.coffee:hover{filter:brightness(.96)}
+.coffee-wrap{text-align:center;margin:4px 0 8px}
 .lp-updates{padding-block:40px 60px}
 .lp-upd-head{display:flex;flex-direction:column;gap:18px;margin-bottom:22px}
 .lp-upd-head h2{font-size:clamp(32px,4.6vw,44px)}
@@ -1435,6 +1457,65 @@ dialog::backdrop{background:var(--backdrop)}
 .lp-rv{transition:opacity .7s ease,transform .7s cubic-bezier(.2,.8,.2,1)}
 .lp-rv.pre{opacity:0;transform:translateY(26px)}
 @media(prefers-reduced-motion:reduce){.lp *,.lp *::before,.lp *::after{animation:none!important;transition:none!important}.lp-rv.pre{opacity:1;transform:none}}
+
+/* ---------- referrals ---------- */
+.ref-card{display:flex;align-items:center;gap:12px;width:100%;margin-top:12px;border:0;border-radius:20px;padding:14px;text-align:left;color:var(--ink);
+  background:linear-gradient(120deg,var(--t-honey,#FDF3DA),var(--t-rose,#FCEBF1));border:1px solid var(--line);position:relative;overflow:hidden;font-family:inherit}
+.ref-card .ref-gift{width:44px;height:44px;flex:none;border-radius:14px;background:var(--card);display:grid;place-items:center;font-size:24px;animation:refBob 2.6s ease-in-out infinite}
+@keyframes refBob{0%,100%{transform:translateY(0) rotate(-4deg)}50%{transform:translateY(-3px) rotate(4deg)}}
+@media (prefers-reduced-motion:reduce){.ref-card .ref-gift{animation:none}}
+.ref-card .ref-txt{display:flex;flex-direction:column;min-width:0;flex:1;gap:2px}
+.ref-card b{font-size:15px;font-weight:800;letter-spacing:-.02em}
+.ref-card small{font-size:12px;font-weight:700;color:var(--soft)}
+.ref-card .chev{width:18px;height:18px;color:var(--soft);flex:none}
+.ref-pips{display:flex;gap:4px;margin-top:5px}
+.ref-pips i{height:6px;flex:1;max-width:22px;border-radius:99px;background:var(--card);box-shadow:inset 0 0 0 1px var(--line)}
+.ref-pips i.on{background:var(--c-honey,#A5751C);box-shadow:none}
+.ref-pips i.wait{background:repeating-linear-gradient(90deg,var(--c-honey,#A5751C) 0 3px,transparent 3px 6px);opacity:.55;box-shadow:none}
+.ref-new{position:absolute;top:10px;right:36px;font-size:10px;font-weight:900;letter-spacing:.04em;background:var(--c-rose,#C45A7F);color:#fff;border-radius:99px;padding:2px 7px}
+.ref-hero{text-align:center;padding:22px 18px!important;background:linear-gradient(160deg,var(--t-honey,#FDF3DA),var(--card) 60%)!important}
+.ref-art{position:relative;width:96px;height:96px;margin:0 auto 6px}
+.ref-art svg{width:84px;height:90px}
+.ref-art span{position:absolute;right:-6px;bottom:2px;font-size:34px;animation:refBob 2.6s ease-in-out infinite}
+.ref-hero h2{margin:4px 0 6px;font-size:21px;font-weight:800;letter-spacing:-.03em}
+.ref-hero p{margin:0 auto;color:var(--soft);font-size:13.5px;line-height:1.5;max-width:420px}
+.ref-dots{display:grid;grid-template-columns:repeat(10,1fr);gap:6px;max-width:360px;margin:18px auto 8px}
+.ref-dots i{aspect-ratio:1;border-radius:50%;background:var(--card);box-shadow:inset 0 0 0 2px var(--line);display:grid;place-items:center;font-style:normal;font-size:13px}
+.ref-dots i.on{background:var(--c-honey,#A5751C);box-shadow:none;color:#fff}
+.ref-dots i.wait{box-shadow:inset 0 0 0 2px var(--c-honey,#A5751C);border:0;background:var(--t-honey,#FDF3DA)}
+.ref-dots i.gift{background:var(--t-rose,#FCEBF1);box-shadow:inset 0 0 0 2px var(--c-rose,#C45A7F)}
+.ref-prog{font-size:13px;font-weight:800;margin:0 0 14px}
+.ref-link{display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:6px 6px 6px 12px;max-width:420px;margin:0 auto}
+.ref-link span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:700;font-size:13px;text-align:left}
+.ref-link .go{width:auto;margin:0;padding:0 16px;height:36px;border-radius:10px;font-size:13px}
+.ref-hero .btn-row{justify-content:center;margin-top:10px}
+.ref-steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:12px}
+.ref-steps li{display:flex;gap:12px;align-items:flex-start}
+.ref-steps li>b{width:28px;height:28px;flex:none;border-radius:10px;display:grid;place-items:center;background:var(--t-honey,#FDF3DA);color:var(--c-honey,#A5751C);font-size:13px;font-weight:900}
+.ref-steps li span{font-size:13.5px;line-height:1.45}
+.ref-steps li span strong{display:block;font-size:14px}
+.ref-list{list-style:none;margin:0;padding:0}
+.ref-list li{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line)}
+.ref-list li:first-child{border-top:0}
+.ref-list .face{width:36px;height:36px;flex:none;border-radius:12px;display:grid;place-items:center;background:var(--t-lilac,#F0ECFA);font-weight:900;color:var(--c-lilac,#6B55B5)}
+.ref-list .nm{flex:1;min-width:0;display:flex;flex-direction:column}
+.ref-list .nm b{font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ref-list .nm small{font-size:12px;color:var(--soft);font-weight:600}
+.ref-chip{font-size:11px;font-weight:900;border-radius:99px;padding:4px 9px;white-space:nowrap}
+.ref-chip.ok{background:var(--t-green,#E6F5EE);color:var(--c-green,#2E7D57)}
+.ref-chip.wait{background:var(--t-honey,#FDF3DA);color:var(--c-honey,#A5751C)}
+.ref-chip.no{background:var(--t-gray,#F3F1F4);color:var(--c-gray,#857E8F)}
+.ref-empty{text-align:center;color:var(--soft);font-size:13px;padding:14px 6px}
+.ref-fine{font-size:12px;color:var(--soft);line-height:1.5;margin:6px 4px 16px}
+.ref-bar{height:6px;background:var(--track,#F4EEF3);border-radius:99px;overflow:hidden;margin-top:5px;max-width:160px}
+.ref-bar i{display:block;height:100%;background:var(--c-honey,#A5751C);border-radius:99px}
+.setting-row.ref-row{background:linear-gradient(120deg,var(--t-honey,#FDF3DA),transparent)}
+.side-foot button.side-ref{color:var(--c-honey,#A5751C)}
+.msg.me{flex-direction:row-reverse}
+.msg.me .b{background:var(--pink,#EE7FA3);color:#fff;border-radius:20px 20px 6px 20px}
+.msg.me .av{visibility:hidden}
+.quick-replies{overflow-x:auto;scrollbar-width:none}.quick-replies::-webkit-scrollbar{display:none}
+.quick-replies button{flex:1 0 auto;white-space:nowrap;padding-inline:14px}
 </style>
 </head>
 <body>
@@ -1452,7 +1533,7 @@ dialog::backdrop{background:var(--backdrop)}
     <nav class="lp-nav" aria-label="Site">
       <div class="lp-wrap">
         <a class="lp-brand" href="/"><img src="/icon-192.png" alt=""><span>Honeybun</span></a>
-        <div class="lp-links"><a href="#lp-features">Features</a><a href="#lp-demos">See it work</a><a href="#lp-faq">FAQ</a><a href="#lp-updates" id="lpUpdatesLink" class="lp-upd-link">Updates <span class="lp-new" id="lpUpdCount"></span></a></div>
+        <div class="lp-links"><a href="#lp-features">Features</a><a href="#lp-demos">See it work</a><a href="#lp-faq">FAQ</a><a href="#lp-updates" id="lpUpdatesLink" class="lp-upd-link">Updates <span class="lp-new" id="lpUpdCount"></span></a><a href="#lp-rewards" id="lpRewardsLink" class="lp-upd-link">🎁 Rewards</a></div>
         <div class="lp-navbtns"><button class="lp-btn g sm" data-auth-go="login">Log in</button><button class="lp-btn p sm" data-auth-go="signup">Get started</button></div>
       </div>
     </nav>
@@ -1465,6 +1546,44 @@ dialog::backdrop{background:var(--backdrop)}
         </div>
         <div class="lp-upd-legend" id="lpUpdLegend"></div>
         <div class="lp-upd-list" id="lpUpdList"></div>
+      </div>
+    </section>
+
+    <section class="lp-rewards" id="lp-rewards" hidden>
+      <div class="lp-wrap">
+        <div class="lp-upd-head">
+          <button class="lp-btn g sm" id="lpRwBack" type="button"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>Back</button>
+        </div>
+        <div class="lp-rw-hero">
+          <div>
+            <span class="lp-eyebrow">Referral rewards</span>
+            <h2>Share Honeybun, get a $10 gift card</h2>
+            <p class="lp-sub">Invite friends with your personal link. For every 10 friends who use Honeybun for a week, Bun sends you a $10 gift card. There's no limit.</p>
+            <div class="lp-acts"><button class="lp-btn p" data-auth-go="signup">Get my link, it's free</button><button class="lp-btn g" data-auth-go="login">I have an account</button></div>
+          </div>
+          <div class="lp-rw-card" aria-hidden="true">
+            <div class="big">🐰🎁</div>
+            <b>10 friends = $10</b>
+            <small>Every friend who sticks around fills a dot</small>
+            <div class="lp-rw-dots"><i>✓</i><i>✓</i><i>✓</i><i>✓</i><i>✓</i><i>✓</i><i class="w"></i><i class="w"></i><i class="w"></i><i class="w">🎁</i></div>
+          </div>
+        </div>
+        <div class="lp-rw-steps">
+          <article class="lp-card"><b class="n">1</b><h3>Get your link</h3><p>Sign up and open Invite friends from Home or Settings. Your link is ready to copy or share.</p></article>
+          <article class="lp-card"><b class="n">2</b><h3>Friends sign up</h3><p>They create a free account with your link and confirm their email. Bun tells you the moment they join.</p></article>
+          <article class="lp-card"><b class="n">3</b><h3>They use it for a week</h3><p>A friend counts once they've logged on 4 different days and are still using Honeybun after 7 days, alone or with a partner.</p></article>
+          <article class="lp-card"><b class="n">4</b><h3>Get your gift card</h3><p>Every 10 friends who count earns you a $10 gift card by email. Ask Bun anytime to see who signed up.</p></article>
+        </div>
+        <div class="lp-rw-rules">
+          <h3>The simple rules</h3>
+          <ul>
+            <li>Friends must be new to Honeybun and confirm their email.</li>
+            <li>Each friend has to sign up on their own phone or computer. Accounts made on your devices don't count.</li>
+            <li>People who join your own budget don't count, since they're already part of your household.</li>
+            <li>Gift cards are sent by email within about 5 business days.</li>
+          </ul>
+          <p style="margin:10px 0 0;font-size:13px"><a href="/terms.html#referrals">Full referral terms</a></p>
+        </div>
       </div>
     </section>
 
@@ -1592,6 +1711,7 @@ dialog::backdrop{background:var(--backdrop)}
           <div class="lang-row" data-lang-picker></div>
           <p><a href="/privacy.html">Privacy Policy</a> · <a href="/terms.html">Terms</a> · <a href="mailto:help@honeybun.me">help@honeybun.me</a></p>
           <p>Developed by Rodrigo · © 2026 Honeybun</p>
+          <p class="coffee-wrap" data-coffee-wrap hidden><a class="coffee" data-coffee target="_blank" rel="noopener">☕ Buy me a coffee</a></p>
         </footer>
       </div>
     </section>
@@ -1604,6 +1724,7 @@ dialog::backdrop{background:var(--backdrop)}
     <h1>Honeybun</h1>
     <p class="tag">A cute little budget for you and yours</p>
     <div class="notice" id="inviteNotice" hidden>You've been invited to a budget. Log in or create an account to join.</div>
+    <div class="notice" id="refNotice" hidden>🎁 A friend invited you to Honeybun! Create your free account to get started.</div>
     <div class="card" id="authCard">
       <div class="tabs" role="tablist" aria-label="Account">
         <button role="tab" data-auth="signup" aria-selected="true">Create account</button>
@@ -1633,6 +1754,7 @@ dialog::backdrop{background:var(--backdrop)}
     <div class="lang-row" data-lang-picker></div>
     <p class="legal">By continuing you agree to the <a href="/terms.html">Terms</a> and <a href="/privacy.html">Privacy Policy</a>.</p>
     <p class="legal credit">Developed by Rodrigo · Questions? <a href="mailto:help@honeybun.me">help@honeybun.me</a></p>
+    <p class="coffee-wrap" data-coffee-wrap hidden><a class="coffee" data-coffee target="_blank" rel="noopener">☕ Buy me a coffee</a></p>
   </main>
 
   <!-- NEW PASSWORD -->
@@ -1760,6 +1882,7 @@ dialog::backdrop{background:var(--backdrop)}
       <button class="tile2" id="levelTile" aria-label="Level"></button>
     </div>
     <button class="burrow-pill" id="burrowPill" hidden></button>
+    <button class="ref-card" id="refCard" hidden><span class="ref-gift" aria-hidden="true">🎁</span><span class="ref-txt"><b id="refCardT" data-nt></b><small id="refCardSub" data-nt></small><span class="ref-pips" id="refCardPips" aria-hidden="true"></span></span><span class="ref-new" id="refNew" hidden data-nt>NEW</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></button>
   </div>
   <aside class="side-col" id="homeSide"><div class="due side" id="dueCard" aria-label="Coming up"></div><div class="desk-only" id="homeJars"></div></aside>
 </div>
@@ -1779,7 +1902,7 @@ dialog::backdrop{background:var(--backdrop)}
       <div class="chat-who"><b>Bun</b><small>Your budget buddy 🐰</small></div>
     </div>
     <div class="chat" id="chat" aria-live="polite" data-nt></div>
-    <div class="quick-replies"><button id="qrDue">What's due?</button><button id="qrStreak">My streak</button><button id="qrAdd">Add spend</button></div>
+    <div class="quick-replies"><button id="qrDue">What's due?</button><button id="qrStreak">My streak</button><button id="qrAdd">Add spend</button><button id="qrRefer">🎁 Referrals</button></div>
   </main>
 
   <!-- PLAN -->
@@ -1944,6 +2067,7 @@ dialog::backdrop{background:var(--backdrop)}
     <div class="grid2">
       <div class="card pad blk" id="setH">
         <div class="title"><h2>Account</h2><span id="acctName"></span></div>
+        <button class="setting-row ref-row" id="openRefer"><span class="sicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="8" width="17" height="4" rx="1"/><path d="M5 12v8h14v-8M12 8v12M12 8c-1.5-3-5-4-5-1.5S10 8 12 8zM12 8c1.5-3 5-4 5-1.5S14 8 12 8z"/></svg></span><span class="copy"><b id="refRowT" data-nt></b><small id="refRowS" data-nt></small></span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></button>
         <button class="setting-row" id="openProfile"><span class="sicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg></span><span class="copy"><b>Profile</b><small>Name, buddy and color</small></span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></button>
         <div class="setting-row col"><span class="sicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7v9H3z"/><path d="M10 20v-5h4v5"/></svg></span><span class="copy"><b>Household</b><small>Name, type and people</small>
           <input id="nestName" maxlength="24" placeholder="Leave blank to show your names" aria-label="Budget name">
@@ -1991,9 +2115,37 @@ dialog::backdrop{background:var(--backdrop)}
     </div>
     <p class="center" style="font-size:.8rem;color:var(--soft);margin-top:14px" id="signedAs"></p>
     <p class="legal credit">Developed by Rodrigo · Questions? <a href="mailto:help@honeybun.me">help@honeybun.me</a></p>
+    <p class="coffee-wrap" data-coffee-wrap hidden><a class="coffee" data-coffee target="_blank" rel="noopener">☕ Buy me a coffee</a></p>
   </main>
 
   <!-- HELP -->
+  <!-- INVITE FRIENDS (referrals) -->
+  <main id="scr-refer" hidden>
+    <div class="pagehead"><div><h1 id="refH1" data-nt>Invite friends</h1><p id="refH1p" data-nt></p></div></div>
+    <div class="grid2">
+      <div class="blk">
+        <div class="card ref-hero">
+          <div class="ref-art"><svg viewBox="0 0 120 128" aria-hidden="true"><g fill="#fff" stroke="#2B2733" stroke-width="5" stroke-linecap="round"><path d="M44 52 C34 30 34 8 42 6 C50 4 54 28 54 46"/><path d="M76 52 C86 30 86 8 78 6 C70 4 66 28 66 46"/><ellipse cx="60" cy="82" rx="38" ry="34"/><circle cx="47" cy="78" r="3.5" fill="#2B2733" stroke="none"/><circle cx="73" cy="78" r="3.5" fill="#2B2733" stroke="none"/><ellipse cx="38" cy="90" rx="6" ry="3.5" fill="#F6B7CB" stroke="none"/><ellipse cx="82" cy="90" rx="6" ry="3.5" fill="#F6B7CB" stroke="none"/><path d="M52 89 q8 8 16 0" fill="none" stroke-width="3.5"/></g></svg><span>🎁</span></div>
+          <h2 id="refHeroT" data-nt></h2>
+          <p id="refHeroP" data-nt></p>
+          <div class="ref-dots" id="refDots" aria-hidden="true"></div>
+          <p class="ref-prog" id="refProg" data-nt></p>
+          <div class="ref-link"><span id="refLink" data-nt>…</span><button class="go" id="refCopy" data-nt>Copy</button></div>
+          <div class="btn-row"><button class="small" id="refShare" data-nt>Share link</button><button class="small" id="refText" data-nt>Text a friend</button><button class="small" id="refAsk" data-nt>Ask Bun</button></div>
+        </div>
+        <div class="card pad">
+          <div class="title"><h2 id="refHowT" data-nt>How it works</h2></div>
+          <ol class="ref-steps" id="refSteps"></ol>
+        </div>
+      </div>
+      <div class="blk">
+        <div class="card pad"><div class="title"><h2 id="refFriendsT" data-nt>Your friends</h2><span id="refCount" data-nt></span></div><ul class="ref-list" id="refList"><li class="ref-empty">…</li></ul></div>
+        <div class="card pad" id="refRewardsCard" hidden><div class="title"><h2 id="refCardsT" data-nt>Your gift cards</h2></div><ul class="ref-list" id="refRewards"></ul></div>
+        <p class="ref-fine" id="refFine" data-nt></p>
+      </div>
+    </div>
+  </main>
+
   <main id="scr-help" hidden>
     <div class="pagehead"><div><h1>Help</h1><p>Fast answers without digging around.</p></div></div>
     <div class="card pad">
@@ -2018,6 +2170,7 @@ dialog::backdrop{background:var(--backdrop)}
     <button data-go="us"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg><span id="usLabel">Together</span></button>
   </div>
   <div class="side-foot">
+    <button type="button" class="side-ref" id="sideRefer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="8" width="17" height="4" rx="1"/><path d="M5 12v8h14v-8M12 8v12M12 8c-1.5-3-5-4-5-1.5S10 8 12 8zM12 8c1.5-3 5-4 5-1.5S14 8 12 8z"/></svg><span id="sideReferT" data-nt>Invite &amp; earn</span></button>
     <button type="button" id="sideInbox"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12a8 7 0 1 1 3.6 5.8L4 19.5l1.2-3.4A6.7 6.7 0 0 1 4 12z"/></svg><span>Bun's inbox</span><b class="side-badge" id="sideBadge" hidden></b></button>
     <button type="button" id="sideHelp"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .9-1 1.6v.4M12 17h.01"/></svg><span>Help</span></button>
     <button type="button" id="sideSet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><span>Settings</span></button>

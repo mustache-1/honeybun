@@ -50,11 +50,17 @@ const TABLES = [
   `CREATE TABLE IF NOT EXISTS challenges (id TEXT PRIMARY KEY, user_id TEXT, kind TEXT NOT NULL, expires_at INTEGER NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS push_subs (endpoint TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, created_at INTEGER NOT NULL)`,
   `CREATE INDEX IF NOT EXISTS idx_push_user ON push_subs(user_id)`,
+  // referrals: invite friends, get a gift card for every REF_GOAL who stick around
+  `CREATE TABLE IF NOT EXISTS referrals (id TEXT PRIMARY KEY, referrer_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, referred_id TEXT NOT NULL UNIQUE, referred_name TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'pending', reason TEXT, created_at INTEGER NOT NULL, decided_at INTEGER)`,
+  `CREATE INDEX IF NOT EXISTS idx_referrals_referrer ON referrals(referrer_id)`,
+  `CREATE TABLE IF NOT EXISTS devices (user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, hash TEXT NOT NULL, first_seen INTEGER NOT NULL, PRIMARY KEY (user_id, hash))`,
+  `CREATE INDEX IF NOT EXISTS idx_devices_hash ON devices(hash)`,
+  `CREATE TABLE IF NOT EXISTS rewards (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, amount_cents INTEGER NOT NULL, referrals INTEGER NOT NULL, status TEXT NOT NULL DEFAULT 'pending', created_at INTEGER NOT NULL, sent_at INTEGER, notified INTEGER NOT NULL DEFAULT 0)`,
 ];
 const NEW_COLUMNS = {
   users: [["email_verified", "INTEGER NOT NULL DEFAULT 0"], ["tz", "TEXT"], ["lang", "TEXT NOT NULL DEFAULT 'en'"],
     ["mail_bills", "INTEGER NOT NULL DEFAULT 1"], ["mail_streak", "INTEGER NOT NULL DEFAULT 1"], ["mail_weekly", "INTEGER NOT NULL DEFAULT 1"],
-    ["last_bill_mail", "TEXT"], ["last_streak_mail", "TEXT"], ["last_week_mail", "TEXT"], ["unsub_token", "TEXT"], ["last_bill_push", "TEXT"], ["last_streak_push", "TEXT"]],
+    ["last_bill_mail", "TEXT"], ["last_streak_mail", "TEXT"], ["last_week_mail", "TEXT"], ["unsub_token", "TEXT"], ["last_bill_push", "TEXT"], ["last_streak_push", "TEXT"], ["ref_code", "TEXT"], ["referred_by", "TEXT"]],
   entries: [["split_mode", "TEXT"], ["split_value", "INTEGER"], ["shares", "TEXT"], ["private", "INTEGER NOT NULL DEFAULT 0"], ["recurring_id", "TEXT"], ["occ_date", "TEXT"]],
   members: [["setup_done", "INTEGER NOT NULL DEFAULT 1"], ["xp", "INTEGER NOT NULL DEFAULT 0"], ["streak", "INTEGER NOT NULL DEFAULT 0"],
     ["best_streak", "INTEGER NOT NULL DEFAULT 0"], ["last_day", "TEXT"], ["day_xp", "INTEGER NOT NULL DEFAULT 0"],
@@ -86,6 +92,7 @@ async function migrate(env) {
              id, goal_name, '🍯', goal_target, goal_saved, created_at FROM nests WHERE goals_migrated = 0`),
     env.DB.prepare("UPDATE jar_moves SET goal_id = (SELECT g.id FROM goals g WHERE g.nest_id = jar_moves.nest_id ORDER BY g.created_at LIMIT 1) WHERE goal_id IS NULL"),
     env.DB.prepare("UPDATE nests SET goals_migrated = 1 WHERE goals_migrated = 0"),
+    env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_ref ON users(ref_code)"),
   ]);
 }
 
@@ -147,11 +154,22 @@ async function generateInbox(env, request, user, nestId, force) {
   const m = await env.DB.prepare("SELECT streak, last_day, inbox_gen_at FROM members WHERE user_id = ? AND nest_id = ?").bind(user.id, nestId).first();
   if (!m || (!force && now() - m.inbox_gen_at < 600)) return;
   await env.DB.prepare("UPDATE members SET inbox_gen_at = ? WHERE user_id = ? AND nest_id = ?").bind(now(), user.id, nestId).run();
-  const u = await env.DB.prepare("SELECT name, tz FROM users WHERE id = ?").bind(user.id).first();
+  const u = await env.DB.prepare("SELECT name, tz, created_at FROM users WHERE id = ?").bind(user.id).first();
   const day = localDay(request), L = localNow(u.tz), msgs = [];
   const add = (kind, data, dedupe) => msgs.push([kind, data, dedupe]);
   const any = await env.DB.prepare("SELECT 1 FROM messages WHERE user_id = ? LIMIT 1").bind(user.id).first();
   if (!any) add("welcome", { name: u.name }, "welcome");
+  // referral nudges: once after a couple of days, then monthly while nobody has signed up yet
+  const age = now() - (u.created_at || now());
+  if (age >= 2 * 86400) add("ref_intro", { goal: REF_GOAL, amount: REF_REWARD_CENTS }, "ref_intro");
+  if (age >= 14 * 86400 && L.hour >= 10) {
+    const [had, intro] = await env.DB.batch([
+      env.DB.prepare("SELECT 1 FROM referrals WHERE referrer_id = ? LIMIT 1").bind(user.id),
+      env.DB.prepare("SELECT created_at FROM messages WHERE user_id = ? AND dedupe = 'ref_intro'").bind(user.id),
+    ]);
+    const introAt = intro.results[0]?.created_at;
+    if (!had.results.length && introAt && now() - introAt > 20 * 86400) add("ref_nudge", { goal: REF_GOAL, amount: REF_REWARD_CENTS }, "ref_nudge:" + day.slice(0, 7));
+  }
 
   const [rec, logged, spend, budgets] = await env.DB.batch([
     env.DB.prepare("SELECT id, type, label, amount_cents, member_id, shared, freq, anchor_date FROM recurring WHERE nest_id = ?").bind(nestId),
@@ -198,6 +216,116 @@ async function generateInbox(env, request, user, nestId, force) {
     if (total > 0) add("week", { spent: total, cat: wk.results[0]?.category || null, xp: me.week_key === from ? me.week_xp : 0 }, `week:${from}`);
   }
   for (const [k, d, dd] of msgs) await postMessage(env, user.id, nestId, k, d, dd);
+}
+
+// ---------- referrals ----------
+// Share your link (/r/CODE). A friend counts once they have confirmed their email, logged on 4+ different days,
+// and are still logging a week after signing up. They can't be on one of your devices or in your own budget.
+// Every REF_GOAL friends who count = one gift card (sent by hand; the owner gets an email).
+const REF_GOAL = 10, REF_REWARD_CENTS = 1000, REF_DAYS = 7, REF_ACTIVE_DAYS = 4, REF_EXPIRE_DAYS = 30;
+const DEV_COOKIE = "__Host-hbd";
+function deviceIds(request) {
+  // a long-lived cookie set by the server + an id the app keeps in local storage; either one identifies a device
+  const out = [];
+  const c = readCookie(request, DEV_COOKIE), h = request.headers.get("x-hb-device");
+  for (const v of [c, h]) if (v && /^[A-Za-z0-9_-]{16,64}$/.test(v) && !out.includes(v)) out.push(v);
+  return out;
+}
+async function deviceHashes(request) { return Promise.all(deviceIds(request).map((d) => sha256("dev:" + d))); }
+async function rememberDevices(env, request, userId) {
+  const hs = await deviceHashes(request);
+  if (hs.length) await env.DB.batch(hs.map((h) => env.DB.prepare("INSERT OR IGNORE INTO devices (user_id, hash, first_seen) VALUES (?, ?, ?)").bind(userId, h, now())));
+}
+async function refCode(env, userId) {
+  const row = await env.DB.prepare("SELECT ref_code FROM users WHERE id = ?").bind(userId).first();
+  if (row?.ref_code) return row.ref_code;
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  for (let i = 0; i < 5; i++) {
+    const code = Array.from(crypto.getRandomValues(new Uint8Array(7)), (b) => alphabet[b % 32]).join("");
+    try {
+      await env.DB.prepare("UPDATE users SET ref_code = ? WHERE id = ? AND ref_code IS NULL").bind(code, userId).run();
+      const again = await env.DB.prepare("SELECT ref_code FROM users WHERE id = ?").bind(userId).first();
+      if (again?.ref_code) return again.ref_code;
+    } catch (e) { if (!String(e.message).includes("UNIQUE")) throw e; }
+  }
+  throw new HttpError("Couldn't make your link. Try again.", 500);
+}
+async function recordReferral(env, request, newUser, code) {
+  code = String(code || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 16);
+  if (code.length < 4) return;
+  const ref = await env.DB.prepare("SELECT id FROM users WHERE ref_code = ?").bind(code).first();
+  if (!ref || ref.id === newUser.id) return;
+  const hs = await deviceHashes(request);
+  let reason = null;
+  if (hs.length) {
+    const q = hs.map(() => "?").join(",");
+    const own = await env.DB.prepare(`SELECT 1 FROM devices WHERE user_id = ? AND hash IN (${q}) LIMIT 1`).bind(ref.id, ...hs).first();
+    // the same phone already made another account from this link
+    const dup = await env.DB.prepare(`SELECT 1 FROM devices d JOIN referrals r ON r.referred_id = d.user_id WHERE r.referrer_id = ? AND d.hash IN (${q}) LIMIT 1`).bind(ref.id, ...hs).first();
+    if (own || dup) reason = "same_device";
+  }
+  await env.DB.batch([
+    env.DB.prepare("INSERT OR IGNORE INTO referrals (id, referrer_id, referred_id, referred_name, status, reason, created_at, decided_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+      .bind(crypto.randomUUID(), ref.id, newUser.id, newUser.name, reason ? "rejected" : "pending", reason, now(), reason ? now() : null),
+    env.DB.prepare("UPDATE users SET referred_by = ? WHERE id = ?").bind(ref.id, newUser.id),
+  ]);
+  if (!reason) await postMessage(env, ref.id, null, "ref_signup", { name: newUser.name }, "ref_signup:" + newUser.id);
+}
+async function referralSummary(env, userId) {
+  const rows = (await env.DB.prepare("SELECT status, COUNT(*) AS n FROM referrals WHERE referrer_id = ? GROUP BY status").bind(userId).all()).results;
+  const c = Object.fromEntries(rows.map((r) => [r.status, r.n]));
+  return { code: await refCode(env, userId), goal: REF_GOAL, reward_cents: REF_REWARD_CENTS, qualified: c.qualified || 0, pending: c.pending || 0, rejected: c.rejected || 0 };
+}
+// hourly: decide pending referrals, hand out rewards, tell people when a card was sent
+async function checkReferrals(env) {
+  const appUrl = (env.APP_URL || "https://honeybun.me").replace(/\/$/, "");
+  const due = (await env.DB.prepare(
+    `SELECT r.id, r.referrer_id, r.referred_id, r.referred_name, r.created_at, u.id AS uid, u.email_verified
+     FROM referrals r LEFT JOIN users u ON u.id = r.referred_id WHERE r.status = 'pending' AND r.created_at <= ? LIMIT 200`
+  ).bind(now() - REF_DAYS * 86400).all()).results;
+  for (const r of due) {
+    try {
+      const decide = (status, reason) => env.DB.prepare("UPDATE referrals SET status = ?, reason = ?, decided_at = ? WHERE id = ? AND status = 'pending'").bind(status, reason, now(), r.id).run();
+      const expired = now() - r.created_at > REF_EXPIRE_DAYS * 86400;
+      if (!r.uid) { await decide("rejected", "left"); continue; }
+      const [act, house, theirs, mine] = await env.DB.batch([
+        env.DB.prepare("SELECT COUNT(DISTINCT date(created_at, 'unixepoch')) AS days, MAX(created_at) AS last FROM entries WHERE created_by = ?").bind(r.referred_id),
+        env.DB.prepare("SELECT 1 FROM members a JOIN members b ON a.nest_id = b.nest_id WHERE a.user_id = ? AND b.user_id = ? LIMIT 1").bind(r.referrer_id, r.referred_id),
+        env.DB.prepare("SELECT hash FROM devices WHERE user_id = ?").bind(r.referred_id),
+        env.DB.prepare("SELECT hash FROM devices WHERE user_id = ?").bind(r.referrer_id),
+      ]);
+      if (house.results.length) { await decide("rejected", "same_household"); continue; }
+      const mineSet = new Set(mine.results.map((d) => d.hash)), theirHashes = theirs.results.map((d) => d.hash);
+      if (theirHashes.length && theirHashes.every((h) => mineSet.has(h))) { await decide("rejected", "same_device"); continue; }
+      const a = act.results[0] || {};
+      const ok = r.email_verified && a.days >= REF_ACTIVE_DAYS && a.last >= r.created_at + REF_DAYS * 86400;
+      if (!ok) { if (expired) await decide("rejected", !r.email_verified ? "unverified" : "inactive"); continue; }
+      await decide("qualified", null);
+      const n = (await env.DB.prepare("SELECT COUNT(*) AS n FROM referrals WHERE referrer_id = ? AND status = 'qualified'").bind(r.referrer_id).first()).n;
+      await postMessage(env, r.referrer_id, null, "ref_qualified", { name: r.referred_name, n: ((n - 1) % REF_GOAL) + 1, goal: REF_GOAL }, "ref_ok:" + r.referred_id);
+      if (n % REF_GOAL === 0) {
+        const k = n / REF_GOAL, rid = `reward:${r.referrer_id}:${k}`;
+        const ins = await env.DB.prepare("INSERT OR IGNORE INTO rewards (id, user_id, amount_cents, referrals, status, created_at) VALUES (?, ?, ?, ?, 'pending', ?)")
+          .bind(rid, r.referrer_id, REF_REWARD_CENTS, REF_GOAL, now()).run();
+        if (ins.meta?.changes) {
+          await postMessage(env, r.referrer_id, null, "reward_earned", { amount: REF_REWARD_CENTS, n: REF_GOAL }, "reward:" + k);
+          const who = await env.DB.prepare("SELECT name, email FROM users WHERE id = ?").bind(r.referrer_id).first();
+          if (env.RESEND_API_KEY && who) {
+            const to = env.REWARDS_EMAIL || "help@honeybun.me";
+            const text = `${who.name} (${who.email}) just reached ${n} qualified referrals and earned a $${REF_REWARD_CENTS / 100} gift card.\n\nReward id: ${rid}\n\nSend the card to ${who.email}, then mark it sent so Bun lets them know.\n\n${appUrl}`;
+            try { await sendEmail(env, to, `🎁 Gift card earned: ${who.name}`, text, `<pre style="font:14px/1.5 sans-serif;white-space:pre-wrap">${escHtml(text)}</pre>`); }
+            catch (e) { console.error("reward email failed", e.message); }
+          }
+        }
+      }
+    } catch (e) { console.error("referral check failed", r.id, e.message); }
+  }
+  // gift cards marked as sent (status = 'sent') -> Bun lets the person know once
+  const sent = (await env.DB.prepare("SELECT id, user_id, amount_cents FROM rewards WHERE status = 'sent' AND notified = 0 LIMIT 100").all()).results;
+  for (const w of sent) {
+    await postMessage(env, w.user_id, null, "reward_sent", { amount: w.amount_cents }, "reward_sent:" + w.id);
+    await env.DB.prepare("UPDATE rewards SET notified = 1, sent_at = COALESCE(sent_at, ?) WHERE id = ?").bind(now(), w.id).run();
+  }
 }
 
 // ---------- carrots, streaks & levels ----------
@@ -648,6 +776,7 @@ async function handle(request, env, url) {
       throw new HttpError("An account with that email already exists. Log in instead.", 409);
     const id = crypto.randomUUID(), lang = LANGS.includes(body.lang) ? body.lang : "en";
     await env.DB.prepare("INSERT INTO users (id, email, name, pw, lang, created_at) VALUES (?, ?, ?, ?, ?, ?)").bind(id, email, name, await hashPassword(password), lang, now()).run();
+    try { if (body.ref) await recordReferral(env, request, { id, name }, body.ref); await rememberDevices(env, request, id); } catch (e) { console.error("referral failed", e.message); }
     try { await sendVerify(env, { id, email, name, lang }, appUrl); } catch (e) { console.error("verify email failed", e.message); }
     return json({ ok: true }, 201, { "set-cookie": await createSession(env, id) });
   }
@@ -804,12 +933,28 @@ async function handle(request, env, url) {
   if (!user) throw new HttpError("Please log in.", 401);
   const me = { id: user.id, email: user.email, name: user.name };
 
+  if (path === "/api/referrals" && method === "GET") {
+    const sum = await referralSummary(env, user.id);
+    const people = (await env.DB.prepare("SELECT referred_id, referred_name, status, reason, created_at FROM referrals WHERE referrer_id = ? ORDER BY created_at DESC LIMIT 100").bind(user.id).all()).results;
+    const ids = people.filter((p) => p.status === "pending").map((p) => p.referred_id);
+    const days = {};
+    if (ids.length) {
+      const rows = (await env.DB.prepare(`SELECT created_by, COUNT(DISTINCT date(created_at, 'unixepoch')) AS d FROM entries WHERE created_by IN (${ids.map(() => "?").join(",")}) GROUP BY created_by`).bind(...ids).all()).results;
+      for (const r of rows) days[r.created_by] = r.d;
+    }
+    const rewards = (await env.DB.prepare("SELECT amount_cents, status, created_at, sent_at FROM rewards WHERE user_id = ? ORDER BY created_at DESC").bind(user.id).all()).results;
+    return json({ ...sum, link: `${appUrl}/r/${sum.code}`, days_needed: REF_DAYS, active_days_needed: REF_ACTIVE_DAYS,
+      people: people.map((p) => ({ name: p.referred_name, status: p.status, reason: p.reason, created_at: p.created_at, active_days: days[p.referred_id] || 0 })), rewards });
+  }
+
   if (path === "/api/me" && method === "GET") {
+    try { await rememberDevices(env, request, user.id); } catch (e) { console.error("device", e.message); }
+    let ref = null; try { ref = await referralSummary(env, user.id); } catch (e) { console.error("ref summary", e.message); }
     const m = await membership(env, user.id);
     const u = await env.DB.prepare("SELECT email_verified, tz, lang, mail_bills, mail_streak, mail_weekly FROM users WHERE id = ?").bind(user.id).first();
     const k = await env.DB.prepare("SELECT created_at, last_used, uses FROM api_keys WHERE user_id = ?").bind(user.id).first();
     return json({ user: { ...me, verified: !!u.email_verified, tz: u.tz, lang: u.lang, mail: { bills: !!u.mail_bills, streak: !!u.mail_streak, weekly: !!u.mail_weekly },
-      shortcut: k ? { created_at: k.created_at, last_used: k.last_used, uses: k.uses } : null }, nest_id: m ? m.nest_id : null });
+      shortcut: k ? { created_at: k.created_at, last_used: k.last_used, uses: k.uses } : null, ref }, nest_id: m ? m.nest_id : null });
   }
 
   // ----- passkeys (signed in) -----
@@ -974,6 +1119,10 @@ async function handle(request, env, url) {
       stmts.push(env.DB.prepare("DELETE FROM members WHERE user_id = ?").bind(user.id));
     }
     stmts.push(env.DB.prepare("DELETE FROM messages WHERE user_id = ?").bind(user.id));
+    stmts.push(env.DB.prepare("DELETE FROM referrals WHERE referrer_id = ?").bind(user.id));
+    stmts.push(env.DB.prepare("UPDATE referrals SET referred_name = '', status = CASE WHEN status = 'pending' THEN 'rejected' ELSE status END, reason = CASE WHEN status = 'pending' THEN 'left' ELSE reason END WHERE referred_id = ?").bind(user.id));
+    stmts.push(env.DB.prepare("DELETE FROM devices WHERE user_id = ?").bind(user.id));
+    stmts.push(env.DB.prepare("DELETE FROM rewards WHERE user_id = ?").bind(user.id));
     stmts.push(env.DB.prepare("DELETE FROM sessions WHERE user_id = ?").bind(user.id));
     stmts.push(env.DB.prepare("DELETE FROM password_resets WHERE user_id = ?").bind(user.id));
     stmts.push(env.DB.prepare("DELETE FROM verify_tokens WHERE user_id = ?").bind(user.id));
@@ -1379,6 +1528,12 @@ async function handle(request, env, url) {
   throw new HttpError("Not found.", 404);
 }
 
+// give every browser a long-lived device id cookie (used to spot self-referrals)
+function withDevice(request, res) {
+  if (!readCookie(request, DEV_COOKIE)) res.headers.append("set-cookie", `${DEV_COOKIE}=${randomToken()}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${5 * 365 * 86400}`);
+  return res;
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -1396,9 +1551,9 @@ export default {
 
     try {
       await ensureSchema(env);
-      return await handle(request, env, url);
+      return withDevice(request, await handle(request, env, url));
     } catch (e) {
-      if (e instanceof HttpError) return fail(e.message, e.status);
+      if (e instanceof HttpError) return withDevice(request, fail(e.message, e.status));
       console.error(e);
       return fail("Something went wrong on our side. Try again.", 500);
     }
@@ -1419,6 +1574,7 @@ export default {
     }
     if (env.RESEND_API_KEY) await sendReminders(env);
     if (env.VAPID_PRIVATE_KEY) await pushReminders(env);
+    try { await checkReferrals(env); } catch (e) { console.error("referrals", e.message); }
   },
 };
 

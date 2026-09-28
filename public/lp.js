@@ -64,6 +64,10 @@
     undo: '<path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/>', tap: '<path d="M13 3L5 14h6l-1 7 9-11h-6z"/>', repeat: '<path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>'
   };
   var LOG = [
+    { v: "1.6", date: "2026-09-28", name: "Referral rewards", items: [
+      { t: "Invite friends, earn gift cards", d: "Share your personal link. For every 10 friends who use Honeybun for a week, you get a $10 gift card. Find it on Home, in Settings, or in the sidebar.", tags: ["new"], icon: "bell" },
+      { t: "Ask Bun about your referrals", d: "Tap Referrals in Bun's inbox and Bun tells you who signed up, who counts, and how close you are to your next gift card.", tags: ["new"], icon: "bell" }
+    ] },
     { v: "1.5", date: "2026-09-28", name: "Desktop polish and fit to screen", items: [
       { t: "Desktop fits your screen", d: "The wide layout now scales to your monitor, so a big screen sees the same composition, just larger. Sidebar gets Bun's inbox, Help, Settings, and your household at the bottom.", tags: ["improved", "design"], icon: "landing" },
       { t: "Home and Stats rearranged on desktop", d: "Home shows Bills, Bun's note, and Honey jars in the right column with a fourth Month left stat. Stats puts your level and numbers in one row, with Where it went beside the year chart.", tags: ["design"], icon: "landing" },
@@ -107,14 +111,26 @@
     list.querySelectorAll(".lp-rel").forEach(function (el, di) { el.querySelector(".lp-rel-main b").textContent = T2(LOG[di].name); });
     var i = 0; LOG.forEach(function (day) { day.items.forEach(function (it) { var el = list.querySelectorAll(".lp-upd")[i++]; el.querySelector("b").textContent = T2(it.t); el.querySelector("p").textContent = T2(it.d); }); });
     var badge = $("lpUpdCount"); badge.textContent = LOG[0].items.length; badge.classList.add("on");
+    function showRewards(on) {
+      var sec = $("lp-rewards"); if (!sec) return;
+      if (on) { $("lp-updates").hidden = true; lp.setAttribute("data-view", "rewards"); } else if (lp.getAttribute("data-view") === "rewards") lp.removeAttribute("data-view");
+      sec.hidden = !on;
+      if (on) window.scrollTo({ top: 0, behavior: reduce ? "auto" : "smooth" });
+    }
+    if ($("lpRewardsLink")) {
+      $("lpRewardsLink").addEventListener("click", function (e) { e.preventDefault(); showRewards(true); });
+      $("lpRwBack").addEventListener("click", function () { showRewards(false); window.scrollTo({ top: 0, behavior: reduce ? "auto" : "smooth" }); });
+      if (location.hash === "#lp-rewards") showRewards(true);
+    }
     function showUpdates(on) {
+      if (on) $("lp-rewards").hidden = true;
       if (on) lp.setAttribute("data-view", "updates"); else lp.removeAttribute("data-view");
       $("lp-updates").hidden = !on;
       window.scrollTo({ top: 0, behavior: reduce ? "auto" : "smooth" });
     }
-    $("lpUpdatesLink").addEventListener("click", function (e) { e.preventDefault(); showUpdates(true); });
+    $("lpUpdatesLink").addEventListener("click", function (e) { e.preventDefault(); showRewards(false); showUpdates(true); });
     $("lpUpdBack").addEventListener("click", function () { showUpdates(false); });
-    lp.querySelectorAll(".lp-links a:not(#lpUpdatesLink), .lp-brand").forEach(function (a) { a.addEventListener("click", function () { if (lp.getAttribute("data-view") === "updates") showUpdates(false); }); });
+    lp.querySelectorAll(".lp-links a:not(#lpUpdatesLink):not(#lpRewardsLink), .lp-brand").forEach(function (a) { a.addEventListener("click", function () { if (lp.getAttribute("data-view") === "updates") showUpdates(false); if (lp.getAttribute("data-view") === "rewards") showRewards(false); }); });
   }
 
   // scroll reveals: everything starts visible; only hide what is below the fold and can be revealed
