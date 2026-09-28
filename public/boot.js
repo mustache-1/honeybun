@@ -1,4 +1,4 @@
-// Honeybun boot helpers: forced dark theme, Bun assistant, mobile polish, deploy recovery.
+// Honeybun boot helpers: forced dark theme, wired rebuild UI, Bun assistant, deploy recovery.
 (function () {
   var root = document.documentElement;
 
@@ -39,7 +39,7 @@
       meta.name = "theme-color";
       document.head.appendChild(meta);
     }
-    meta.content = "#17151b";
+    meta.content = "#141217";
   }
 
   function removeThemeToggle() {
@@ -56,19 +56,17 @@
 
   function initUiBits() {
     root.setAttribute("data-theme", "dark");
-    addStyle("/hb-v8-tweaks.css?v=4", "data-hb-v8-tweaks");
-    addStyle("/hb-mobile.css?v=5", "data-hb-mobile");
-    addStyle("/hb-mobile-hotfix.css?v=1", "data-hb-mobile-hotfix");
-    addStyle("/hb-desktop-fixes.css?v=1", "data-hb-desktop-fixes");
-    addStyle("/hb-add-mobile.css?v=1", "data-hb-add-mobile");
-    addStyle("/hb-stats-together-v2.css?v=1", "data-hb-stats-together-v2");
-    addStyle("/hb-polish-v2.css?v=1", "data-hb-polish-v2");
-    addStyle("/hb-polish-v3.css?v=1", "data-hb-polish-v3");
+
+    // One visual layer only. The real application DOM/logic remains in index.html.
+    addStyle("/hb-rebuild.css?v=1", "data-hb-rebuild");
+
+    // Existing functional helpers remain wired.
     addScript("/hb-bun.js?v=2", "data-hb-bun");
-    addScript("/hb-stats-together-v2.js?v=1", "data-hb-stats-together-v2-js");
+
     removeThemeToggle();
     syncThemeColor();
     syncVisualViewport();
+
     if (window.visualViewport) {
       window.visualViewport.addEventListener("resize", syncVisualViewport);
       window.visualViewport.addEventListener("scroll", syncVisualViewport);
