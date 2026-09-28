@@ -1,0 +1,423 @@
+const E = (s) => new TextEncoder().encode(s);
+const now = () => Math.floor(Date.now() / 1000);
+const clean = (s, n) => String(s || "").trim().replace(/\s+/g, " ").slice(0, n);
+const email = (s) => clean(s, 200).toLowerCase();
+const money = (n) => Math.round(Number(n) * 100);
+const okEmail = (s) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
+const uuid = () => crypto.randomUUID();
+const addDaysS = (s, n) => { const d = new Date(s + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+const dayDiff = (a, b) => Math.round((new Date(a + "T12:00:00Z") - new Date(b + "T12:00:00Z")) / 86400000);
+const thisMonday = (s) => { const d = new Date(s + "T12:00:00Z"), n = (d.getUTCDay() + 6) % 7; d.setUTCDate(d.getUTCDate() - n); return d.toISOString().slice(0, 10); };
+
+const json = (data, status = 200, headers = {}) => new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json; charset=utf-8", ...headers } });
+const err = (error, status = 400) => json({ error }, status);
+const readJson = async (req) => { try { return await req.json(); } catch { return {}; } };
+
+async function hashText(s) {
+  const b = await crypto.subtle.digest("SHA-256", E(s));
+  return [...new Uint8Array(b)].map((x) => x.toString(16).padStart(2, "0")).join("");
+}
+async function pbkdf2(password, saltB64) {
+  const salt = Uint8Array.from(atob(saltB64), (c) => c.charCodeAt(0));
+  const key = await crypto.subtle.importKey("raw", E(password), "PBKDF2", false, ["deriveBits"]);
+  const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", salt, iterations: 150000, hash: "SHA-256" }, key, 256);
+  return btoa(String.fromCharCode(...new Uint8Array(bits)));
+}
+function salt() { const b = crypto.getRandomValues(new Uint8Array(16)); return btoa(String.fromCharCode(...b)); }
+async function makePass(pw) { const s = salt(); return { salt: s, hash: await pbkdf2(pw, s) }; }
+async function checkPass(pw, s, hash) { return (await pbkdf2(pw, s)) === hash; }
+async function tokenHash(t) { return hashText(t); }
+function token() { const b = crypto.getRandomValues(new Uint8Array(32)); return btoa(String.fromCharCode(...b)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); }
+
+function cookie(name, value, maxAge = 60 * 60 * 24 * 30) {
+  return `${name}=${value}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${maxAge}`;
+}
+function getCookie(req, name) {
+  const c = req.headers.get("cookie") || "";
+  for (const p of c.split(";")) { const [k, ...v] = p.trim().split("="); if (k === name) return v.join("="); }
+  return null;
+}
+async function auth(req, env) {
+  const raw = getCookie(req, "hb_session"); if (!raw) return null;
+  const h = await tokenHash(raw);
+  const row = await env.DB.prepare(`SELECT u.* FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>?`).bind(h, now()).first();
+  return row || null;
+}
+async function makeSession(userId, env) {
+  const t = token(), h = await tokenHash(t), exp = now() + 60 * 60 * 24 * 30;
+  await env.DB.prepare(`INSERT INTO sessions(token_hash,user_id,expires_at,created_at) VALUES(?,?,?,?)`).bind(h, userId, exp, now()).run();
+  return { token: t, expires_at: exp };
+}
+async function clearSession(req, env) {
+  const raw = getCookie(req, "hb_session");
+  if (raw) await env.DB.prepare(`DELETE FROM sessions WHERE token_hash=?`).bind(await tokenHash(raw)).run();
+}
+
+async function rate(env, key, limit, seconds) {
+  const t = now();
+  await env.DB.prepare(`DELETE FROM rate_limits WHERE expires_at<?`).bind(t - 60).run().catch(() => {});
+  const r = await env.DB.prepare(`SELECT count,expires_at FROM rate_limits WHERE key=?`).bind(key).first();
+  if (!r || r.expires_at <= t) {
+    await env.DB.prepare(`INSERT INTO rate_limits(key,count,expires_at) VALUES(?,?,?) ON CONFLICT(key) DO UPDATE SET count=excluded.count,expires_at=excluded.expires_at`).bind(key, 1, t + seconds).run();
+    return true;
+  }
+  if (r.count >= limit) return false;
+  await env.DB.prepare(`UPDATE rate_limits SET count=count+1 WHERE key=?`).bind(key).run();
+  return true;
+}
+const ipKey = (req) => req.headers.get("CF-Connecting-IP") || "x";
+
+async function sendMail(env, to, subject, html) {
+  if (!env.RESEND_API_KEY) throw new Error("email-not-configured");
+  const from = env.MAIL_FROM || "Honeybun <hello@honeybun.me>";
+  const r = await fetch("https://api.resend.com/emails", { method: "POST", headers: { "authorization": `Bearer ${env.RESEND_API_KEY}`, "content-type": "application/json" }, body: JSON.stringify({ from, to, subject, html }) });
+  if (!r.ok) throw new Error("email-send-failed");
+}
+
+const CATS = new Set(["home","groc","food","date","bills","subs","car","fun","pets","debt","other"]);
+const FREQ = new Set(["weekly","biweekly","monthly"]);
+const SPLIT = new Set(["equal","percent","owed"]);
+const KINDS = new Set(["solo","couple","family"]);
+const ACCENTS = new Set(["blueberry","blush","lavender","honey"]);
+const LANGS = new Set(["en","es","zh"]);
+const levelFor = (xp) => { let l = 1; while (xp >= 25 * (l + 1) * l) l++; return l; };
+const rewardBase = { entry: 2, recurring: 3, settlement: 2, jar: 3, debt: 3, setup: 5 };
+async function reward(env, user, kind, date) {
+  const gain = rewardBase[kind] || 1, before = levelFor(user.xp || 0);
+  let streak = user.streak || 0, best = user.best_streak || 0, last = user.last_day || null, streakUp = false, firstToday = false;
+  if (date) {
+    if (last !== date) {
+      firstToday = true;
+      const yd = addDaysS(date, -1);
+      streak = last === yd ? streak + 1 : 1;
+      streakUp = streak > 1;
+      if (streak > best) best = streak;
+      last = date;
+    }
+  }
+  const xp = (user.xp || 0) + gain, after = levelFor(xp), wk = date ? thisMonday(date) : user.week_key;
+  const wxp = user.week_key === wk ? (user.week_xp || 0) + gain : gain;
+  const logs = (user.logs || 0) + 1;
+  await env.DB.prepare(`UPDATE users SET xp=?,streak=?,best_streak=?,last_day=?,week_key=?,week_xp=?,logs=?,updated_at=? WHERE id=?`).bind(xp, streak, best, last, wk, wxp, logs, now(), user.id).run();
+  Object.assign(user, { xp, streak, best_streak: best, last_day: last, week_key: wk, week_xp: wxp, logs });
+  return { gained: gain, xp, streak, best_streak: best, level: after, leveled: after > before, streak_up: streakUp, first_today: firstToday };
+}
+
+async function userNest(env, uid) {
+  return env.DB.prepare(`SELECT n.* FROM nests n JOIN members m ON m.nest_id=n.id WHERE m.user_id=?`).bind(uid).first();
+}
+async function members(env, nestId) {
+  return env.DB.prepare(`SELECT u.id,u.name,u.email,u.emoji,u.color,u.xp,u.streak,u.best_streak,u.last_day,u.week_key,u.week_xp,u.logs,m.joined_at FROM members m JOIN users u ON u.id=m.user_id WHERE m.nest_id=? ORDER BY m.joined_at,u.id`).bind(nestId).all().then((x) => x.results);
+}
+async function needNest(env, user) {
+  const n = await userNest(env, user.id); if (!n) throw Object.assign(new Error("no-nest"), { status: 404 }); return n;
+}
+
+function entryOwed(e, count) {
+  if (!e.shared || count < 2) return 0;
+  const a = e.amount_cents;
+  if (e.split_mode === "percent") return Math.round(a * (100 - e.split_value) / 100);
+  if (e.split_mode === "owed") return Math.max(0, Math.min(a, e.split_value));
+  return Math.round(a * (count - 1) / count);
+}
+async function balances(env, nestId, mems) {
+  const out = Object.fromEntries(mems.map((m) => [m.id, 0]));
+  const es = await env.DB.prepare(`SELECT * FROM entries WHERE nest_id=? AND type='expense' AND shared=1 AND private=0 ORDER BY date,id`).bind(nestId).all().then((x) => x.results);
+  for (const e of es) {
+    const pay = e.member_id, owed = entryOwed(e, mems.length);
+    const others = mems.filter((m) => m.id !== pay);
+    if (!others.length) continue;
+    if (e.split_mode === "percent" || e.split_mode === "owed") {
+      if (others.length === 1) { out[pay] += owed; out[others[0].id] -= owed; }
+      else { const each = Math.floor(owed / others.length); let rem = owed - each * others.length; for (const o of others) { const v = each + (rem-- > 0 ? 1 : 0); out[pay] += v; out[o.id] -= v; } }
+    } else {
+      const each = Math.floor(e.amount_cents / mems.length); let paidShare = e.amount_cents - each;
+      out[pay] += paidShare;
+      for (const o of others) out[o.id] -= each;
+    }
+  }
+  const ss = await env.DB.prepare(`SELECT * FROM settlements WHERE nest_id=? ORDER BY date,id`).bind(nestId).all().then((x) => x.results);
+  for (const s of ss) { out[s.from_id] += s.amount_cents; out[s.to_id] -= s.amount_cents; }
+  return { balances: out, settlements: ss };
+}
+
+function occurrences(r, from, to) {
+  const out = [], anchor = new Date(r.anchor_date + "T12:00:00Z"), f = new Date(from + "T12:00:00Z"), t = new Date(to + "T12:00:00Z");
+  if (r.freq === "monthly") {
+    const day = anchor.getUTCDate(); let y = f.getUTCFullYear(), m = f.getUTCMonth();
+    for (let i = 0; i < 26; i++) {
+      const last = new Date(Date.UTC(y, m + 1, 0)).getUTCDate(), d = new Date(Date.UTC(y, m, Math.min(day, last), 12));
+      if (d > t) break; if (d >= f && d >= anchor) out.push(d.toISOString().slice(0,10)); if (++m > 11) { m = 0; y++; }
+    }
+  } else {
+    const step = r.freq === "weekly" ? 7 : 14; let d = new Date(anchor);
+    while (d < f) d.setUTCDate(d.getUTCDate() + step);
+    for (let i = 0; d <= t && i < 60; i++) { out.push(d.toISOString().slice(0,10)); d.setUTCDate(d.getUTCDate() + step); }
+  }
+  return out;
+}
+
+async function nestPayload(env, user, month) {
+  const nest = await needNest(env, user), mems = await members(env, nest.id);
+  const es = await env.DB.prepare(`SELECT * FROM entries WHERE nest_id=? AND substr(date,1,7)=? AND (private=0 OR member_id=?) ORDER BY date DESC,id DESC`).bind(nest.id, month, user.id).all().then((x) => x.results);
+  const rc = await env.DB.prepare(`SELECT * FROM recurring WHERE nest_id=? ORDER BY type DESC,created_at`).bind(nest.id).all().then((x) => x.results);
+  const from = month + "-01", to = month + "-31";
+  const lg = await env.DB.prepare(`SELECT recurring_id,occ_date FROM recurring_log WHERE nest_id=? AND occ_date BETWEEN ? AND ?`).bind(nest.id, from, to).all().then((x) => x.results);
+  const gs = await env.DB.prepare(`SELECT * FROM goals WHERE nest_id=? ORDER BY created_at,id`).bind(nest.id).all().then((x) => x.results);
+  const jars = await env.DB.prepare(`SELECT * FROM jar_moves WHERE nest_id=? ORDER BY created_at DESC,id DESC LIMIT 100`).bind(nest.id).all().then((x) => x.results);
+  const buds = await env.DB.prepare(`SELECT * FROM budgets WHERE nest_id=?`).bind(nest.id).all().then((x) => x.results);
+  const debts = await env.DB.prepare(`SELECT * FROM debts WHERE nest_id=? ORDER BY created_at,id`).bind(nest.id).all().then((x) => x.results);
+  const dp = await env.DB.prepare(`SELECT * FROM debt_payments WHERE nest_id=? ORDER BY date DESC,created_at DESC,id DESC LIMIT 100`).bind(nest.id).all().then((x) => x.results);
+  const bal = await balances(env, nest.id, mems);
+  const unread = await env.DB.prepare(`SELECT COUNT(*) n FROM inbox WHERE user_id=? AND read_at IS NULL`).bind(user.id).first();
+  const latest = await env.DB.prepare(`SELECT id,kind,data,created_at FROM inbox WHERE user_id=? ORDER BY created_at DESC,id DESC LIMIT 1`).bind(user.id).first();
+  return { me: safeUser(user), nest, members: mems.map(safeMember), entries: es, recurring: rc, logged: lg, goals: gs, jar: jars, budgets: buds, debts, debt_payments: dp,
+    balances: bal.balances, settlements: bal.settlements, setup_done: !!nest.setup_done, inbox: { unread: +(unread?.n || 0), latest: latest ? `${latest.id}|${latest.kind}|${latest.data}` : null } };
+}
+function safeUser(u) { return { id:u.id,name:u.name,email:u.email,emoji:u.emoji,color:u.color,verified:!!u.verified,xp:u.xp||0,streak:u.streak||0,best_streak:u.best_streak||0,last_day:u.last_day||null,week_key:u.week_key||null,week_xp:u.week_xp||0,logs:u.logs||0,tz:u.tz||null,lang:u.lang||"en",mail:{bills:!!u.mail_bills,streak:!!u.mail_streak,weekly:!!u.mail_weekly} }; }
+function safeMember(u) { return { id:u.id,name:u.name,emoji:u.emoji,color:u.color,xp:u.xp||0,streak:u.streak||0,best_streak:u.best_streak||0,last_day:u.last_day||null,week_key:u.week_key||null,week_xp:u.week_xp||0,logs:u.logs||0 }; }
+
+async function setupDb(env) {
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS users(id TEXT PRIMARY KEY,email TEXT UNIQUE NOT NULL,name TEXT NOT NULL,pass_hash TEXT NOT NULL,pass_salt TEXT NOT NULL,emoji TEXT DEFAULT '🐰',color TEXT DEFAULT '#FFD6E5',verified INTEGER DEFAULT 0,xp INTEGER DEFAULT 0,streak INTEGER DEFAULT 0,best_streak INTEGER DEFAULT 0,last_day TEXT,week_key TEXT,week_xp INTEGER DEFAULT 0,logs INTEGER DEFAULT 0,tz TEXT,lang TEXT DEFAULT 'en',mail_bills INTEGER DEFAULT 1,mail_streak INTEGER DEFAULT 1,mail_weekly INTEGER DEFAULT 1,created_at INTEGER,updated_at INTEGER)`).run();
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS sessions(token_hash TEXT PRIMARY KEY,user_id TEXT NOT NULL,expires_at INTEGER NOT NULL,created_at INTEGER)`).run();
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS nests(id TEXT PRIMARY KEY,name TEXT,kind TEXT DEFAULT 'couple',invite_code TEXT UNIQUE,accent TEXT DEFAULT 'blush',setup_done INTEGER DEFAULT 0,created_at INTEGER,updated_at INTEGER)`).run();
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS members(nest_id TEXT NOT NULL,user_id TEXT NOT NULL,joined_at INTEGER,PRIMARY KEY(nest_id,user_id))`).run();
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS entries(id TEXT PRIMARY KEY,nest_id TEXT NOT NULL,member_id TEXT NOT NULL,type TEXT NOT NULL,amount_cents INTEGER NOT NULL,label TEXT,category TEXT,shared INTEGER DEFAULT 0,split_mode TEXT,split_value INTEGER,private INTEGER DEFAULT 0,date TEXT NOT NULL,recurring_id TEXT,occ_date TEXT,created_at INTEGER,updated_at INTEGER)`).run();
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS settlements(id TEXT PRIMARY KEY,nest_id TEXT NOT NULL,from_id TEXT NOT NULL,to_id TEXT NOT NULL,amount_cents INTEGER NOT NULL,date TEXT NOT NULL,created_at INTEGER)`).run();
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS recurring(id TEXT PRIMARY KEY,nest_id TEXT NOT NULL,member_id TEXT NOT NULL,type TEXT NOT NULL,amount_cents INTEGER NOT NULL,label TEXT,category TEXT,shared INTEGER DEFAULT 0,split_mode TEXT,split_value INTEGER,freq TEXT NOT NULL,anchor_date TEXT NOT NULL,created_at INTEGER,updated_at INTEGER)`).run();
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS recurring_log(recurring_id TEXT NOT NULL,nest_id TEXT NOT NULL,occ_date TEXT NOT NULL,entry_id TEXT,PRIMARY KEY(recurring_id,occ_date))`).run();
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS goals(id TEXT PRIMARY KEY,nest_id TEXT NOT NULL,name TEXT NOT NULL,emoji TEXT DEFAULT '🍯',target_cents INTEGER NOT NULL,saved_cents INTEGER DEFAULT 0,created_at INTEGER,updated_at INTEGER)`).run();
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS jar_moves(id TEXT PRIMARY KEY,nest_id TEXT NOT NULL,goal_id TEXT NOT NULL,member_id TEXT NOT NULL,amount_cents INTEGER NOT NULL,created_at INTEGER)`).run();
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS budgets(nest_id TEXT NOT NULL,category TEXT NOT NULL,limit_cents INTEGER NOT NULL,PRIMARY KEY(nest_id,category))`).run();
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS debts(id TEXT PRIMARY KEY,nest_id TEXT NOT NULL,name TEXT NOT NULL,start_cents INTEGER NOT NULL,paid_cents INTEGER DEFAULT 0,apr_bp INTEGER DEFAULT 0,min_cents INTEGER DEFAULT 0,created_at INTEGER,updated_at INTEGER)`).run();
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS debt_payments(id TEXT PRIMARY KEY,nest_id TEXT NOT NULL,debt_id TEXT NOT NULL,member_id TEXT NOT NULL,amount_cents INTEGER NOT NULL,date TEXT NOT NULL,entry_id TEXT,created_at INTEGER)`).run();
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS reset_tokens(token_hash TEXT PRIMARY KEY,user_id TEXT NOT NULL,expires_at INTEGER NOT NULL,used_at INTEGER,created_at INTEGER)`).run();
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS verify_tokens(token_hash TEXT PRIMARY KEY,user_id TEXT NOT NULL,expires_at INTEGER NOT NULL,used_at INTEGER,created_at INTEGER)`).run();
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS rate_limits(key TEXT PRIMARY KEY,count INTEGER NOT NULL,expires_at INTEGER NOT NULL)`).run();
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS inbox(id TEXT PRIMARY KEY,user_id TEXT NOT NULL,kind TEXT NOT NULL,data TEXT NOT NULL,read_at INTEGER,created_at INTEGER)`).run();
+  const alters = [
+    `ALTER TABLE users ADD COLUMN verified INTEGER DEFAULT 0`,`ALTER TABLE users ADD COLUMN xp INTEGER DEFAULT 0`,`ALTER TABLE users ADD COLUMN streak INTEGER DEFAULT 0`,`ALTER TABLE users ADD COLUMN best_streak INTEGER DEFAULT 0`,`ALTER TABLE users ADD COLUMN last_day TEXT`,`ALTER TABLE users ADD COLUMN week_key TEXT`,`ALTER TABLE users ADD COLUMN week_xp INTEGER DEFAULT 0`,`ALTER TABLE users ADD COLUMN logs INTEGER DEFAULT 0`,`ALTER TABLE users ADD COLUMN tz TEXT`,`ALTER TABLE users ADD COLUMN lang TEXT DEFAULT 'en'`,`ALTER TABLE users ADD COLUMN mail_bills INTEGER DEFAULT 1`,`ALTER TABLE users ADD COLUMN mail_streak INTEGER DEFAULT 1`,`ALTER TABLE users ADD COLUMN mail_weekly INTEGER DEFAULT 1`,`ALTER TABLE nests ADD COLUMN setup_done INTEGER DEFAULT 0`,`ALTER TABLE entries ADD COLUMN private INTEGER DEFAULT 0`
+  ];
+  for (const q of alters) await env.DB.prepare(q).run().catch(() => {});
+  await env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_entries_nest_date ON entries(nest_id,date)`).run();
+  await env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_inbox_user_created ON inbox(user_id,created_at)`).run();
+}
+
+async function handleApi(req, env, ctx) {
+  const u = new URL(req.url), path = u.pathname, method = req.method;
+  if (path === "/api/health") return json({ ok: true });
+  await setupDb(env);
+
+  if (path === "/api/signup" && method === "POST") {
+    if (!(await rate(env, `su:${ipKey(req)}`, 8, 3600))) return err("Too many sign-ups from here. Try again in an hour.", 429);
+    const b = await readJson(req), em = email(b.email), name = clean(b.name, 24), pw = String(b.password || ""), lang = LANGS.has(b.lang) ? b.lang : "en";
+    if (!okEmail(em)) return err("Enter a valid email address."); if (!name) return err("Enter your name."); if (pw.length < 8) return err("Use a password with at least 8 characters.");
+    if (await env.DB.prepare(`SELECT id FROM users WHERE email=?`).bind(em).first()) return err("An account with that email already exists. Log in instead.", 409);
+    const id = uuid(), ph = await makePass(pw), t = now();
+    await env.DB.prepare(`INSERT INTO users(id,email,name,pass_hash,pass_salt,lang,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)`).bind(id, em, name, ph.hash, ph.salt, lang, t, t).run();
+    const sess = await makeSession(id, env);
+    ctx.waitUntil(sendVerify(env, id, em, name, lang).catch(() => {}));
+    return json({ ok: true }, 200, { "set-cookie": cookie("hb_session", sess.token) });
+  }
+
+  if (path === "/api/login" && method === "POST") {
+    const ip = ipKey(req); if (!(await rate(env, `li:${ip}`, 20, 900))) return err("Too many tries. Wait 15 minutes.", 429);
+    const b = await readJson(req), em = email(b.email), pw = String(b.password || "");
+    const row = await env.DB.prepare(`SELECT * FROM users WHERE email=?`).bind(em).first();
+    if (!row || !(await checkPass(pw, row.pass_salt, row.pass_hash))) return err("Wrong email or password.", 401);
+    const sess = await makeSession(row.id, env); return json({ ok: true }, 200, { "set-cookie": cookie("hb_session", sess.token) });
+  }
+
+  if (path === "/api/logout" && method === "POST") { await clearSession(req, env); return json({ ok: true }, 200, { "set-cookie": cookie("hb_session", "", 0) }); }
+
+  if (path === "/api/password/forgot" && method === "POST") {
+    const b = await readJson(req), em = email(b.email);
+    if (!(await rate(env, `pw:${ipKey(req)}`, 5, 3600))) return err("Too many reset requests. Try again in an hour.", 429);
+    const row = await env.DB.prepare(`SELECT * FROM users WHERE email=?`).bind(em).first();
+    if (row) ctx.waitUntil(sendReset(env, row).catch(() => {}));
+    return json({ ok: true });
+  }
+  if (path === "/api/password/reset" && method === "POST") {
+    const b = await readJson(req), raw = String(b.token || ""), pw = String(b.password || ""); if (pw.length < 8) return err("Use a password with at least 8 characters.");
+    const h = await tokenHash(raw), r = await env.DB.prepare(`SELECT * FROM reset_tokens WHERE token_hash=? AND used_at IS NULL AND expires_at>?`).bind(h, now()).first();
+    if (!r) return err("This reset link has expired or was already used. Ask for a new one.", 400);
+    const ph = await makePass(pw);
+    await env.DB.batch([env.DB.prepare(`UPDATE users SET pass_hash=?,pass_salt=?,updated_at=? WHERE id=?`).bind(ph.hash, ph.salt, now(), r.user_id), env.DB.prepare(`UPDATE reset_tokens SET used_at=? WHERE token_hash=?`).bind(now(), h), env.DB.prepare(`DELETE FROM sessions WHERE user_id=?`).bind(r.user_id)]);
+    const sess = await makeSession(r.user_id, env); return json({ ok: true }, 200, { "set-cookie": cookie("hb_session", sess.token) });
+  }
+
+  if (path === "/api/email/verify" && method === "POST") {
+    const b = await readJson(req), h = await tokenHash(String(b.token || ""));
+    const r = await env.DB.prepare(`SELECT * FROM verify_tokens WHERE token_hash=? AND used_at IS NULL AND expires_at>?`).bind(h, now()).first();
+    if (!r) return err("This link has expired or was already used. You can send a new one from Settings.", 400);
+    await env.DB.batch([env.DB.prepare(`UPDATE users SET verified=1,updated_at=? WHERE id=?`).bind(now(), r.user_id), env.DB.prepare(`UPDATE verify_tokens SET used_at=? WHERE token_hash=?`).bind(now(), h)]);
+    return json({ ok: true });
+  }
+
+  const user = await auth(req, env); if (!user) return err("Please log in.", 401);
+
+  if (path === "/api/me" && method === "GET") { const n = await userNest(env, user.id); return json({ user: safeUser(user), nest_id: n?.id || null }); }
+  if (path === "/api/me" && method === "PATCH") {
+    const b = await readJson(req), sets = [], vals = [];
+    const fields = [["name", clean(b.name,24)], ["emoji", clean(b.emoji,8)], ["color", clean(b.color,16)], ["tz", clean(b.tz,80)]];
+    for (const [k,v] of fields) if (b[k] !== undefined && v) { sets.push(`${k}=?`); vals.push(v); }
+    if (b.lang !== undefined && LANGS.has(b.lang)) { sets.push(`lang=?`); vals.push(b.lang); }
+    for (const [k,col] of [["mail_bills","mail_bills"],["mail_streak","mail_streak"],["mail_weekly","mail_weekly"]]) if (b[k] !== undefined) { sets.push(`${col}=?`); vals.push(b[k] ? 1 : 0); }
+    if (sets.length) { sets.push(`updated_at=?`); vals.push(now(), user.id); await env.DB.prepare(`UPDATE users SET ${sets.join(",")} WHERE id=?`).bind(...vals).run(); }
+    const fresh = await env.DB.prepare(`SELECT * FROM users WHERE id=?`).bind(user.id).first(); return json({ user: safeUser(fresh) });
+  }
+
+  if (path === "/api/password/change" && method === "POST") {
+    const b = await readJson(req), cur = String(b.current || ""), pw = String(b.password || "");
+    if (!(await checkPass(cur, user.pass_salt, user.pass_hash))) return err("Your current password is wrong.", 400); if (pw.length < 8) return err("Use a password with at least 8 characters.");
+    const ph = await makePass(pw); const raw = getCookie(req, "hb_session"), h = raw ? await tokenHash(raw) : "";
+    await env.DB.batch([env.DB.prepare(`UPDATE users SET pass_hash=?,pass_salt=?,updated_at=? WHERE id=?`).bind(ph.hash,ph.salt,now(),user.id),env.DB.prepare(`DELETE FROM sessions WHERE user_id=? AND token_hash<>?`).bind(user.id,h)]);
+    return json({ ok: true });
+  }
+
+  if (path === "/api/email/resend" && method === "POST") {
+    if (user.verified) return json({ ok: true, already: true });
+    if (!(await rate(env, `vr:${user.id}`, 4, 3600))) return err("We already sent a few. Check your inbox and spam, or try again in an hour.", 429);
+    try { await sendVerify(env, user.id, user.email, user.name, user.lang || "en"); return json({ ok: true }); }
+    catch (e) { return err(e.message === "email-not-configured" ? "Emails aren't set up yet. Ask the site owner to add the email key." : "Couldn't send the email. Try again in a minute.", 503); }
+  }
+
+  if (path === "/api/nests" && method === "POST") {
+    if (await userNest(env,user.id)) return err("You're already in a budget.",409);
+    const b=await readJson(req), kind=KINDS.has(b.kind)?b.kind:"couple", id=uuid(), code=(crypto.randomUUID().replace(/-/g,"").slice(0,8)).toUpperCase(), t=now(), name=clean(b.name,24);
+    await env.DB.batch([env.DB.prepare(`INSERT INTO nests(id,name,kind,invite_code,accent,created_at,updated_at) VALUES(?,?,?,?,?,?,?)`).bind(id,name,kind,code,"blush",t,t), env.DB.prepare(`INSERT INTO members(nest_id,user_id,joined_at) VALUES(?,?,?)`).bind(id,user.id,t)]);
+    return json({ ok:true });
+  }
+  if (path === "/api/nests/join" && method === "POST") {
+    if (await userNest(env,user.id)) return err("You're already in a budget. Leave it in Settings first, then join this one.",409);
+    const b=await readJson(req), code=clean(b.code,20).replace(/-/g,"").toUpperCase(), n=await env.DB.prepare(`SELECT * FROM nests WHERE invite_code=?`).bind(code).first();
+    if(!n)return err("That invite code doesn't match any budget. Check it and try again.",404);
+    const cnt=await env.DB.prepare(`SELECT COUNT(*) n FROM members WHERE nest_id=?`).bind(n.id).first(); const cap=n.kind==="family"?8:2; if((cnt?.n||0)>=cap)return err("This budget is full.",409);
+    await env.DB.prepare(`INSERT INTO members(nest_id,user_id,joined_at) VALUES(?,?,?)`).bind(n.id,user.id,now()).run();
+    ctx.waitUntil(notifyJoined(env,n,user).catch(()=>{})); return json({ok:true});
+  }
+  if (path === "/api/nest/leave" && method === "POST") {
+    const n=await needNest(env,user); const cnt=await env.DB.prepare(`SELECT COUNT(*) n FROM members WHERE nest_id=?`).bind(n.id).first();
+    if((cnt?.n||0)<=1){ await deleteNest(env,n.id); } else await env.DB.prepare(`DELETE FROM members WHERE nest_id=? AND user_id=?`).bind(n.id,user.id).run();
+    return json({ok:true});
+  }
+
+  if (path === "/api/nest" && method === "GET") { const month=u.searchParams.get("month")||new Date().toISOString().slice(0,7); return json(await nestPayload(env,user,month)); }
+  if (path === "/api/nest" && method === "PATCH") {
+    const n=await needNest(env,user), b=await readJson(req), sets=[], vals=[];
+    if(b.name!==undefined){sets.push("name=?");vals.push(clean(b.name,24));} if(b.kind!==undefined&&KINDS.has(b.kind)){sets.push("kind=?");vals.push(b.kind);} if(b.accent!==undefined&&ACCENTS.has(b.accent)){sets.push("accent=?");vals.push(b.accent);} if(b.setup_done!==undefined){sets.push("setup_done=?");vals.push(b.setup_done?1:0);}
+    if(sets.length){sets.push("updated_at=?");vals.push(now(),n.id);await env.DB.prepare(`UPDATE nests SET ${sets.join(",")} WHERE id=?`).bind(...vals).run();} return json({ok:true});
+  }
+
+  if (path === "/api/nest/invite" && method === "POST") { const n=await needNest(env,user), code=(crypto.randomUUID().replace(/-/g,"").slice(0,8)).toUpperCase(); await env.DB.prepare(`UPDATE nests SET invite_code=?,updated_at=? WHERE id=?`).bind(code,now(),n.id).run(); return json({code}); }
+
+  if (path === "/api/setup/done" && method === "POST") { const n=await needNest(env,user); await env.DB.prepare(`UPDATE nests SET setup_done=1,updated_at=? WHERE id=?`).bind(now(),n.id).run(); return json({ok:true,reward:await reward(env,user,"setup",req.headers.get("x-local-date")||new Date().toISOString().slice(0,10))}); }
+
+  if (path === "/api/entries" && method === "POST") {
+    const n=await needNest(env,user), mems=await members(env,n.id), b=await readJson(req); const v=validateEntry(b,mems,user.id); if(v.error)return err(v.error);
+    const id=uuid(), t=now(); await env.DB.prepare(`INSERT INTO entries(id,nest_id,member_id,type,amount_cents,label,category,shared,split_mode,split_value,private,date,recurring_id,occ_date,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(id,n.id,v.member_id,v.type,v.amount_cents,v.label,v.category,v.shared,v.split_mode,v.split_value,v.private,v.date,b.recurring_id||null,b.occ_date||null,t,t).run();
+    const rw=await reward(env,user,"entry",v.date); if(v.shared&&!v.private)ctx.waitUntil(notifyShared(env,n,user,v).catch(()=>{})); return json({ok:true,id,reward:rw});
+  }
+  const em=path.match(/^\/api\/entries\/([^/]+)$/);
+  if(em&&method==="PATCH"){
+    const n=await needNest(env,user), old=await env.DB.prepare(`SELECT * FROM entries WHERE id=? AND nest_id=?`).bind(em[1],n.id).first(); if(!old)return err("Not found.",404);
+    const mems=await members(env,n.id), b=await readJson(req), v=validateEntry(b,mems,user.id); if(v.error)return err(v.error); if(old.private&&old.member_id!==user.id)return err("Not allowed.",403);
+    await env.DB.prepare(`UPDATE entries SET member_id=?,type=?,amount_cents=?,label=?,category=?,shared=?,split_mode=?,split_value=?,private=?,date=?,updated_at=? WHERE id=? AND nest_id=?`).bind(v.member_id,v.type,v.amount_cents,v.label,v.category,v.shared,v.split_mode,v.split_value,v.private,v.date,now(),em[1],n.id).run(); return json({ok:true});
+  }
+  if(em&&method==="DELETE"){
+    const n=await needNest(env,user), old=await env.DB.prepare(`SELECT * FROM entries WHERE id=? AND nest_id=?`).bind(em[1],n.id).first(); if(!old)return err("Not found.",404); if(old.private&&old.member_id!==user.id)return err("Not allowed.",403);
+    await env.DB.prepare(`DELETE FROM entries WHERE id=? AND nest_id=?`).bind(em[1],n.id).run(); return json({ok:true});
+  }
+
+  if (path === "/api/recurring" && method === "POST") {
+    const n=await needNest(env,user),mems=await members(env,n.id),b=await readJson(req),v=validateEntry(b,mems,user.id);if(v.error)return err(v.error);if(!FREQ.has(b.freq))return err("Pick how often it repeats.");
+    const id=uuid(),t=now();await env.DB.prepare(`INSERT INTO recurring(id,nest_id,member_id,type,amount_cents,label,category,shared,split_mode,split_value,freq,anchor_date,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(id,n.id,v.member_id,v.type,v.amount_cents,v.label,v.category,v.shared,v.split_mode,v.split_value,b.freq,v.date,t,t).run();
+    let rw=null;if(b.log_now){const eid=uuid();await env.DB.batch([env.DB.prepare(`INSERT INTO entries(id,nest_id,member_id,type,amount_cents,label,category,shared,split_mode,split_value,private,date,recurring_id,occ_date,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(eid,n.id,v.member_id,v.type,v.amount_cents,v.label,v.category,v.shared,v.split_mode,v.split_value,0,v.date,id,v.date,t,t),env.DB.prepare(`INSERT OR IGNORE INTO recurring_log(recurring_id,nest_id,occ_date,entry_id) VALUES(?,?,?,?)`).bind(id,n.id,v.date,eid)]);rw=await reward(env,user,"recurring",v.date);}return json({ok:true,id,reward:rw});
+  }
+  const rm=path.match(/^\/api\/recurring\/([^/]+)$/);
+  if(rm&&method==="PATCH"){
+    const n=await needNest(env,user),r=await env.DB.prepare(`SELECT * FROM recurring WHERE id=? AND nest_id=?`).bind(rm[1],n.id).first();if(!r)return err("Not found.",404);const b=await readJson(req),mems=await members(env,n.id),v=validateEntry(b,mems,user.id);if(v.error)return err(v.error);if(!FREQ.has(b.freq))return err("Pick how often it repeats.");await env.DB.prepare(`UPDATE recurring SET member_id=?,type=?,amount_cents=?,label=?,category=?,shared=?,split_mode=?,split_value=?,freq=?,anchor_date=?,updated_at=? WHERE id=? AND nest_id=?`).bind(v.member_id,v.type,v.amount_cents,v.label,v.category,v.shared,v.split_mode,v.split_value,b.freq,v.date,now(),rm[1],n.id).run();return json({ok:true});
+  }
+  if(rm&&method==="DELETE"){
+    const n=await needNest(env,user);await env.DB.prepare(`DELETE FROM recurring WHERE id=? AND nest_id=?`).bind(rm[1],n.id).run();return json({ok:true});
+  }
+  const rlm=path.match(/^\/api\/recurring\/([^/]+)\/log$/);
+  if(rlm&&method==="POST"){
+    const n=await needNest(env,user),r=await env.DB.prepare(`SELECT * FROM recurring WHERE id=? AND nest_id=?`).bind(rlm[1],n.id).first();if(!r)return err("Not found.",404);const b=await readJson(req),occ=clean(b.occ_date,10);if(!/^\d{4}-\d{2}-\d{2}$/.test(occ))return err("Pick the date.");
+    const ex=await env.DB.prepare(`SELECT entry_id FROM recurring_log WHERE recurring_id=? AND occ_date=?`).bind(r.id,occ).first();if(ex)return json({ok:true,already:true});
+    const eid=uuid(),t=now();await env.DB.batch([env.DB.prepare(`INSERT INTO entries(id,nest_id,member_id,type,amount_cents,label,category,shared,split_mode,split_value,private,date,recurring_id,occ_date,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(eid,n.id,r.member_id,r.type,r.amount_cents,r.label,r.category,r.shared,r.split_mode,r.split_value,0,occ,r.id,occ,t,t),env.DB.prepare(`INSERT INTO recurring_log(recurring_id,nest_id,occ_date,entry_id) VALUES(?,?,?,?)`).bind(r.id,n.id,occ,eid)]);return json({ok:true,reward:await reward(env,user,"recurring",occ)});
+  }
+
+  if(path==="/api/settlements"&&method==="POST"){
+    const n=await needNest(env,user),mems=await members(env,n.id),b=await readJson(req),from=clean(b.from_id,80),to=clean(b.to_id,80),amt=money(b.amount),date=clean(b.date,10);if(!mems.some(m=>m.id===from)||!mems.some(m=>m.id===to)||from===to||!(amt>0))return err("Enter the amount that was paid.");
+    const id=uuid();await env.DB.prepare(`INSERT INTO settlements(id,nest_id,from_id,to_id,amount_cents,date,created_at) VALUES(?,?,?,?,?,?,?)`).bind(id,n.id,from,to,amt,date||new Date().toISOString().slice(0,10),now()).run();ctx.waitUntil(notifySettled(env,n,user,{from,to,amount:amt}).catch(()=>{}));return json({ok:true,reward:await reward(env,user,"settlement",date||new Date().toISOString().slice(0,10))});
+  }
+  const sm=path.match(/^\/api\/settlements\/([^/]+)$/);if(sm&&method==="DELETE"){const n=await needNest(env,user);await env.DB.prepare(`DELETE FROM settlements WHERE id=? AND nest_id=?`).bind(sm[1],n.id).run();return json({ok:true});}
+
+  if(path==="/api/goals"&&method==="POST"){
+    const n=await needNest(env,user),b=await readJson(req),name=clean(b.name,32),target=money(b.target);if(!name)return err("Name your goal.");if(!(target>0))return err("Enter the amount.");const id=uuid();await env.DB.prepare(`INSERT INTO goals(id,nest_id,name,emoji,target_cents,saved_cents,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)`).bind(id,n.id,name,clean(b.emoji,8)||"🍯",target,0,now(),now()).run();return json({ok:true,id});
+  }
+  const gm=path.match(/^\/api\/goals\/([^/]+)$/);
+  if(gm&&method==="PATCH"){
+    const n=await needNest(env,user),b=await readJson(req),name=clean(b.name,32),target=money(b.target);if(!name)return err("Name your goal.");if(!(target>0))return err("Enter the amount.");await env.DB.prepare(`UPDATE goals SET name=?,emoji=?,target_cents=?,updated_at=? WHERE id=? AND nest_id=?`).bind(name,clean(b.emoji,8)||"🍯",target,now(),gm[1],n.id).run();return json({ok:true});
+  }
+  if(gm&&method==="DELETE"){
+    const n=await needNest(env,user);await env.DB.batch([env.DB.prepare(`DELETE FROM jar_moves WHERE goal_id=? AND nest_id=?`).bind(gm[1],n.id),env.DB.prepare(`DELETE FROM goals WHERE id=? AND nest_id=?`).bind(gm[1],n.id)]);return json({ok:true});
+  }
+  if(path==="/api/jar"&&method==="POST"){
+    const n=await needNest(env,user),b=await readJson(req),g=await env.DB.prepare(`SELECT * FROM goals WHERE id=? AND nest_id=?`).bind(clean(b.goal_id,80),n.id).first();if(!g)return err("Not found.",404);let amt=money(b.amount);if(!(amt>0))return err("Enter the amount.");if(b.direction==="out")amt=-amt;if(g.saved_cents+amt<0)return err("You can't take out more than you've saved for this goal.");const id=uuid();await env.DB.batch([env.DB.prepare(`INSERT INTO jar_moves(id,nest_id,goal_id,member_id,amount_cents,created_at) VALUES(?,?,?,?,?,?)`).bind(id,n.id,g.id,user.id,amt,now()),env.DB.prepare(`UPDATE goals SET saved_cents=saved_cents+?,updated_at=? WHERE id=?`).bind(amt,now(),g.id)]);const fresh=await env.DB.prepare(`SELECT * FROM goals WHERE id=?`).bind(g.id).first();if(fresh.saved_cents>=fresh.target_cents&&g.saved_cents<g.target_cents)ctx.waitUntil(notifyGoal(env,n,user,fresh).catch(()=>{}));return json({ok:true,reward:amt>0?await reward(env,user,"jar",req.headers.get("x-local-date")||new Date().toISOString().slice(0,10)):null});
+  }
+  const jm=path.match(/^\/api\/jar\/([^/]+)$/);if(jm&&method==="DELETE"){
+    const n=await needNest(env,user),j=await env.DB.prepare(`SELECT * FROM jar_moves WHERE id=? AND nest_id=?`).bind(jm[1],n.id).first();if(!j)return err("Not found.",404);await env.DB.batch([env.DB.prepare(`DELETE FROM jar_moves WHERE id=?`).bind(j.id),env.DB.prepare(`UPDATE goals SET saved_cents=MAX(0,saved_cents-?),updated_at=? WHERE id=?`).bind(j.amount_cents,now(),j.goal_id)]);return json({ok:true});
+  }
+
+  if(path==="/api/budgets"&&method==="PUT"){
+    const n=await needNest(env,user),b=await readJson(req),items=Array.isArray(b.items)?b.items:[];const qs=[env.DB.prepare(`DELETE FROM budgets WHERE nest_id=?`).bind(n.id)];for(const it of items){if(!CATS.has(it.category))continue;const v=money(it.limit);if(v>0)qs.push(env.DB.prepare(`INSERT INTO budgets(nest_id,category,limit_cents) VALUES(?,?,?)`).bind(n.id,it.category,v));}await env.DB.batch(qs);return json({ok:true});
+  }
+
+  if(path==="/api/debts"&&method==="POST"){
+    const n=await needNest(env,user),b=await readJson(req),name=clean(b.name,32),bal=money(b.balance),apr=Math.round(Number(b.apr||0)*100),min=money(b.min||0);if(!name)return err("Name the debt.");if(!(bal>0))return err("Enter the amount.");if(apr<0||apr>10000)return err("Enter an interest rate from 0 to 100%.");if(min<0)return err("Enter a valid minimum payment.");const id=uuid();await env.DB.prepare(`INSERT INTO debts(id,nest_id,name,start_cents,paid_cents,apr_bp,min_cents,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?)`).bind(id,n.id,name,bal,0,apr,min,now(),now()).run();return json({ok:true,id});
+  }
+  const dm=path.match(/^\/api\/debts\/([^/]+)$/);
+  if(dm&&method==="PATCH"){
+    const n=await needNest(env,user),d=await env.DB.prepare(`SELECT * FROM debts WHERE id=? AND nest_id=?`).bind(dm[1],n.id).first();if(!d)return err("Not found.",404);const b=await readJson(req),name=clean(b.name,32),bal=money(b.balance),apr=Math.round(Number(b.apr||0)*100),min=money(b.min||0);if(!name)return err("Name the debt.");if(!(bal>0))return err("Enter the amount.");if(apr<0||apr>10000)return err("Enter an interest rate from 0 to 100%.");if(min<0)return err("Enter a valid minimum payment.");const paid=Math.min(d.paid_cents,bal);await env.DB.prepare(`UPDATE debts SET name=?,start_cents=?,paid_cents=?,apr_bp=?,min_cents=?,updated_at=? WHERE id=? AND nest_id=?`).bind(name,bal,paid,apr,min,now(),d.id,n.id).run();return json({ok:true});
+  }
+  if(dm&&method==="DELETE"){
+    const n=await needNest(env,user);await env.DB.batch([env.DB.prepare(`DELETE FROM debt_payments WHERE debt_id=? AND nest_id=?`).bind(dm[1],n.id),env.DB.prepare(`DELETE FROM debts WHERE id=? AND nest_id=?`).bind(dm[1],n.id)]);return json({ok:true});
+  }
+  const dpm=path.match(/^\/api\/debts\/([^/]+)\/pay$/);
+  if(dpm&&method==="POST"){
+    const n=await needNest(env,user),d=await env.DB.prepare(`SELECT * FROM debts WHERE id=? AND nest_id=?`).bind(dpm[1],n.id).first();if(!d)return err("Not found.",404);const b=await readJson(req),amt=money(b.amount),date=clean(b.date,10)||new Date().toISOString().slice(0,10),member=clean(b.member_id,80)||user.id;if(!(amt>0))return err("Enter the amount you paid.");const mem=await env.DB.prepare(`SELECT 1 x FROM members WHERE nest_id=? AND user_id=?`).bind(n.id,member).first();if(!mem)return err("Pick who paid.");const rem=Math.max(0,d.start_cents-d.paid_cents),pay=Math.min(amt,rem);const pid=uuid(),eid=uuid(),t=now();await env.DB.batch([env.DB.prepare(`INSERT INTO debt_payments(id,nest_id,debt_id,member_id,amount_cents,date,entry_id,created_at) VALUES(?,?,?,?,?,?,?,?)`).bind(pid,n.id,d.id,member,pay,date,eid,t),env.DB.prepare(`INSERT INTO entries(id,nest_id,member_id,type,amount_cents,label,category,shared,private,date,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`).bind(eid,n.id,member,"expense",pay,d.name,"debt",0,0,date,t,t),env.DB.prepare(`UPDATE debts SET paid_cents=paid_cents+?,updated_at=? WHERE id=?`).bind(pay,t,d.id)]);const fresh=await env.DB.prepare(`SELECT * FROM debts WHERE id=?`).bind(d.id).first();if(fresh.paid_cents>=fresh.start_cents&&d.paid_cents<d.start_cents)ctx.waitUntil(notifyDebt(env,n,user,fresh).catch(()=>{}));return json({ok:true,reward:await reward(env,user,"debt",date)});
+  }
+  const ddel=path.match(/^\/api\/debt-payments\/([^/]+)$/);if(ddel&&method==="DELETE"){
+    const n=await needNest(env,user),p=await env.DB.prepare(`SELECT * FROM debt_payments WHERE id=? AND nest_id=?`).bind(ddel[1],n.id).first();if(!p)return err("Not found.",404);await env.DB.batch([env.DB.prepare(`DELETE FROM entries WHERE id=?`).bind(p.entry_id),env.DB.prepare(`DELETE FROM debt_payments WHERE id=?`).bind(p.id),env.DB.prepare(`UPDATE debts SET paid_cents=MAX(0,paid_cents-?),updated_at=? WHERE id=?`).bind(p.amount_cents,now(),p.debt_id)]);return json({ok:true});
+  }
+
+  if(path==="/api/year"&&method==="GET"){
+    const n=await needNest(env,user),year=clean(u.searchParams.get("year"),4)||String(new Date().getUTCFullYear());const es=await env.DB.prepare(`SELECT * FROM entries WHERE nest_id=? AND substr(date,1,4)=? AND (private=0 OR member_id=?) ORDER BY date,id`).bind(n.id,year,user.id).all().then(x=>x.results);const jar=await env.DB.prepare(`SELECT * FROM jar_moves WHERE nest_id=? AND substr(datetime(created_at,'unixepoch'),1,4)=? ORDER BY created_at`).bind(n.id,year).all().then(x=>x.results);return json({entries:es,jar});
+  }
+
+  if(path==="/api/search"&&method==="GET"){
+    const n=await needNest(env,user),q=clean(u.searchParams.get("q"),60),type=clean(u.searchParams.get("type"),12),cat=clean(u.searchParams.get("cat"),20),member=clean(u.searchParams.get("member"),80);let sql=`SELECT * FROM entries WHERE nest_id=? AND (private=0 OR member_id=?)`,vals=[n.id,user.id];if(q){sql+=` AND lower(label) LIKE ?`;vals.push(`%${q.toLowerCase()}%`);}if(type){sql+=` AND type=?`;vals.push(type);}if(cat){sql+=` AND category=?`;vals.push(cat);}if(member){sql+=` AND member_id=?`;vals.push(member);}sql+=` ORDER BY date DESC,id DESC LIMIT 300`;const rows=await env.DB.prepare(sql).bind(...vals).all().then(x=>x.results);return json({entries:rows});
+  }
+
+  if(path==="/api/inbox"&&method==="GET"){
+    const rows=await env.DB.prepare(`SELECT * FROM inbox WHERE user_id=? ORDER BY created_at DESC,id DESC LIMIT 80`).bind(user.id).all().then(x=>x.results);return json({messages:rows.map(r=>({...r,data:JSON.parse(r.data||"{}")})).reverse()});
+  }
+  if(path==="/api/inbox/read"&&method==="POST"){await env.DB.prepare(`UPDATE inbox SET read_at=? WHERE user_id=? AND read_at IS NULL`).bind(now(),user.id).run();return json({ok:true});}
+
+  if(path==="/api/account/export"&&method==="GET"){
+    const n=await userNest(env,user.id);const out={exported_at:new Date().toISOString(),user:safeUser(user),nest:null};if(n){const mems=await members(env,n.id);out.nest={...n,members:mems.map(safeMember),entries:await env.DB.prepare(`SELECT * FROM entries WHERE nest_id=? AND (private=0 OR member_id=?) ORDER BY date,id`).bind(n.id,user.id).all().then(x=>x.results),recurring:await env.DB.prepare(`SELECT * FROM recurring WHERE nest_id=?`).bind(n.id).all().then(x=>x.results),goals:await env.DB.prepare(`SELECT * FROM goals WHERE nest_id=?`).bind(n.id).all().then(x=>x.results),budgets:await env.DB.prepare(`SELECT * FROM budgets WHERE nest_id=?`).bind(n.id).all().then(x=>x.results),debts:await env.DB.prepare(`SELECT * FROM debts WHERE nest_id=?`).bind(n.id).all().then(x=>x.results),settlements:await env.DB.prepare(`SELECT * FROM settlements WHERE nest_id=?`).bind(n.id).all().then(x=>x.results)};}return new Response(JSON.stringify(out,null,2),{headers:{"content-type":"application/json; charset=utf-8","content-disposition":"attachment; filename=honeybun-data.json"}});
+  }
+
+  if(path==="/api/account/delete"&&method==="POST"){
+    const b=await readJson(req);if(!(await checkPass(String(b.password||""),user.pass_salt,user.pass_hash)))return err("That password is wrong.",400);const n=await userNest(env,user.id);if(n){const cnt=await env.DB.prepare(`SELECT COUNT(*) n FROM members WHERE nest_id=?`).bind(n.id).first();if((cnt?.n||0)<=1)await deleteNest(env,n.id);else{await env.DB.prepare(`DELETE FROM entries WHERE nest_id=? AND member_id=? AND private=1`).bind(n.id,user.id).run();await env.DB.prepare(`DELETE FROM members WHERE nest_id=? AND user_id=?`).bind(n.id,user.id).run();}}
+    await env.DB.batch([env.DB.prepare(`DELETE FROM sessions WHERE user_id=?`).bind(user.id),env.DB.prepare(`DELETE FROM reset_tokens WHERE user_id=?`).bind(user.id),env.DB.prepare(`DELETE FROM verify_tokens WHERE user_id=?`).bind(user.id),env.DB.prepare(`DELETE FROM inbox WHERE user_id=?`).bind(user.id),env.DB.prepare(`DELETE FROM users WHERE id=?`).bind(user.id)]);return json({ok:true},200,{"set-cookie":cookie("hb_session","",0)});
+  }
+
+  return err("Not found.",404);
+}
+
+function validateEntry(b,mems,myId){
+  const type=b.type==="income"?"income":"expense",amount_cents=money(b.amount),label=clean(b.label,40),category=CATS.has(b.category)?b.category:"other",member_id=clean(b.member_id,80),date=clean(b.date,10),shared=type==="expense"&&!!b.shared&&mems.length>1?1:0,private=type==="expense"&&!shared&&member_id===myId&&!!b.private?1:0,split_mode=shared&&(SPLIT.has(b.split_mode)?b.split_mode:"equal"),sv=Number(b.split_value);if(!(amount_cents>0))return{error:"Type an amount above $0 first."};if(!mems.some(m=>m.id===member_id))return{error:"Pick who paid."};if(!/^\d{4}-\d{2}-\d{2}$/.test(date))return{error:"Pick the date."};let split_value=null;if(shared&&split_mode==="percent"){if(!(sv>=0&&sv<=100))return{error:"Enter a percent from 0 to 100."};split_value=Math.round(sv);}if(shared&&split_mode==="owed"){const c=money(sv);if(!(c>0&&c<=amount_cents))return{error:"The amount owed has to be more than $0 and no more than the total."};split_value=c;}return{type,amount_cents,label:label|| (type==="income"?"Paycheck":"Expense"),category,member_id,date,shared,private,split_mode:shared?split_mode:null,split_value};
+}
