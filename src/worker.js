@@ -178,10 +178,11 @@ async function generateInbox(env, request, user, nestId, force) {
   if (L.hour >= 18 && m.streak >= 2 && m.last_day === sDay(pDay(day) - dayMs)) add("streak_risk", { n: m.streak }, `risk:${day}`);
   // budgets at 80% / over
   const spent = Object.fromEntries(spend.results.map((r) => [r.category, r.c]));
+  const month = day.slice(0, 7);
   const carry = await budgetCarry(env, nestId, user.id, month);
   for (const b of budgets.results) {
     b.limit_cents += carry[b.category] || 0;
-    const sp = spent[b.category] || 0, month = day.slice(0, 7);
+    const sp = spent[b.category] || 0;
     if (sp > b.limit_cents) add("budget_over", { cat: b.category, over: sp - b.limit_cents }, `over:${b.category}:${month}`);
     else if (sp >= b.limit_cents * 0.8) add("budget_warn", { cat: b.category, spent: sp, limit: b.limit_cents }, `warn:${b.category}:${month}`);
   }
