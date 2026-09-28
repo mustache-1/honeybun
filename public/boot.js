@@ -1,9 +1,9 @@
-// Honeybun boot helpers: light theme, Bun assistant, mobile polish, deploy recovery.
+// Honeybun boot helpers: forced dark theme, Bun assistant, mobile polish, deploy recovery.
 (function () {
   var root = document.documentElement;
 
-  // Honeybun is light-mode only now.
-  root.setAttribute("data-theme", "light");
+  // Honeybun is dark-mode only.
+  root.setAttribute("data-theme", "dark");
   try { localStorage.removeItem("hb-theme"); } catch (e) {}
 
   // iPhone / iPad + installed Home Screen detection.
@@ -13,9 +13,8 @@
   root.setAttribute("data-ios", isiOS ? "1" : "0");
   root.setAttribute("data-standalone", standalone ? "1" : "0");
 
-  // Use a light iPhone status bar treatment.
   var appleStatus = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
-  if (appleStatus) appleStatus.setAttribute("content", "default");
+  if (appleStatus) appleStatus.setAttribute("content", "black-translucent");
 
   function addStyle(href, attr) {
     if (document.querySelector('link[' + attr + ']')) return;
@@ -42,7 +41,7 @@
       meta.name = "theme-color";
       document.head.appendChild(meta);
     }
-    meta.content = "#f7f5f2";
+    meta.content = "#17151b";
   }
 
   function removeThemeToggle() {
@@ -50,36 +49,30 @@
     if (btn) btn.remove();
   }
 
-  function mountIOSInstallTip() {
-    if (!isiOS || standalone || document.getElementById("hbIOSInstall")) return;
-    try { if (localStorage.getItem("hb-ios-tip-dismissed") === "1") return; } catch (e) {}
-
-    var tip = document.createElement("div");
-    tip.id = "hbIOSInstall";
-    tip.className = "hb-ios-install";
-    tip.innerHTML = '<div class="bunny">🐰</div><div class="txt"><b>Make Honeybun feel like a real iPhone app</b>Tap Share in Safari, then <strong>Add to Home Screen</strong>. It opens full-screen without the Safari URL bar.</div><button type="button" aria-label="Dismiss">×</button>';
-    tip.querySelector("button").addEventListener("click", function () {
-      tip.remove();
-      try { localStorage.setItem("hb-ios-tip-dismissed", "1"); } catch (e) {}
-    });
-    document.body.appendChild(tip);
+  function syncVisualViewport() {
+    if (!window.visualViewport) return;
+    var vv = window.visualViewport;
+    var bottomGap = Math.max(0, window.innerHeight - (vv.height + vv.offsetTop));
+    root.style.setProperty("--hb-vv-bottom", bottomGap + "px");
   }
 
   function initUiBits() {
-    root.setAttribute("data-theme", "light");
-    addStyle("/hb-v8-tweaks.css?v=3", "data-hb-v8-tweaks");
-    addStyle("/hb-mobile.css?v=3", "data-hb-mobile");
-    addScript("/hb-bun.js?v=1", "data-hb-bun");
+    root.setAttribute("data-theme", "dark");
+    addStyle("/hb-v8-tweaks.css?v=4", "data-hb-v8-tweaks");
+    addStyle("/hb-mobile.css?v=5", "data-hb-mobile");
+    addScript("/hb-bun.js?v=2", "data-hb-bun");
     removeThemeToggle();
-    mountIOSInstallTip();
     syncThemeColor();
+    syncVisualViewport();
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener("resize", syncVisualViewport);
+      window.visualViewport.addEventListener("scroll", syncVisualViewport);
+    }
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", initUiBits);
   else initUiBits();
 
-  // If the app hasn't started after 8 seconds (usually mid-deploy, when files are half-updated),
-  // show a friendly message and refresh automatically (up to 2 times).
   setTimeout(function () {
     if (window.__hbStarted) return;
     var tries = 0;
