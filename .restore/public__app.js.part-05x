@@ -1,0 +1,250 @@
+          return `<div class="bud"><div class="l"><span>${esc(catOf(x.c).n)}</span><small class="${r > 1 ? "over" : r > 0.8 ? "warnt" : ""}">${r > 1 ? "Over by " + fmt(x.sp - x.lim) : fmt(x.lim - x.sp) + " left of " + fmt(x.lim)}</small></div>
+            <div class="trk"><i class="${r > 1 ? "over" : r > 0.8 ? "warn" : ""}" style="width:${Math.min(100, r * 100)}%"></i></div></div>`;
+        }).join("");
+    }
+    renderCalendar();
+    // bills list
+    const bl = $("bills"); bl.innerHTML = "";
+    if (!RECUR.length) bl.innerHTML = `<li class="empty" style="justify-content:center;border:0">Rent, subscriptions, paychecks. Add them once.</li>`;
+    RECUR.forEach((r) => {
+      const isIn = r.type === "income", n = nextOcc(r);
+      const li = document.createElement("li"); li.className = "clickable";
+      li.innerHTML = `<div class="ic">${isIn ? incTile(38) : catTile(r.category, 38)}</div>
+        <div class="mid"><div class="t">${esc(r.label)}</div><div class="s">${FREQ_NAME[r.freq]}${n ? ", next " + shortDay(n) : ""}, ${esc(member(r.member_id).name)}</div></div>
+        <div class="amt ${isIn ? "in" : ""}">${isIn ? "+" : ""}${fmt(r.amount_cents / 100)}</div>`;
+      li.onclick = () => openEditRecurring(r);
+      bl.appendChild(li);
+    });
+    renderGoals();
+    renderDebts();
+  }
+  function openBudgets() {
+    const box = $("budgetEdit"); box.innerHTML = "";
+    CATS.forEach((c) => {
+      const l = document.createElement("label");
+      l.innerHTML = `${catTile(c.id, 30)} <span>${esc(c.n)}</span><input type="number" inputmode="decimal" min="0" step="1" data-cat="${c.id}" placeholder="No limit">`;
+      l.querySelector("input").value = BUDGETS[c.id] ?? "";
+      box.appendChild(l);
+    });
+    $("bdErr").textContent = ""; $("budgetDlg").showModal();
+  }
+  $("editBudgets").onclick = openBudgets;
+  $("bdCancel").onclick = () => $("budgetDlg").close();
+  $("bdSave").onclick = async () => {
+    const items = [...document.querySelectorAll("#budgetEdit input")].map((i) => ({ category: i.dataset.cat, limit: parseFloat(i.value) || 0 }));
+    try { await api("/api/budgets", { method: "PUT", body: { items } }); $("budgetDlg").close(); await loadNest(); toast("Budgets saved"); }
+    catch (e) { $("bdErr").textContent = e.message; }
+  };
+
+  // ---------- plan: bill calendar ----------
+  function renderCalendar() {
+    const [y, m] = MONTH.split("-").map(Number), first = new Date(y, m - 1, 1), last = new Date(y, m, 0);
+    const byDay = {};
+    RECUR.forEach((r) => occurrences(r, first, last).forEach((d) => {
+      (byDay[d.getDate()] = byDay[d.getDate()] || []).push({ r, d, paid: isLogged(r, d) });
+    }));
+    const box = $("cal"); box.innerHTML = [0, 1, 2, 3, 4, 5, 6].map((i) => `<div class="wd">${new Date(2026, 1, 1 + i).toLocaleDateString(LOCALE, { weekday: "narrow" })}</div>`).join("");
+    for (let i = 0; i < first.getDay(); i++) box.insertAdjacentHTML("beforeend", '<button class="blank" tabindex="-1" aria-hidden="true"></button>');
+    const t = today();
+    if (calSel && calSel.slice(0, 7) !== MONTH) calSel = null;
+    for (let d = 1; d <= last.getDate(); d++) {
+      const ds = `${MONTH}-${pad(d)}`, items = byDay[d] || [];
+      const b = document.createElement("button");
+      b.className = ds === t ? "today" : ""; b.setAttribute("aria-pressed", calSel === ds ? "true" : "false");
+      b.setAttribute("aria-label", `${d}${items.length ? ", " + items.map((x) => x.r.label).join(", ") : ""}`);
+      b.innerHTML = `${d}<span class="dots">${items.slice(0, 3).map((x) => `<i class="${x.r.type === "income" ? "in" : ""}" style="${x.paid ? "opacity:.35" : ""}"></i>`).join("")}</span>`;
+      b.onclick = () => { calSel = calSel === ds ? null : ds; renderCalendar(); };
+      box.appendChild(b);
+    }
+    const dayBox = $("calDay");
+    if (!calSel) { dayBox.innerHTML = `<p class="hint" style="margin:0">Tap a day to see what's due. Pink dots are bills, green are paydays.</p>`; return; }
+    const items = byDay[+calSel.slice(8)] || [];
+    dayBox.innerHTML = `<p class="hint" style="margin:0 0 4px">${dayName(parseD(calSel))}</p>` + (items.length ? items.map((x) =>
+      `<div><span>${esc(x.r.label)}</span><span>${x.r.type === "income" ? "+" : ""}${fmt(x.r.amount_cents / 100)} · ${x.paid ? "Done ✓" : x.d < parseD(t) ? "Overdue" : x.r.type === "income" ? "Expected" : "Due"}</span></div>`).join("")
+      : `<p class="hint" style="margin:0">Nothing due this day.</p>`);
+  }
+
+  // ---------- plan: savings goals ----------
+  function jarSvg(pct, fill, id) {
+    const h = Math.round(34 * Math.min(100, pct) / 100), y = 44 - h;
+    return `<svg viewBox="0 0 40 50" aria-hidden="true"><defs><clipPath id="jc${id}"><path d="M9 12h22q3 0 3 4v26q0 5-5 5H11q-5 0-5-5V16q0-4 3-4z"/></clipPath></defs>
+      <rect x="0" y="${y}" width="40" height="${h + 8}" fill="${fill}" clip-path="url(#jc${id})"/>
+      <path d="M9 12h22q3 0 3 4v26q0 5-5 5H11q-5 0-5-5V16q0-4 3-4z" fill="none" stroke="currentColor" stroke-width="1.8"/>
+      <rect x="11" y="5" width="18" height="7" rx="2.5" fill="var(--card)" stroke="currentColor" stroke-width="1.8"/></svg>`;
+  }
+  function renderGoals() {
+    const box = $("goals");
+    if (!GOALS.length) { box.className = ""; box.innerHTML = `<div class="panel pad"><p class="empty" style="margin:0">Save for a trip, a ring, or a rainy day. Tap New jar to start.</p></div>`; return; }
+    box.className = "goals-grid"; box.innerHTML = "";
+    const fills = ["#F4D48A", "#A9DCC3", "#F6B8CB", "#BFD0F5", "#D2C6F3"];
+    GOALS.forEach((g, i) => {
+      const saved = g.saved_cents / 100, target = g.target_cents / 100, pct = target ? Math.min(100, (saved / target) * 100) : 0;
+      const el = document.createElement("button"); el.className = "jar-card";
+      el.innerHTML = `${jarSvg(pct, fills[i % fills.length], i)}<span class="tt"><span>${esc(g.name)}</span><b>${fmt(saved)}</b><small>${pct >= 100 ? "reached ♡" : "of " + fmt(target)}</small></span>`;
+      el.onclick = () => openGoal(g);
+      box.appendChild(el);
+    });
+  }
+  let goalOpen = null, goalEmoji = GOAL_EMOJIS[0];
+  function drawGoalView() {
+    const g = GOALS.find((x) => x.id === goalOpen?.id); if (!g) { $("goalDlg").close(); return; }
+    goalOpen = g;
+    $("gdTitle").textContent = `${g.emoji} ${g.name}`;
+    $("gdProg").textContent = `${fmt(g.saved_cents / 100)} of ${fmt(g.target_cents / 100)} saved`;
+    const h = $("gdHist"); h.innerHTML = "";
+    JAR.filter((j) => j.goal_id === g.id).slice(0, 8).forEach((j) => {
+      const li = document.createElement("li"), inn = j.amount_cents > 0;
+      const when = new Date(j.created_at * 1000).toLocaleDateString(LOCALE, { month: "short", day: "numeric" });
+      li.innerHTML = `<span><b>${esc(member(j.member_id).name)}</b> ${inn ? "added" : "took out"} ${fmt(Math.abs(j.amount_cents) / 100)}, ${when}</span><button aria-label="Remove">✕</button>`;
+      li.querySelector("button").onclick = async () => { try { await api("/api/jar/" + j.id, { method: "DELETE" }); await loadNest(); drawGoalView(); } catch (e) { toast(e.message); } };
+      h.appendChild(li);
+    });
+  }
+  function openGoal(g) { goalOpen = g; $("gdView").hidden = false; $("gdForm").hidden = true; $("gdAmt").value = ""; drawGoalView(); $("goalDlg").showModal(); }
+  function drawGoalEmojis() {
+    const r = $("gEmojis"); r.innerHTML = "";
+    GOAL_EMOJIS.forEach((e) => { const b = document.createElement("button"); b.type = "button"; b.textContent = e; b.setAttribute("aria-pressed", e === goalEmoji ? "true" : "false"); b.onclick = () => { goalEmoji = e; drawGoalEmojis(); }; r.appendChild(b); });
+  }
+  function openGoalForm(g) {
+    goalOpen = g || null; $("gdView").hidden = true; $("gdForm").hidden = false;
+    $("gdTitle").textContent = g ? "Edit goal" : "New savings goal";
+    $("gName").value = g ? g.name : ""; $("gTarget").value = g ? g.target_cents / 100 : ""; goalEmoji = g ? g.emoji : GOAL_EMOJIS[0];
+    $("gDelete").hidden = !g; $("gErr").textContent = ""; drawGoalEmojis();
+    if (!$("goalDlg").open) $("goalDlg").showModal();
+  }
+  $("addGoal").onclick = () => openGoalForm(null);
+  $("gdEdit").onclick = () => openGoalForm(goalOpen);
+  $("gdClose").onclick = () => $("goalDlg").close();
+  $("gCancel").onclick = () => { if (goalOpen) { $("gdView").hidden = false; $("gdForm").hidden = true; drawGoalView(); } else $("goalDlg").close(); };
+  $("gSave").onclick = async () => {
+    const body = { name: $("gName").value, target: parseFloat($("gTarget").value), emoji: goalEmoji };
+    try {
+      if (goalOpen) await api("/api/goals/" + goalOpen.id, { method: "PATCH", body });
+      else await api("/api/goals", { method: "POST", body });
+      $("goalDlg").close(); await loadNest(); toast("Goal saved");
+    } catch (e) { $("gErr").textContent = e.message; }
+  };
+  $("gDelete").onclick = async () => {
+    const g = goalOpen; $("goalDlg").close();
+    if (!(await ask(`Delete ${g.name}?`, "Its savings history goes too. The money you moved stays wherever you put it.", "Delete"))) return;
+    try { await api("/api/goals/" + g.id, { method: "DELETE" }); await loadNest(); } catch (e) { toast(e.message); }
+  };
+  async function goalMove(direction) {
+    const v = parseFloat($("gdAmt").value);
+    if (!(v > 0)) { $("gdAmt").focus(); return; }
+    try {
+      const res = await api("/api/jar", { method: "POST", body: { goal_id: goalOpen.id, amount: v, direction } });
+      $("gdAmt").value = ""; await loadNest(); drawGoalView();
+      rewardToast(res.reward, direction === "in" ? "Added to " + goalOpen.name : "Taken out");
+      const g = GOALS.find((x) => x.id === goalOpen.id);
+      if (g && direction === "in" && g.saved_cents >= g.target_cents && g.saved_cents - v * 100 < g.target_cents) setTimeout(() => toast(`🍯 You reached ${g.name}!`), 2200);
+    } catch (e) { toast(e.message); }
+  }
+  $("gdIn").onclick = () => goalMove("in");
+  $("gdOut").onclick = () => goalMove("out");
+
+  // ---------- plan: debts ----------
+  let debtStrat = store.get("hb-debt-strat") || "snowball";
+  function payoffPlan(extra) {
+    const ds = DEBTS.map((d) => ({ id: d.id, bal: Math.max(0, (d.start_cents - d.paid_cents) / 100), r: d.apr_bp / 10000 / 12, min: d.min_cents / 100 })).filter((d) => d.bal > 0.005);
+    const order = [...ds].sort(debtStrat === "avalanche" ? (a, b) => b.r - a.r || a.bal - b.bal : (a, b) => a.bal - b.bal).map((d) => d.id);
+    if (!ds.length) return { months: 0, order, done: {} };
+    const budget = ds.reduce((s, d) => s + d.min, 0) + extra, done = {};
+    if (budget <= 0) return { months: null, order, done };
+    let m = 0;
+    while (ds.some((d) => d.bal > 0.005) && m < 600) {
+      m++;
+      ds.forEach((d) => { if (d.bal > 0.005) d.bal += d.bal * d.r; });
+      let pool = budget;
+      ds.forEach((d) => { if (d.bal > 0.005) { const p = Math.min(d.min, d.bal, pool); d.bal -= p; pool -= p; } });
+      for (const id of order) { const d = ds.find((x) => x.id === id); if (d.bal > 0.005 && pool > 0) { const p = Math.min(pool, d.bal); d.bal -= p; pool -= p; } }
+      ds.forEach((d) => { if (d.bal <= 0.005 && !done[d.id]) done[d.id] = m; });
+    }
+    return { months: m >= 600 ? null : m, order, done };
+  }
+  const monthsOut = (n) => { const d = new Date(); d.setMonth(d.getMonth() + n); return d.toLocaleDateString(LOCALE, { month: "short", year: "numeric" }); };
+  function renderDebts() {
+    const box = $("debts");
+    if (!DEBTS.length) { box.innerHTML = `<p class="empty" style="margin:0;padding:4px 0">Track credit cards, car loans, or student loans and see when you'll be debt-free.</p>`; return; }
+    const left = DEBTS.reduce((s, d) => s + Math.max(0, d.start_cents - d.paid_cents), 0) / 100;
+    const paid = DEBTS.reduce((s, d) => s + d.paid_cents, 0) / 100;
+    const extra = parseFloat(store.get("hb-debt-extra") || "0") || 0;
+    const plan = payoffPlan(extra);
+    box.innerHTML = `<div class="strategy"><div class="split"><button type="button" data-s="snowball" aria-pressed="${debtStrat === "snowball"}">Snowball</button><button type="button" data-s="avalanche" aria-pressed="${debtStrat === "avalanche"}">Avalanche</button></div></div>
+      <p class="hint" style="margin:0 0 8px">${debtStrat === "snowball" ? "Pay the smallest balance first for quick wins." : "Pay the highest interest first to save the most money."}</p>
+      <label class="extra">Extra each month $<input id="debtExtra" type="number" inputmode="decimal" min="0" step="10" value="${extra || ""}" placeholder="0"></label>
+      <div class="payoff">${left <= 0 ? "Everything's paid off 🎉" : plan.months === null ? "Add minimum payments to see your debt-free date." : `<b>${fmt(left)}</b> left · debt-free around <b>${monthsOut(plan.months)}</b>`}${paid > 0 ? `<br><span style="color:var(--soft)">${fmt(paid)} paid so far</span>` : ""}</div>`;
+    box.querySelectorAll("[data-s]").forEach((b) => (b.onclick = () => { debtStrat = b.dataset.s; store.set("hb-debt-strat", debtStrat); renderDebts(); }));
+    $("debtExtra").onchange = (e) => { store.set("hb-debt-extra", String(parseFloat(e.target.value) || 0)); renderDebts(); };
+    const sorted = [...DEBTS].sort((a, b) => {
+      const ia = plan.order.indexOf(a.id), ib = plan.order.indexOf(b.id);
+      return (ia < 0 ? 999 : ia) - (ib < 0 ? 999 : ib);
+    });
+    sorted.forEach((d, i) => {
+      const rem = Math.max(0, d.start_cents - d.paid_cents) / 100, pct = d.start_cents ? Math.min(100, (d.paid_cents / d.start_cents) * 100) : 0;
+      const el = document.createElement("div"); el.className = "goal debt";
+      el.innerHTML = `<span class="em">${rem <= 0 ? tileHtml("party", "green", 38) : tileHtml("card", "rose", 38)}</span><div class="mid"><div class="t"><span>${rem > 0 ? `${i + 1}. ` : ""}${esc(d.name)}</span><small>${fmt(rem)} left</small></div>
+        <div class="s">${(d.apr_bp / 100).toFixed(2).replace(/\.00$/, "")}% APR · min ${fmt(d.min_cents / 100)}${plan.done[d.id] ? " · paid off ~" + monthsOut(plan.done[d.id]) : ""}</div>
+        <div class="trk"><i style="width:${pct}%"></i></div></div>${rem > 0 ? '<button class="mini inc">Pay</button>' : ""}`;
+      el.onclick = () => openDebt(d);
+      const pb = el.querySelector("button"); if (pb) pb.onclick = (ev) => { ev.stopPropagation(); openPay(d); };
+      box.appendChild(el);
+    });
+    if (DEBTPAYS.length) {
+      const h = document.createElement("ul"); h.className = "hist";
+      DEBTPAYS.slice(0, 5).forEach((p) => {
+        const d = DEBTS.find((x) => x.id === p.debt_id); if (!d) return;
+        const li = document.createElement("li");
+        li.innerHTML = `<span><b>${esc(member(p.member_id).name)}</b> paid ${fmt(p.amount_cents / 100)} on ${esc(d.name)}, ${shortDay(parseD(p.date))}</span><button aria-label="Remove payment">✕</button>`;
+        li.querySelector("button").onclick = async () => {
+          if (!(await ask("Remove this payment?", "It's also removed from that month's spending.", "Remove"))) return;
+          try { await api("/api/debt-payments/" + p.id, { method: "DELETE" }); await loadNest(); } catch (e) { toast(e.message); }
+        };
+        h.appendChild(li);
+      });
+      box.appendChild(h);
+    }
+  }
+  let debtOpen = null;
+  function openDebt(d) {
+    debtOpen = d || null;
+    $("ddTitle").textContent = d ? "Edit debt" : "Add a debt";
+    $("dName").value = d ? d.name : ""; $("dBal").value = d ? d.start_cents / 100 : ""; $("dApr").value = d ? d.apr_bp / 100 : ""; $("dMin").value = d ? d.min_cents / 100 : "";
+    $("dHint").textContent = d ? "Balance here is where you started. Payments you log are taken off it." : "For a debt you've already been paying, enter what you owe today.";
+    $("dDelete").hidden = !d; $("dErr").textContent = ""; $("debtDlg").showModal();
+  }
+  $("addDebt").onclick = () => openDebt(null);
+  $("dCancel").onclick = () => $("debtDlg").close();
+  $("dSave").onclick = async () => {
+    const body = { name: $("dName").value, balance: parseFloat($("dBal").value), apr: parseFloat($("dApr").value) || 0, min: parseFloat($("dMin").value) || 0 };
+    try {
+      if (debtOpen) await api("/api/debts/" + debtOpen.id, { method: "PATCH", body });
+      else await api("/api/debts", { method: "POST", body });
+      $("debtDlg").close(); await loadNest(); toast("Debt saved");
+    } catch (e) { $("dErr").textContent = e.message; }
+  };
+  $("dDelete").onclick = async () => {
+    const d = debtOpen; $("debtDlg").close();
+    if (!(await ask(`Delete ${d.name}?`, "Its payment history goes too. Payments stay in your spending.", "Delete"))) return;
+    try { await api("/api/debts/" + d.id, { method: "DELETE" }); await loadNest(); } catch (e) { toast(e.message); }
+  };
+  let payOpen = null, payWho = null;
+  function drawPayWho() {
+    const w = $("pdWho"); w.innerHTML = "";
+    MEMBERS.forEach((m) => { const b = document.createElement("button"); b.type = "button"; b.innerHTML = `<i style="background:${esc(m.color)}">${esc(m.emoji)}</i>${esc(m.name)}`; b.setAttribute("aria-pressed", m.id === payWho ? "true" : "false"); b.onclick = () => { payWho = m.id; drawPayWho(); }; w.appendChild(b); });
+  }
+  function openPay(d) {
+    payOpen = d; payWho = ME.id;
+    $("pdText").textContent = `${d.name} · ${fmt(Math.max(0, d.start_cents - d.paid_cents) / 100)} left`;
+    $("pdAmt").value = d.min_cents ? (d.min_cents / 100).toFixed(2) : ""; $("pdErr").textContent = "";
+    drawPayWho(); $("payDlg").showModal();
+  }
+  $("pdCancel").onclick = () => $("payDlg").close();
+  $("pdSave").onclick = async () => {
+    const amount = parseFloat($("pdAmt").value);
+    if (!(amount > 0)) { $("pdErr").textContent = "Enter the amount you paid."; return; }
+    try {
+      const res = await api(`/api/debts/${payOpen.id}/pay`, { method: "POST", body: { amount, member_id: payWho, date: today() } });
+      $("payDlg").close(); await loadNest(); rewardToast(res.reward, "Payment logged");
+      const d = DEBTS.find((x) => x.id === payOpen.id);
+      if (d && d.paid_cents >= d.start_cents) setTimeout(() => toast(`🎉 ${d.name} is paid off!`), 2200);
