@@ -1,0 +1,275 @@
+      if (r < 0.5) { path = "M52 89 q8 8 16 0"; p = '<path d="M100 40 c-3-5-10-2-6 4 l6 5 6-5 c4-6-3-9-6-4z" fill="#EE7FA3" stroke="none"/>'; }
+    }
+    $("mouth").setAttribute("d", path); $("prop").innerHTML = p; $("bubble").textContent = msg;
+  }
+  function bunnyHop() { const b = $("bunny"); b.classList.remove("hop"); void b.getBoundingClientRect(); b.classList.add("hop"); }
+
+  function splitText(e) {
+    if (!e.shared) return e.private ? "personal, private" : "personal";
+    if (e.split_mode === "percent" && MEMBERS.length === 2) return `split ${e.split_value}/${100 - e.split_value}`;
+    if (e.split_mode === "percent") return `split, ${member(e.member_id).name} covers ${e.split_value}%`;
+    if (e.split_mode === "owed") {
+      const o = others(e.member_id);
+      return o.length === 1 ? `${o[0].name} owes ${fmt(e.split_value / 100)}` : `others owe ${fmt(e.split_value / 100)}`;
+    }
+    return "split evenly";
+  }
+
+  function entryPayload(e) {
+    return { type: e.type, amount: e.amount, label: e.label, category: e.category, member_id: e.member_id, shared: e.shared,
+      split_mode: e.split_mode, split_value: e.split_mode === "owed" ? e.split_value / 100 : e.split_value,
+      private: e.private, date: e.date, recurring_id: e.recurring_id, occ_date: e.occ_date, restore: true };
+  }
+  async function deleteEntry(e) {
+    if (e.pending) { store.set("hb-queue", JSON.stringify(queued().filter((q) => q.pending_id !== e.id))); await loadNest(); toast("Removed"); return; }
+    try {
+      await api("/api/entries/" + e.id, { method: "DELETE" });
+      await loadNest();
+      toast("Deleted " + e.label, "Undo", async () => {
+        try { await api("/api/entries", { method: "POST", body: entryPayload(e) }); await loadNest(); toast("Restored"); }
+        catch (err) { toast(err.message); }
+      });
+    } catch (err) { toast(err.message); }
+  }
+
+  function entryLi(e) {
+    const m = member(e.member_id), c = CATS.find((x) => x.id === e.category) || CATS[8], isIn = e.type === "income";
+    const li = document.createElement("li"); li.className = "clickable";
+    li.innerHTML = `<div class="ic">${isIn ? incTile(38) : catTile(c.id, 38)}</div>
+      <div class="mid"><div class="t">${esc(e.label)}${e.private ? ' <span class="lock" title="Only you can see this">🔒</span>' : ""}</div>
+      <div class="s">${esc(m.emoji)} ${esc(m.name)}, ${shortDay(parseD(e.date))}${isIn ? "" : ", " + esc(splitText(e))}</div></div>
+      <div class="amt ${isIn ? "in" : ""}">${isIn ? "+" : "−"}${fmt(e.amount)}</div>
+      <button class="del" aria-label="Delete ${esc(e.label)}">✕</button>`;
+    li.onclick = () => openEditEntry(e);
+    li.querySelector(".del").onclick = (ev) => { ev.stopPropagation(); deleteEntry(e); };
+    return li;
+  }
+
+  function inviteUrl() { return location.origin + "/join/" + NEST.invite_code; }
+  const prettyCode = (c) => c.slice(0, 4) + "-" + c.slice(4);
+
+  function pairs() {
+    const debt = [], cred = [];
+    MEMBERS.forEach((m) => { const v = (BAL[m.id] || 0) / 100; if (v < -0.005) debt.push({ m, v: -v }); else if (v > 0.005) cred.push({ m, v }); });
+    const out = []; let i = 0, j = 0;
+    while (i < debt.length && j < cred.length) {
+      const pay = Math.min(debt[i].v, cred[j].v);
+      out.push({ from: debt[i].m, to: cred[j].m, amount: Math.round(pay * 100) / 100 });
+      debt[i].v -= pay; cred[j].v -= pay;
+      if (debt[i].v < 0.005) i++; if (cred[j].v < 0.005) j++;
+    }
+    return out;
+  }
+
+  function renderDue(left) {
+    const box = $("dueCard");
+    if (!RECUR.length) {
+      box.innerHTML = `<div class="due-h"><h2>Bills &amp; paydays</h2></div>
+        <p class="due-empty">Add rent, bills, and paydays once. Honeybun will show what's due before your next paycheck.</p>
+        <button class="small" id="dueAdd" style="margin-top:8px">Add a bill or payday</button>`;
+      $("dueAdd").onclick = () => openAdd({ repeat: "monthly" });
+      return;
+    }
+    const { payday, pays, bills } = upcoming();
+    const total = bills.reduce((s, b) => s + b.r.amount_cents / 100, 0);
+    box.innerHTML = `<div class="due-h"><h2>${payday ? "Before payday" : "Coming up"}</h2><span>${payday ? dayName(payday) : "next 30 days"}</span></div>`;
+    if (!bills.length) box.insertAdjacentHTML("beforeend", `<p class="due-empty">Nothing due${payday ? " before payday" : " soon"} ♡</p>`);
+    bills.forEach((b) => {
+      const c = CATS.find((x) => x.id === b.r.category) || CATS[4];
+      const row = document.createElement("div"); row.className = "due-row";
+      row.innerHTML = `<div class="ic">${catTile(c.id, 38)}</div><div class="mid"><div class="t">${esc(b.r.label)}</div>
+        <div class="s ${b.late ? "late" : ""}">${b.late ? "Overdue, was due " : "Due "}${shortDay(b.d)}</div></div>
+        <div class="amt">${fmt(b.r.amount_cents / 100)}</div><button class="mini">Paid</button>`;
+      row.querySelector("button").onclick = (ev) => logOcc(b.r, b.d, ev.currentTarget);
+      box.appendChild(row);
+    });
+    pays.forEach((p) => {
+      const m = member(p.r.member_id);
+      const row = document.createElement("div"); row.className = "due-row";
+      row.innerHTML = `<div class="ic">${incTile(38)}</div><div class="mid"><div class="t">${esc(p.r.label)}</div>
+        <div class="s">${esc(m.name)} gets paid ${shortDay(p.d)}</div></div>
+        <div class="amt" style="color:var(--mint-d)">+${fmt(p.r.amount_cents / 100)}</div><button class="mini inc">Got it</button>`;
+      row.querySelector("button").onclick = (ev) => logOcc(p.r, p.d, ev.currentTarget);
+      box.appendChild(row);
+    });
+    if (bills.length) box.insertAdjacentHTML("beforeend",
+      `<div class="due-foot"><span>Due ${fmt(total)}</span><span class="${left - total < 0 ? "neg" : ""}">Left after bills ${fmt(left - total)}</span></div>`);
+  }
+
+
+  const spentByCat = () => {
+    const by = {};
+    ENTRIES.filter((e) => e.type === "expense").forEach((e) => (by[e.category] = (by[e.category] || 0) + e.amount));
+    return by;
+  };
+
+  function render() {
+    if (!NEST) return;
+    document.documentElement.setAttribute("data-accent", NEST.accent || "blush");
+    $("monthLbl").textContent = monthName(MONTH, true);
+    const names = MEMBERS.map((m) => m.name);
+    $("hi").textContent = NEST.name || (MEMBERS.length === 2 ? `${names[0]} & ${names[1]}` : MEMBERS.length === 1 ? names[0] : "Our family");
+    const hr = new Date().getHours();
+    $("greet").textContent = hr < 12 ? "Good morning" : hr < 18 ? "Good afternoon" : "Good evening";
+    $("hdrAvs").innerHTML = MEMBERS.slice(0, 3).map((m) => `<span class="av" style="background:${esc(m.color)}">${esc(m.emoji)}</span>`).join("");
+    $("usLabel").textContent = KIND() === "solo" && MEMBERS.length < 2 ? "Me" : "Together";
+    $("inboxBadge").hidden = !INBOX.unread; $("inboxBadge").textContent = INBOX.unread > 9 ? "9+" : INBOX.unread;
+
+    const all = ENTRIES, view = filter ? all.filter((e) => e.member_id === filter) : all;
+    const sum = (arr, t) => arr.filter((e) => e.type === t).reduce((s, e) => s + e.amount, 0);
+    const inc = sum(view, "income"), out = sum(view, "expense"), left = inc - out;
+
+    if (screen === "home") {
+      const lbl = { solo: "Left for me this month", couple: "Left for us this month", family: "Left for our family this month" }[KIND()];
+      $("leftLbl").textContent = filter ? member(filter).name + "'s balance in" : "Left in";
+      $("heroMonth").textContent = new Date(+MONTH.slice(0, 4), +MONTH.slice(5) - 1, 1).toLocaleDateString(LOCALE, { month: "long" });
+      { const [whole, cents] = fmt(left).split("."); $("leftAmt").innerHTML = `${esc(whole)}${cents ? `<span class="cents">.${esc(cents)}</span>` : ""}`; }
+      $("leftAmt").classList.toggle("neg", left < 0);
+      const chip = $("heroChip"), ratio = inc > 0 ? out / inc : out > 0 ? 2 : 0;
+      chip.hidden = !inc && !out;
+      chip.className = "chip " + (ratio > 1 ? "over" : ratio > 0.85 ? "warn" : "ok");
+      chip.textContent = ratio > 1 ? "Over budget" : ratio > 0.85 ? "Almost there" : "On track";
+      $("meter").style.width = inc > 0 ? Math.min(100, (out / inc) * 100) + "%" : out > 0 ? "100%" : "0";
+      $("flowIn").textContent = fmt(inc); $("flowOut").textContent = fmt(out);
+      $("billsDue").textContent = MONTH === today().slice(0, 7) && RECUR.length ? fmt(upcoming().bills.reduce((a, b) => a + b.r.amount_cents / 100, 0)) : "–";
+      setBunny(left, inc, out, view.length > 0);
+      $("bunNote").onclick = openInbox;
+      const bub = $("bubble");
+      if (INBOX.unread && INBOX.latest) {
+        const t = msgText(INBOX.latest);
+        bub.classList.add("has-msg"); bub.setAttribute("data-nt", "");
+        bub.textContent = t;
+      } else { bub.classList.remove("has-msg"); bub.removeAttribute("data-nt"); }
+      renderPill();
+      $("verifyBanner").hidden = !!ME.verified || +(store.get("hb-verify-hide") || 0) > Date.now();
+      const isThisMonth = MONTH === today().slice(0, 7);
+      $("dueCard").hidden = !isThisMonth;
+      if (isThisMonth) renderDue(sum(all, "income") - sum(all, "expense"));
+
+      // budget heads-up
+      const by = spentByCat();
+      const warn = Object.entries(BUDGETS).map(([c, lim]) => ({ c, lim, sp: by[c] || 0 })).filter((x) => x.sp >= x.lim * 0.8).sort((a, b) => b.sp / b.lim - a.sp / a.lim).slice(0, 2);
+      $("homeBud").innerHTML = [].map((x) => `<div class="home-bud"><span>${esc(catOf(x.c).n)}</span>
+        <small>${x.sp > x.lim ? "Over by " + fmt(x.sp - x.lim) : fmt(x.lim - x.sp) + " left"}</small></div>`).join("");
+      $("homeBud").onclick = () => show("plan");
+
+      const cp = $("couple"); cp.innerHTML = "";
+      const amp = () => { const h = document.createElement("span"); h.className = "heart"; h.textContent = "&"; h.setAttribute("aria-hidden", "true"); return h; };
+      MEMBERS.forEach((m, i) => {
+        if (i > 0 && MEMBERS.length === 2) cp.appendChild(amp());
+        const mi = all.filter((e) => e.member_id === m.id && e.type === "income").reduce((s, e) => s + e.amount, 0);
+        const mo = all.filter((e) => e.member_id === m.id && e.type === "expense").reduce((s, e) => s + e.amount, 0);
+        const b = document.createElement("button"); b.className = "pal"; b.setAttribute("aria-pressed", filter === m.id ? "true" : "false");
+        b.setAttribute("aria-label", `${m.name}: earned ${fmt(mi)}, paid ${fmt(mo)}. Tap to see only theirs.`);
+        b.innerHTML = `<span class="face" style="background:${esc(m.color)}">${esc(m.emoji)}</span><span class="nm">${esc(m.name)}</span><span class="st">Lv ${levelFor(m.xp || 0)} · 🐾 ${streakOf(m)}<br>+${fmt(mi)} / −${fmt(mo).replace("−", "")}</span>`;
+        b.onclick = () => { filter = filter === m.id ? null : m.id; render(); };
+        cp.appendChild(b);
+      });
+      if (MEMBERS.length === 1 && KIND() !== "solo") {
+        const b = document.createElement("button"); b.className = "pal";
+        b.innerHTML = `<span class="face" style="background:var(--card);box-shadow:inset 0 0 0 2px var(--line);color:var(--soft)">＋</span><span class="nm">Invite</span><span class="st">${KIND() === "family" ? "your family" : "your partner"}</span>`;
+        b.onclick = () => { show("us"); setTimeout(() => $("inviteCard").scrollIntoView({ behavior: "smooth" }), 40); };
+        cp.append(amp(), b);
+      }
+      const fn = $("filterNote");
+      if (filter) {
+        fn.hidden = false; fn.textContent = `Only ${member(filter).name}'s money. `;
+        const c = document.createElement("button"); c.className = "linkbtn"; c.textContent = "Show everyone"; c.onclick = () => { filter = null; render(); }; fn.appendChild(c);
+      } else fn.hidden = true;
+
+      const rc = $("recent"); rc.innerHTML = "";
+      if (!view.length) rc.innerHTML = `<li class="empty" style="justify-content:center;border:0">Nothing yet for ${esc(monthName(MONTH))}. Tap + to add something.</li>`;
+      view.slice(0, 5).forEach((e) => rc.appendChild(entryLi(e)));
+      $("seeAll").hidden = view.length <= 5;
+    }
+
+    if (screen === "add") renderForm();
+    if (screen === "help") { mailLinks(); renderHelp(); }
+    if (screen === "plan") renderPlan();
+    if (screen === "stats") renderStats();
+
+    if (screen === "us") {
+      $("settleWrap").hidden = MEMBERS.length < 2;
+      const st = $("settle"), ps = pairs();
+      if (!ps.length) st.innerHTML = `<div class="balance">$0.00</div><div class="balance-note">You're all even ♡</div>`;
+      else {
+        const p0 = ps[0];
+        st.innerHTML = `<div class="balance">${fmt(p0.amount)}</div><div class="balance-note"></div><button class="settle-btn">Settle up</button>`;
+        st.querySelector(".balance-note").textContent = `${p0.from.name} owes ${p0.to.name}`;
+        st.querySelector(".settle-btn").onclick = () => openSettle(p0);
+        ps.slice(1).forEach((p) => {
+          const d = document.createElement("div"); d.className = "owe";
+          d.innerHTML = `<span class="f">${esc(p.from.emoji)}</span><span>${esc(p.from.name)} owes ${esc(p.to.name)}</span><span class="amt">${fmt(p.amount)}</span><button class="mini inc">Mark paid</button>`;
+          d.querySelector("button").onclick = () => openSettle(p);
+          st.appendChild(d);
+        });
+      }
+      const um = $("usMembers"); um.innerHTML = "";
+      MEMBERS.forEach((m) => {
+        const spent = all.filter((e) => e.member_id === m.id && e.type === "expense").reduce((a, e) => a + e.amount, 0);
+        const r = document.createElement("div"); r.className = "member";
+        r.innerHTML = `<span class="face" style="background:${esc(m.color)}">${esc(m.emoji)}</span><span class="meta"><b>${esc(m.name)}</b><small>${fmt(spent)} spent this month</small></span>${m.id === ME.id ? '<span class="tagb">you</span>' : ""}`;
+        um.appendChild(r);
+      });
+      const sh = $("settleHist"); sh.innerHTML = "";
+      SETTLES.slice(0, 5).forEach((s) => {
+        const li = document.createElement("li");
+        li.innerHTML = `<span><b>${esc(member(s.from_id).name)}</b> paid <b>${esc(member(s.to_id).name)}</b> ${fmt(s.amount_cents / 100)}, ${shortDay(parseD(s.date))}</span><button aria-label="Remove payment">✕</button>`;
+        li.querySelector("button").onclick = async () => {
+          if (!(await ask("Remove this payment?", "The balance will go back to what it was before.", "Remove"))) return;
+          try { await api("/api/settlements/" + s.id, { method: "DELETE" }); await loadNest(); } catch (e) { toast(e.message); }
+        };
+        sh.appendChild(li);
+      });
+      drawFilters();
+      if (!searching()) {
+        $("allTitle").textContent = "Everything this month";
+        const l = $("list"); l.innerHTML = "";
+        if (!all.length) l.innerHTML = `<li class="empty" style="justify-content:center;border:0">Nothing logged for ${esc(monthName(MONTH))}.</li>`;
+        all.forEach((e) => l.appendChild(entryLi(e)));
+      }
+      $("inviteTitle").textContent = { solo: "Invite someone (optional)", couple: "Invite your partner", family: "Invite your family" }[KIND()];
+      $("inviteCode").textContent = prettyCode(NEST.invite_code);
+      $("inviteLink").textContent = inviteUrl();
+      $("shareInvite").hidden = !navigator.share;
+    }
+    if (screen === "settings") {
+      $("mailBills").checked = !!ME.mail?.bills; $("mailStreak").checked = !!ME.mail?.streak; $("mailWeekly").checked = !!ME.mail?.weekly;
+      ["mailBills", "mailStreak", "mailWeekly"].forEach((id) => ($(id).disabled = !ME.verified));
+      $("mailHint").hidden = !!ME.verified;
+      drawLangPickers();
+      mailLinks();
+
+      if (document.activeElement !== $("nestName")) $("nestName").value = NEST.name;
+      const ks = $("kindSet"); ks.innerHTML = "";
+      [["solo", "🐰", "Just me"], ["couple", "🐰🐻", "Couple"], ["family", "🐰🐻🐥", "Family"]].forEach(([id, e, n]) => {
+        const b = document.createElement("button"); b.type = "button"; b.innerHTML = `<b>${e}</b>${n}`;
+        b.setAttribute("aria-pressed", KIND() === id ? "true" : "false");
+        b.onclick = async () => { NEST.kind = id; render(); try { await api("/api/nest", { method: "PATCH", body: { kind: id } }); } catch (err) { toast(err.message); } };
+        ks.appendChild(b);
+      });
+      const mm = $("members"); mm.innerHTML = "";
+      MEMBERS.forEach((m) => {
+        const r = document.createElement("div"); r.className = "mem";
+        r.innerHTML = `<span class="face" style="background:${esc(m.color)}">${esc(m.emoji)}</span><span class="nm">${esc(m.name)}${m.id === ME.id ? " (you)" : ""}</span>`;
+        if (m.id === ME.id) { const b = document.createElement("button"); b.className = "small"; b.textContent = "Edit"; b.onclick = openMe; r.appendChild(b); }
+        mm.appendChild(r);
+      });
+      drawSwatches($("swatches"));
+      $("signedAs").textContent = "Signed in as " + ME.email;
+      $("acctName").textContent = $("hi").textContent;
+    }
+  }
+
+  // ---------- plan: budgets ----------
+  function renderPlan() {
+    const by = spentByCat(), box = $("budgets"), cats = Object.keys(BUDGETS);
+    if (!cats.length) {
+      box.innerHTML = `<p class="empty" style="margin:0;padding:4px 0 10px">Give each category a monthly limit, like $400 for groceries. We'll warn you before you go over.</p><button class="small" id="budStart">Set budgets</button>`;
+      $("budStart").onclick = openBudgets;
+    } else {
+      const totL = cats.reduce((s, c) => s + BUDGETS[c], 0), totS = cats.reduce((s, c) => s + (by[c] || 0), 0);
+      box.innerHTML = `<div class="bud"><div class="l"><span>All budgets</span><small class="${totS > totL ? "over" : ""}">${fmt(totS)} of ${fmt(totL)}</small></div>
+        <div class="trk"><i class="${totS > totL ? "over" : totS > totL * 0.8 ? "warn" : ""}" style="width:${Math.min(100, (totS / totL) * 100)}%"></i></div></div>` +
+        cats.map((c) => ({ c, lim: BUDGETS[c], sp: by[c] || 0 })).sort((a, b) => b.sp / b.lim - a.sp / a.lim).map((x) => {
+          const r = x.sp / x.lim;
