@@ -1,0 +1,143 @@
+        <div class="section-h" style="margin-top:0"><h2>Where it went</h2><span class="sub" id="barsMonth"></span></div>
+        <div class="panel pad"><div class="bars" id="bars"></div></div>
+        <div class="section-h"><h2>50 / 30 / 20 check</h2><span class="sub" id="ruleMonth"></span></div>
+        <div class="panel pad" id="rule"></div>
+        <div class="year-h">
+          <button class="linkbtn" id="prevY" aria-label="Previous year">‹</button>
+          <h2 id="yearLbl"></h2>
+          <button class="linkbtn" id="nextY" aria-label="Next year">›</button>
+        </div>
+        <div class="tiles">
+          <div class="tile"><small>Earned</small><b id="yIn"></b></div>
+          <div class="tile"><small>Spent</small><b id="yOut"></b></div>
+          <div class="tile"><small>Kept</small><b id="yKeep"></b></div>
+        </div>
+        <div class="panel pad chart" style="margin-top:10px"><div id="yChart"></div>
+          <div class="legend"><span><i style="background:var(--c-green)"></i>Earned</span><span><i style="background:var(--pink)"></i>Spent</span></div>
+        </div>
+        <div class="section-h"><h2>Biggest categories this year</h2></div>
+        <div class="panel pad"><div class="bars" id="yCats"></div></div>
+        <div class="recap-cta"><button class="go pinkbtn" id="makeRecap">Make my monthly recap</button></div>
+        <p class="center" style="margin-top:10px"><button class="softbtn" id="exportCsv">Download this year as a spreadsheet (CSV)</button></p>
+      </div>
+    </div>
+  </main>
+
+  <!-- TOGETHER -->
+  <main id="scr-us" hidden>
+    <div class="pagehead"><div><h1>Together</h1><p>Shared money, without the awkwardness.</p></div><div class="ph-slot"></div></div>
+    <div class="grid2">
+      <div class="blk">
+        <div class="card pad" id="settleWrap">
+          <div class="title"><h2>Balance</h2><span>split expenses</span></div>
+          <div id="settle"></div>
+          <ul class="hist" id="settleHist"></ul>
+          <div class="members-list" id="usMembers"></div>
+        </div>
+        <div class="card pad" id="inviteCard">
+          <div class="title"><h2 id="inviteTitle">Invite</h2><span>your household</span></div>
+          <div class="code" id="inviteCode"></div>
+          <div class="invite-link" id="inviteLink"></div>
+          <div class="btnrow"><button class="softbtn" id="copyInvite">Copy link</button><button class="softbtn" id="shareInvite">Share invite</button></div>
+          <p class="center" style="margin:10px 0 0"><button class="linkbtn" id="newCode">Make a new code</button></p>
+        </div>
+      </div>
+      <div class="blk">
+        <div class="section-h" id="allH" style="margin-top:0"><h2 id="allTitle">Everything this month</h2></div>
+        <div class="search-box">
+          <input id="q" type="search" placeholder="Search everything" aria-label="Search" autocomplete="off" enterkeyhint="search">
+          <div class="filters">
+            <select id="fType" aria-label="Type"><option value="">All types</option><option value="expense">Spent</option><option value="income">Got paid</option></select>
+            <select id="fCat" aria-label="Category"><option value="">All categories</option></select>
+            <select id="fWho" aria-label="Person"><option value="">Everyone</option></select>
+          </div>
+          <p class="hint" id="searchHint" hidden></p>
+        </div>
+        <div class="panel"><ul class="list" id="list"></ul></div>
+      </div>
+    </div>
+  </main>
+
+  <!-- SETTINGS -->
+  <main id="scr-settings" hidden>
+    <div class="pagehead"><div><h1>Settings</h1><p>Everything personal, organized in one place.</p></div></div>
+    <div class="grid2">
+      <div class="card pad blk" id="setH">
+        <div class="title"><h2>Account</h2><span id="acctName"></span></div>
+        <button class="setting-row" id="openProfile"><span class="sicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg></span><span class="copy"><b>Profile</b><small>Name, buddy and color</small></span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></button>
+        <div class="setting-row col"><span class="sicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7v9H3z"/><path d="M10 20v-5h4v5"/></svg></span><span class="copy"><b>Household</b><small>Name, type and people</small>
+          <input id="nestName" maxlength="24" placeholder="Leave blank to show your names" aria-label="Budget name">
+          <span class="kinds small-kinds" id="kindSet"></span>
+          <span class="members" id="members"></span></span></div>
+        <div class="setting-row col"><span class="sicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg></span><span class="copy"><b>Notifications</b><small>Bills, streaks and reminders by email</small>
+          <label class="toggle"><span>Bills due soon<small>A heads-up at 9am, 3 days ahead</small></span><input type="checkbox" id="mailBills"></label>
+          <label class="toggle"><span>Streak reminder<small>At 7pm if you haven't logged yet</small></span><input type="checkbox" id="mailStreak"></label>
+          <label class="toggle"><span>Weekly recap<small>Sunday evenings</small></span><input type="checkbox" id="mailWeekly"></label>
+          <span class="hint" id="mailHint" hidden>Confirm your email first to get reminders.</span></span></div>
+        <button class="setting-row" id="changePw"><span class="sicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3"/></svg></span><span class="copy"><b>Password</b><small>Change your password</small></span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></button>
+      </div>
+      <div class="card pad blk">
+        <div class="title"><h2>App preferences</h2><span>Honeybun</span></div>
+        <div class="setting-row col"><span class="sicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg></span><span class="copy"><b>Language</b><small>Choose the app language</small><span class="lang-row left" data-lang-picker></span></span></div>
+        <div class="setting-row col"><span class="sicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 0 18c1 0 1.5-.8 1.5-1.6 0-1.3 1-2.4 2.3-2.4H18a3 3 0 0 0 3-3A9 9 0 0 0 12 3z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10" cy="7" r="1"/><circle cx="15" cy="7" r="1"/></svg></span><span class="copy"><b>Theme color</b><small>Shared with everyone in your budget</small><span class="swatches" id="swatches"></span></span></div>
+        <button class="setting-row" id="rerunSetup"><span class="sicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="15" rx="3"/><path d="M4 10h16M9 3v4M15 3v4"/></svg></span><span class="copy"><b>Paydays &amp; bills</b><small>Run the quick setup again</small></span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></button>
+      </div>
+      <div class="card pad blk">
+        <div class="title"><h2>Data</h2><span>control</span></div>
+        <button class="setting-row" id="exportCsv2"><span class="sicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M4 9h16M4 15h16M10 3v18"/></svg></span><span class="copy"><b>Export spreadsheet</b><small>This year's spending as a CSV</small></span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></button>
+        <button class="setting-row" id="exportData"><span class="sicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg></span><span class="copy"><b>Download my data</b><small>Everything, as a file</small></span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></button>
+        <a class="setting-row" href="/privacy.html"><span class="sicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></span><span class="copy"><b>Privacy</b><small>How your data is handled</small></span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></a>
+        <button class="setting-row" id="deleteAcct"><span class="sicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></span><span class="copy"><b><span class="danger">Delete my account</span></b><small>Permanently remove your account</small></span></button>
+      </div>
+      <div class="card pad blk">
+        <div class="title"><h2>About</h2><span>support</span></div>
+        <button class="setting-row" id="openHelp"><span class="sicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .9-1 1.6v.4M12 17h.01"/></svg></span><span class="copy"><b>Help center</b><small>Guides and common questions</small></span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></button>
+        <a class="setting-row" id="mailHelp" href="mailto:help@honeybun.me"><span class="sicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M3 7l9 6 9-6"/></svg></span><span class="copy"><b>Contact support</b><small>Get help from the Honeybun team</small></span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></a>
+        <a class="setting-row" id="mailIdea" href="mailto:help@honeybun.me"><span class="sicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg></span><span class="copy"><b>Send feedback</b><small>Tell us what could be better</small></span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></a>
+        <a class="setting-row" href="/terms.html"><span class="sicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 13h6M10 17h6"/></svg></span><span class="copy"><b>Terms of Service</b><small>The simple rules</small></span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></a>
+        <button class="setting-row" id="logoutBtn"><span class="sicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10"/></svg></span><span class="copy"><b>Log out</b><small>Sign out on this device</small></span></button>
+        <button class="setting-row" id="leaveBtn"><span class="sicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4l9 16H3z"/><path d="M12 10v4M12 17h.01"/></svg></span><span class="copy"><b><span class="danger">Leave this budget</span></b><small>You can rejoin with an invite code</small></span></button>
+      </div>
+    </div>
+    <div class="install">
+      <img src="/icon-192.png" alt="">
+      <p>Open <b>honeybun.me</b> in Safari or Chrome, then choose Share → Add to Home Screen.</p>
+    </div>
+    <p class="center" style="font-size:.8rem;color:var(--soft);margin-top:14px" id="signedAs"></p>
+    <p class="legal credit">Developed by Rodrigo · Questions? <a href="mailto:help@honeybun.me">help@honeybun.me</a></p>
+  </main>
+
+  <!-- HELP -->
+  <main id="scr-help" hidden>
+    <div class="pagehead"><div><h1>Help</h1><p>Fast answers without digging around.</p></div></div>
+    <div class="card pad">
+      <div class="title"><h2>How can we help?</h2><span>Honeybun support</span></div>
+      <input id="helpQ" type="search" placeholder="Search help articles" aria-label="Search help articles" autocomplete="off" style="margin-bottom:12px">
+      <div class="help-grid" id="helpTopics"></div>
+      <div class="faq" id="faq"></div>
+      <button class="setting-row" id="helpBun"><span class="sicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 7 0 1 1 3.6 5.8L4 19.5l1.2-3.4A6.7 6.7 0 0 1 4 12z"/></svg></span><span class="copy"><b>Ask Bun</b><small>Your reminders and budget check-ins</small></span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></button>
+      <a class="setting-row" id="helpMail" href="mailto:help@honeybun.me"><span class="sicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M3 7l9 6 9-6"/></svg></span><span class="copy"><b>Email support</b><small>For account or technical issues</small></span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></a>
+      <a class="setting-row" id="helpBug" href="mailto:help@honeybun.me"><span class="sicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4l9 16H3z"/><path d="M12 10v4M12 17h.01"/></svg></span><span class="copy"><b>Report a problem</b><small>Something broken or not displaying right</small></span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></a>
+    </div>
+  </main>
+</div>
+
+<nav class="bottom" id="nav" aria-label="Main" hidden>
+  <div class="in">
+    <button data-go="home" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg>Home</button>
+    <button data-go="plan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="15" rx="3"/><path d="M4 10h16M9 3v4M15 3v4"/></svg>Plan</button>
+    <button class="plus" data-go="add" aria-label="Add money"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
+    <button data-go="stats"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 20V11M12 20V5M19 20v-7"/></svg>Stats</button>
+    <button data-go="us"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg><span id="usLabel">Together</span></button>
+  </div>
+</nav>
+
+<div class="update-card" id="updateCard" role="status" hidden>
+  <svg viewBox="0 0 120 128" aria-hidden="true"><g fill="#fff" stroke="#2B2733" stroke-width="5" stroke-linecap="round"><path d="M44 52 C34 30 34 8 42 6 C50 4 54 28 54 46"/><path d="M76 52 C86 30 86 8 78 6 C70 4 66 28 66 46"/><ellipse cx="60" cy="82" rx="38" ry="34"/><circle cx="47" cy="78" r="3.5" fill="#2B2733" stroke="none"/><circle cx="73" cy="78" r="3.5" fill="#2B2733" stroke="none"/><ellipse cx="38" cy="90" rx="6" ry="3.5" fill="#F6B7CB" stroke="none"/><ellipse cx="82" cy="90" rx="6" ry="3.5" fill="#F6B7CB" stroke="none"/><path d="M52 89 q8 8 16 0" fill="none" stroke-width="3.5"/></g><text x="96" y="30" font-size="22">✨</text></svg>
+  <div class="uc-text"><b>A fresh update just hopped in!</b><span>Refresh to get the newest Honeybun.</span></div>
+  <div class="uc-btns"><button class="go" id="updateNow">Refresh</button><button class="linkbtn" id="updateLater">Later</button></div>
+</div>
+
+<div class="toast" id="toast" role="status"><span id="toastText"></span><button id="toastBtn" hidden>Undo</button></div>
+
+<dialog id="memberDlg" aria-labelledby="mdTitle">
