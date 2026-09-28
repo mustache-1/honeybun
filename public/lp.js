@@ -67,6 +67,7 @@
     { v: "1.5", date: "2026-09-28", name: "Desktop polish and fit to screen", items: [
       { t: "Desktop fits your screen", d: "The wide layout now scales to your monitor, so a big screen sees the same composition, just larger. Sidebar gets Bun's inbox, Help, Settings, and your household at the bottom.", tags: ["improved", "design"], icon: "landing" },
       { t: "Home and Stats rearranged on desktop", d: "Home shows Bills, Bun's note, and Honey jars in the right column with a fourth Month left stat. Stats puts your level and numbers in one row, with Where it went beside the year chart.", tags: ["design"], icon: "landing" },
+      { t: "Latest fills the Home column on desktop", d: "Home shows ten recent entries on desktop, five per column, so the space under the list is used.", tags: ["improved"], icon: "landing" },
       { t: "Plan matches the design on desktop", d: "Compact calendar with a legend, a dashed Add a bill button, dashed New jar tile, and one-line empty states. Calendar numbers sit inside their cells again.", tags: ["fixed", "design"], icon: "budget" }
     ] },
     { v: "1.4", date: "2026-09-28", name: "A real desktop layout", items: [

@@ -926,8 +926,9 @@
 
       const rc = $("recent"); rc.innerHTML = "";
       if (!view.length) rc.innerHTML = `<li class="empty" style="justify-content:center;border:0">Nothing yet for ${esc(monthName(MONTH))}. Tap + to add something.</li>`;
-      view.slice(0, 5).forEach((e) => rc.appendChild(entryLi(e)));
-      $("seeAll").hidden = view.length <= 5;
+      const latestN = matchMedia("(min-width: 900px)").matches ? 10 : 5; // desktop has room for two columns of five
+      view.slice(0, latestN).forEach((e) => rc.appendChild(entryLi(e)));
+      $("seeAll").hidden = view.length <= latestN;
     }
 
     if (screen === "add") renderForm();
