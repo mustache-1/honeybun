@@ -2,11 +2,9 @@
 (function () {
   var root = document.documentElement;
 
-  // Honeybun is dark-mode only.
   root.setAttribute("data-theme", "dark");
   try { localStorage.removeItem("hb-theme"); } catch (e) {}
 
-  // iPhone / iPad + installed Home Screen detection.
   var ua = navigator.userAgent || "";
   var isiOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
   var standalone = !!navigator.standalone || (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches);
@@ -63,7 +61,9 @@
     addStyle("/hb-mobile-hotfix.css?v=1", "data-hb-mobile-hotfix");
     addStyle("/hb-desktop-fixes.css?v=1", "data-hb-desktop-fixes");
     addStyle("/hb-add-mobile.css?v=1", "data-hb-add-mobile");
+    addStyle("/hb-stats-together-v2.css?v=1", "data-hb-stats-together-v2");
     addScript("/hb-bun.js?v=2", "data-hb-bun");
+    addScript("/hb-stats-together-v2.js?v=1", "data-hb-stats-together-v2-js");
     removeThemeToggle();
     syncThemeColor();
     syncVisualViewport();
