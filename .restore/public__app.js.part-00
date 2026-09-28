@@ -1,0 +1,187 @@
+(() => {
+  "use strict";
+
+  // ---------- constants ----------
+  const CATS = [
+    { id: "home", e: "🏠", n: "Housing", c: "#9BB8FF" },
+    { id: "groc", e: "🛒", n: "Groceries", c: "#46BE8A" },
+    { id: "food", e: "🍜", n: "Eating out", c: "#FF9F5A" },
+    { id: "date", e: "💕", n: "Date night", c: "#FF6F9F" },
+    { id: "bills", e: "💡", n: "Bills", c: "#FFC94D" },
+    { id: "subs", e: "📺", n: "Subscriptions", c: "#8FA3FF" },
+    { id: "car", e: "🚗", n: "Getting around", c: "#5CC6D0" },
+    { id: "fun", e: "🎁", n: "Gifts & fun", c: "#B79CFF" },
+    { id: "pets", e: "🐾", n: "Kids & pets", c: "#D9A27A" },
+    { id: "debt", e: "💳", n: "Debt payments", c: "#E88AA8" },
+    { id: "other", e: "✨", n: "Other", c: "#B7A9C4" },
+  ];
+  // line icons (replace emoji in the UI)
+  const ICONS = {
+    house: '<path d="M3 11l9-7 9 7v9H3z"/><path d="M10 20v-5h4v5"/>',
+    cart: '<path d="M3 4h2l2.4 11h11L21 8H7"/><circle cx="9" cy="19" r="1.4"/><circle cx="17" cy="19" r="1.4"/>',
+    cup: '<path d="M4 10h13v3a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5zM17 11h1.5a2.5 2.5 0 0 1 0 5H16"/><path d="M8 6c0-1 1-1 1-2M12 6c0-1 1-1 1-2"/>',
+    heart: '<path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/>',
+    bolt: '<path d="M13 3L5 14h6l-1 7 8-11h-6z"/>',
+    tv: '<rect x="3" y="5" width="18" height="12" rx="3"/><path d="M9 21h6M12 17v4"/>',
+    car: '<path d="M5 16l1.5-6h11L19 16M4 16h16v3H4zM7 19v2M17 19v2"/>',
+    gift: '<rect x="4" y="9" width="16" height="11" rx="2"/><path d="M12 9v11M4 13h16M12 9c-2-4-6-3-5 0M12 9c2-4 6-3 5 0"/>',
+    paw: '<ellipse cx="12" cy="16" rx="4.5" ry="3.8"/><circle cx="6.5" cy="10.5" r="1.8"/><circle cx="10" cy="7" r="1.8"/><circle cx="14" cy="7" r="1.8"/><circle cx="17.5" cy="10.5" r="1.8"/>',
+    card: '<rect x="3" y="6" width="18" height="13" rx="3"/><path d="M3 10h18M7 15h4"/>',
+    sparkle: '<path d="M12 4v4M12 16v4M4 12h4M16 12h4M7 7l2 2M15 15l2 2M17 7l-2 2M9 15l-2 2"/>',
+    coin: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5v9M14.5 9.6c0-1-1.1-1.7-2.5-1.7s-2.5.7-2.5 1.8 1 1.5 2.5 1.8 2.5.9 2.5 2-1.1 1.8-2.5 1.8-2.5-.8-2.5-1.8"/>',
+    carrot: '<path d="M6 20l10-11 3 3z"/><path d="M16 9l1-4M17 10l4-2M18 11h4"/>',
+    star: '<path d="M12 4l2.3 4.8 5.2.7-3.8 3.6.9 5.2L12 15.9 7.4 18.3l.9-5.2-3.8-3.6 5.2-.7z"/>',
+    medal: '<circle cx="12" cy="14" r="5.5"/><path d="M8.5 9.5L6 3h4l2 4 2-4h4l-2.5 6.5"/>',
+    basket: '<path d="M3 10h18l-2 9H5z"/><path d="M8 10l3-6M16 10l-3-6M9 14v2M15 14v2"/>',
+    cal: '<rect x="4" y="5" width="16" height="15" rx="3"/><path d="M4 10h16M9 3v4M15 3v4"/>',
+    target: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r=".8"/>',
+    jar: '<path d="M8 8h8l1 2v9a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-9z"/><rect x="8" y="4" width="8" height="4" rx="1.5"/>',
+    party: '<path d="M4 20l4-11 7 7z"/><path d="M13 4v3M17 7l2-2M18 11h3"/>',
+    home2: '<path d="M4 20V10l8-6 8 6v10z"/><path d="M9 20v-5h6v5"/>',
+    moon: '<path d="M19 14.5A7.5 7.5 0 1 1 9.5 5a6 6 0 0 0 9.5 9.5z"/>',
+    crown: '<path d="M4 18l2-10 6 4 6-4 2 10z"/>',
+    calcheck: '<rect x="4" y="5" width="16" height="15" rx="3"/><path d="M4 10h16M9 14l2 2 4-4"/>',
+    lock: '<rect x="6" y="11" width="12" height="9" rx="2.5"/><path d="M8.5 11V8.5a3.5 3.5 0 0 1 7 0V11"/>',
+    chev: '<path d="M9 6l6 6-6 6"/>',
+  };
+  const icon = (k, w = 1.8) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[k] || ICONS.sparkle}</svg>`;
+  const CAT_LOOK = { home: ["house", "blue"], groc: ["cart", "green"], food: ["cup", "honey"], date: ["heart", "rose"], bills: ["bolt", "lilac"], subs: ["tv", "lilac"],
+    car: ["car", "blue"], fun: ["gift", "rose"], pets: ["paw", "honey"], debt: ["card", "rose"], other: ["sparkle", "gray"] };
+  const tileHtml = (k, tint, size = 38) => `<span class="ct t-${tint}" style="width:${size}px;height:${size}px;border-radius:${Math.round(size * 0.34)}px">${icon(k)}</span>`;
+  const catTile = (id, size) => { const [k, t] = CAT_LOOK[id] || CAT_LOOK.other; return tileHtml(k, t, size); };
+  const incTile = (size) => tileHtml("coin", "green", size);
+  const catOf = (id) => CATS.find((c) => c.id === id) || CATS[CATS.length - 1];
+  const NEEDS = ["home", "groc", "bills", "car", "pets", "debt"];
+  const WANTS = ["food", "date", "fun", "subs", "other"];
+  const EMOJIS = ["🐰", "🐻", "🐱", "🐶", "🦊", "🐼", "🐨", "🐸", "🐧", "🦄", "🐥", "🐹"];
+  const COLORS = ["#FFD6E5", "#FFF0C2", "#DDF5E9", "#E4EDFF", "#EADFFF", "#FFE1CC"];
+  const GOAL_EMOJIS = ["🍯", "✈️", "🏠", "💍", "🚗", "🎓", "🐶", "🎄", "🛟", "🎁"];
+  const THEMES = [
+    { id: "blueberry", n: "Blueberry", c: "#6F93DB" },
+    { id: "blush", n: "Blush", c: "#EE7FA3" },
+    { id: "lavender", n: "Lavender", c: "#9C82DC" },
+    { id: "honey", n: "Honey", c: "#DDA13F" },
+  ];
+  const FREQ_NAME = { weekly: "Every week", biweekly: "Every 2 weeks", monthly: "Every month" };
+  const QUICK_BILLS = [
+    { e: "🏠", n: "Rent", c: "home", s: true }, { e: "💡", n: "Electric", c: "bills", s: true }, { e: "💧", n: "Water", c: "bills", s: true },
+    { e: "🌐", n: "Internet", c: "bills", s: true }, { e: "📱", n: "Phone", c: "bills", s: false }, { e: "🚗", n: "Car payment", c: "car", s: false },
+    { e: "🛡️", n: "Insurance", c: "bills", s: false }, { e: "📺", n: "Netflix", c: "subs", s: true }, { e: "🎵", n: "Spotify", c: "subs", s: false },
+    { e: "🏋️", n: "Gym", c: "subs", s: false }, { e: "✨", n: "Something else", c: "other", s: false },
+  ];
+  // bunny levels
+  const TITLES = ["Tiny Sprout", "Curious Kit", "Hoppy Saver", "Carrot Collector", "Burrow Builder", "Budget Bunny", "Clover Keeper", "Garden Guardian", "Moon Hopper", "Honeybun Legend"];
+  const UNLOCKS = { 2: "a little sprout", 3: "a pink bow", 5: "a cozy scarf", 7: "a flower crown", 10: "a tiny golden crown" };
+  const levelFor = (xp) => { let l = 1; while (xp >= 25 * (l + 1) * l) l++; return l; };
+  const levelInfo = (xp) => {
+    const l = levelFor(xp), lo = 25 * l * (l - 1), hi = 25 * (l + 1) * l;
+    return { l, title: TITLES[Math.min(l, TITLES.length) - 1], lo, hi, pct: Math.max(0, Math.min(1, (xp - lo) / (hi - lo))) };
+  };
+
+  // ---------- language (English / Español / 中文) ----------
+  const LANGS = { en: "English", es: "Español", zh: "中文" };
+  const LANG = (() => {
+    let saved = null; try { saved = localStorage.getItem("hb-lang"); } catch {}
+    if (LANGS[saved]) return saved;
+    const n = (navigator.language || "en").toLowerCase();
+    return n.startsWith("zh") ? "zh" : n.startsWith("es") ? "es" : "en";
+  })();
+  const LOCALE = { en: "en-US", es: "es-US", zh: "zh-CN" }[LANG];
+  const DICT = LANG !== "en" && window.HB_I18N ? window.HB_I18N[LANG] : null;
+  function tr(str) {
+    if (!DICT || typeof str !== "string") return str;
+    const k = str.trim(); if (!k) return str;
+    if (DICT.exact[k] !== undefined) return str.replace(k, DICT.exact[k]);
+    for (const [re, rep] of DICT.patterns) if (re.test(k)) return str.replace(k, k.replace(re, rep));
+    let out = k; for (const [re, rep] of DICT.subs) out = out.replace(re, rep);
+    return out === k ? str : str.replace(k, out);
+  }
+  window.HB_TR = tr;
+  const TR_ATTRS = ["placeholder", "aria-label", "title"];
+  function trNode(node) {
+    if (!DICT) return;
+    if (node.nodeType === 3) {
+      const p = node.parentNode;
+      if (!p || p.nodeName === "SCRIPT" || p.nodeName === "STYLE" || p.closest?.("[data-nt]")) return;
+      const v = node.nodeValue, t = tr(v); if (t !== v) node.nodeValue = t;
+      return;
+    }
+    if (node.nodeType !== 1 || node.nodeName === "SCRIPT" || node.nodeName === "STYLE" || node.hasAttribute("data-nt")) return;
+    for (const a of TR_ATTRS) if (node.hasAttribute(a)) { const v = node.getAttribute(a), t = tr(v); if (t !== v) node.setAttribute(a, t); }
+    for (const c of node.childNodes) trNode(c);
+  }
+  if (DICT) {
+    document.documentElement.lang = LANG === "zh" ? "zh-CN" : LANG;
+    document.title = tr(document.title);
+    trNode(document.body);
+    new MutationObserver((muts) => {
+      for (const m of muts) {
+        if (m.type === "characterData") trNode(m.target);
+        else if (m.type === "attributes") trNode(m.target);
+        else m.addedNodes.forEach(trNode);
+      }
+    }).observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: TR_ATTRS });
+  }
+  function drawLangPickers() {
+    document.querySelectorAll("[data-lang-picker]").forEach((box) => {
+      box.innerHTML = "";
+      Object.entries(LANGS).forEach(([id, name]) => {
+        const b = document.createElement("button"); b.type = "button"; b.textContent = name; b.setAttribute("data-nt", "");
+        b.setAttribute("aria-pressed", id === LANG ? "true" : "false");
+        b.onclick = async () => {
+          if (id === LANG) return;
+          try { localStorage.setItem("hb-lang", id); } catch {}
+          if (ME) { try { await api("/api/me", { method: "PATCH", body: { lang: id } }); } catch {} }
+          location.reload();
+        };
+        box.appendChild(b);
+      });
+    });
+  }
+
+  // ---------- helpers ----------
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const fmt = (n) => (n < 0 ? "−" : "") + "$" + Math.abs(n).toLocaleString(LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const pad = (n) => String(n).padStart(2, "0");
+  const toS = (d) => d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
+  const parseD = (s) => { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d); };
+  const addDays = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
+  const today = () => toS(new Date());
+  const ym = (d) => d.slice(0, 7);
+  const dayName = (d) => d.toLocaleDateString(LOCALE, { weekday: "short", month: "short", day: "numeric" });
+  const shortDay = (d) => d.toLocaleDateString(LOCALE, { month: "short", day: "numeric" });
+  const store = {
+    get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+    set(k, v) { try { localStorage.setItem(k, v); } catch {} },
+  };
+  function monthName(m, short) {
+    const [y, mo] = m.split("-").map(Number);
+    return new Date(y, mo - 1, 1).toLocaleDateString(LOCALE, short ? { month: "short", year: "numeric" } : { month: "long", year: "numeric" });
+  }
+  function toast(t, actionLabel, action) {
+    const el = $("toast"); $("toastText").textContent = t;
+    const b = $("toastBtn"); b.hidden = !action; el.classList.toggle("act", !!action);
+    if (action) { b.textContent = actionLabel; b.onclick = () => { el.classList.remove("show", "act"); action(); }; }
+    el.classList.add("show");
+    clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove("show", "act"), action ? 6000 : 1900);
+  }
+  function ask(title, body, yes = "Yes") {
+    return new Promise((res) => {
+      $("askT").textContent = title; $("askP").textContent = body; $("askYes").textContent = yes;
+      const d = $("askDlg"); d.showModal();
+      $("askYes").onclick = () => { d.close(); res(true); };
+      $("askNo").onclick = () => { d.close(); res(false); };
+    });
+  }
+  function busy(btn, on) { btn.disabled = on; btn.style.opacity = on ? ".6" : ""; }
+
+  async function api(path, { method = "GET", body } = {}) {
+    const opts = { method, credentials: "same-origin", headers: {} };
+    opts.headers["x-local-date"] = today();
+    if (method !== "GET") { opts.headers["content-type"] = "application/json"; opts.body = JSON.stringify(body ?? {}); }
+    let res;
+    try { res = await fetch(path, opts); }
+    catch {
+      setOffline(true);
+      const cacheKey = "hb-cache:" + path.replace(/month=\d{4}-\d{2}/, (m) => m);
