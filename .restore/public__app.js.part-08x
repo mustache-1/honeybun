@@ -1,0 +1,169 @@
+    const params = new URLSearchParams({ q: $("q").value.trim(), type: $("fType").value, cat: $("fCat").value, member: $("fWho").value });
+    try {
+      const d = await api("/api/search?" + params);
+      const rows = d.entries.map((e) => ({ ...e, amount: e.amount_cents / 100, shared: !!e.shared, private: !!e.private }));
+      $("allTitle").textContent = "Search results";
+      const total = rows.reduce((s, e) => s + (e.type === "income" ? e.amount : -e.amount), 0);
+      $("searchHint").hidden = false;
+      $("searchHint").textContent = rows.length ? `${rows.length} found · net ${fmt(total)}` : "Nothing matches that.";
+      const l = $("list"); l.innerHTML = "";
+      rows.forEach((e) => l.appendChild(entryLi(e)));
+    } catch (e) { toast(e.message); }
+  }
+  $("q").oninput = () => { clearTimeout(searchTimer); searchTimer = setTimeout(runSearch, 300); };
+  ["fType", "fCat", "fWho"].forEach((id) => ($(id).onchange = runSearch));
+
+  // ---------- email, account & data ----------
+  $("hideVerify").onclick = () => { store.set("hb-verify-hide", String(Date.now() + 3 * 86400000)); $("verifyBanner").hidden = true; };
+  $("resendVerify").onclick = async () => {
+    try { const r = await api("/api/email/resend", { method: "POST" }); if (r.already) { ME.verified = true; render(); toast("Your email is already confirmed ♡"); } else toast("Sent! Check your inbox."); }
+    catch (e) { toast(e.message); }
+  };
+  [["mailBills", "mail_bills", "bills"], ["mailStreak", "mail_streak", "streak"], ["mailWeekly", "mail_weekly", "weekly"]].forEach(([id, key, k]) => {
+    $(id).onchange = async (ev) => {
+      const on = ev.target.checked;
+      try { await api("/api/me", { method: "PATCH", body: { [key]: on } }); ME.mail = { ...(ME.mail || {}), [k]: on }; toast(on ? "Reminder on" : "Reminder off"); }
+      catch (e) { ev.target.checked = !on; toast(e.message); }
+    };
+  });
+  $("exportData").onclick = async () => {
+    try {
+      const res = await fetch("/api/account/export", { credentials: "same-origin" });
+      if (!res.ok) throw new Error("Couldn't download your data. Try again.");
+      const blob = await res.blob(), a = document.createElement("a");
+      a.href = URL.createObjectURL(blob); a.download = "honeybun-data.json"; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    } catch (e) { toast(e.message); }
+  };
+  $("deleteAcct").onclick = () => { $("delPw").value = ""; $("delErr").textContent = ""; $("delDlg").showModal(); };
+  $("delCancel").onclick = () => $("delDlg").close();
+  $("delGo").onclick = async () => {
+    try {
+      await api("/api/account/delete", { method: "POST", body: { password: $("delPw").value } });
+      $("delDlg").close();
+      try { Object.keys(localStorage).filter((k) => k.startsWith("hb-")).forEach((k) => localStorage.removeItem(k)); } catch {}
+      ME = null; NEST = null; authMode = "signup"; showAuth(); toast("Your account was deleted. Take care ♡");
+    } catch (e) { $("delErr").textContent = e.message; }
+  };
+  async function runVerify() {
+    show("verify");
+    history.replaceState(null, "", "/");
+    try {
+      await api("/api/email/verify", { method: "POST", body: { token: verifyToken } });
+      $("verifyTitle").textContent = "Email confirmed ♡"; $("verifyText").textContent = "Thanks! Reminders and password resets will reach you now.";
+    } catch (e) { $("verifyTitle").textContent = "Hmm, that didn't work"; $("verifyText").textContent = e.message; }
+    verifyToken = null; $("verifyGo").hidden = false;
+  }
+  $("verifyGo").onclick = async () => {
+    try { await afterAuth(); } catch (e) { authMode = "login"; showAuth(); }
+  };
+
+  // ---------- monthly recap card ----------
+  const ACCENT_HEX = { blueberry: "#6F93DB", blush: "#EE7FA3", lavender: "#9C82DC", honey: "#DDA13F" };
+  let recapBlob = null;
+  async function drawRecap() {
+    const c = $("recapCanvas"), x = c.getContext("2d"), W = 1080, H = 1350, acc = ACCENT_HEX[NEST.accent] || ACCENT_HEX.blueberry;
+    try { await document.fonts.ready; } catch {}
+    const F = (w, sz) => `${w} ${sz}px Fredoka, Nunito, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif`;
+    const rr = (x0, y0, w, h, r, fill) => { x.beginPath(); x.roundRect(x0, y0, w, h, r); x.fillStyle = fill; x.fill(); };
+    x.clearRect(0, 0, W, H); x.fillStyle = "#F3F5FA"; x.fillRect(0, 0, W, H);
+    x.fillStyle = acc; x.globalAlpha = .12; x.beginPath(); x.arc(W - 80, 90, 260, 0, 7); x.fill(); x.beginPath(); x.arc(60, H - 40, 200, 0, 7); x.fill(); x.globalAlpha = 1;
+    const img = new Image(); img.src = "/icon-512.png";
+    await new Promise((r) => { img.onload = r; img.onerror = r; });
+    x.save(); x.beginPath(); x.roundRect(80, 80, 150, 150, 42); x.clip(); try { x.drawImage(img, 80, 80, 150, 150); } catch {} x.restore();
+    x.fillStyle = "#8E8898"; x.font = F(600, 34); x.fillText("Honeybun", 260, 140);
+    x.fillStyle = "#2B2733"; x.font = F(600, 58); x.fillText(monthName(MONTH), 260, 205);
+    const inc = ENTRIES.filter((e) => e.type === "income").reduce((s, e) => s + e.amount, 0);
+    const out = ENTRIES.filter((e) => e.type === "expense").reduce((s, e) => s + e.amount, 0);
+    const kept = inc > 0 ? Math.round(((inc - out) / inc) * 100) : null;
+    rr(80, 280, W - 160, 300, 44, "#FFFFFF");
+    x.fillStyle = "#8E8898"; x.font = F(600, 36); x.fillText(tr(kept === null ? "Spent this month" : "You kept"), 130, 350);
+    x.fillStyle = kept !== null && kept < 0 ? "#D9668C" : acc; x.font = F(600, 150);
+    x.fillText(kept === null ? fmt(out) : kept + "%", 124, 510);
+    x.fillStyle = "#8E8898"; x.font = F(600, 32);
+    if (kept !== null) x.fillText(`${tr("Earned")} ${fmt(inc)}  ·  ${tr("Spent")} ${fmt(out)}`, 130, 555);
+    const by = spentByCat(), top = Object.entries(by).sort((a, b) => b[1] - a[1])[0];
+    const m = meMember() || {}, li = levelInfo(m.xp || 0), budgets = Object.keys(BUDGETS), under = budgets.filter((k) => (by[k] || 0) <= BUDGETS[k]).length;
+    const tiles = [
+      ["🐾", tr("Hop streak"), `${streakOf(m)} · ${tr("best")} ${m.best_streak || 0}`],
+      ["🥕", tr("Level"), `${li.l} · ${tr(li.title)}`],
+      [top ? catOf(top[0]).e : "✨", tr("Top spend"), top ? `${tr(catOf(top[0]).n)} ${fmt(top[1])}` : "–"],
+      ["🎯", tr("Budgets kept"), budgets.length ? `${under} / ${budgets.length}` : "–"],
+    ];
+    tiles.forEach(([e, k, v], i) => {
+      const col = i % 2, row = Math.floor(i / 2), tx = 80 + col * 470, ty = 620 + row * 230;
+      rr(tx, ty, 450, 200, 38, "#FFFFFF");
+      x.font = F(400, 56); x.fillStyle = "#2B2733"; x.fillText(e, tx + 34, ty + 82);
+      x.font = F(600, 30); x.fillStyle = "#8E8898";
+      let kk = k; while (x.measureText(kk).width > 390 && kk.length > 3) kk = kk.slice(0, -2) + "…";
+      x.fillText(kk, tx + 34, ty + 132);
+      x.font = F(600, 36); x.fillStyle = "#2B2733";
+      let t = v; while (x.measureText(t).width > 390 && t.length > 3) t = t.slice(0, -2) + "…";
+      x.fillText(t, tx + 34, ty + 178);
+    });
+    x.textAlign = "center"; x.font = F(600, 40); x.fillStyle = "#2B2733";
+    const msg = tr(kept !== null && kept >= 20 ? "Look at you go! Your bunny is so proud ♡" : streakOf(m) >= 3 ? "Keep hopping. Your bunny is proud of you." : "Every little log helps your bunny grow ♡");
+    x.fillText(msg.length > 46 ? msg.slice(0, 45) + "…" : msg, W / 2, 1150);
+    x.font = F(600, 34); x.fillStyle = "#8E8898";
+    x.fillText(tr("A cute little budget") + " · honeybun.me", W / 2, H - 70); x.textAlign = "left";
+    recapBlob = await new Promise((r) => c.toBlob(r, "image/png"));
+  }
+  $("makeRecap").onclick = async () => { $("rcTitle").textContent = `${monthName(MONTH)}`; $("recapDlg").showModal(); await drawRecap(); };
+  $("rcClose").onclick = () => $("recapDlg").close();
+  $("rcShare").onclick = async () => {
+    if (!recapBlob) return;
+    const file = new File([recapBlob], `honeybun-${MONTH}.png`, { type: "image/png" });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) { try { await navigator.share({ files: [file], title: "Honeybun" }); } catch {} return; }
+    const a = document.createElement("a"); a.href = URL.createObjectURL(recapBlob); a.download = file.name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  };
+
+  // sticky header gets a hairline once you scroll
+  window.addEventListener("scroll", () => $("topBar").classList.toggle("scrolled", window.scrollY > 4), { passive: true });
+  drawLangPickers();
+
+  // ---------- "new version deployed" notice ----------
+  let APP_VERSION = null, updateShown = false;
+  async function fetchVersion() {
+    try {
+      const heads = await Promise.all(["/app.js", "/"].map((u) => fetch(u, { method: "HEAD", cache: "no-store" })));
+      const tags = heads.map((r) => r.headers.get("etag") || r.headers.get("last-modified") || "");
+      if (tags.every(Boolean)) return tags.join("|");
+      // no version headers: fall back to a quick fingerprint of the code
+      const txt = await (await fetch("/app.js", { cache: "no-store" })).text();
+      let h = 0; for (let i = 0; i < txt.length; i += 7) h = (h * 31 + txt.charCodeAt(i)) | 0;
+      return "h" + txt.length + ":" + h;
+    } catch { return null; }
+  }
+  async function checkForUpdate() {
+    if (document.hidden || OFFLINE || updateShown) return;
+    const v = await fetchVersion();
+    if (!v) return;
+    if (!APP_VERSION) { APP_VERSION = v; return; }
+    if (v !== APP_VERSION) {
+      // nothing important on screen? just refresh. Otherwise ask nicely.
+      if (["loading", "auth", "verify"].includes(screen) && !document.querySelector("dialog[open]")) { location.reload(); return; }
+      updateShown = true;
+      $("updateCard").hidden = false;
+    }
+  }
+  $("updateNow").onclick = () => location.reload();
+  $("updateLater").onclick = () => { $("updateCard").hidden = true; setTimeout(() => { updateShown = false; }, 15 * 60 * 1000); };
+  setTimeout(checkForUpdate, 1500);
+  setInterval(checkForUpdate, 30 * 1000);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) checkForUpdate(); });
+  window.addEventListener("focus", checkForUpdate);
+
+  window.__hbStarted = true;
+  try { sessionStorage.removeItem("hb-boot"); } catch {}
+
+  (async () => {
+    if (resetToken) { show("reset"); return; }
+    if (verifyToken) { runVerify(); return; }
+    try { await afterAuth(); }
+    catch (e) {
+      if (e.status === 401) { authMode = pendingCode ? "signup" : store.get("hb-had-account") ? "login" : "signup"; showAuth(); }
+      else { showAuth(); $("authErr").textContent = e.message; }
+    }
+  })();
+})();
