@@ -18,20 +18,30 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Rebuild uploaded backup
+      - name: Replace current app with uploaded backup
         shell: bash
         run: |
           set -euo pipefail
-          cat .restore/chunk-* | tr -d '\n\r' | base64 -d > /tmp/honeybun-full.zip
-          rm -rf /tmp/honeybun-restore
-          mkdir -p /tmp/honeybun-restore
-          unzip -q /tmp/honeybun-full.zip -d /tmp/honeybun-restore
 
-          # Keep Git metadata and the production deploy workflow, replace the app itself with the backup.
-          find . -mindepth 1 -maxdepth 1 ! -name .git ! -name .github ! -name .restore -exec rm -rf {} +
-          cp -a /tmp/honeybun-restore/. .
+          # Remove every Honeybun UI override/helper that was added after the backup.
+          rm -f public/hb-*.css public/hb-*.js
+          rm -f download src/read.txt
 
-          # The backup intentionally contains a placeholder D1 ID. Put the live DB binding back in.
+          # Reassemble the exact large text files from the uploaded backup.
+          cat .restore/public__app.js.part-* > public/app.js
+          cat .restore/public__i18n.js.part-* > public/i18n.js
+          cat .restore/public__index.html.part-* > public/index.html
+          cat .restore/src__worker.js.part-* > src/worker.js
+
+          # Restore the smaller backup files.
+          cp .restore/README.md README.md
+          cp .restore/schema.sql schema.sql
+          cp .restore/boot.js public/boot.js
+          cp .restore/sw.js public/sw.js
+          cp .restore/gitignore .gitignore
+          cp .restore/wrangler.jsonc wrangler.jsonc
+
+          # Keep the real production D1 database binding instead of the placeholder from the ZIP.
           python3 - <<'PY'
           from pathlib import Path
           p = Path('wrangler.jsonc')
@@ -40,7 +50,7 @@ jobs:
           p.write_text(s)
           PY
 
-          # Remove one-time restore payload/workflow from the finished repository.
+          # Remove the one-time restore payload/workflow after the backup is in place.
           rm -rf .restore
           rm -f .github/workflows/restore-backup.yml
 
@@ -51,5 +61,5 @@ jobs:
           git config user.name 'Honeybun Restore'
           git config user.email 'actions@users.noreply.github.com'
           git add -A
-          git commit -m 'Restore Honeybun exactly from uploaded backup'
+          git commit -m 'Restore Honeybun from uploaded backup'
           git push origin HEAD:main
