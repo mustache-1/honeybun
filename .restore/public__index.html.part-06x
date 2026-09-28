@@ -1,0 +1,100 @@
+  <h2 id="mdTitle">Edit you</h2>
+  <div class="field"><label for="mName">Name</label><input id="mName" maxlength="24"></div>
+  <div class="field"><span class="lbl">Pick your buddy</span><div class="emojis" id="emojiPick"></div></div>
+  <div class="field"><span class="lbl">Color</span><div class="colors" id="colorPick"></div></div>
+  <p class="err" id="mErr"></p>
+  <div class="acts"><button class="linkbtn" id="mCancel">Cancel</button><button class="go" id="mSave">Save</button></div>
+</dialog>
+
+<dialog id="askDlg" aria-labelledby="askT">
+  <h2 id="askT"></h2><p id="askP" style="color:var(--soft);font-size:.9rem"></p>
+  <div class="acts"><button class="linkbtn" id="askNo">Cancel</button><button class="go" id="askYes">Yes</button></div>
+</dialog>
+
+<dialog id="settleDlg" aria-labelledby="sdTitle">
+  <h2 id="sdTitle">Mark as paid</h2>
+  <p id="sdText" style="color:var(--soft);font-size:.9rem;margin:3px 0 10px"></p>
+  <div class="field"><label for="sdAmt">Amount</label><input id="sdAmt" type="number" inputmode="decimal" min="0" step="0.01"></div>
+  <p class="err" id="sdErr"></p>
+  <div class="acts"><button class="linkbtn" id="sdCancel">Cancel</button><button class="go inc" id="sdSave">Mark paid</button></div>
+</dialog>
+
+<dialog id="budgetDlg" aria-labelledby="bdTitle">
+  <h2 id="bdTitle">Monthly budgets</h2>
+  <p class="hint">Set a monthly limit for any category. Leave blank for no limit.</p>
+  <div class="budget-edit" id="budgetEdit"></div>
+  <p class="err" id="bdErr"></p>
+  <div class="acts"><button class="linkbtn" id="bdCancel">Cancel</button><button class="go" id="bdSave">Save budgets</button></div>
+</dialog>
+
+<dialog id="goalDlg" aria-labelledby="gdTitle">
+  <div id="gdView">
+    <h2 id="gdTitle">Savings goal</h2>
+    <p id="gdProg" style="color:var(--soft);font-size:.9rem;margin:4px 0 8px"></p>
+    <div class="dlg-amt"><input id="gdAmt" type="number" inputmode="decimal" min="0" step="0.01" placeholder="$ amount" aria-label="Amount"><button class="small" id="gdOut">Take out</button><button class="go" id="gdIn">Add</button></div>
+    <ul class="hist" id="gdHist"></ul>
+    <div class="acts" style="margin-top:12px"><button class="linkbtn" id="gdClose">Done</button><button class="small" id="gdEdit">Edit</button></div>
+  </div>
+  <div id="gdForm" hidden>
+    <h2>New savings goal</h2>
+    <div class="field"><label for="gName">Saving for</label><input id="gName" maxlength="32" placeholder="Beach trip"></div>
+    <div class="field"><label for="gTarget">Target</label><input id="gTarget" type="number" inputmode="decimal" min="1" step="1" placeholder="2000"></div>
+    <div class="field"><span class="lbl">Icon</span><div class="emoji-row" id="gEmojis"></div></div>
+    <p class="err" id="gErr"></p>
+    <div class="acts"><button class="linkbtn" id="gCancel">Cancel</button><button class="linkbtn danger" id="gDelete" hidden>Delete goal</button><button class="go" id="gSave">Save goal</button></div>
+  </div>
+</dialog>
+
+<dialog id="debtDlg" aria-labelledby="ddTitle">
+  <h2 id="ddTitle">Add a debt</h2>
+  <div class="field"><label for="dName">Name</label><input id="dName" maxlength="32" placeholder="Credit card"></div>
+  <div class="field"><label for="dBal">Balance</label><input id="dBal" type="number" inputmode="decimal" min="1" step="0.01" placeholder="3500"></div>
+  <div class="row2"><div class="field"><label for="dApr">Interest (APR %)</label><input id="dApr" type="number" inputmode="decimal" min="0" max="100" step="0.01" placeholder="22.9"></div>
+    <div class="field"><label for="dMin">Minimum monthly payment</label><input id="dMin" type="number" inputmode="decimal" min="0" step="0.01" placeholder="90"></div></div>
+  <p class="hint" id="dHint"></p><p class="err" id="dErr"></p>
+  <div class="acts"><button class="linkbtn" id="dCancel">Cancel</button><button class="linkbtn danger" id="dDelete" hidden>Delete</button><button class="go" id="dSave">Save</button></div>
+</dialog>
+
+<dialog id="payDlg" aria-labelledby="pdTitle">
+  <h2 id="pdTitle">Log a payment</h2><p id="pdText" class="hint"></p>
+  <div class="field"><label for="pdAmt">Amount paid</label><input id="pdAmt" type="number" inputmode="decimal" min="0" step="0.01"></div>
+  <div class="field"><span class="lbl">Who paid?</span><div class="whos" id="pdWho"></div></div>
+  <p class="hint">It's also added to this month's spending as a debt payment.</p><p class="err" id="pdErr"></p>
+  <div class="acts"><button class="linkbtn" id="pdCancel">Cancel</button><button class="go" id="pdSave">Log payment</button></div>
+</dialog>
+
+<dialog id="pwDlg" aria-labelledby="pwTitle">
+  <h2 id="pwTitle">Change password</h2>
+  <div class="field"><label for="pwCur">Current password</label><input id="pwCur" type="password" autocomplete="current-password"></div>
+  <div class="field"><label for="pwNew">New password</label><input id="pwNew" type="password" autocomplete="new-password" placeholder="At least 8 characters"></div>
+  <p class="err" id="pwErr"></p>
+  <div class="acts"><button class="linkbtn" id="pwCancel">Cancel</button><button class="go" id="pwSave">Save password</button></div>
+</dialog>
+
+<dialog id="delDlg" aria-labelledby="delTitle">
+  <h2 id="delTitle">Delete your account?</h2>
+  <p style="color:var(--soft);font-size:.9rem">This can't be undone. Your account and private entries are deleted right away. Things you added to a shared budget stay there for the others.</p>
+  <div class="field"><label for="delPw">Type your password to confirm</label><input id="delPw" type="password" autocomplete="current-password"></div>
+  <p class="err" id="delErr"></p>
+  <div class="acts"><button class="linkbtn" id="delCancel">Keep my account</button><button class="go danger" id="delGo" style="background:#C9485B">Delete forever</button></div>
+</dialog>
+
+<dialog id="levelDlg" class="level-dlg" aria-labelledby="lvTitle">
+  <div class="confetti" id="confetti"></div>
+  <svg class="lv-bunny" id="lvBunny" viewBox="0 0 120 128" aria-hidden="true"></svg>
+  <p class="lv-kicker" id="lvKicker">Level up!</p>
+  <h2 id="lvTitle"></h2><p id="lvText"></p>
+  <button class="go" id="lvOk">Yay!</button>
+</dialog>
+
+<dialog id="recapDlg" aria-labelledby="rcTitle">
+  <h2 id="rcTitle">Your monthly recap</h2>
+  <canvas id="recapCanvas" class="recap-canvas" width="1080" height="1350"></canvas>
+  <div class="acts" style="margin-top:12px"><button class="linkbtn" id="rcClose">Close</button><button class="go" id="rcShare">Share</button></div>
+</dialog>
+
+<script src="/i18n.js?v=1"></script>
+<script src="/app.js?v=8" defer></script>
+<script src="/boot.js?v=1" defer></script>
+</body>
+</html>
