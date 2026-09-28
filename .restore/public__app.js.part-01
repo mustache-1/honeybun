@@ -1,0 +1,218 @@
+      if (method === "GET" && (path.startsWith("/api/nest?") || path === "/api/me")) {
+        const c = store.get(cacheKey); if (c) return JSON.parse(c);
+      }
+      if (method === "POST" && path === "/api/entries") {
+        const q = JSON.parse(store.get("hb-queue") || "[]");
+        q.push({ ...body, pending_id: "p" + Date.now() + Math.random().toString(36).slice(2, 6) });
+        store.set("hb-queue", JSON.stringify(q));
+        return { ok: true, queued: true };
+      }
+      const e = new Error("You're offline. This needs a connection."); e.offline = true; throw e;
+    }
+    setOffline(false);
+    let data = {};
+    try { data = await res.json(); } catch {}
+    if (res.ok && method === "GET" && (path.startsWith("/api/nest?") || path === "/api/me")) store.set("hb-cache:" + path, JSON.stringify(data));
+    if (!res.ok) {
+      const e = new Error(data.error || "Something went wrong. Try again.");
+      e.status = res.status;
+      if (res.status === 401 && !["/api/login", "/api/me"].includes(path)) { ME = null; showAuth(); }
+      throw e;
+    }
+    return data;
+  }
+
+
+  // ---------- offline ----------
+  let OFFLINE = false;
+  function setOffline(v) { OFFLINE = v; const b = document.getElementById("offlineBar"); if (b) b.hidden = !v; }
+  const queued = () => { try { return JSON.parse(localStorage.getItem("hb-queue") || "[]"); } catch { return []; } };
+  let flushing = false;
+  async function flushQueue() {
+    const q = queued(); if (!q.length || flushing) return;
+    flushing = true;
+    let sent = 0, i = 0;
+    for (; i < q.length; i++) {
+      const { pending_id, ...body } = q[i];
+      try {
+        const res = await fetch("/api/entries", { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json", "x-local-date": today() }, body: JSON.stringify(body) });
+        if (res.status >= 500 || res.status === 401) break; // try again later
+        sent++;
+      } catch { break; }
+    }
+    store.set("hb-queue", JSON.stringify(q.slice(i)));
+    flushing = false;
+    if (sent) { toast(`Synced ${sent} offline ${sent === 1 ? "entry" : "entries"}`); try { await loadNest(); } catch {} }
+  }
+  window.addEventListener("online", () => { setOffline(false); flushQueue(); });
+  window.addEventListener("offline", () => setOffline(true));
+  if ("serviceWorker" in navigator) window.addEventListener("load", () => navigator.serviceWorker.register("/sw.js").catch(() => {}));
+
+  // ---------- state ----------
+  let ME = null, NEST = null, MEMBERS = [], ENTRIES = [], BAL = {}, SETTLES = [], RECUR = [], LOGGED = new Set(), JAR = [];
+  let GOALS = [], BUDGETS = {}, DEBTS = [], DEBTPAYS = [], SETUP_DONE = true, INBOX = { unread: 0, latest: null };
+  let MONTH = today().slice(0, 7), YEAR = new Date().getFullYear(), YDATA = null;
+  let screen = "loading", filter = null, authMode = "signup", newKind = "couple", calSel = null;
+  let mode = "expense", cat = "groc", who = null, shared = true, splitMode = "equal", editing = null;
+  let pendingCode = null, resetToken = null, verifyToken = null;
+  {
+    const j = location.pathname.match(/^\/join\/([A-Za-z0-9-]{4,20})\/?$/);
+    if (j) pendingCode = j[1];
+    const r = location.pathname.match(/^\/reset\/([A-Za-z0-9_-]{20,100})\/?$/);
+    if (r) resetToken = r[1];
+    const v = location.pathname.match(/^\/verify\/([A-Za-z0-9_-]{20,100})\/?$/);
+    if (v) verifyToken = v[1];
+  }
+  const member = (id) => MEMBERS.find((m) => m.id === id) || { name: "Someone", emoji: "❔", color: "#EEE" };
+  const meMember = () => MEMBERS.find((m) => m.id === ME?.id);
+  const others = (id) => MEMBERS.filter((m) => m.id !== id);
+  const KIND = () => NEST?.kind || "couple";
+  const yesterday = () => toS(addDays(parseD(today()), -1));
+  const streakOf = (m) => (m && (m.last_day === today() || m.last_day === yesterday()) ? m.streak : 0);
+  const loggedToday = () => meMember()?.last_day === today();
+
+  // ---------- screens ----------
+  const APP_SCREENS = ["home", "plan", "add", "stats", "us", "inbox", "settings", "help"];
+  const ALL_SCREENS = ["loading", "auth", "reset", "verify", "setup", "onboard", ...APP_SCREENS];
+  function show(s) {
+    screen = s;
+    ALL_SCREENS.forEach((k) => ($("scr-" + k).hidden = k !== s));
+    const inApp = APP_SCREENS.includes(s);
+    $("nav").hidden = !inApp; $("topBar").hidden = !inApp;
+    { const mn = $("monthNav"), slot = document.querySelector(`#scr-${s} .ph-slot`);
+      if (slot) { slot.appendChild(mn); mn.style.display = ""; } else mn.style.display = "none"; }
+    document.querySelectorAll("nav.bottom [data-go]").forEach((b) => b.dataset.go === s ? b.setAttribute("aria-current", "page") : b.removeAttribute("aria-current"));
+    window.scrollTo(0, 0);
+    if (s === "stats") loadYear();
+    if (inApp) render();
+  }
+  document.querySelectorAll("nav.bottom [data-go]").forEach((b) => (b.onclick = () => {
+    if (b.dataset.go === "add") openAdd(); else { if (screen === "add") editing = null; show(b.dataset.go); }
+  }));
+
+  // ---------- auth ----------
+  function showAuth() {
+    $("inviteNotice").hidden = !pendingCode;
+    $("authCard").hidden = false; $("forgotCard").hidden = true;
+    setAuthMode(authMode);
+    show("auth");
+  }
+  function setAuthMode(m) {
+    authMode = m;
+    document.querySelectorAll("[data-auth]").forEach((b) => b.setAttribute("aria-selected", b.dataset.auth === m ? "true" : "false"));
+    $("nameField").hidden = m !== "signup";
+    $("forgotWrap").hidden = m !== "login";
+    $("aPass").setAttribute("autocomplete", m === "signup" ? "new-password" : "current-password");
+    $("aPass").placeholder = m === "signup" ? "At least 8 characters" : "";
+    $("authBtn").textContent = m === "signup" ? "Create account" : "Log in";
+    $("authErr").textContent = "";
+  }
+  document.querySelectorAll("[data-auth]").forEach((b) => (b.onclick = () => setAuthMode(b.dataset.auth)));
+  $("authForm").onsubmit = async (ev) => {
+    ev.preventDefault();
+    const email = $("aEmail").value.trim(), password = $("aPass").value, name = $("aName").value.trim();
+    if (authMode === "signup" && !name) { $("authErr").textContent = "Enter your name."; $("aName").focus(); return; }
+    if (!email) { $("authErr").textContent = "Enter your email."; $("aEmail").focus(); return; }
+    if (authMode === "signup" && password.length < 8) { $("authErr").textContent = "Use a password with at least 8 characters."; $("aPass").focus(); return; }
+    busy($("authBtn"), true); $("authErr").textContent = "";
+    try {
+      await api(authMode === "signup" ? "/api/signup" : "/api/login", { method: "POST", body: { name, email, password, lang: LANG } });
+      $("aPass").value = "";
+      await afterAuth();
+    } catch (e) {
+      if (e.status === 409) setAuthMode("login");
+      $("authErr").textContent = e.message;
+    } finally { busy($("authBtn"), false); }
+  };
+  $("forgotLink").onclick = () => { $("authCard").hidden = true; $("forgotCard").hidden = false; $("fEmail").value = $("aEmail").value; $("forgotMsg").textContent = ""; $("fEmail").focus(); };
+  $("backToLogin").onclick = () => { $("forgotCard").hidden = true; $("authCard").hidden = false; setAuthMode("login"); };
+  $("forgotForm").onsubmit = async (ev) => {
+    ev.preventDefault();
+    const email = $("fEmail").value.trim();
+    if (!email) { $("forgotMsg").textContent = "Enter your email."; return; }
+    busy($("forgotBtn"), true);
+    try {
+      await api("/api/password/forgot", { method: "POST", body: { email } });
+      $("forgotMsg").style.color = "var(--mint-d)";
+      $("forgotMsg").textContent = "If there's an account for that email, a reset link is on its way. It works for 1 hour.";
+    } catch (e) { $("forgotMsg").style.color = ""; $("forgotMsg").textContent = e.message; }
+    finally { busy($("forgotBtn"), false); }
+  };
+  $("resetForm").onsubmit = async (ev) => {
+    ev.preventDefault();
+    const p = $("rPass").value, p2 = $("rPass2").value;
+    if (p.length < 8) { $("resetErr").textContent = "Use a password with at least 8 characters."; return; }
+    if (p !== p2) { $("resetErr").textContent = "The two passwords don't match."; return; }
+    busy($("resetBtn"), true);
+    try {
+      await api("/api/password/reset", { method: "POST", body: { token: resetToken, password: p } });
+      resetToken = null; history.replaceState(null, "", "/");
+      toast("Password changed");
+      await afterAuth();
+    } catch (e) { $("resetErr").textContent = e.message; }
+    finally { busy($("resetBtn"), false); }
+  };
+
+
+  async function afterAuth() {
+    const me = await api("/api/me");
+    ME = me.user;
+    store.set("hb-had-account", "1");
+    const tz = (() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { return null; } })();
+    const patch = {};
+    if (tz && ME.tz !== tz) patch.tz = tz;
+    if (ME.lang && ME.lang !== LANG) {
+      if (store.get("hb-lang")) patch.lang = LANG;
+      else if (LANGS[ME.lang]) { store.set("hb-lang", ME.lang); location.reload(); return; }
+    }
+    if (Object.keys(patch).length) api("/api/me", { method: "PATCH", body: patch }).then(() => Object.assign(ME, patch)).catch(() => {});
+    flushQueue();
+    if (pendingCode) {
+      try { await api("/api/nests/join", { method: "POST", body: { code: pendingCode } }); toast("You joined the budget"); }
+      catch (e) { $("setupErr").textContent = e.message; toast(e.message); }
+      pendingCode = null; history.replaceState(null, "", "/");
+      return afterAuth();
+    }
+    if (!me.nest_id) { $("setupHi").textContent = "Hi, " + ME.name + "!"; drawKinds(); show("setup"); return; }
+    await loadNest();
+    if (!SETUP_DONE) { openOnboard(false); return; }
+    show("home"); bunnyHop();
+  }
+  async function logout() {
+    try { await api("/api/logout", { method: "POST" }); } catch {}
+    ME = null; NEST = null; MEMBERS = []; ENTRIES = []; filter = null; editing = null;
+    authMode = "login"; showAuth();
+  }
+  $("setupLogout").onclick = logout;
+  $("logoutBtn").onclick = logout;
+
+  // ---------- start or join ----------
+  function drawKinds() {
+    document.querySelectorAll("#kinds [data-kind]").forEach((b) => {
+      b.setAttribute("aria-pressed", b.dataset.kind === newKind ? "true" : "false");
+      b.onclick = () => { newKind = b.dataset.kind; drawKinds(); };
+    });
+  }
+  $("createNest").onclick = async () => {
+    busy($("createNest"), true); $("setupErr").textContent = "";
+    try { await api("/api/nests", { method: "POST", body: { name: $("newNestName").value, kind: newKind } }); await afterAuth(); }
+    catch (e) { $("setupErr").textContent = e.message; } finally { busy($("createNest"), false); }
+  };
+  $("joinNest").onclick = async () => {
+    const code = $("joinCode").value.trim();
+    if (!code) { $("setupErr").textContent = "Enter the invite code."; $("joinCode").focus(); return; }
+    busy($("joinNest"), true); $("setupErr").textContent = "";
+    try { await api("/api/nests/join", { method: "POST", body: { code } }); toast("You joined the budget"); await afterAuth(); }
+    catch (e) { $("setupErr").textContent = e.message; } finally { busy($("joinNest"), false); }
+  };
+
+  // ---------- data ----------
+  async function loadNest() {
+    const d = await api("/api/nest?month=" + MONTH);
+    ME = d.me; NEST = d.nest; MEMBERS = d.members;
+    ENTRIES = d.entries.map((e) => ({ ...e, amount: e.amount_cents / 100, shared: !!e.shared, private: !!e.private }));
+    queued().filter((q) => (q.date || "").slice(0, 7) === MONTH).forEach((q) => ENTRIES.unshift({
+      id: q.pending_id, pending: true, member_id: q.member_id, type: q.type, amount: +q.amount, amount_cents: Math.round(q.amount * 100),
+      label: q.label, category: q.category, shared: !!q.shared, split_mode: q.split_mode, split_value: q.split_value, private: !!q.private, date: q.date }));
+    BAL = d.balances; SETTLES = d.settlements; RECUR = d.recurring; JAR = d.jar;
+    document.documentElement.setAttribute("data-accent", d.nest.accent || "blush");
