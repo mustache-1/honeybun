@@ -1,0 +1,55 @@
+/* Honeybun mobile + iPhone polish */
+
+/* Bun assistant */
+#scr-inbox .chat{min-height:180px}
+.hb-bun-msg{display:flex;margin:7px 0;max-width:86%}
+.hb-bun-msg.bun{justify-content:flex-start}.hb-bun-msg.me{justify-content:flex-end;margin-left:auto}
+.hb-bun-bubble{white-space:pre-line;padding:10px 13px;border-radius:17px;border:1px solid var(--line);background:var(--card);font-size:.86rem;line-height:1.45;box-shadow:var(--shadow2)}
+.hb-bun-msg.me .hb-bun-bubble{background:var(--pink3);border-color:color-mix(in srgb,var(--pink) 28%,var(--line));color:var(--ink)}
+.hb-bun-form{display:flex;gap:7px;margin:12px 0 8px;position:sticky;bottom:136px;z-index:4;padding:8px 0;background:linear-gradient(transparent,var(--bg) 20%)}
+.hb-bun-form input{min-height:44px;border-radius:14px;background:var(--card);font-size:.84rem}
+.hb-bun-form button{border:0;border-radius:14px;padding:0 15px;background:var(--pink);color:#fff;font-weight:800}
+
+/* Compact phone header — stop desktop scale from leaking onto mobile */
+@media(max-width:620px){
+  .app{padding-left:14px!important;padding-right:14px!important;padding-top:10px!important}
+  header.top,#topBar{margin:0 0 12px!important;padding:6px 0 4px!important;background:transparent!important;min-height:48px!important;gap:8px!important;border:0!important;box-shadow:none!important}
+  header.top .hello,#topBar .hello{gap:8px!important;min-width:0!important}
+  .avs .av{width:30px!important;height:30px!important;font-size:.95rem!important;border-width:2px!important}
+  .avs .av+.av{margin-left:-8px!important}
+  .hello-txt small{font-size:.66rem!important;line-height:1.05!important}
+  .hello .h1,.hello-txt .h1{font-size:.94rem!important;line-height:1.1!important;max-width:180px!important}
+  .inbox-btn,#hbThemeToggle{width:35px!important;height:35px!important;min-width:35px!important;border-radius:12px!important;padding:0!important;box-shadow:none!important;background:var(--card)!important;border:1px solid var(--line)!important}
+  .inbox-btn svg{width:17px!important;height:17px!important}
+  .hb-theme-toggle .hb-theme-label{display:none!important}
+  .hb-theme-toggle .hb-theme-icon{font-size:13px!important}
+  #scr-home .hero{border-radius:22px!important;padding:21px 17px 17px!important}
+  .left-amt{font-size:2.35rem!important}
+  .section-h{margin-top:20px!important}
+  .panel{border-radius:18px!important}
+  nav.bottom{left:10px!important;right:10px!important;width:auto!important;transform:none!important;border-radius:21px!important}
+  nav.bottom .in{height:60px!important}
+  nav.bottom button{width:58px!important;font-size:.61rem!important}
+  nav.bottom button svg{width:18px!important;height:18px!important}
+  nav.bottom .plus{width:44px!important;height:44px!important;border-radius:14px!important}
+  #scr-inbox{padding-bottom:24px}
+  #scr-inbox .quick-replies{bottom:78px!important}
+  .hb-bun-form{bottom:120px}
+}
+
+/* iPhone Safari browser chrome can cover fixed controls. Keep Honeybun above it.
+   Installed Home Screen mode does not need this extra lift. */
+html[data-ios="1"][data-standalone="0"] nav.bottom{bottom:calc(72px + env(safe-area-inset-bottom,0px))!important}
+html[data-ios="1"][data-standalone="0"] .app{padding-bottom:calc(172px + env(safe-area-inset-bottom,0px))!important}
+html[data-ios="1"][data-standalone="0"] .toast{bottom:calc(150px + env(safe-area-inset-bottom,0px))!important}
+html[data-ios="1"][data-standalone="0"] #scr-inbox .quick-replies{bottom:152px!important}
+html[data-ios="1"][data-standalone="0"] .hb-bun-form{bottom:194px!important}
+
+/* iPhone Add to Home Screen helper */
+.hb-ios-install{position:fixed;left:12px;right:12px;bottom:calc(145px + env(safe-area-inset-bottom,0px));z-index:50;max-width:420px;margin:auto;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:12px 13px;box-shadow:0 14px 40px rgba(0,0,0,.16);display:flex;gap:10px;align-items:flex-start}
+.hb-ios-install[hidden]{display:none!important}.hb-ios-install .bunny{font-size:22px;line-height:1}.hb-ios-install .txt{flex:1;min-width:0;font-size:.76rem;color:var(--soft);line-height:1.35}.hb-ios-install .txt b{display:block;color:var(--ink);font-size:.82rem;margin-bottom:2px}.hb-ios-install button{border:0;background:transparent;color:var(--soft);font-size:17px;padding:0 2px;line-height:1}
+@media(min-width:621px){.hb-ios-install{display:none!important}}
+
+/* installed iPhone app: use the whole screen cleanly */
+html[data-standalone="1"] body{min-height:100dvh}
+html[data-standalone="1"] nav.bottom{bottom:calc(8px + env(safe-area-inset-bottom,0px))!important}
