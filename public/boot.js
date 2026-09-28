@@ -62,6 +62,7 @@
     addStyle("/hb-mobile.css?v=5", "data-hb-mobile");
     addStyle("/hb-mobile-hotfix.css?v=1", "data-hb-mobile-hotfix");
     addStyle("/hb-desktop-fixes.css?v=1", "data-hb-desktop-fixes");
+    addStyle("/hb-add-mobile.css?v=1", "data-hb-add-mobile");
     addScript("/hb-bun.js?v=2", "data-hb-bun");
     removeThemeToggle();
     syncThemeColor();
