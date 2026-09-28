@@ -1,0 +1,71 @@
+    { k: "coin", e: "💰", n: "Payday planner", d: "Add a payday", ok: () => RECUR.some((r) => r.type === "income") },
+    { k: "calcheck", e: "📅", n: "Bill boss", d: "Add 3 bills", ok: () => RECUR.filter((r) => r.type === "expense").length >= 3 },
+    { k: "target", e: "🎯", n: "Limit setter", d: "Set a monthly budget", ok: () => Object.keys(BUDGETS).length > 0 },
+    { k: "jar", e: "🍯", n: "Goal getter", d: "Reach a savings goal", ok: () => GOALS.some((g) => g.saved_cents >= g.target_cents) },
+    { k: "party", e: "🎉", n: "Debt free-ish", d: "Pay off a debt", ok: () => DEBTS.some((d) => d.paid_cents >= d.start_cents) },
+    { k: "heart", e: "💞", n: "Better together", d: "Share your budget", ok: () => MEMBERS.length >= 2 },
+    { k: "home2", e: "🏡", n: "Burrow builder", d: "Reach level 5", ok: (m) => levelFor(m.xp) >= 5 },
+    { k: "moon", e: "🌙", n: "Moon hopper", d: "Reach level 9", ok: (m) => levelFor(m.xp) >= 9 },
+    { k: "crown", e: "👑", n: "Legend", d: "Reach level 10", ok: (m) => levelFor(m.xp) >= 10 },
+    { k: "cal", e: "🗓️", n: "Year in review", d: "Log something in 6 different months", ok: () => YDATA && new Set(YDATA.entries.map((e) => e.date.slice(0, 7))).size >= 6 },
+  ];
+  function renderBurrow() {
+    const m = meMember(); if (!m) return;
+    const li = levelInfo(m.xp || 0), st = streakOf(m);
+    // this week's hop days (Mon–Sun) from the current streak
+    const t = parseD(today()), mon = addDays(t, -((t.getDay() + 6) % 7));
+    const streakDays = new Set();
+    if (m.last_day && st) for (let i = 0; i < Math.min(st, 7); i++) streakDays.add(toS(addDays(parseD(m.last_day), -i)));
+    const week = [0, 1, 2, 3, 4, 5, 6].map((i) => {
+      const d = toS(addDays(mon, i)), n = addDays(mon, i).toLocaleDateString(LOCALE, { weekday: "narrow" });
+      return `<div><i class="${streakDays.has(d) ? "on" : ""} ${d === today() ? "today" : ""}">${streakDays.has(d) ? icon("paw") : ""}</i>${n}</div>`;
+    }).join("");
+    $("burrow").innerHTML = `<span class="bun-circle"><svg viewBox="0 0 120 128" aria-hidden="true">${bunnySvg(li.l)}</svg></span>
+      <div class="info"><div class="kick">Level ${li.l}</div><h2>${esc(li.title)}</h2>
+      <div class="xpbar"><i style="width:${li.pct * 100}%"></i></div>
+      <div class="nums"><span>${m.xp || 0} carrots</span><span>${li.hi - (m.xp || 0)} to level ${li.l + 1}</span></div>
+      <div class="week">${week}</div>
+      <div class="chips"><span>🐾 ${st}-day streak</span><span>Best ${m.best_streak || 0}</span></div></div>`;
+    const bg = $("badges"); bg.innerHTML = ""; let got = 0;
+    BADGES.forEach((b) => {
+      const on = !!b.ok(m); if (on) got++;
+      const el = document.createElement("button"); el.className = "badge" + (on ? " on" : "");
+      el.innerHTML = `<i>${on ? icon(b.k) : icon("lock")}</i>${esc(b.n)}<small>${on ? "earned" : "locked"}</small>`;
+      el.onclick = () => toast(on ? `${b.n}: unlocked ♡` : `${b.n}: ${b.d}`);
+      bg.appendChild(el);
+    });
+    $("badgeCount").textContent = `${got} of ${BADGES.length}`;
+    const wk = (() => { const d = parseD(today()); return toS(addDays(d, -((d.getDay() + 6) % 7))); })();
+    $("boardWrap").hidden = MEMBERS.length < 2;
+    const rows = MEMBERS.map((x) => ({ x, v: x.week_key === wk ? x.week_xp : 0 })).sort((a, b) => b.v - a.v);
+    $("board").innerHTML = rows.map((r, i) => `<div class="board-row"><span class="rk">${i + 1}</span><span class="face" style="background:${esc(r.x.color)}">${esc(r.x.emoji)}</span>
+      <span class="nm">${esc(r.x.name)}${r.x.id === ME.id ? " (you)" : ""}</span><span class="xp">🥕 ${r.v}</span></div>`).join("");
+  }
+
+  // ---------- first-time setup ----------
+  let ob = { steps: [], i: 0, rerun: false, pay: {}, bill: {} };
+  function freshPay() { return { amount: "", freq: "biweekly", date: today(), who: ME.id, label: "Paycheck" }; }
+  function freshBill() { return { pick: null, label: "", cat: "home", amount: "", freq: "monthly", date: "", shared: MEMBERS.length > 1 }; }
+  function openOnboard(rerun) {
+    ob.rerun = rerun;
+    const invite = KIND() !== "solo" && MEMBERS.length < 2 && !rerun;
+    ob.steps = rerun ? ["paydays", "bills", "done"] : ["buddy", ...(invite ? ["invite"] : []), "paydays", "bills", "done"];
+    ob.i = 0; ob.pay = freshPay(); ob.bill = freshBill();
+    show("onboard"); drawOb();
+  }
+  const ICON = {
+    heart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg>',
+    cal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="15" rx="3"/><path d="M4 10h16M9 3v4M15 3v4"/></svg>',
+    coin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="8"/><path d="M12 7v10M14.5 9.5c0-1-1.1-1.8-2.5-1.8s-2.5.8-2.5 1.9 1 1.6 2.5 1.9 2.5.9 2.5 2-1.1 1.8-2.5 1.8-2.5-.8-2.5-1.8"/></svg>',
+  };
+  function recurRow(r) {
+    const isIn = r.type === "income", n = nextOcc(r);
+    const li = document.createElement("li");
+    li.innerHTML = `${isIn ? incTile(32) : catTile(r.category, 32)}<span class="t">${esc(r.label)} · ${fmt(r.amount_cents / 100)}<small>${FREQ_NAME[r.freq]}${n ? ", next " + shortDay(n) : ""}${isIn ? ", " + esc(member(r.member_id).name) : r.shared ? ", split" : ""}</small></span><button aria-label="Remove">✕</button>`;
+    li.querySelector("button").onclick = async () => { try { await api("/api/recurring/" + r.id, { method: "DELETE" }); await loadNest(); drawOb(); } catch (e) { $("obErr").textContent = e.message; } };
+    return li;
+  }
+  function drawOb() {
+    const step = ob.steps[ob.i], last = ob.steps.length - 1, body = $("obBody");
+    $("obProg").style.width = (ob.i / last) * 100 + "%";
+    $("obBack").style.visibility = ob.i === 0 ? "hidden" : "";
