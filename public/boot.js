@@ -1,4 +1,4 @@
-// Honeybun boot helpers: forced dark theme, wired rebuild UI, Bun assistant, deploy recovery.
+// Honeybun boot helpers: forced dark theme, wired preview-parity UI, Bun assistant, deploy recovery.
 (function () {
   var root = document.documentElement;
 
@@ -57,9 +57,10 @@
   function initUiBits() {
     root.setAttribute("data-theme", "dark");
 
-    // Keep the real app wired, then apply the approved preview look on top.
-    addStyle("/hb-rebuild.css?v=3", "data-hb-rebuild");
-    addStyle("/hb-preview-parity.css?v=1", "data-hb-preview-parity");
+    // One wired visual system, plus a small DOM adapter that only reflows existing real elements.
+    addStyle("/hb-rebuild.css?v=4", "data-hb-rebuild");
+    addStyle("/hb-parity-v2.css?v=1", "data-hb-parity-v2");
+    addScript("/hb-layout-v2.js?v=1", "data-hb-layout-v2");
 
     // Existing functional helper remains wired.
     addScript("/hb-bun.js?v=2", "data-hb-bun");
