@@ -1,0 +1,55 @@
+name: Restore Honeybun backup
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.restore/READY'
+
+permissions:
+  contents: write
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Rebuild uploaded backup
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .restore/chunk-* | tr -d '\n\r' | base64 -d > /tmp/honeybun-full.zip
+          rm -rf /tmp/honeybun-restore
+          mkdir -p /tmp/honeybun-restore
+          unzip -q /tmp/honeybun-full.zip -d /tmp/honeybun-restore
+
+          # Keep Git metadata and the production deploy workflow, replace the app itself with the backup.
+          find . -mindepth 1 -maxdepth 1 ! -name .git ! -name .github ! -name .restore -exec rm -rf {} +
+          cp -a /tmp/honeybun-restore/. .
+
+          # The backup intentionally contains a placeholder D1 ID. Put the live DB binding back in.
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('wrangler.jsonc')
+          s = p.read_text()
+          s = s.replace('PASTE-YOUR-DATABASE-ID-HERE', 'f32e430a-fa1e-45b2-827f-32b3c6c80e64')
+          p.write_text(s)
+          PY
+
+          # Remove one-time restore payload/workflow from the finished repository.
+          rm -rf .restore
+          rm -f .github/workflows/restore-backup.yml
+
+      - name: Commit restored backup to main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'Honeybun Restore'
+          git config user.email 'actions@users.noreply.github.com'
+          git add -A
+          git commit -m 'Restore Honeybun exactly from uploaded backup'
+          git push origin HEAD:main
