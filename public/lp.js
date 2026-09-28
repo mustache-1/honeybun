@@ -64,7 +64,11 @@
     undo: '<path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/>', tap: '<path d="M13 3L5 14h6l-1 7 9-11h-6z"/>', repeat: '<path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>'
   };
   var LOG = [
-    { date: "2026-09-28", items: [
+    { v: "1.4", date: "2026-09-28", name: "A real desktop layout", items: [
+      { t: "Desktop layout", d: "On laptops and desktops the app now has a left sidebar instead of the bottom bar, and every screen uses a proper multi-column layout: Plan shows budget, calendar, and bills side by side, Stats puts the charts next to your progress, Together gives the balance its own column. Phones are unchanged.", tags: ["design", "improved"], icon: "landing" },
+      { t: "Updates grouped by release", d: "This page now folds each release into one row you can open, so it stays short as the list grows.", tags: ["improved"], icon: "landing" }
+    ] },
+    { v: "1.3", date: "2026-09-28", name: "Passkeys, push, and a new front door", items: [
       { t: "New landing page", d: "A fresh front door in the app's own colors: a live money card with Bun's ears, a split slider you can drag, and the tap-to-pay scene. Works in light and dark, in three languages.", tags: ["design"], icon: "landing" },
       { t: "Updates tab", d: "This page. Everything we ship shows up here, newest first.", tags: ["new"], icon: "landing" },
       { t: "Bun's inbox opened to an error", d: "Opening the inbox showed \"Something went wrong\" after the budget rollover update. Fixed within the hour.", tags: ["fixed"], icon: "bug" },
@@ -83,16 +87,18 @@
   if (list) {
     var fmtDate = function (d) { var p = d.split("-"); return new Date(+p[0], +p[1] - 1, +p[2]).toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" }); };
     legend.innerHTML = Object.keys(TAGS).map(function (k) { return '<span class="lp-tag ' + k + '"><i></i>' + T2(TAGS[k]) + '</span>'; }).join("");
-    var total = 0;
-    list.innerHTML = LOG.map(function (day) {
-      total += day.items.length;
-      return '<div class="lp-upd-day"><div class="lp-upd-date"><b>' + fmtDate(day.date) + '</b>' + day.items.length + ' ' + T2(day.items.length === 1 ? "update" : "updates") + '</div><div class="lp-upd-cards">' +
+    var tile = { new: "t-green", improved: "t-blue", fixed: "t-rose", design: "t-lilac", security: "t-honey" };
+    list.innerHTML = LOG.map(function (day, di) {
+      var counts = {}; day.items.forEach(function (it) { it.tags.forEach(function (k) { counts[k] = (counts[k] || 0) + 1; }); });
+      return '<details class="lp-rel"' + (di === 0 ? ' open' : '') + '><summary><span class="lp-rel-v">v' + day.v + '</span><span class="lp-rel-main"><b></b><small>' + fmtDate(day.date) + ' · ' + day.items.length + ' ' + T2(day.items.length === 1 ? "update" : "updates") + '</small></span><span class="lp-rel-tags">' +
+        Object.keys(counts).map(function (k) { return '<span class="lp-tag ' + k + '"><i></i>' + counts[k] + '</span>'; }).join("") + '</span><svg class="lp-rel-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></summary><div class="lp-upd-cards">' +
         day.items.map(function (it) {
           var main = it.tags[0];
-          return '<article class="lp-upd" style="--upd:' + COLOR[main] + '"><span class="lp-ic ' + { new: "t-green", improved: "t-blue", fixed: "t-rose", design: "t-lilac", security: "t-honey" }[main] + '"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICON[it.icon] + '</svg></span><div class="body"><b></b><p></p><div class="tags">' +
+          return '<article class="lp-upd" style="--upd:' + COLOR[main] + '"><span class="lp-ic ' + tile[main] + '"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICON[it.icon] + '</svg></span><div class="body"><b></b><p></p><div class="tags">' +
             it.tags.map(function (k) { return '<span class="lp-tag ' + k + '"><i></i>' + T2(TAGS[k]) + '</span>'; }).join("") + '</div></div></article>';
-        }).join("") + '</div></div>';
+        }).join("") + '</div></details>';
     }).join("");
+    list.querySelectorAll(".lp-rel").forEach(function (el, di) { el.querySelector(".lp-rel-main b").textContent = T2(LOG[di].name); });
     var i = 0; LOG.forEach(function (day) { day.items.forEach(function (it) { var el = list.querySelectorAll(".lp-upd")[i++]; el.querySelector("b").textContent = T2(it.t); el.querySelector("p").textContent = T2(it.d); }); });
     var badge = $("lpUpdCount"); badge.textContent = LOG[0].items.length; badge.classList.add("on");
     function showUpdates(on) {
