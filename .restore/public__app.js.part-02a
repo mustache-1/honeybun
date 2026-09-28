@@ -1,0 +1,85 @@
+    GOALS = d.goals; DEBTS = d.debts; DEBTPAYS = d.debt_payments; SETUP_DONE = d.setup_done;
+    BUDGETS = Object.fromEntries(d.budgets.map((b) => [b.category, b.limit_cents / 100]));
+    LOGGED = new Set(d.logged.map((l) => l.recurring_id + "|" + l.occ_date));
+    if (d.inbox) {
+      const prev = INBOX.unread; let latest = null;
+      if (d.inbox.latest) { const [id, kind, ...rest] = d.inbox.latest.split("|"); try { latest = { id, kind, data: JSON.parse(rest.join("|")) }; } catch {} }
+      INBOX = { unread: d.inbox.unread || 0, latest };
+      if (INBOX.unread > prev && prev >= 0 && document.getElementById("inboxBtn")) { const b = $("inboxBtn"); b.classList.remove("wiggle"); void b.offsetWidth; b.classList.add("wiggle"); }
+    }
+    if (!MEMBERS.some((m) => m.id === who)) who = ME.id;
+    if (filter && !MEMBERS.some((m) => m.id === filter)) filter = null;
+    if (APP_SCREENS.includes(screen)) render();
+  }
+  async function refresh() {
+    if (!ME || !APP_SCREENS.includes(screen) || document.hidden || screen === "add") return;
+    if (document.querySelector("dialog[open]")) return;
+    try { await loadNest(); } catch {}
+  }
+  setInterval(refresh, 20000);
+  document.addEventListener("visibilitychange", refresh);
+
+  // ---------- carrots, streaks & level-ups ----------
+  function gearSvg(l) {
+    let g = "";
+    if (l >= 10) g += '<path d="M45 52 l4 -15 l11 9 l11 -9 l4 15z" fill="#F6CF73" stroke="#DDA13F" stroke-width="2" stroke-linejoin="round"/><circle cx="60" cy="44" r="2.5" fill="#EE7FA3" stroke="none"/>';
+    else if (l >= 7) g += [[40, 56, "#EE7FA3"], [49, 51, "#F6CF73"], [60, 49, "#fff"], [71, 51, "#F6CF73"], [80, 56, "#EE7FA3"]]
+      .map(([x, y, c]) => `<circle cx="${x}" cy="${y}" r="4.5" fill="${c}" stroke="#D9668C" stroke-width="1.2"/>`).join("") + '<circle cx="60" cy="49" r="1.6" fill="#F6CF73" stroke="none"/>';
+    else if (l >= 2) g += '<path d="M60 49 V37" stroke="#3E9B6B" stroke-width="3" fill="none"/><path d="M60 40 c-8 -1 -13 -7 -11 -12 c7 0 11 4 11 12z" fill="#58B287" stroke="none"/><path d="M60 42 c7 -3 12 -9 10 -13 c-7 1 -10 6 -10 13z" fill="#7FCB9F" stroke="none"/>';
+    if (l >= 3) g += '<path d="M79 53 l-9 -6 v12z M79 53 l9 -6 v12z" fill="#EE7FA3" stroke="none"/><circle cx="79" cy="53" r="3" fill="#D9668C" stroke="none"/>';
+    if (l >= 5) g += '<path d="M33 104 q27 16 54 0 l2 8 q-29 17 -58 0z" fill="#F6CF73" stroke="none"/><path d="M77 111 l5 14 l8 -3 l-5 -13z" fill="#EDBE55" stroke="none"/>';
+    return g;
+  }
+  function bunnySvg(l) {
+    return `<g fill="var(--card)" stroke="var(--ink)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M44 52 C34 30 34 8 42 6 C50 4 54 28 54 46"/><path d="M76 52 C86 30 86 8 78 6 C70 4 66 28 66 46"/>
+      <ellipse cx="60" cy="82" rx="38" ry="34"/>
+      <circle cx="47" cy="78" r="3.5" fill="var(--ink)" stroke="none"/><circle cx="73" cy="78" r="3.5" fill="var(--ink)" stroke="none"/>
+      <ellipse cx="38" cy="90" rx="6" ry="3.5" fill="#F6B7CB" stroke="none"/><ellipse cx="82" cy="90" rx="6" ry="3.5" fill="#F6B7CB" stroke="none"/>
+      <path d="M52 89 q8 8 16 0" fill="none" stroke-width="3"/>${gearSvg(l)}</g>`;
+  }
+  function rewardToast(rw, msg) {
+    if (!rw) { toast(msg); return; }
+    toast(rw.gained > 0 ? `${msg}  +${rw.gained} 🥕` : msg);
+    if (rw.leveled) setTimeout(() => showLevelUp(rw.level), 700);
+    else if (rw.streak_up) setTimeout(() => toast(`🐾 ${rw.streak}-day hop streak!`), 2000);
+    else if (rw.first_today && rw.streak === 1) setTimeout(() => toast("🐾 Streak started. Come back tomorrow!"), 2000);
+  }
+  function showLevelUp(l) {
+    const title = TITLES[Math.min(l, TITLES.length) - 1];
+    $("lvBunny").innerHTML = bunnySvg(l);
+    $("lvKicker").textContent = "Level up!";
+    $("lvTitle").textContent = `Level ${l} · ${title}`;
+    const unlock = Object.keys(UNLOCKS).map(Number).filter((n) => n <= l).pop();
+    $("lvText").textContent = UNLOCKS[l] ? `Your bunny unlocked ${UNLOCKS[l]}!` : unlock ? "Keep hopping. Your bunny is proud of you." : "Keep logging to grow your bunny.";
+    const c = $("confetti"); c.innerHTML = "";
+    if (!matchMedia("(prefers-reduced-motion: reduce)").matches)
+      for (let i = 0; i < 18; i++) {
+        const e = document.createElement("i"); e.textContent = ["🥕", "✨", "💕"][i % 3];
+        e.style.left = Math.random() * 100 + "%"; e.style.animationDelay = Math.random() * 0.6 + "s";
+        c.appendChild(e);
+      }
+    $("levelDlg").showModal();
+  }
+  $("lvOk").onclick = () => $("levelDlg").close();
+
+  function renderPill() {
+    const m = meMember(); if (!m) return;
+    const li = levelInfo(m.xp || 0), st = streakOf(m), done = loggedToday();
+    $("streakTile").innerHTML = `${tileHtml("paw", "honey", 40)}<span class="tt"><b>${st === 1 ? "1 day" : st + " days"}</b>
+      <small class="${done ? "" : "todo"}">${done ? "hop streak" : "Log today to hop"}</small></span>`;
+    $("levelTile").innerHTML = `${tileHtml("carrot", "rose", 40)}<span class="tt"><b>Level ${li.l}</b><small>${m.xp || 0} carrots</small>
+      <span class="xp"><i style="width:${li.pct * 100}%"></i></span></span>`;
+    $("gear").innerHTML = gearSvg(li.l);
+  }
+  $("streakTile").onclick = () => show("stats");
+  $("levelTile").onclick = () => show("stats");
+
+
+  const BADGES = [
+    { k: "star", e: "🐣", n: "First hop", d: "Log your first thing", ok: (m) => m.logs >= 1 },
+    { k: "paw", e: "🐾", n: "3-day hop", d: "Keep a 3-day streak", ok: (m) => m.best_streak >= 3 },
+    { k: "sparkle", e: "🌟", n: "Week hopper", d: "Keep a 7-day streak", ok: (m) => m.best_streak >= 7 },
+    { k: "medal", e: "🏅", n: "Month marathon", d: "Keep a 30-day streak", ok: (m) => m.best_streak >= 30 },
+    { k: "carrot", e: "🥕", n: "Carrot counter", d: "Log 50 things", ok: (m) => m.logs >= 50 },
+    { k: "basket", e: "🧺", n: "Carrot basket", d: "Log 200 things", ok: (m) => m.logs >= 200 },
