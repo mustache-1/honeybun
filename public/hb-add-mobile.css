@@ -1,0 +1,62 @@
+/* Honeybun Add tab — mobile pass v1
+   Keep this isolated so we can refine the app tab-by-tab without breaking other screens. */
+@media(max-width:620px){
+  #scr-add{display:block;max-width:100%!important;padding:0 2px 8px!important}
+  #scr-add[hidden]{display:none!important}
+
+  /* Tabs */
+  #scr-add .tabs{margin:7px 0 13px!important;padding:4px!important;border-radius:15px!important;background:#242129!important;border:1px solid #38323d!important}
+  #scr-add .tabs button{min-height:38px!important;border-radius:11px!important;font-size:.76rem!important;color:#aaa2ad!important}
+  #scr-add .tabs button[aria-selected="true"][data-t="expense"]{background:#4a2d3a!important;color:#f39abb!important}
+  #scr-add .tabs button[aria-selected="true"][data-t="income"]{background:#20372b!important;color:#91ddb0!important}
+
+  /* Amount area */
+  #scr-add .add-bun{margin:2px 0 -3px!important}
+  #scr-add .add-bun svg{width:31px!important;height:34px!important}
+  #scr-add .bigamt{padding:4px 0 5px!important;gap:3px!important}
+  #scr-add .bigamt span{font-size:1.55rem!important;color:#8e8593!important}
+  #scr-add .bigamt input{font-size:2.25rem!important;line-height:1!important;max-width:175px!important;color:#f7f3f7!important;caret-color:#ea7da7!important}
+
+  /* Labels / spacing */
+  #scr-add .field{margin-top:14px!important;gap:6px!important}
+  #scr-add .lbl,#scr-add .field>label{padding-left:2px!important;font-size:.68rem!important;font-weight:800!important;color:#aaa2ad!important;letter-spacing:.01em!important}
+
+  /* Category grid */
+  #scr-add .cats{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:11px 5px!important}
+  #scr-add .cats button{min-width:0!important;width:100%!important;padding:0!important;border:0!important;background:transparent!important;border-radius:14px!important;display:flex!important;flex-direction:column!important;align-items:center!important;gap:5px!important;font-size:.61rem!important;line-height:1.1!important;color:#e9e3ea!important;text-align:center!important}
+  #scr-add .cats button .ct{width:43px!important;height:43px!important;border-radius:14px!important;margin:0!important}
+  #scr-add .cats button[aria-pressed="true"] .ct{box-shadow:0 0 0 2px #ea7da7!important}
+  #scr-add .cats button[aria-pressed="true"]{color:#f39abb!important}
+
+  /* Inputs */
+  #scr-add input:not(.bigamt input),#scr-add select{min-height:43px!important;padding:9px 12px!important;border-radius:13px!important;background:#29252e!important;border:1px solid #3a3440!important;color:#f7f3f7!important;font-size:.78rem!important;box-shadow:none!important}
+  #scr-add input::placeholder{color:#77707c!important}
+  #scr-add select{color-scheme:dark!important}
+
+  /* Who pays / split chips */
+  #scr-add .whos,#scr-add .split,#scr-add .sub-opts{gap:6px!important}
+  #scr-add .whos button,#scr-add .split button,#scr-add .sub-opts button{min-height:38px!important;padding:7px 11px!important;border-radius:999px!important;background:#242129!important;border:1px solid #3a3440!important;color:#f0ebf1!important;box-shadow:none!important;font-size:.72rem!important}
+  #scr-add .whos button[aria-pressed="true"],#scr-add .split button[aria-pressed="true"],#scr-add .sub-opts button[aria-pressed="true"]{background:#3b2731!important;border-color:#bc607f!important;color:#f39abb!important}
+  #scr-add .whos button i{width:26px!important;height:26px!important}
+  #scr-add .check{font-size:.7rem!important;color:#9f96a1!important;margin-top:1px!important}
+
+  /* Submit button: fixes the giant white iOS disabled control. */
+  #scr-add .go,#scr-add button.go,#scr-add input[type="submit"]{
+    appearance:none!important;-webkit-appearance:none!important;
+    width:100%!important;min-height:48px!important;margin-top:17px!important;padding:12px 14px!important;
+    border:1px solid transparent!important;border-radius:15px!important;
+    background:#ea7da7!important;color:#17151b!important;
+    font-size:.82rem!important;font-weight:900!important;line-height:1!important;
+    box-shadow:0 8px 22px rgba(234,125,167,.16)!important;
+    opacity:1!important;
+  }
+  #scr-add .go.inc{background:#79c497!important;color:#17151b!important;box-shadow:0 8px 22px rgba(121,196,151,.14)!important}
+  #scr-add .go:disabled,#scr-add button.go:disabled,#scr-add input[type="submit"]:disabled{
+    background:#29252e!important;color:#756d79!important;border-color:#39333f!important;
+    box-shadow:none!important;opacity:1!important;
+  }
+  #scr-add .err{min-height:1.1em!important;margin:7px 0 0!important;font-size:.69rem!important;color:#e884a8!important;text-align:center!important}
+
+  /* Keep content clear of the floating nav / Safari chrome. */
+  #scr-add{padding-bottom:24px!important}
+}
