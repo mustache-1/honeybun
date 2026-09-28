@@ -1,0 +1,69 @@
+/* Honeybun desktop sizing pass — keeps real app logic intact. */
+@media (min-width:721px){
+  html{font-size:17px!important}
+  .app{
+    width:min(1320px,calc(100vw - 56px))!important;
+    max-width:none!important;
+    margin:0 auto!important;
+    padding:34px 42px 126px!important;
+  }
+
+  header.top,#topBar{min-height:58px!important;margin-bottom:26px!important}
+  .avs .av{width:42px!important;height:42px!important;font-size:1.2rem!important}
+  .hello-txt small{font-size:.78rem!important}
+  .hello .h1,.hello-txt .h1{font-size:1.08rem!important}
+  .inbox-btn{width:44px!important;height:44px!important}
+
+  #scr-home{
+    grid-template-columns:minmax(0,1.55fr) minmax(330px,.72fr)!important;
+    gap:18px 20px!important;
+  }
+  .hero{padding:38px 32px 30px!important;border-radius:30px!important}
+  .hero .ears{top:-21px!important;gap:9px!important}
+  .hero .ears::before,.hero .ears::after{width:17px!important;height:38px!important}
+  .hero-lbl{font-size:.88rem!important}
+  .left-amt{font-size:4.5rem!important;margin:14px 0 21px!important}
+  .hero-stats span{font-size:.78rem!important}
+  .hero-stats b{font-size:1.04rem!important}
+  .chip{font-size:.7rem!important;padding:6px 10px!important}
+
+  .bun-note{padding:14px 16px!important}
+  .bun-note .bubble{font-size:.88rem!important}
+  .bun-note .bunny{width:34px!important;height:36px!important}
+
+  .tile2{padding:15px 16px!important}
+  .tile2 .ct{width:40px!important;height:40px!important}
+  .tile2 b{font-size:1rem!important}
+  .tile2 small{font-size:.72rem!important}
+
+  .due{padding:12px 18px 14px!important}
+  .due-h h2{font-size:1.05rem!important}
+  .due-row{padding:14px 0!important}
+  .due-row .t,.due-row b{font-size:.94rem!important}
+  .due-row .s,.due-row small{font-size:.76rem!important}
+
+  .couple{margin-top:20px!important}
+  .pal{width:96px!important}
+  .pal .face{width:54px!important;height:54px!important}
+  .pal .nm{font-size:.86rem!important}
+  .pal .st{font-size:.7rem!important}
+
+  #scr-home>.section-h{margin-top:26px!important}
+  .section-h h2{font-size:1.08rem!important}
+  .section-h .sub,.section-h .linkbtn{font-size:.84rem!important}
+  #scr-home>.panel{padding:7px 18px!important}
+  .list li{grid-template-columns:44px minmax(0,1fr) auto 28px!important;padding:14px 0!important;gap:12px!important}
+  .list .ic{width:42px!important;height:42px!important}
+  .list .t{font-size:.95rem!important}
+  .list .s{font-size:.76rem!important}
+  .list .amt{font-size:.92rem!important}
+
+  nav.bottom{width:min(620px,calc(100vw - 44px))!important;bottom:22px!important}
+  nav.bottom .in{height:68px!important}
+  nav.bottom button{font-size:.7rem!important;width:82px!important}
+  nav.bottom .plus{width:50px!important;height:50px!important}
+
+  #scr-plan,#scr-stats,#scr-us{gap:18px!important}
+  #scr-plan .panel,#scr-stats .panel,#scr-us .panel,#scr-us .card{padding:18px!important}
+  #scr-add{max-width:620px!important}
+}
