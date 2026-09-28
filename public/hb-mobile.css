@@ -1,4 +1,4 @@
-/* Honeybun mobile + iPhone polish — v3 */
+/* Honeybun mobile + iPhone polish — v4 */
 
 /* Bun assistant */
 #scr-inbox .chat{min-height:180px}
@@ -13,7 +13,7 @@
 @media(max-width:620px){
   html,body{overflow-x:hidden}
   body{font-size:15px}
-  .app{width:100%!important;max-width:none!important;padding:10px 12px 28px!important}
+  .app{width:100%!important;max-width:none!important;padding:10px 12px calc(118px + env(safe-area-inset-bottom,0px))!important}
 
   /* compact top bar */
   header.top,#topBar{margin:0!important;padding:4px 2px 8px!important;background:transparent!important;min-height:46px!important;gap:7px!important;border:0!important;box-shadow:none!important}
@@ -91,22 +91,22 @@
   .search-box .filters{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:5px!important}
   .search-box .filters select{min-height:36px!important;font-size:.65rem!important}
 
-  /* Mobile nav is part of document flow on Safari. This prevents it from covering content or fighting Safari's bottom URL bar. */
-  nav.bottom{position:sticky!important;left:auto!important;right:auto!important;bottom:0!important;width:calc(100% - 8px)!important;margin:18px 4px calc(10px + env(safe-area-inset-bottom,0px))!important;transform:none!important;border-radius:18px!important;padding-bottom:0!important;z-index:8!important;background:var(--nav)!important}
-  nav.bottom .in{height:58px!important;padding:0 3px!important}
-  nav.bottom button{width:56px!important;font-size:.58rem!important;gap:1px!important}
-  nav.bottom button svg{width:17px!important;height:17px!important}
-  nav.bottom .plus{width:42px!important;height:42px!important;border-radius:13px!important}
-  nav.bottom .plus svg{width:19px!important;height:19px!important}
+  /* Floating dock that follows Safari's expanding/collapsing bottom toolbar. */
+  nav.bottom{position:fixed!important;left:10px!important;right:10px!important;bottom:calc(var(--hb-vv-bottom,0px) + 10px + env(safe-area-inset-bottom,0px))!important;width:auto!important;margin:0!important;transform:none!important;border:1px solid var(--line)!important;border-radius:22px!important;padding:0!important;z-index:40!important;background:rgba(255,253,251,.96)!important;box-shadow:0 10px 28px rgba(50,40,48,.13)!important;backdrop-filter:blur(18px)!important;-webkit-backdrop-filter:blur(18px)!important;transition:bottom .14s ease-out!important}
+  nav.bottom .in{height:64px!important;padding:0 5px!important}
+  nav.bottom button{width:58px!important;font-size:.61rem!important;gap:2px!important}
+  nav.bottom button svg{width:18px!important;height:18px!important}
+  nav.bottom .plus{width:44px!important;height:44px!important;border-radius:14px!important}
+  nav.bottom .plus svg{width:20px!important;height:20px!important}
 
   #scr-inbox{padding-bottom:16px}
   #scr-inbox .chat-head{top:4px!important}
-  #scr-inbox .quick-replies{bottom:12px!important;position:static!important}
-  .hb-bun-form{bottom:auto!important;position:static!important}
+  #scr-inbox .quick-replies{bottom:88px!important;position:sticky!important}
+  .hb-bun-form{bottom:128px!important;position:sticky!important}
 
   .hb-ios-install{display:none!important}
 }
 
 html[data-standalone="1"] body{min-height:100dvh}
-html[data-standalone="1"] .app{padding-bottom:24px!important}
-html[data-standalone="1"] nav.bottom{margin-bottom:calc(8px + env(safe-area-inset-bottom,0px))!important}
+html[data-standalone="1"] .app{padding-bottom:calc(112px + env(safe-area-inset-bottom,0px))!important}
+html[data-standalone="1"] nav.bottom{bottom:calc(8px + env(safe-area-inset-bottom,0px))!important}
