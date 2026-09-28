@@ -1107,10 +1107,64 @@ dialog::backdrop{background:var(--backdrop)}
 
 
 /* =================== desktop shell (900px and up; phones untouched) =================== */
-.side-brand,.side-foot{display:none}
+.side-brand,.side-foot,.desk-only{display:none}
+.phone-only{display:block}
+@media(max-width:899px){.desk-only{display:none!important}}
+.cal-legend{display:flex;gap:14px;align-items:center;font-size:11px;font-weight:700;color:var(--soft);padding-top:6px}
+.cal-legend span{display:flex;align-items:center;gap:5px}
+.cal-legend i{width:6px;height:6px;border-radius:50%;background:var(--pink)}
+.cal-legend i.in{background:var(--mint)}
+.cal-legend .r{margin-left:auto}
+.empty-row{display:flex;align-items:center;gap:14px;padding:2px 0}
+.empty-row i{width:40px;height:40px;border-radius:12px;background:var(--t-rose);color:var(--c-rose);display:grid;place-items:center;flex:none;font-style:normal}
+.empty-row i svg{width:19px;height:19px}
+.empty-row span{flex:1;font-size:13px;color:var(--soft);line-height:1.5}
+.empty-row .small{flex:none}
+.jar-add{border:1px dashed var(--dash);background:transparent;border-radius:20px;padding:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:var(--soft);font-weight:800;font-size:13px;font-family:inherit;min-height:110px;text-align:center}
+.jar-add svg{width:20px;height:20px}
+.dash-add{width:100%;height:42px;margin-top:10px;border-radius:12px;border:1px dashed var(--dash);background:transparent;color:var(--soft);font-weight:800;font-size:13px;font-family:inherit;align-items:center;justify-content:center;gap:6px}
+.dash-add svg{width:14px;height:14px}
 @media (min-width:900px){
-  .app:has(#scr-landing[hidden]){max-width:1500px;margin:0;padding:28px 40px 60px 276px}
+  body:has(#nav:not([hidden])) .app{max-width:1500px;margin:0;padding:28px 40px 60px 276px}
   header.top #helpBtn,header.top #setBtn,header.top #inboxBtn{display:none}
+  .desk-only{display:block}
+  .dash-add.desk-only{display:flex}
+  .cal{gap:4px}
+  .cal .wd{font-size:10px}
+  .cal button{position:relative;height:38px;border-radius:9px;font-size:12px;font-weight:800;background:var(--panel2);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;padding:0;line-height:1;overflow:hidden}
+  .cal .dots{position:absolute;left:0;right:0;bottom:5px;justify-content:center;height:5px}
+  .phone-only{display:none!important}
+  .cal-legend.desk-only,.empty-row.desk-only,.jar-add.desk-only{display:flex}
+  .cal button.today{background:var(--pink-t);box-shadow:inset 0 0 0 1px var(--pink);color:var(--pink-d)}
+  #scr-plan .panel.pad{padding:16px 18px}
+  .goals-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+  .jar-card{border-radius:20px;border:1px solid var(--line)}
+  .hero-stats{grid-template-columns:repeat(4,minmax(0,1fr))}
+  #scr-home .tiles2,#scr-home .couple,#scr-home .burrow-pill{display:none!important}
+  .side-col{display:flex;flex-direction:column;gap:16px}
+  #homeSide .bun-note{margin:0}
+  .home-jars{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+  .home-jars .hj-h{display:flex;justify-content:space-between;align-items:baseline}
+  .home-jars .hj-h h2{font-size:15px;font-weight:800}
+  .home-jars .hj-h .linkbtn{font-size:12px;font-weight:800;color:var(--pink-d)}
+  .home-jars .hj{display:flex;align-items:center;gap:12px}
+  .home-jars .hj i{width:36px;height:36px;border-radius:12px;background:var(--t-honey);color:var(--c-honey);display:grid;place-items:center;font-style:normal;flex:none}
+  .home-jars .hj i svg{width:17px;height:17px}
+  .home-jars .hj span{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px}
+  .home-jars .hj .l{display:flex;justify-content:space-between;font-size:13px;font-weight:800}
+  .home-jars .hj .l small{color:var(--soft);font-weight:700}
+  .home-jars .hj .trk{height:6px;border-radius:3px;background:var(--track);overflow:hidden}
+  .home-jars .hj .trk b{display:block;height:6px;border-radius:3px;background:var(--honey)}
+  #recent{grid-auto-rows:min-content}
+  .stats-top{display:grid;grid-template-columns:minmax(0,1.35fr) repeat(3,minmax(0,.55fr));gap:14px;margin-bottom:20px;align-items:stretch}
+  .stats-top .burrow{margin:0}
+  .stats-top .kpis{display:contents}
+  .stats-top .kpi{display:flex;flex-direction:column;justify-content:center;background:var(--card);border:1px solid var(--line);border-radius:20px;padding:16px 18px;gap:2px}
+  .stats-top .kpi b{font-size:24px;font-weight:900;letter-spacing:-.03em}
+  .stats-top .kpi small{font-size:12px;font-weight:700;color:var(--soft)}
+  #scr-stats .grid2>.blk>.section-h:first-child{margin-top:0}
+  #scr-stats .year-h{margin-top:0}
+  .badges{grid-template-columns:repeat(5,minmax(0,1fr))}
   .side-foot{display:flex;flex-direction:column;gap:4px;margin-top:auto}
   .side-foot button{display:flex;align-items:center;gap:12px;height:40px;padding:0 12px;border-radius:12px;border:0;background:transparent;color:var(--soft);font-weight:700;font-size:13px;font-family:inherit;width:100%;text-align:left}
   .side-foot button svg{width:18px;height:18px;flex:none}
@@ -1678,6 +1732,7 @@ dialog::backdrop{background:var(--backdrop)}
         <div><span>Came in</span><b class="in" id="flowIn"></b></div>
         <div><span>Spent</span><b id="flowOut"></b></div>
         <div><span>Bills due</span><b id="billsDue"></b></div>
+        <div class="desk-only"><span>Month left</span><b id="monthLeft"></b></div>
       </div>
     </section>
 
@@ -1705,7 +1760,7 @@ dialog::backdrop{background:var(--backdrop)}
     </div>
     <button class="burrow-pill" id="burrowPill" hidden></button>
   </div>
-  <aside class="due side" id="dueCard" aria-label="Coming up"></aside>
+  <aside class="side-col" id="homeSide"><div class="due side" id="dueCard" aria-label="Coming up"></div><div class="desk-only" id="homeJars"></div></aside>
 </div>
     <div id="homeBud"></div>
 
@@ -1746,8 +1801,9 @@ dialog::backdrop{background:var(--backdrop)}
         <div id="goals"></div>
       </div>
       <div class="blk">
-        <div class="section-h"><h2>Bills &amp; paydays</h2></div>
+        <div class="section-h"><h2>Bills &amp; paydays</h2><span class="sub desk-only" id="billsDueSub"></span></div>
         <div class="panel"><ul class="list" id="bills"></ul></div>
+        <button class="dash-add desk-only" id="billsAdd"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Add a bill or payday</button>
       </div>
       <div class="blk">
         <div class="section-h"><h2>Debts</h2><button class="linkbtn" id="addDebt">Add debt</button></div>
@@ -1803,6 +1859,7 @@ dialog::backdrop{background:var(--backdrop)}
   <!-- STATS -->
   <main id="scr-stats" hidden>
     <div class="pagehead"><div><h1>Stats</h1><p>A quick read on how you're doing.</p></div></div>
+    <div class="stats-top desk-only" id="statsTop"></div>
     <div class="grid2">
       <div class="blk">
         <section class="burrow" id="burrow" aria-label="Your progress"></section>
@@ -2124,7 +2181,7 @@ dialog::backdrop{background:var(--backdrop)}
 
 <script src="/boot.js"></script>
 <script src="/i18n.js" defer></script>
-<script src="/lp.js" defer></script>
 <script src="/app.js" defer></script>
+<script src="/lp.js" defer></script>
 </body>
 </html>

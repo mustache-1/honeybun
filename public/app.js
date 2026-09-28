@@ -263,6 +263,7 @@
   const ALL_SCREENS = ["loading", "landing", "auth", "reset", "verify", "setup", "onboard", ...APP_SCREENS];
   function show(s) {
     screen = s;
+    fitDesktop();
     ALL_SCREENS.forEach((k) => ($("scr-" + k).hidden = k !== s));
     const inApp = APP_SCREENS.includes(s);
     $("nav").hidden = !inApp; $("topBar").hidden = !inApp;
@@ -872,6 +873,12 @@
       $("meter").style.width = inc > 0 ? Math.min(100, (out / inc) * 100) + "%" : out > 0 ? "100%" : "0";
       $("flowIn").textContent = fmt(inc); $("flowOut").textContent = fmt(out);
       $("billsDue").textContent = MONTH === today().slice(0, 7) && RECUR.length ? fmt(upcoming().bills.reduce((a, b) => a + b.r.amount_cents / 100, 0)) : "–";
+      $("monthLeft").textContent = inc ? Math.max(0, Math.round(((inc - out) / inc) * 100)) + "%" : "–";
+      const hj = $("homeJars");
+      hj.innerHTML = GOALS.length ? `<div class="home-jars"><div class="hj-h"><h2>Honey jars</h2><button class="linkbtn" data-go-plan>Plan</button></div>${GOALS.slice(0, 3).map((g) => {
+        const saved = g.saved_cents / 100, target = g.target_cents / 100, pct = target ? Math.min(100, (saved / target) * 100) : 0;
+        return `<div class="hj"><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 8h8l1 2v9a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-9z"/><rect x="8" y="4" width="8" height="4" rx="1.5"/></svg></i><span><span class="l"><span>${esc(g.name)}</span><small>${fmt(saved).replace(/\.00$/, "")} of ${fmt(target).replace(/\.00$/, "")}</small></span><span class="trk"><b style="width:${pct}%"></b></span></span></div>`; }).join("")}</div>` : "";
+      hj.querySelector("[data-go-plan]")?.addEventListener("click", () => show("plan"));
       setBunny(left, inc, out, view.length > 0);
       $("bunNote").onclick = openInbox;
       const bub = $("bubble");
@@ -1023,6 +1030,8 @@
     renderCalendar();
     // bills list
     const bl = $("bills"); bl.innerHTML = "";
+    { const up = MONTH === today().slice(0, 7) && RECUR.length ? upcoming() : null; const tot = up ? up.bills.reduce((a, b) => a + b.r.amount_cents / 100, 0) : 0;
+      $("billsDueSub").textContent = up && up.bills.length ? `${fmt(tot)} due${up.payday ? " before " + shortDay(up.payday) : " soon"}` : ""; }
     if (!RECUR.length) bl.innerHTML = `<li class="empty" style="justify-content:center;border:0">Rent, subscriptions, paychecks. Add them once.</li>`;
     RECUR.forEach((r) => {
       const isIn = r.type === "income", n = nextOcc(r);
@@ -1076,7 +1085,7 @@
       box.appendChild(b);
     }
     const dayBox = $("calDay");
-    if (!calSel) { dayBox.innerHTML = `<p class="hint" style="margin:0">Tap a day to see what's due. Pink dots are bills, green are paydays.</p>`; return; }
+    if (!calSel) { dayBox.innerHTML = `<p class="hint phone-only" style="margin:0">Tap a day to see what's due. Pink dots are bills, green are paydays.</p><div class="cal-legend desk-only"><span><i></i>Bill</span><span><i class="in"></i>Payday</span><span class="r">Tap a day to see what's due</span></div>`; return; }
     const items = byDay[+calSel.slice(8)] || [];
     dayBox.innerHTML = `<p class="hint" style="margin:0 0 4px">${dayName(parseD(calSel))}</p>` + (items.length ? items.map((x) =>
       `<div><span>${esc(x.r.label)}</span><span>${x.r.type === "income" ? "+" : ""}${fmt(x.r.amount_cents / 100)} · ${x.paid ? "Done ✓" : x.d < parseD(t) ? "Overdue" : x.r.type === "income" ? "Expected" : "Due"}</span></div>`).join("")
@@ -1093,8 +1102,9 @@
   }
   function renderGoals() {
     const box = $("goals");
-    if (!GOALS.length) { box.className = ""; box.innerHTML = `<div class="panel pad"><p class="empty" style="margin:0">Save for a trip, a ring, or a rainy day. Tap New jar to start.</p></div>`; return; }
     box.className = "goals-grid"; box.innerHTML = "";
+    const addTile = () => { const a = document.createElement("button"); a.className = "jar-add desk-only"; a.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span>Save for a trip, a ring, or a rainy day</span>`; a.onclick = () => $("addGoal").click(); box.appendChild(a); };
+    if (!GOALS.length) { box.insertAdjacentHTML("beforeend", `<div class="panel pad phone-only"><p class="empty" style="margin:0">Save for a trip, a ring, or a rainy day. Tap New jar to start.</p></div>`); addTile(); return; }
     const fills = ["#F4D48A", "#A9DCC3", "#F6B8CB", "#BFD0F5", "#D2C6F3"];
     GOALS.forEach((g, i) => {
       const saved = g.saved_cents / 100, target = g.target_cents / 100, pct = target ? Math.min(100, (saved / target) * 100) : 0;
@@ -1103,6 +1113,7 @@
       el.onclick = () => openGoal(g);
       box.appendChild(el);
     });
+    if (GOALS.length < 4) addTile();
   }
   let goalOpen = null, goalEmoji = GOAL_EMOJIS[0];
   function drawGoalView() {
@@ -1184,7 +1195,7 @@
   const monthsOut = (n) => { const d = new Date(); d.setMonth(d.getMonth() + n); return d.toLocaleDateString(LOCALE, { month: "short", year: "numeric" }); };
   function renderDebts() {
     const box = $("debts");
-    if (!DEBTS.length) { box.innerHTML = `<p class="empty" style="margin:0;padding:4px 0">Track credit cards, car loans, or student loans and see when you'll be debt-free.</p>`; return; }
+    if (!DEBTS.length) { box.innerHTML = `<p class="empty phone-only" style="margin:0;padding:4px 0">Track credit cards, car loans, or student loans and see when you'll be debt-free.</p><div class="empty-row desk-only"><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18"/></svg></i><span>Track credit cards, car loans, or student loans and see when you'll be debt-free.</span><button class="small" id="debtStart">Add debt</button></div>`; $("debtStart").onclick = () => $("addDebt").click(); return; }
     const left = DEBTS.reduce((s, d) => s + Math.max(0, d.start_cents - d.paid_cents), 0) / 100;
     const paid = DEBTS.reduce((s, d) => s + d.paid_cents, 0) / 100;
     const extra = parseFloat(store.get("hb-debt-extra") || "0") || 0;
@@ -1361,6 +1372,7 @@
   function openEditRecurring(r) { editing = { kind: "recurring", x: r }; fillForm(r, true); show("add"); }
   $("cancelEdit").onclick = () => { const back = editing?.kind === "recurring" ? "plan" : "home"; editing = null; show(back); };
   $("addBill").onclick = () => openAdd({ repeat: "monthly" });
+  $("billsAdd").onclick = () => openAdd({ repeat: "monthly" });
 
   function renderForm() {
     const isInc = mode === "income", rep = $("repeat").value, editingRec = editing?.kind === "recurring";
@@ -1717,6 +1729,26 @@
     clearTimeout(nameTimer);
     nameTimer = setTimeout(() => api("/api/nest", { method: "PATCH", body: { name: NEST.name } }).catch((err) => toast(err.message)), 600);
   };
+  // Desktop only: scale the 1440px layout up to fill wider screens (and slightly down on small laptops)
+  function fitDesktop() {
+    const w = window.innerWidth;
+    const inApp = APP_SCREENS.includes(screen);
+    document.documentElement.style.zoom = w >= 900 && inApp ? String(Math.min(1.6, Math.max(0.9, w / 1440))) : "";
+  }
+  window.addEventListener("resize", fitDesktop);
+  // Desktop only: move a few blocks into the columns the wide layout expects. Phones keep the original order.
+  if (matchMedia("(min-width: 900px)").matches) {
+    $("dueCard").after($("bunNote"));
+    const top = $("statsTop"), blk = document.querySelectorAll("#scr-stats .grid2 > .blk");
+    top.append($("burrow"), $("kpis"));
+    const right = blk[1], left = blk[0];
+    // left: where it went + 50/30/20; right: year, badges, carrots, biggest categories, recap
+    const yearH = right.querySelector(".year-h");
+    const toRight = [...left.children]; // badges header, badges panel, board wrap
+    while (right.firstElementChild !== yearH) left.appendChild(right.firstElementChild);
+    const catsH = [...right.querySelectorAll(".section-h")].pop();
+    toRight.forEach((el) => right.insertBefore(el, catsH));
+  }
   $("hiBtn").onclick = () => show("settings");
   $("setBtn").onclick = () => show("settings");
   $("helpBtn").onclick = () => show("help");
