@@ -1,0 +1,37 @@
+/* Honeybun mobile navigation hotfix
+   IMPORTANT: app.js switches pages with the HTML hidden attribute.
+   Later mobile layout rules used display:* !important on Stats/Together,
+   which overrode [hidden] and made multiple screens appear at once. */
+
+#scr-home[hidden],
+#scr-plan[hidden],
+#scr-add[hidden],
+#scr-stats[hidden],
+#scr-us[hidden],
+#scr-inbox[hidden],
+.screen[hidden]{
+  display:none!important;
+}
+
+/* Only the active screen may receive pointer events. */
+#scr-home:not([hidden]),
+#scr-plan:not([hidden]),
+#scr-add:not([hidden]),
+#scr-stats:not([hidden]),
+#scr-us:not([hidden]),
+#scr-inbox:not([hidden]){
+  visibility:visible!important;
+  pointer-events:auto!important;
+}
+
+@media(max-width:620px){
+  /* Keep each page isolated instead of allowing CSS grid rules to leak into other screens. */
+  #scr-home[hidden],#scr-plan[hidden],#scr-add[hidden],#scr-stats[hidden],#scr-us[hidden],#scr-inbox[hidden]{display:none!important}
+
+  /* Nav must remain clickable above content/Safari chrome. */
+  nav.bottom{pointer-events:auto!important;touch-action:manipulation!important}
+  nav.bottom button{pointer-events:auto!important;touch-action:manipulation!important;position:relative!important;z-index:1!important}
+
+  /* Prevent off-screen/hidden content from intercepting taps. */
+  .screen[hidden],.screen[hidden] *{pointer-events:none!important}
+}
