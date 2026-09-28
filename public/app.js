@@ -264,7 +264,7 @@
     if (rc) { store.set("hb-ref", JSON.stringify({ c: rc.toUpperCase(), t: Date.now() })); history.replaceState(null, "", "/" + location.hash); }
   }
   // "Buy me a coffee" support link: paste the page address here and the buttons appear
-  const COFFEE_URL = "";
+  const COFFEE_URL = "https://buymeacoffee.com/honeybunapp";
   if (COFFEE_URL) document.querySelectorAll("[data-coffee]").forEach((a) => { a.href = COFFEE_URL; a.closest("[data-coffee-wrap]").hidden = false; });
   function pendingRef() { try { const r = JSON.parse(store.get("hb-ref") || "null"); return r && Date.now() - r.t < 60 * 86400000 ? r.c : null; } catch { return null; } }
   const member = (id) => MEMBERS.find((m) => m.id === id) || { name: "Someone", emoji: "❔", color: "#EEE" };
