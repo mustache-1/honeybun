@@ -1119,7 +1119,7 @@ dialog::backdrop{background:var(--backdrop)}
 .lp-btn.g:hover{transform:translateY(-2px);background:var(--panel2)}
 .lp-btn.sm{height:42px;padding:0 16px;font-size:14px}
 .lp-btn{white-space:nowrap}
-@media(max-width:480px){.lp-btn.sm{height:38px;padding:0 12px;font-size:13px}.lp-brand{font-size:16px}.lp-nav .lp-wrap{gap:10px}}
+@media(max-width:480px){.lp-btn.sm{height:38px;padding:0 12px;font-size:13px}.lp-brand{font-size:16px}.lp-brand span{display:none}.lp-nav .lp-wrap{gap:10px}.lp-navbtns .lp-btn.g{display:none}}
 .lp-eyebrow{font-family:Fredoka,Inter,sans-serif;font-size:14px;font-weight:600;letter-spacing:.04em;color:var(--pink-d)}
 .lp-sub{color:var(--soft);font-size:18px;line-height:1.6;max-width:56ch}
 .lp-nav{position:sticky;top:0;z-index:20;background:var(--lp-nav-bg);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom:1px solid var(--lp-nav-bd)}
@@ -1131,6 +1131,7 @@ dialog::backdrop{background:var(--backdrop)}
 .lp-links a:hover{color:var(--ink)}
 .lp-navbtns{margin-left:auto;display:flex;gap:8px}
 @media(min-width:700px){.lp-links{display:flex}}
+@media(max-width:699px){.lp-links{display:flex;margin-left:0}.lp-links a:not(#lpUpdatesLink){display:none}}
 .lp-hero{position:relative;padding-block:44px 28px;overflow:hidden}
 .lp-hero::before{content:"";position:absolute;inset:-200px -200px auto;height:700px;background:radial-gradient(circle at 60% 20%,var(--cta-sh),transparent 55%);pointer-events:none}
 .lp-hero .lp-wrap{position:relative;display:grid;grid-template-columns:1fr;gap:36px;align-items:center}
@@ -1273,6 +1274,30 @@ dialog::backdrop{background:var(--backdrop)}
 .lp-mini i{width:26px;height:26px;border-radius:50%;background:var(--pink);color:var(--on-pink);display:grid;place-items:center;font-style:normal;font-weight:900;font-size:12px}
 .lp-foot{padding-block:28px 40px;display:flex;flex-direction:column;align-items:center;gap:12px;font-size:13px;color:var(--muted);font-weight:600;text-align:center}
 .lp-foot a{color:var(--muted)}
+.lp-upd-link{display:inline-flex;align-items:center;gap:6px}
+.lp-new{display:none;min-width:18px;height:18px;padding:0 6px;border-radius:9px;background:var(--pink);color:var(--on-pink);font-size:11px;font-weight:900;align-items:center;justify-content:center}
+.lp-new.on{display:inline-flex}
+.lp[data-view="updates"] > :not(.lp-nav):not(#lp-updates){display:none}
+.lp-updates{padding-block:40px 60px}
+.lp-upd-head{display:flex;flex-direction:column;gap:18px;margin-bottom:22px}
+.lp-upd-head h2{font-size:clamp(32px,4.6vw,44px)}
+.lp-upd-head .lp-btn{align-self:flex-start}
+.lp-upd-legend{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px}
+.lp-tag{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 10px;border-radius:999px;font-size:11px;font-weight:900;letter-spacing:.03em;text-transform:uppercase;border:1px solid transparent}
+.lp-tag i{width:7px;height:7px;border-radius:50%;background:currentColor}
+.lp-tag.new{background:var(--t-green);color:var(--c-green)}.lp-tag.improved{background:var(--t-blue);color:var(--c-blue)}.lp-tag.fixed{background:var(--t-rose);color:var(--c-rose)}.lp-tag.design{background:var(--t-lilac);color:var(--c-lilac)}.lp-tag.security{background:var(--t-honey);color:var(--c-honey)}
+.lp-upd-list{display:flex;flex-direction:column;gap:14px}
+.lp-upd-day{display:grid;grid-template-columns:150px minmax(0,1fr);gap:16px;align-items:start}
+@media(max-width:700px){.lp-upd-day{grid-template-columns:1fr;gap:8px}}
+.lp-upd-date{position:sticky;top:80px;font-size:13px;font-weight:800;color:var(--soft);padding-top:18px}
+.lp-upd-date b{display:block;font-size:15px;color:var(--ink)}
+.lp-upd-cards{display:flex;flex-direction:column;gap:10px}
+.lp-upd{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px 18px;display:flex;gap:14px;align-items:flex-start;border-left:3px solid var(--upd,var(--line))}
+.lp-upd .lp-ic{width:40px;height:40px;border-radius:12px}.lp-upd .lp-ic svg{width:19px;height:19px}
+.lp-upd .body{display:flex;flex-direction:column;gap:6px;min-width:0}
+.lp-upd .body b{font-size:15px;font-family:Fredoka,Inter,sans-serif;font-weight:600}
+.lp-upd .body p{font-size:14px;line-height:1.55;color:var(--soft)}
+.lp-upd .tags{display:flex;flex-wrap:wrap;gap:6px}
 .lp-rv{transition:opacity .7s ease,transform .7s cubic-bezier(.2,.8,.2,1)}
 .lp-rv.pre{opacity:0;transform:translateY(26px)}
 @media(prefers-reduced-motion:reduce){.lp *,.lp *::before,.lp *::after{animation:none!important;transition:none!important}.lp-rv.pre{opacity:1;transform:none}}
@@ -1293,10 +1318,21 @@ dialog::backdrop{background:var(--backdrop)}
     <nav class="lp-nav" aria-label="Site">
       <div class="lp-wrap">
         <a class="lp-brand" href="/"><img src="/icon-192.png" alt=""><span>Honeybun</span></a>
-        <div class="lp-links"><a href="#lp-features">Features</a><a href="#lp-demos">See it work</a><a href="#lp-faq">FAQ</a></div>
+        <div class="lp-links"><a href="#lp-features">Features</a><a href="#lp-demos">See it work</a><a href="#lp-faq">FAQ</a><a href="#lp-updates" id="lpUpdatesLink" class="lp-upd-link">Updates <span class="lp-new" id="lpUpdCount"></span></a></div>
         <div class="lp-navbtns"><button class="lp-btn g sm" data-auth-go="login">Log in</button><button class="lp-btn p sm" data-auth-go="signup">Get started</button></div>
       </div>
     </nav>
+
+    <section class="lp-updates" id="lp-updates" hidden>
+      <div class="lp-wrap">
+        <div class="lp-upd-head lp-rv">
+          <button class="lp-btn g sm" id="lpUpdBack" type="button"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>Back</button>
+          <div><span class="lp-eyebrow">What's new</span><h2>Updates</h2><p class="lp-sub">Everything we've shipped, newest first. Bun keeps this list honest.</p></div>
+        </div>
+        <div class="lp-upd-legend" id="lpUpdLegend"></div>
+        <div class="lp-upd-list" id="lpUpdList"></div>
+      </div>
+    </section>
 
     <header class="lp-hero">
       <div class="lp-doodles" aria-hidden="true">

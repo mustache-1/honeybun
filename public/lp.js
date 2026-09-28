@@ -53,6 +53,58 @@
     draw();
   }
 
+  // updates tab: a changelog kept in this file, newest first
+  var TAGS = { new: "New", improved: "Improved", fixed: "Fixed", design: "Design", security: "Security" };
+  var COLOR = { new: "var(--c-green)", improved: "var(--c-blue)", fixed: "var(--c-rose)", design: "var(--c-lilac)", security: "var(--c-honey)" };
+  var ICON = {
+    landing: '<path d="M3 11l9-7 9 7v9H3z"/><path d="M10 20v-5h4v5"/>', bug: '<path d="M8 9V7a4 4 0 0 1 8 0v2M5 13h14M12 9v12M6 21c0-4 2-7 6-7s6 3 6 7"/>',
+    key: '<circle cx="9" cy="8" r="3.5"/><path d="M3 20c.8-3.6 3.2-5.5 6-5.5 1.3 0 2.5.4 3.5 1.1"/><circle cx="17" cy="13" r="2.5"/><path d="M17 15.5V21l1.5-1.2M17 18l-1.5-1"/>',
+    bell: '<path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4z"/><path d="M10 20a2 2 0 0 0 4 0"/>', sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+    budget: '<rect x="4" y="5" width="16" height="15" rx="3"/><path d="M4 10h16M9 3v4M15 3v4"/>', search: '<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>',
+    undo: '<path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/>', tap: '<path d="M13 3L5 14h6l-1 7 9-11h-6z"/>', repeat: '<path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>'
+  };
+  var LOG = [
+    { date: "2026-09-28", items: [
+      { t: "New landing page", d: "A fresh front door in the app's own colors: a live money card with Bun's ears, a split slider you can drag, and the tap-to-pay scene. Works in light and dark, in three languages.", tags: ["design"], icon: "landing" },
+      { t: "Updates tab", d: "This page. Everything we ship shows up here, newest first.", tags: ["new"], icon: "landing" },
+      { t: "Bun's inbox opened to an error", d: "Opening the inbox showed \"Something went wrong\" after the budget rollover update. Fixed within the hour.", tags: ["fixed"], icon: "bug" },
+      { t: "Passkeys", d: "Log in with Face ID, Touch ID, or your phone's unlock instead of a password. Add one per device in Settings. Passkeys can't be phished or guessed.", tags: ["new", "security"], icon: "key" },
+      { t: "Push notifications", d: "Turn on push in Settings and get a nudge when a bill is due, your streak is about to break, or your partner adds a shared expense. On iPhone, add Honeybun to your Home Screen first.", tags: ["new"], icon: "bell" },
+      { t: "Light, dark, or auto", d: "A new Appearance setting. Auto follows your device. The whole app, including this page, has a proper light palette now.", tags: ["new", "design"], icon: "sun" },
+      { t: "Budget rollover", d: "Turn it on in the budgets dialog and whatever you don't spend carries into next month, starting the month you switch it on.", tags: ["new"], icon: "budget" },
+      { t: "Search by amount and date", d: "Tap More next to the search filters to narrow by an amount range or a date range.", tags: ["improved"], icon: "search" },
+      { t: "Undo after adding", d: "Every add, including one-tap repeats, shows an Undo button for a few seconds.", tags: ["improved"], icon: "undo" },
+      { t: "Apple Pay auto-logging", d: "Make a key in Settings and an iPhone Shortcut logs every tap-to-pay purchase for you. Category guessed from the store, split remembered from last time. No bank connection.", tags: ["new"], icon: "tap" },
+      { t: "One-tap repeats", d: "Your five most common expenses sit at the top of the Add screen. Tap one and it's logged with the same amount, category, and split as last time.", tags: ["new"], icon: "repeat" }
+    ] }
+  ];
+  var T2 = window.HB_TR || function (x) { return x; };
+  var list = $("lpUpdList"), legend = $("lpUpdLegend");
+  if (list) {
+    var fmtDate = function (d) { var p = d.split("-"); return new Date(+p[0], +p[1] - 1, +p[2]).toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" }); };
+    legend.innerHTML = Object.keys(TAGS).map(function (k) { return '<span class="lp-tag ' + k + '"><i></i>' + T2(TAGS[k]) + '</span>'; }).join("");
+    var total = 0;
+    list.innerHTML = LOG.map(function (day) {
+      total += day.items.length;
+      return '<div class="lp-upd-day"><div class="lp-upd-date"><b>' + fmtDate(day.date) + '</b>' + day.items.length + ' ' + T2(day.items.length === 1 ? "update" : "updates") + '</div><div class="lp-upd-cards">' +
+        day.items.map(function (it) {
+          var main = it.tags[0];
+          return '<article class="lp-upd" style="--upd:' + COLOR[main] + '"><span class="lp-ic ' + { new: "t-green", improved: "t-blue", fixed: "t-rose", design: "t-lilac", security: "t-honey" }[main] + '"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICON[it.icon] + '</svg></span><div class="body"><b></b><p></p><div class="tags">' +
+            it.tags.map(function (k) { return '<span class="lp-tag ' + k + '"><i></i>' + T2(TAGS[k]) + '</span>'; }).join("") + '</div></div></article>';
+        }).join("") + '</div></div>';
+    }).join("");
+    var i = 0; LOG.forEach(function (day) { day.items.forEach(function (it) { var el = list.querySelectorAll(".lp-upd")[i++]; el.querySelector("b").textContent = T2(it.t); el.querySelector("p").textContent = T2(it.d); }); });
+    var badge = $("lpUpdCount"); badge.textContent = LOG[0].items.length; badge.classList.add("on");
+    function showUpdates(on) {
+      if (on) lp.setAttribute("data-view", "updates"); else lp.removeAttribute("data-view");
+      $("lp-updates").hidden = !on;
+      window.scrollTo({ top: 0, behavior: reduce ? "auto" : "smooth" });
+    }
+    $("lpUpdatesLink").addEventListener("click", function (e) { e.preventDefault(); showUpdates(true); });
+    $("lpUpdBack").addEventListener("click", function () { showUpdates(false); });
+    lp.querySelectorAll(".lp-links a:not(#lpUpdatesLink), .lp-brand").forEach(function (a) { a.addEventListener("click", function () { if (lp.getAttribute("data-view") === "updates") showUpdates(false); }); });
+  }
+
   // scroll reveals: everything starts visible; only hide what is below the fold and can be revealed
   if ("IntersectionObserver" in window && !reduce) {
     var io = new IntersectionObserver(function (entries) {
