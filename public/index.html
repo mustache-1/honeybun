@@ -1679,6 +1679,11 @@ dialog::backdrop{background:var(--backdrop)}
 .hb-dl-win a{text-decoration:none}
 .hb-dl-win small{font-size:13px;color:var(--soft);font-weight:600;line-height:1.5;max-width:460px}
 .hb-dl-win small b{color:var(--ink)}
+.hb-dl-help{margin-top:4px;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:14px 16px;max-width:480px;font-size:13px;line-height:1.5;color:var(--soft)}
+.hb-dl-help>b{display:block;color:var(--ink);font-size:14px;margin-bottom:2px}
+.hb-dl-help p{margin:0 0 8px!important}
+.hb-dl-help ol{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:5px}
+.hb-dl-help li b{color:var(--ink)}
 .hb-dl-phones{display:grid;gap:10px;margin-top:22px}
 @media(min-width:560px){.hb-dl-phones{grid-template-columns:1fr 1fr}}
 .hb-dl-phones div{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:14px 16px;display:flex;flex-direction:column;gap:4px;font-size:14px;line-height:1.45;color:var(--soft)}
@@ -2133,7 +2138,16 @@ dialog::backdrop{background:var(--backdrop)}
           <p>One account on your computer, your phone, and the web. Add something on one and it shows up on the others right away.</p>
           <div class="hb-dl-win">
             <a class="lp-btn p hb-big" id="dlWin" href="/download/windows" download><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 5.5l7-1v7H3zM11 4.3L21 3v8.5H11zM3 12.5h7v7l-7-1zM11 12.5h10V21l-10-1.3z"/></svg>Download for Windows</a>
-            <small>Windows 10 and 11 · about 1 MB. If Windows shows "Windows protected your PC", click <b>More info</b>, then <b>Run anyway</b>.</small>
+            <small>Windows 10 and 11 · about 1.4 MB</small>
+            <div class="hb-dl-help">
+              <b>Seeing a warning?</b>
+              <p>That's normal for a new app, and it goes away as more people download Honeybun. The file is safe.</p>
+              <ol>
+                <li><b>Chrome</b> says "isn't commonly downloaded": click <b>Download suspicious file</b>.</li>
+                <li><b>Edge</b> says "isn't commonly downloaded": click <b>⋯</b>, then <b>Keep</b>.</li>
+                <li><b>Windows</b> says "Windows protected your PC": click <b>More info</b>, then <b>Run anyway</b>.</li>
+              </ol>
+            </div>
           </div>
           <div class="hb-dl-phones">
             <div><b>iPhone</b><span>Open honeybun.me in Safari, tap Share, then <b>Add to Home Screen</b>.</span></div>
@@ -2669,7 +2683,7 @@ dialog::backdrop{background:var(--backdrop)}
   <p class="get-sub">Same account everywhere. Add something on one and it shows up on the others right away.</p>
   <div class="get-opt" id="getWinOpt">
     <span class="lp-ic t-blue"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 5.5l7-1v7H3zM11 4.3L21 3v8.5H11zM3 12.5h7v7l-7-1zM11 12.5h10V21l-10-1.3z"/></svg></span>
-    <div><b>Windows app</b><small>Its own window on your taskbar. If Windows says "Windows protected your PC", click More info, then Run anyway.</small></div>
+    <div><b>Windows app</b><small>Its own window on your taskbar. New apps get warnings at first: in Chrome click <b>Download suspicious file</b>, in Edge click <b>⋯</b> then <b>Keep</b>, and if Windows says "Windows protected your PC" click <b>More info</b>, then <b>Run anyway</b>.</small></div>
     <a class="go" href="/download/windows" download>Download</a>
   </div>
   <div class="get-opt">
