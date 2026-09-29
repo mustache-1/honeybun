@@ -1,0 +1,14 @@
+{
+  "name": "honeybun-desktop",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Honeybun for Windows: a small window around honeybun.me, so everything stays in sync with your phone and the web.",
+  "scripts": {
+    "tauri": "tauri",
+    "icons": "tauri icon ../public/icon-512.png -o src-tauri/icons",
+    "build": "tauri build"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2"
+  }
+}

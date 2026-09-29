@@ -6,6 +6,25 @@
   var fmt = function (n) { return "$" + Math.abs(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); };
   var $ = function (id) { return document.getElementById(id); };
 
+  // Download section: "Install Honeybun" uses the browser's own install prompt when it offers one,
+  // otherwise it explains the steps for that browser.
+  var installEvt = null;
+  window.addEventListener("beforeinstallprompt", function (e) { e.preventDefault(); installEvt = e; });
+  window.addEventListener("appinstalled", function () { installEvt = null; var n = $("dlInstallNote"); if (n) n.textContent = "Installed! Look for Honeybun in your Start menu or Dock."; });
+  var ib = $("dlInstall");
+  if (ib) ib.addEventListener("click", function () {
+    var note = $("dlInstallNote"), T = window.HB_TR || function (x) { return x; };
+    if (installEvt) { installEvt.prompt(); installEvt = null; return; }
+    var ua = navigator.userAgent, msg;
+    if (matchMedia("(display-mode: standalone)").matches) msg = "You're already using the installed app.";
+    else if (/iPhone|iPad|iPod/.test(ua)) msg = "On iPhone and iPad, tap Share, then Add to Home Screen.";
+    else if (/Android/.test(ua)) msg = "Tap the ⋮ menu in Chrome, then Install app.";
+    else if (/Firefox\//.test(ua)) msg = "Firefox can't install apps. Open honeybun.me in Chrome or Edge, or download the Windows app.";
+    else if (/Safari\//.test(ua) && !/Chrome\/|Edg\//.test(ua)) msg = "In Safari on a Mac, choose File, then Add to Dock.";
+    else msg = "Open your browser menu (⋮ or …), then choose Install Honeybun. If you don't see it, it's already installed.";
+    note.textContent = T(msg);
+  });
+
   // hero counter: starts the first time the card is on screen (the landing is hidden until the app decides to show it)
   var amt = $("lpAmt"), s1 = $("lpS1"), s2 = $("lpS2"), s3 = $("lpS3"), meter = $("lpMeter"), started = false;
   function setAmt(v) { var s = fmt(v).split("."); amt.innerHTML = s[0] + "<small>." + s[1] + "</small>"; }
@@ -64,6 +83,11 @@
     undo: '<path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/>', tap: '<path d="M13 3L5 14h6l-1 7 9-11h-6z"/>', repeat: '<path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>'
   };
   var LOG = [
+    { v: "1.8", date: "2026-09-29", name: "Honeybun for Windows", items: [
+      { t: "Windows app", d: "Download Honeybun for Windows and keep it on your taskbar. It's the same account as your phone and the web, so everything stays in sync, and it updates itself.", tags: ["new"], icon: "landing" },
+      { t: "Install from your browser", d: "Chrome and Edge can install Honeybun as an app on Windows, Mac, and Chromebook with one click.", tags: ["new"], icon: "landing" },
+      { t: "Get the app, from inside the app", d: "Already have an account? Find Get the app in the sidebar, or in Settings on your phone.", tags: ["improved"], icon: "landing" }
+    ] },
     { v: "1.7", date: "2026-09-29", name: "New Stats and one-screen desktop", items: [
       { t: "Hop calendar", d: "Stats now opens on a calendar of your month. Bigger dots mean bigger spending days, and paw prints mark days you spent nothing. See your no-spend days, calmest week, and biggest day at a glance.", tags: ["new", "design"], icon: "landing" },
       { t: "Where it went, by month or year", d: "One card with a Month and Year switch, plus a one-line 50/30/20 check. Your year chart and badges open in their own windows.", tags: ["improved"], icon: "landing" },
