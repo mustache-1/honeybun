@@ -1006,7 +1006,7 @@
       ["mailBills", "mailStreak", "mailWeekly"].forEach((id) => ($(id).disabled = !ME.verified));
       $("mailHint").hidden = !!ME.verified;
       drawShortcut(); drawPush(); drawPasskeys();
-      applyTheme(store.get("hb-theme") || "auto");
+      applyTheme(store.get("hb-theme") || "dark");
       drawLangPickers();
       mailLinks();
 
@@ -1651,11 +1651,11 @@
     store.set("hb-theme", v === "light" || v === "dark" ? v : "auto");
     const dark = v === "dark" || (v !== "light" && matchMedia("(prefers-color-scheme: dark)").matches);
     document.querySelector('meta[name="theme-color"]')?.setAttribute("content", dark ? "#1D1B21" : "#F6F5F8");
-    document.querySelectorAll("#themePick button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.themeOpt === (store.get("hb-theme") || "auto") ? "true" : "false"));
+    document.querySelectorAll("#themePick button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.themeOpt === (store.get("hb-theme") || "dark") ? "true" : "false"));
   }
   document.querySelectorAll("#themePick button").forEach((b) => (b.onclick = () => applyTheme(b.dataset.themeOpt)));
-  applyTheme(store.get("hb-theme") || "auto");
-  matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", () => applyTheme(store.get("hb-theme") || "auto"));
+  applyTheme(store.get("hb-theme") || "dark");
+  matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", () => applyTheme(store.get("hb-theme") || "dark"));
 
   // ---------- passkeys ----------
   const bufB64u = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
