@@ -1890,6 +1890,19 @@ dialog::backdrop{background:var(--backdrop)}
 .get-opt .go{width:auto;margin:0;padding:0 16px;height:38px;display:inline-flex;align-items:center;text-decoration:none;font-size:13px;flex:none}
 .get-opt .small{flex:none}
 
+/* ---------- Bun's tip (home) ---------- */
+.bun-tip{display:flex;align-items:center;gap:12px;margin-top:12px;padding:14px 16px;border-radius:20px;border:1px solid var(--line);background:linear-gradient(120deg,var(--t-lilac,#F0ECFA),var(--card) 70%)}
+.bt-av{width:44px;height:44px;flex:none;border-radius:14px;background:var(--card);display:grid;place-items:center;animation:btBob 3s ease-in-out infinite}
+.bt-av img{width:34px;height:34px;border-radius:10px}
+@keyframes btBob{0%,100%{transform:translateY(0) rotate(-3deg)}50%{transform:translateY(-3px) rotate(3deg)}}
+.bt-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.bt-body b{font-size:12px;font-weight:900;letter-spacing:.04em;text-transform:uppercase;color:var(--c-lilac,#6B55B5)}
+.bt-body p{margin:0;font-size:14px;font-weight:600;line-height:1.45;color:var(--ink);transition:opacity .25s ease,transform .25s ease}
+.bt-body p.swap{opacity:0;transform:translateY(4px)}
+.bt-next{flex:none;align-self:flex-end;border:0;background:transparent;color:var(--soft);font:inherit;font-size:12px;font-weight:800;padding:6px 4px;cursor:pointer;white-space:nowrap}
+.bt-next:hover{color:var(--ink)}
+@media(max-width:600px){.bun-tip{flex-wrap:wrap;align-items:flex-start}.bt-body{flex:1 1 calc(100% - 60px)}.bt-next{margin:-6px 0 -4px auto;padding-top:0}}
+@media(prefers-reduced-motion:reduce){.bt-av{animation:none}}
 /* ---------- what's new ---------- */
 .upd-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--pink);margin-left:6px;vertical-align:middle}
 #scr-updates .lp-upd-legend{margin-bottom:12px}
@@ -2377,6 +2390,11 @@ dialog::backdrop{background:var(--backdrop)}
     </div>
     <button class="burrow-pill" id="burrowPill" hidden></button>
     <button class="ref-card" id="refCard" hidden><span class="ref-gift" aria-hidden="true">🎁</span><span class="ref-txt"><b id="refCardT" data-nt></b><small id="refCardSub" data-nt></small><span class="ref-pips" id="refCardPips" aria-hidden="true"></span></span><span class="ref-new" id="refNew" hidden data-nt>NEW</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></button>
+    <section class="bun-tip" id="bunTip" aria-live="polite" hidden>
+      <span class="bt-av" aria-hidden="true"><img src="/icon-192.png" alt=""></span>
+      <div class="bt-body"><b id="bunTipH" data-nt>Bun's tip</b><p id="bunTipText" data-nt></p></div>
+      <button class="bt-next" type="button" id="bunTipNext" data-nt>Another tip ›</button>
+    </section>
   </div>
   <aside class="side-col" id="homeSide"><div class="due side" id="dueCard" aria-label="Coming up"></div><div class="desk-only" id="homeJars"></div></aside>
 </div>

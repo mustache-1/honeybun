@@ -912,6 +912,7 @@
       } else { bub.classList.remove("has-msg"); bub.removeAttribute("data-nt"); }
       renderPill();
       renderRefCard();
+      renderTip(false);
       $("verifyBanner").hidden = !!ME.verified || +(store.get("hb-verify-hide") || 0) > Date.now();
       const isThisMonth = MONTH === today().slice(0, 7);
       $("dueCard").hidden = !isThisMonth;
@@ -2221,6 +2222,78 @@
   $("openUpd").onclick = () => show("updates");
   window.addEventListener("load", updBadges);
   $("sideRefer").onclick = () => show("refer");
+
+  // ---------- Bun's tip of the day (home) ----------
+  // Personal tips come from this month's real numbers; general tips fill in. The tip changes each day,
+  // and "Another tip" flips through the rest.
+  let tipIdx = null, tipKey = "";
+  const whole = (n) => fmt(n).replace(/\.00$/, "");
+  const GENERAL_TIPS = [
+    ["Try a no-spend day this week. Paw prints on your hop calendar mark each one 🐾", "Intenta un día sin gastos esta semana. Las huellas en tu calendario marcan cada uno 🐾", "这周试试零花费的一天吧。蹦跳日历上的爪印会标记每一天 🐾"],
+    ["Wait a day before buying anything over $50. If you still want it tomorrow, go for it 🐰", "Espera un día antes de comprar algo de más de $50. Si mañana aún lo quieres, adelante 🐰", "超过 $50 的东西先等一天再买。明天还想要，就买吧 🐰"],
+    ["Set a budget for your biggest category. I'll give you a heads-up at 80% 🥕", "Pon un presupuesto a tu categoría más grande. Te aviso al llegar al 80% 🥕", "给花得最多的类别设个预算。到 80% 时我会提醒你 🥕"],
+    ["Give your savings goal a fun name. People save more for a \"Beach trip\" than for \"Savings\" 🍯", "Ponle un nombre divertido a tu meta. Se ahorra más para un \"Viaje a la playa\" que para \"Ahorros\" 🍯", "给储蓄目标起个有趣的名字。人们为“海边旅行”存的钱比为“储蓄”多 🍯"],
+    ["Planning meals on Sunday is one of the easiest ways to spend less on food 🥕", "Planear las comidas el domingo es una de las formas más fáciles de gastar menos en comida 🥕", "周日提前规划一周饮食，是减少餐饮开销最简单的方法之一 🥕"],
+    ["Add your bills once in Plan, and I'll remind you before each one is due 🐰", "Agrega tus facturas una vez en Plan y te recordaré antes de cada vencimiento 🐰", "在计划里添加一次账单，每次到期前我都会提醒你 🐰"],
+    ["Check Together once a week, so nobody's surprised by who owes who 💞", "Revisa Juntos una vez por semana para que nadie se sorprenda con quién le debe a quién 💞", "每周看一次“一起”，谁欠谁就不会有惊喜了 💞"],
+    ["Mark personal spending as private. Only you will see it 🔒", "Marca tus gastos personales como privados. Solo tú los verás 🔒", "把个人开销设为私密，只有你能看到 🔒"],
+    ["Paying yourself first works: move a little into a honey jar right after payday 🍯", "Págate primero: pasa un poco a un frasco de miel justo después del día de pago 🍯", "先存后花很有效：发薪后马上往蜂蜜罐里存一点 🍯"],
+    ["Small daily treats add up. $5 a day is about $150 a month ☕", "Los pequeños gustos diarios suman. $5 al día son unos $150 al mes ☕", "每天的小犒劳会积少成多。每天 $5 大约就是每月 $150 ☕"],
+  ];
+  function personalTips() {
+    const out = [], t = today(), now = MONTH === t.slice(0, 7);
+    const exp = ENTRIES.filter((e) => e.type === "expense" && !e.pending);
+    const by = spentByCat();
+    const [y, mo] = MONTH.split("-").map(Number), dim = new Date(y, mo, 0).getDate();
+    const daysLeft = now ? dim - +t.slice(8) + 1 : 0;
+    // a budget running low (or over)
+    const buds = Object.entries(BUDGETS).map(([c, lim]) => ({ c, lim, sp: by[c] || 0 })).filter((b) => b.lim > 0);
+    const over = buds.filter((b) => b.sp > b.lim).sort((a, b) => b.sp - b.lim - (a.sp - a.lim))[0];
+    if (over) { const n = tr(catOf(over.c).n); out.push(R(`${n} is ${whole(over.sp - over.lim)} over budget. No stress, next month is a fresh start. Maybe set it a little higher? 🐰`, `${n} se pasó por ${whole(over.sp - over.lim)}. Tranquilo, el próximo mes empieza de cero. ¿Quizá subirlo un poco? 🐰`, `${n} 超出预算 ${whole(over.sp - over.lim)}。别担心，下个月重新开始。要不要稍微调高一点？🐰`)); }
+    const low = buds.filter((b) => b.sp < b.lim && b.sp >= b.lim * 0.6).sort((a, b) => b.sp / b.lim - a.sp / a.lim)[0];
+    if (low && daysLeft > 1) { const n = tr(catOf(low.c).n), left = low.lim - low.sp, per = left / daysLeft; out.push(R(`${n} has ${whole(left)} left for ${daysLeft} more days. That's about ${fmt(per)} a day 🥕`, `A ${n} le quedan ${whole(left)} para ${daysLeft} días más. Son unos ${fmt(per)} al día 🥕`, `${n} 还剩 ${whole(left)}，还有 ${daysLeft} 天，每天大约 ${fmt(per)} 🥕`)); }
+    // a habit that adds up
+    const cnt = {}; exp.forEach((e) => { if (WANTS.includes(e.category)) { cnt[e.category] = cnt[e.category] || { n: 0, sum: 0 }; cnt[e.category].n++; cnt[e.category].sum += e.amount; } });
+    const habit = Object.entries(cnt).filter(([, v]) => v.n >= 4).sort((a, b) => b[1].sum - a[1].sum)[0];
+    if (habit) { const [c, v] = habit, n = tr(catOf(c).n), save = (v.sum / v.n) * 2; out.push(R(`You've logged ${n.toLowerCase()} ${v.n} times this month (${whole(v.sum)}). Skipping two could save about ${whole(Math.round(save))} 🐰`, `Registraste ${n.toLowerCase()} ${v.n} veces este mes (${whole(v.sum)}). Saltarte dos podría ahorrarte unos ${whole(Math.round(save))} 🐰`, `这个月你记了 ${v.n} 次${n}（${whole(v.sum)}）。少两次大约能省 ${whole(Math.round(save))} 🐰`)); }
+    // subscriptions
+    const perMonth = { weekly: 52 / 12, biweekly: 26 / 12, monthly: 1 };
+    const subs = RECUR.filter((r) => r.type === "expense" && r.category === "subs");
+    if (subs.length) { const tot = subs.reduce((a, r) => a + (r.amount_cents / 100) * (perMonth[r.freq] || 1), 0); out.push(R(`You pay about ${whole(Math.round(tot))} a month for ${subs.length} subscription${subs.length > 1 ? "s" : ""}. Any you've stopped using? 📺`, `Pagas unos ${whole(Math.round(tot))} al mes en ${subs.length} suscripción${subs.length > 1 ? "es" : ""}. ¿Alguna que ya no uses? 📺`, `你每月大约为 ${subs.length} 个订阅支付 ${whole(Math.round(tot))}。有没有已经不用的？📺`)); }
+    // no-spend days this week
+    if (now) {
+      const td = parseD(t), mon = addDays(td, -((td.getDay() + 6) % 7)), spentDays = new Set(exp.map((e) => e.date));
+      let free = 0; for (let d = new Date(mon); toS(d) < t; d = addDays(d, 1)) if (!spentDays.has(toS(d))) free++;
+      if (free >= 1) out.push(R(`${free} no-spend day${free > 1 ? "s" : ""} this week so far 🐾 One more would be amazing!`, `Llevas ${free} día${free > 1 ? "s" : ""} sin gastos esta semana 🐾 ¡Uno más sería genial!`, `这周已经有 ${free} 天零花费 🐾 再来一天就太棒了！`));
+    }
+    // a savings goal
+    const g = GOALS.filter((x) => x.saved_cents < x.target_cents).sort((a, b) => a.saved_cents / a.target_cents - b.saved_cents / b.target_cents)[0];
+    if (g) { const left = (g.target_cents - g.saved_cents) / 100, wk = Math.max(5, Math.ceil(left / 13 / 5) * 5); out.push(R(`Putting ${whole(wk)} a week into "${g.name}" fills it in about ${Math.ceil(left / wk)} weeks 🍯`, `Poniendo ${whole(wk)} por semana en "${g.name}" lo llenas en unas ${Math.ceil(left / wk)} semanas 🍯`, `每周往“${g.name}”存 ${whole(wk)}，大约 ${Math.ceil(left / wk)} 周就能存满 🍯`)); }
+    // streak
+    const st = streakOf(meMember());
+    if (now && st >= 2 && !loggedToday()) out.push(R(`Log one thing today to keep your ${st}-day streak hopping 🐾`, `Registra algo hoy para mantener tu racha de ${st} días 🐾`, `今天记一笔，保持你 ${st} 天的连续记录 🐾`));
+    return out;
+  }
+  function renderTip(step) {
+    const box = $("bunTip"); if (!box) return;
+    const tips = personalTips().concat(GENERAL_TIPS.map((x) => R(x[0], x[1], x[2])));
+    const key = today() + "|" + tips.length;
+    if (tipIdx === null || key !== tipKey) {
+      tipKey = key;
+      const day = Math.floor(parseD(today()).getTime() / 86400000);
+      const nPersonal = tips.length - GENERAL_TIPS.length;
+      tipIdx = nPersonal ? day % nPersonal : day % tips.length; // lead with a personal tip when there is one
+    }
+    if (step) tipIdx = (tipIdx + 1) % tips.length;
+    box.hidden = false;
+    $("bunTipH").textContent = R("Bun's tip", "Consejo de Bun", "Bun 的小贴士");
+    $("bunTipNext").textContent = R("Another tip ›", "Otro consejo ›", "换一条 ›");
+    const p = $("bunTipText"), text = tips[tipIdx];
+    if (!step) { p.textContent = text; return; }
+    p.classList.add("swap");
+    setTimeout(() => { p.textContent = text; p.classList.remove("swap"); }, 200);
+  }
+  $("bunTipNext").onclick = () => renderTip(true);
 
   // ---------- help ----------
   const HELP = [
