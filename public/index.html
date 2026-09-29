@@ -1915,6 +1915,9 @@ dialog::backdrop{background:var(--backdrop)}
 .subs-sum small{font-size:11px;font-weight:700;color:var(--soft)}
 #billsAdd{display:flex}
 
+.bills-foot{display:flex;flex-direction:column;align-items:center;gap:4px}
+.bills-foot:empty{display:none}
+.bills-subs-link{font-size:12px;margin-top:6px}
 /* ---------- home: Coming up pages ---------- */
 .due-pg{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:8px;font-size:12px;font-weight:800;color:var(--soft)}
 .due-pg button{width:30px;height:30px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);font:inherit;font-weight:900;cursor:pointer}
@@ -2457,6 +2460,7 @@ dialog::backdrop{background:var(--backdrop)}
         <div class="section-h bills-h"><div class="plan-tabs" role="tablist" aria-label="Bills or subscriptions"><button type="button" role="tab" id="tabBills" aria-selected="true">Bills &amp; paydays</button><button type="button" role="tab" id="tabSubs" aria-selected="false">Subscriptions <b id="subsCount" hidden></b></button></div><span class="sub desk-only" id="billsDueSub"></span></div>
         <div class="subs-sum" id="subsSum" hidden></div>
         <div class="panel"><ul class="list" id="bills"></ul></div>
+        <div class="bills-foot" id="billsFoot"></div>
         <button class="dash-add" id="billsAdd"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span id="billsAddT">Add a bill or payday</span></button>
       </div>
       <div class="blk">

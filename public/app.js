@@ -250,6 +250,7 @@
   let MONTH = today().slice(0, 7), YEAR = new Date().getFullYear(), YDATA = null;
   let billsTab = "bills"; // Plan: "bills" or "subs"
   let duePage = 0, dueSize = 5, lastDueLeft = 0; // Home: Coming up pages
+  let billsPage = 0, billsSize = 6, billsSig = ""; // Plan: bills / subscriptions pages
   let screen = "loading", filter = null, authMode = "signup", newKind = "couple", calSel = null;
   let mode = "expense", cat = "groc", who = null, shared = true, splitMode = "equal", editing = null;
   let pendingCode = null, resetToken = null, verifyToken = null;
@@ -1092,11 +1093,17 @@
       $("subsSum").innerHTML = `<div><b>${fmt(mo)}</b><small>${esc(tr("a month"))}</small></div><div><b>${fmt(mo * 12).replace(/\.\d\d$/, "")}</b><small>${esc(tr("a year"))}</small></div>
         <div><b>${soon ? esc(shortDay(soon.n)) : "–"}</b><small>${soon ? esc(tr("next:") + " " + soon.r.label) : esc(tr("next charge"))}</small></div>`;
     }
-    const rows = subsOn ? subs.slice().sort((a, b) => (nextOcc(a) || 0) - (nextOcc(b) || 0)) : RECUR;
+    // soonest first; subscriptions live in their own tab, so Bills & paydays skips them
+    const byNext = (list) => list.slice().sort((x, y) => (nextOcc(x) || Infinity) - (nextOcc(y) || Infinity));
+    const rows = byNext(subsOn ? subs : RECUR.filter((r) => !(r.type === "expense" && r.category === "subs")));
+    const sig = billsTab + "|" + rows.length;
+    if (sig !== billsSig) { billsSig = sig; billsPage = 0; }
+    const pages = Math.max(1, Math.ceil(rows.length / billsSize));
+    billsPage = Math.min(billsPage, pages - 1);
     if (!rows.length) bl.innerHTML = subsOn
       ? `<li class="empty" style="justify-content:center;border:0;text-align:center">No subscriptions yet. Add Netflix, Spotify, your gym… and I'll remind you before each charge 🐰</li>`
-      : `<li class="empty" style="justify-content:center;border:0">Rent, subscriptions, paychecks. Add them once.</li>`;
-    rows.forEach((r) => {
+      : `<li class="empty" style="justify-content:center;border:0">Rent, bills, paychecks. Add them once.</li>`;
+    rows.slice(billsPage * billsSize, (billsPage + 1) * billsSize).forEach((r) => {
       const isIn = r.type === "income", n = nextOcc(r);
       const li = document.createElement("li"); li.className = "clickable";
       const yearly = subsOn ? ` · ${fmt((r.amount_cents / 100) * (PER_MONTH[r.freq] || 1) * 12).replace(/\.\d\d$/, "")}/${tr("yr")}` : "";
@@ -1106,6 +1113,21 @@
       li.onclick = () => openEditRecurring(r);
       bl.appendChild(li);
     });
+    // pages + a pointer to the other tab
+    const foot = $("billsFoot"); foot.innerHTML = "";
+    if (pages > 1) {
+      const pg = document.createElement("div"); pg.className = "due-pg";
+      pg.innerHTML = `<button type="button" aria-label="${esc(tr("Previous page"))}" ${billsPage === 0 ? "disabled" : ""}>‹</button><span>${billsPage + 1} / ${pages}</span><button type="button" aria-label="${esc(tr("Next page"))}" ${billsPage >= pages - 1 ? "disabled" : ""}>›</button>`;
+      const [pv, nx] = pg.querySelectorAll("button");
+      pv.onclick = () => { billsPage--; render(); }; nx.onclick = () => { billsPage++; render(); };
+      foot.appendChild(pg);
+    }
+    if (!subsOn && subs.length) {
+      const l = document.createElement("button"); l.type = "button"; l.className = "linkbtn bills-subs-link";
+      l.textContent = R(`${subs.length} subscription${subs.length > 1 ? "s" : ""} in the Subscriptions tab ›`, `${subs.length} suscripción${subs.length > 1 ? "es" : ""} en la pestaña Suscripciones ›`, `订阅标签里有 ${subs.length} 个订阅 ›`);
+      l.onclick = () => { billsTab = "subs"; render(); };
+      foot.appendChild(l);
+    }
     renderGoals();
     renderDebts();
   }
@@ -1857,6 +1879,7 @@
       while (over() > 1 && ul.children.length > 4) { ul.lastElementChild.remove(); ul.lastElementChild.remove(); }
       while (over() > 1 && dueSize > 3 && $("dueCard").querySelector(".due-pg")) { dueSize--; renderDue(lastDueLeft); }
     }
+    if (screen === "plan") while (over() > 1 && billsSize > 3 && $("billsFoot").querySelector(".due-pg")) { billsSize--; render(); return; }
     if (screen === "us" && over() > 1 && listRows && pageSize > 4) {
       const li = $("list").firstElementChild, rowH = li ? li.getBoundingClientRect().height / z : 60;
       pageSize = Math.max(4, pageSize - Math.ceil(over() / rowH)); drawPaged(listRows, listKey);
@@ -1864,7 +1887,7 @@
     // last resort: shrink this screen a little (never below 82%) instead of scrolling
     if (screen !== "inbox" && over() > 1) root.style.zoom = String(z * Math.max(0.82, el.clientHeight / el.scrollHeight - 0.004));
   }
-  window.addEventListener("resize", () => { pageSize = PAGE_SIZE; dueSize = 5; if (screen === "us" || screen === "home") render(); else fitDesktop(); });
+  window.addEventListener("resize", () => { pageSize = PAGE_SIZE; dueSize = 5; billsSize = 6; if (["us", "home", "plan"].includes(screen)) render(); else fitDesktop(); });
   // Desktop only: move a few blocks into the columns the wide layout expects. Phones keep the original order.
   if (matchMedia("(min-width: 900px)").matches) {
     $("dueCard").after($("bunNote"));
