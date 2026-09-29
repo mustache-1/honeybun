@@ -429,7 +429,8 @@
   // ---------- data ----------
   async function loadNest() {
     const d = await api("/api/nest?month=" + MONTH);
-    { const keep = ME && ME.ref; ME = d.me; if (keep && ME && !ME.ref) ME.ref = keep; } NEST = d.nest; MEMBERS = d.members;
+    // the budget refresh only sends id, name and email: merge them in so email-confirmed, reminders, referrals, etc. aren't wiped
+    ME = { ...(ME || {}), ...d.me }; NEST = d.nest; MEMBERS = d.members;
     ENTRIES = d.entries.map((e) => ({ ...e, amount: e.amount_cents / 100, shared: !!e.shared, private: !!e.private }));
     queued().filter((q) => (q.date || "").slice(0, 7) === MONTH).forEach((q) => ENTRIES.unshift({
       id: q.pending_id, pending: true, member_id: q.member_id, type: q.type, amount: +q.amount, amount_cents: Math.round(q.amount * 100),
@@ -454,6 +455,11 @@
     if (!ME || !APP_SCREENS.includes(screen) || document.hidden || screen === "add") return;
     if (document.querySelector("dialog[open]")) return;
     try { await loadNest(); } catch {}
+    // pick up account changes made elsewhere (e.g. the email was confirmed in another tab), at most once a minute
+    if (Date.now() - (refresh.meAt || 0) > 60000) {
+      refresh.meAt = Date.now();
+      try { const m = await api("/api/me"); if (m && m.user) { ME = { ...ME, ...m.user }; render(); } } catch {}
+    }
   }
   setInterval(refresh, 20000);
   document.addEventListener("visibilitychange", refresh);
