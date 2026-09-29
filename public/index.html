@@ -1903,6 +1903,18 @@ dialog::backdrop{background:var(--backdrop)}
 .bt-next:hover{color:var(--ink)}
 @media(max-width:600px){.bun-tip{flex-wrap:wrap;align-items:flex-start}.bt-body{flex:1 1 calc(100% - 60px)}.bt-next{margin:-6px 0 -4px auto;padding-top:0}}
 @media(prefers-reduced-motion:reduce){.bt-av{animation:none}}
+/* ---------- plan: bills / subscriptions tabs ---------- */
+.bills-h{flex-wrap:wrap;gap:6px}
+.plan-tabs{display:flex;background:var(--panel2,var(--bg));border:1px solid var(--line);border-radius:12px;padding:3px;gap:2px}
+.plan-tabs button{border:0;background:transparent;color:var(--soft);font:inherit;font-size:13px;font-weight:800;padding:6px 12px;border-radius:9px;display:inline-flex;align-items:center;gap:6px;cursor:pointer}
+.plan-tabs button[aria-selected="true"]{background:var(--card);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.plan-tabs b{min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--pink-t);color:var(--pink-d);font-size:11px;display:inline-grid;place-items:center}
+.subs-sum{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:10px}
+.subs-sum div{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px 12px;min-width:0}
+.subs-sum b{display:block;font-size:17px;font-weight:900;letter-spacing:-.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.subs-sum small{font-size:11px;font-weight:700;color:var(--soft)}
+#billsAdd{display:flex}
+
 /* ---------- what's new ---------- */
 .upd-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--pink);margin-left:6px;vertical-align:middle}
 #scr-updates .lp-upd-legend{margin-bottom:12px}
@@ -2437,9 +2449,10 @@ dialog::backdrop{background:var(--backdrop)}
         <div id="goals"></div>
       </div>
       <div class="blk">
-        <div class="section-h"><h2>Bills &amp; paydays</h2><span class="sub desk-only" id="billsDueSub"></span></div>
+        <div class="section-h bills-h"><div class="plan-tabs" role="tablist" aria-label="Bills or subscriptions"><button type="button" role="tab" id="tabBills" aria-selected="true">Bills &amp; paydays</button><button type="button" role="tab" id="tabSubs" aria-selected="false">Subscriptions <b id="subsCount" hidden></b></button></div><span class="sub desk-only" id="billsDueSub"></span></div>
+        <div class="subs-sum" id="subsSum" hidden></div>
         <div class="panel"><ul class="list" id="bills"></ul></div>
-        <button class="dash-add desk-only" id="billsAdd"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Add a bill or payday</button>
+        <button class="dash-add" id="billsAdd"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span id="billsAddT">Add a bill or payday</span></button>
       </div>
       <div class="blk">
         <div class="section-h"><h2>Debts</h2><button class="linkbtn" id="addDebt">Add debt</button></div>

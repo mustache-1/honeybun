@@ -248,6 +248,7 @@
   let ME = null, NEST = null, MEMBERS = [], ENTRIES = [], BAL = {}, SETTLES = [], RECUR = [], LOGGED = new Set(), JAR = [];
   let GOALS = [], BUDGETS = {}, DEBTS = [], DEBTPAYS = [], SETUP_DONE = true, INBOX = { unread: 0, latest: null }, REPEATS = [], CARRY = {}, PASSKEYS = [];
   let MONTH = today().slice(0, 7), YEAR = new Date().getFullYear(), YDATA = null;
+  let billsTab = "bills"; // Plan: "bills" or "subs"
   let screen = "loading", filter = null, authMode = "signup", newKind = "couple", calSel = null;
   let mode = "expense", cat = "groc", who = null, shared = true, splitMode = "equal", editing = null;
   let pendingCode = null, resetToken = null, verifyToken = null;
@@ -1063,12 +1064,31 @@
     const bl = $("bills"); bl.innerHTML = "";
     { const up = MONTH === today().slice(0, 7) && RECUR.length ? upcoming() : null; const tot = up ? up.bills.reduce((a, b) => a + b.r.amount_cents / 100, 0) : 0;
       $("billsDueSub").textContent = up && up.bills.length ? `${fmt(tot)} due${up.payday ? " before " + shortDay(up.payday) : " soon"}` : ""; }
-    if (!RECUR.length) bl.innerHTML = `<li class="empty" style="justify-content:center;border:0">Rent, subscriptions, paychecks. Add them once.</li>`;
-    RECUR.forEach((r) => {
+    // Subscriptions tab: repeating expenses in the Subscriptions category, with monthly and yearly totals
+    const subs = RECUR.filter((r) => r.type === "expense" && r.category === "subs");
+    const PER_MONTH = { weekly: 52 / 12, biweekly: 26 / 12, monthly: 1 };
+    const subsOn = billsTab === "subs";
+    $("tabBills").setAttribute("aria-selected", !subsOn); $("tabSubs").setAttribute("aria-selected", subsOn);
+    $("subsCount").hidden = !subs.length; $("subsCount").textContent = subs.length;
+    $("billsDueSub").hidden = subsOn;
+    $("billsAddT").textContent = subsOn ? "Add a subscription" : "Add a bill or payday";
+    $("subsSum").hidden = !subsOn || !subs.length;
+    if (subsOn && subs.length) {
+      const mo = subs.reduce((a, r) => a + (r.amount_cents / 100) * (PER_MONTH[r.freq] || 1), 0);
+      const soon = subs.map((r) => ({ r, n: nextOcc(r) })).filter((x) => x.n).sort((a, b) => a.n - b.n)[0];
+      $("subsSum").innerHTML = `<div><b>${fmt(mo)}</b><small>${esc(tr("a month"))}</small></div><div><b>${fmt(mo * 12).replace(/\.\d\d$/, "")}</b><small>${esc(tr("a year"))}</small></div>
+        <div><b>${soon ? esc(shortDay(soon.n)) : "–"}</b><small>${soon ? esc(tr("next:") + " " + soon.r.label) : esc(tr("next charge"))}</small></div>`;
+    }
+    const rows = subsOn ? subs.slice().sort((a, b) => (nextOcc(a) || 0) - (nextOcc(b) || 0)) : RECUR;
+    if (!rows.length) bl.innerHTML = subsOn
+      ? `<li class="empty" style="justify-content:center;border:0;text-align:center">No subscriptions yet. Add Netflix, Spotify, your gym… and I'll remind you before each charge 🐰</li>`
+      : `<li class="empty" style="justify-content:center;border:0">Rent, subscriptions, paychecks. Add them once.</li>`;
+    rows.forEach((r) => {
       const isIn = r.type === "income", n = nextOcc(r);
       const li = document.createElement("li"); li.className = "clickable";
+      const yearly = subsOn ? ` · ${fmt((r.amount_cents / 100) * (PER_MONTH[r.freq] || 1) * 12).replace(/\.\d\d$/, "")}/${tr("yr")}` : "";
       li.innerHTML = `<div class="ic">${isIn ? incTile(38) : catTile(r.category, 38)}</div>
-        <div class="mid"><div class="t">${esc(r.label)}</div><div class="s">${FREQ_NAME[r.freq]}${n ? ", next " + shortDay(n) : ""}, ${esc(member(r.member_id).name)}</div></div>
+        <div class="mid"><div class="t">${esc(r.label)}</div><div class="s">${FREQ_NAME[r.freq]}${n ? ", next " + shortDay(n) : ""}${subsOn ? esc(yearly) : ", " + esc(member(r.member_id).name)}</div></div>
         <div class="amt ${isIn ? "in" : ""}">${isIn ? "+" : ""}${fmt(r.amount_cents / 100)}</div>`;
       li.onclick = () => openEditRecurring(r);
       bl.appendChild(li);
@@ -1428,7 +1448,7 @@
 
   // ---------- add / edit form ----------
   function resetForm(opts = {}) {
-    mode = opts.type || "expense"; cat = "groc"; who = ME.id; shared = MEMBERS.length > 1; splitMode = "equal";
+    mode = opts.type || "expense"; cat = opts.cat || "groc"; who = ME.id; shared = MEMBERS.length > 1; splitMode = "equal";
     $("amt").value = ""; $("lbl").value = ""; $("splitVal").value = ""; $("priv").checked = false;
     $("repeat").value = opts.repeat || ""; $("dt").value = today(); $("paidNow").checked = false; $("err").textContent = "";
   }
@@ -1448,7 +1468,9 @@
   function openEditRecurring(r) { editing = { kind: "recurring", x: r }; fillForm(r, true); show("add"); }
   $("cancelEdit").onclick = () => { const back = editing?.kind === "recurring" ? "plan" : "home"; editing = null; show(back); };
   $("addBill").onclick = () => openAdd({ repeat: "monthly" });
-  $("billsAdd").onclick = () => openAdd({ repeat: "monthly" });
+  $("billsAdd").onclick = () => openAdd(billsTab === "subs" ? { repeat: "monthly", cat: "subs" } : { repeat: "monthly" });
+  $("tabBills").onclick = () => { billsTab = "bills"; render(); };
+  $("tabSubs").onclick = () => { billsTab = "subs"; render(); };
 
   function renderForm() {
     const isInc = mode === "income", rep = $("repeat").value, editingRec = editing?.kind === "recurring";
