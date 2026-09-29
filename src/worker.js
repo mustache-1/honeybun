@@ -1540,7 +1540,7 @@ const WINDOWS_INSTALLER = "https://github.com/mustache-1/honeybun/releases/lates
 async function downloadWindows(request) {
   if (request.method !== "GET" && request.method !== "HEAD") return new Response("Method not allowed", { status: 405 });
   let res;
-  try { res = await fetch(WINDOWS_INSTALLER, { redirect: "follow", cf: { cacheEverything: true, cacheTtl: 3600 } }); } catch { res = null; }
+  try { res = await fetch(WINDOWS_INSTALLER, { redirect: "follow", cf: { cacheEverything: true, cacheTtlByStatus: { "200-299": 3600, "300-599": 0 } } }); } catch { res = null; }
   if (!res || !res.ok) {
     return new Response(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Honeybun for Windows</title>
 <body style="font:16px system-ui;background:#141217;color:#f8f4f8;display:grid;place-items:center;height:100vh;margin:0;text-align:center"><div><p>The Windows download is being updated. Try again in a few minutes 🐰</p><p><a style="color:#ea78a4" href="/">Back to Honeybun</a></p></div>`,
