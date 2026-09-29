@@ -29,6 +29,8 @@
       "webviewInstallMode": { "type": "downloadBootstrapper" },
       "nsis": {
         "installerIcon": "icons/icon.ico",
+        "headerImage": "installer/header.bmp",
+        "sidebarImage": "installer/sidebar.bmp",
         "installMode": "currentUser",
         "displayLanguageSelector": false
       }
