@@ -249,6 +249,7 @@
   let GOALS = [], BUDGETS = {}, DEBTS = [], DEBTPAYS = [], SETUP_DONE = true, INBOX = { unread: 0, latest: null }, REPEATS = [], CARRY = {}, PASSKEYS = [];
   let MONTH = today().slice(0, 7), YEAR = new Date().getFullYear(), YDATA = null;
   let billsTab = "bills"; // Plan: "bills" or "subs"
+  let duePage = 0, dueSize = 5, lastDueLeft = 0; // Home: Coming up pages
   let screen = "loading", filter = null, authMode = "signup", newKind = "couple", calSel = null;
   let mode = "expense", cat = "groc", who = null, shared = true, splitMode = "equal", editing = null;
   let pendingCode = null, resetToken = null, verifyToken = null;
@@ -834,26 +835,38 @@
     }
     const { payday, pays, bills } = upcoming();
     const total = bills.reduce((s, b) => s + b.r.amount_cents / 100, 0);
+    lastDueLeft = left;
     box.innerHTML = `<div class="due-h"><h2>${payday ? "Before payday" : "Coming up"}</h2><span>${payday ? dayName(payday) : "next 30 days"}</span></div>`;
     if (!bills.length) box.insertAdjacentHTML("beforeend", `<p class="due-empty">Nothing due${payday ? " before payday" : " soon"} ♡</p>`);
-    bills.forEach((b) => {
-      const c = CATS.find((x) => x.id === b.r.category) || CATS[4];
+    // bills first, then paydays; shown a page at a time so a long list never pushes the screen into scrolling
+    const items = bills.map((b) => ({ b })).concat(pays.map((p) => ({ p })));
+    const pages = Math.max(1, Math.ceil(items.length / dueSize));
+    duePage = Math.min(duePage, pages - 1);
+    items.slice(duePage * dueSize, (duePage + 1) * dueSize).forEach(({ b, p }) => {
       const row = document.createElement("div"); row.className = "due-row";
-      row.innerHTML = `<div class="ic">${catTile(c.id, 38)}</div><div class="mid"><div class="t">${esc(b.r.label)}</div>
-        <div class="s ${b.late ? "late" : ""}">${b.late ? "Overdue, was due " : "Due "}${shortDay(b.d)}</div></div>
-        <div class="amt">${fmt(b.r.amount_cents / 100)}</div><button class="mini">Paid</button>`;
-      row.querySelector("button").onclick = (ev) => logOcc(b.r, b.d, ev.currentTarget);
+      if (b) {
+        const c = CATS.find((x) => x.id === b.r.category) || CATS[4];
+        row.innerHTML = `<div class="ic">${catTile(c.id, 38)}</div><div class="mid"><div class="t">${esc(b.r.label)}</div>
+          <div class="s ${b.late ? "late" : ""}">${b.late ? "Overdue, was due " : "Due "}${shortDay(b.d)}</div></div>
+          <div class="amt">${fmt(b.r.amount_cents / 100)}</div><button class="mini">Paid</button>`;
+        row.querySelector("button").onclick = (ev) => logOcc(b.r, b.d, ev.currentTarget);
+      } else {
+        const m = member(p.r.member_id);
+        row.innerHTML = `<div class="ic">${incTile(38)}</div><div class="mid"><div class="t">${esc(p.r.label)}</div>
+          <div class="s">${esc(m.name)} gets paid ${shortDay(p.d)}</div></div>
+          <div class="amt" style="color:var(--mint-d)">+${fmt(p.r.amount_cents / 100)}</div><button class="mini inc">Got it</button>`;
+        row.querySelector("button").onclick = (ev) => logOcc(p.r, p.d, ev.currentTarget);
+      }
       box.appendChild(row);
     });
-    pays.forEach((p) => {
-      const m = member(p.r.member_id);
-      const row = document.createElement("div"); row.className = "due-row";
-      row.innerHTML = `<div class="ic">${incTile(38)}</div><div class="mid"><div class="t">${esc(p.r.label)}</div>
-        <div class="s">${esc(m.name)} gets paid ${shortDay(p.d)}</div></div>
-        <div class="amt" style="color:var(--mint-d)">+${fmt(p.r.amount_cents / 100)}</div><button class="mini inc">Got it</button>`;
-      row.querySelector("button").onclick = (ev) => logOcc(p.r, p.d, ev.currentTarget);
-      box.appendChild(row);
-    });
+    if (pages > 1) {
+      const pg = document.createElement("div"); pg.className = "due-pg";
+      pg.innerHTML = `<button type="button" aria-label="${esc(tr("Previous page"))}" ${duePage === 0 ? "disabled" : ""}>‹</button><span>${duePage + 1} / ${pages}</span><button type="button" aria-label="${esc(tr("Next page"))}" ${duePage >= pages - 1 ? "disabled" : ""}>›</button>`;
+      const [prev, next] = pg.querySelectorAll("button");
+      prev.onclick = () => { duePage--; renderDue(left); fitDesktop(); };
+      next.onclick = () => { duePage++; renderDue(left); fitDesktop(); };
+      box.appendChild(pg);
+    }
     if (bills.length) box.insertAdjacentHTML("beforeend",
       `<div class="due-foot"><span>Due ${fmt(total)}</span><span class="${left - total < 0 ? "neg" : ""}">Left after bills ${fmt(left - total)}</span></div>`);
   }
@@ -1839,7 +1852,11 @@
     if (!z || $("scr-" + screen)?.hidden) return;
     // all measuring below happens before the browser paints, so nothing flickers
     const el = document.scrollingElement, over = () => el.scrollHeight - el.clientHeight;
-    if (screen === "home") { const ul = $("recent"); while (over() > 1 && ul.children.length > 4) { ul.lastElementChild.remove(); ul.lastElementChild.remove(); } }
+    if (screen === "home") {
+      const ul = $("recent");
+      while (over() > 1 && ul.children.length > 4) { ul.lastElementChild.remove(); ul.lastElementChild.remove(); }
+      while (over() > 1 && dueSize > 3 && $("dueCard").querySelector(".due-pg")) { dueSize--; renderDue(lastDueLeft); }
+    }
     if (screen === "us" && over() > 1 && listRows && pageSize > 4) {
       const li = $("list").firstElementChild, rowH = li ? li.getBoundingClientRect().height / z : 60;
       pageSize = Math.max(4, pageSize - Math.ceil(over() / rowH)); drawPaged(listRows, listKey);
@@ -1847,7 +1864,7 @@
     // last resort: shrink this screen a little (never below 82%) instead of scrolling
     if (screen !== "inbox" && over() > 1) root.style.zoom = String(z * Math.max(0.82, el.clientHeight / el.scrollHeight - 0.004));
   }
-  window.addEventListener("resize", () => { pageSize = PAGE_SIZE; if (screen === "us") render(); else fitDesktop(); });
+  window.addEventListener("resize", () => { pageSize = PAGE_SIZE; dueSize = 5; if (screen === "us" || screen === "home") render(); else fitDesktop(); });
   // Desktop only: move a few blocks into the columns the wide layout expects. Phones keep the original order.
   if (matchMedia("(min-width: 900px)").matches) {
     $("dueCard").after($("bunNote"));
@@ -2275,7 +2292,7 @@
     const low = buds.filter((b) => b.sp < b.lim && b.sp >= b.lim * 0.6).sort((a, b) => b.sp / b.lim - a.sp / a.lim)[0];
     if (low && daysLeft > 1) { const n = tr(catOf(low.c).n), left = low.lim - low.sp, per = left / daysLeft; out.push(R(`${n} has ${whole(left)} left for ${daysLeft} more days. That's about ${fmt(per)} a day 🥕`, `A ${n} le quedan ${whole(left)} para ${daysLeft} días más. Son unos ${fmt(per)} al día 🥕`, `${n} 还剩 ${whole(left)}，还有 ${daysLeft} 天，每天大约 ${fmt(per)} 🥕`)); }
     // a habit that adds up
-    const cnt = {}; exp.forEach((e) => { if (WANTS.includes(e.category)) { cnt[e.category] = cnt[e.category] || { n: 0, sum: 0 }; cnt[e.category].n++; cnt[e.category].sum += e.amount; } });
+    const cnt = {}; exp.forEach((e) => { if (WANTS.includes(e.category) && e.category !== "other" && e.category !== "subs") { cnt[e.category] = cnt[e.category] || { n: 0, sum: 0 }; cnt[e.category].n++; cnt[e.category].sum += e.amount; } });
     const habit = Object.entries(cnt).filter(([, v]) => v.n >= 4).sort((a, b) => b[1].sum - a[1].sum)[0];
     if (habit) { const [c, v] = habit, n = tr(catOf(c).n), save = (v.sum / v.n) * 2; out.push(R(`You've logged ${n.toLowerCase()} ${v.n} times this month (${whole(v.sum)}). Skipping two could save about ${whole(Math.round(save))} 🐰`, `Registraste ${n.toLowerCase()} ${v.n} veces este mes (${whole(v.sum)}). Saltarte dos podría ahorrarte unos ${whole(Math.round(save))} 🐰`, `这个月你记了 ${v.n} 次${n}（${whole(v.sum)}）。少两次大约能省 ${whole(Math.round(save))} 🐰`)); }
     // subscriptions
