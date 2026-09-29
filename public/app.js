@@ -2203,25 +2203,15 @@
     try { const r = await api("/api/inbox/count"); INBOX.unread = r.unread; syncTaskbar(); } catch {}
   }, 60000);
   // Get the app: Windows download, browser install, phone steps. Hidden inside the Windows app and installed apps.
-  let installEvt = null;
-  window.addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); installEvt = e; });
   const installedApp = IS_DESKTOP_APP || matchMedia("(display-mode: standalone)").matches;
   $("sideGet").hidden = installedApp; $("openGet").hidden = installedApp;
   const openGet = () => {
     const ua = navigator.userAgent, mobile = /iPhone|iPad|iPod|Android/.test(ua);
     $("getWinOpt").hidden = mobile || /Mac OS X/.test(ua) && !/Windows/.test(ua);
-    $("getInstOpt").hidden = mobile;
     $("getDlg").showModal();
   };
   $("sideGet").onclick = openGet; $("openGet").onclick = openGet;
   $("getClose").onclick = () => $("getDlg").close();
-  $("getInstall").onclick = () => {
-    if (installEvt) { installEvt.prompt(); installEvt = null; return; }
-    const ua = navigator.userAgent;
-    $("getInstNote").textContent = tr(/Firefox\//.test(ua) ? "Firefox can't install apps. Open honeybun.me in Chrome or Edge, or download the Windows app."
-      : /Safari\//.test(ua) && !/Chrome\/|Edg\//.test(ua) ? "In Safari on a Mac, choose File, then Add to Dock."
-      : "Open your browser menu (⋮ or …), then choose Install Honeybun. If you don't see it, it's already installed.");
-  };
   $("openUpd").onclick = () => show("updates");
   window.addEventListener("load", updBadges);
   $("sideRefer").onclick = () => show("refer");

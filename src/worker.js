@@ -1546,7 +1546,7 @@ const WINDOWS_INSTALLER = "https://github.com/mustache-1/honeybun/releases/lates
 async function downloadWindows(request) {
   if (request.method !== "GET" && request.method !== "HEAD") return new Response("Method not allowed", { status: 405 });
   let res;
-  try { res = await fetch(WINDOWS_INSTALLER + "?v=3", { redirect: "follow", cf: { cacheEverything: true, cacheTtlByStatus: { "200-299": 600, "300-599": 0 } } }); } catch (e) { console.error("installer fetch failed", e.message); res = null; }
+  try { res = await fetch(WINDOWS_INSTALLER + "?v=4", { redirect: "follow", cf: { cacheEverything: true, cacheTtlByStatus: { "200-299": 600, "300-599": 0 } } }); } catch (e) { console.error("installer fetch failed", e.message); res = null; }
   if (!res || !res.ok) {
     console.error("installer not available", res && res.status);
     return new Response(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Honeybun for Windows</title>

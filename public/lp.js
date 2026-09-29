@@ -6,38 +6,19 @@
   var fmt = function (n) { return "$" + Math.abs(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); };
   var $ = function (id) { return document.getElementById(id); };
 
-  // Download section: "Install Honeybun" uses the browser's own install prompt when it offers one,
-  // otherwise it explains the steps for that browser.
-  var installEvt = null;
-  window.addEventListener("beforeinstallprompt", function (e) { e.preventDefault(); installEvt = e; });
-  window.addEventListener("appinstalled", function () { installEvt = null; var n = $("dlInstallNote"); if (n) n.textContent = "Installed! Look for Honeybun in your Start menu or Dock."; });
-  var ib = $("dlInstall");
-  if (ib) ib.addEventListener("click", function () {
-    var note = $("dlInstallNote"), T = window.HB_TR || function (x) { return x; };
-    if (installEvt) { installEvt.prompt(); installEvt = null; return; }
-    var ua = navigator.userAgent, msg;
-    if (matchMedia("(display-mode: standalone)").matches) msg = "You're already using the installed app.";
-    else if (/iPhone|iPad|iPod/.test(ua)) msg = "On iPhone and iPad, tap Share, then Add to Home Screen.";
-    else if (/Android/.test(ua)) msg = "Tap the ⋮ menu in Chrome, then Install app.";
-    else if (/Firefox\//.test(ua)) msg = "Firefox can't install apps. Open honeybun.me in Chrome or Edge, or download the Windows app.";
-    else if (/Safari\//.test(ua) && !/Chrome\/|Edg\//.test(ua)) msg = "In Safari on a Mac, choose File, then Add to Dock.";
-    else msg = "Open your browser menu (⋮ or …), then choose Install Honeybun. If you don't see it, it's already installed.";
-    note.textContent = T(msg);
-  });
-
-  // hero counter: starts the first time the card is on screen (the landing is hidden until the app decides to show it)
+  // hero: the money card counts up the first time it's on screen
   var amt = $("lpAmt"), s1 = $("lpS1"), s2 = $("lpS2"), s3 = $("lpS3"), meter = $("lpMeter"), started = false;
   function setAmt(v) { var s = fmt(v).split("."); amt.innerHTML = s[0] + "<small>." + s[1] + "</small>"; }
   function count() {
     if (started) return; started = true;
-    var t0 = performance.now(), dur = reduce ? 0 : 1600, ease = function (t) { return 1 - Math.pow(1 - t, 3); };
+    var t0 = performance.now(), dur = reduce ? 0 : 1800, ease = function (t) { return 1 - Math.pow(1 - t, 3); };
     function frame(now) {
       var p = dur ? Math.min(1, (now - t0) / dur) : 1, e = ease(p);
-      setAmt(2006.32 * e); s1.textContent = fmt(2250 * e); s2.textContent = fmt(243.68 * e); s3.textContent = fmt(62.34 * e);
+      setAmt(1912.37 * e); s1.textContent = fmt(4500 * e); s2.textContent = fmt(2587.63 * e); s3.textContent = fmt(132 * e);
       if (p < 1) requestAnimationFrame(frame);
     }
     requestAnimationFrame(frame);
-    setTimeout(function () { meter.style.width = "62%"; }, 150);
+    setTimeout(function () { meter.style.width = "62%"; }, 200);
   }
   if (amt) {
     if ("IntersectionObserver" in window) {
@@ -46,30 +27,36 @@
     } else count();
   }
 
-  // split demo
-  var total = 84, mode = "equal", sl = $("lpSl");
-  if (sl) {
-    var slLbl = $("lpSlLbl"), slVal = $("lpSlVal"), barA = $("lpBarA"), barB = $("lpBarB"), whoA = $("lpWhoA"), whoB = $("lpWhoB");
-    var T = window.HB_TR || function (x) { return x; };
-    function draw() {
-      var a;
-      if (mode === "equal") { a = total / 2; sl.disabled = true; slLbl.textContent = T("Each of you covers"); slVal.textContent = T("half"); }
-      else if (mode === "percent") { a = total * sl.value / 100; sl.disabled = false; sl.max = 100; slLbl.textContent = T("Alex covers"); slVal.textContent = sl.value + "%"; }
-      else { a = total - sl.value; sl.disabled = false; sl.max = total; slLbl.textContent = T("Jordan owes"); slVal.textContent = fmt(+sl.value); }
-      var b = total - a, pa = Math.round(a / total * 100);
-      barA.style.width = pa + "%"; barB.style.width = (100 - pa) + "%";
-      barA.textContent = pa > 14 ? fmt(a) : ""; barB.textContent = 100 - pa > 14 ? fmt(b) : "";
-      whoA.textContent = T("covers") + " " + fmt(a); whoB.textContent = b > 0 ? T("owes") + " " + fmt(b) : T("owes nothing");
-    }
-    lp.querySelectorAll(".lp-modes button").forEach(function (btn) {
-      btn.addEventListener("click", function () {
-        mode = btn.dataset.mode;
-        lp.querySelectorAll(".lp-modes button").forEach(function (x) { x.setAttribute("aria-pressed", x === btn ? "true" : "false"); });
-        sl.value = mode === "owed" ? 30 : 50; draw();
+  // hop calendar demos (the feature tile animates, the laptop screen is still)
+  var SPEND = [0, 42, 18, 0, 95, 140, 60, 12, 0, 0, 30, 22, 0, 75, 38, 0, 50, 26, 0, 212, 88, 15, 0, 44, 20, 0, 70, 0, 33, 0];
+  var sorted = SPEND.filter(function (v) { return v > 0; }).sort(function (x, y) { return x - y; });
+  function fillCal(el, animate) {
+    if (!el) return;
+    var html = "<span class='off'></span>"; // September 2026 starts on a Tuesday
+    SPEND.forEach(function (v, i) {
+      var r = v ? (sorted.indexOf(v) / (sorted.length - 1)).toFixed(2) : 0;
+      html += "<span class='" + (v ? "" : "paw") + "' style='--r:" + r + (animate ? ";--t:" + (i * 0.12).toFixed(2) + "s" : "") + "'></span>";
+    });
+    for (var k = SPEND.length + 1; k < 35; k++) html += "<span class='off'></span>";
+    el.innerHTML = html;
+  }
+  fillCal($("hbCal"), true); fillCal($("hbMiniCal"), false);
+
+  // hero parallax: floating cards drift a little with the mouse
+  var stage = $("hbStage");
+  if (stage && !reduce && matchMedia("(pointer: fine)").matches) {
+    stage.querySelectorAll("[data-depth]").forEach(function (el) { el.style.setProperty("--d", el.getAttribute("data-depth")); });
+    var hero = lp.querySelector(".hb-hero"), raf = 0;
+    hero.addEventListener("mousemove", function (e) {
+      if (raf) return;
+      raf = requestAnimationFrame(function () {
+        raf = 0;
+        var r = stage.getBoundingClientRect();
+        stage.style.setProperty("--mx", Math.max(-0.6, Math.min(0.6, (e.clientX - (r.left + r.width / 2)) / r.width)).toFixed(3));
+        stage.style.setProperty("--my", Math.max(-0.6, Math.min(0.6, (e.clientY - (r.top + r.height / 2)) / r.height)).toFixed(3));
       });
     });
-    sl.addEventListener("input", draw);
-    draw();
+    hero.addEventListener("mouseleave", function () { stage.style.setProperty("--mx", 0); stage.style.setProperty("--my", 0); });
   }
 
   // updates tab: a changelog kept in this file, newest first
@@ -83,6 +70,11 @@
     undo: '<path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/>', tap: '<path d="M13 3L5 14h6l-1 7 9-11h-6z"/>', repeat: '<path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>'
   };
   var LOG = [
+    { v: "1.9", date: "2026-09-29", name: "A brand new homepage", items: [
+      { t: "New homepage", d: "A fresh look with a hopping Bun, live mini demos of every feature, a hop calendar preview, and a Download section for Windows and phones.", tags: ["new", "design"], icon: "landing" },
+      { t: "Windows app badge", d: "The Windows app shows a red dot on its taskbar icon when Bun has something new, like a shared expense, and flashes once without pulling you out of what you're doing.", tags: ["new"], icon: "bell" },
+      { t: "Your logo on the installer", d: "The Windows installer now uses the Honeybun bunny instead of a generic icon.", tags: ["design"], icon: "landing" }
+    ] },
     { v: "1.8", date: "2026-09-29", name: "Honeybun for Windows", items: [
       { t: "Windows app", d: "Download Honeybun for Windows and keep it on your taskbar. It's the same account as your phone and the web, so everything stays in sync, and it updates itself.", tags: ["new"], icon: "landing" },
       { t: "Install from your browser", d: "Chrome and Edge can install Honeybun as an app on Windows, Mac, and Chromebook with one click.", tags: ["new"], icon: "landing" },
@@ -164,23 +156,18 @@
       window.scrollTo({ top: 0, behavior: reduce ? "auto" : "smooth" });
     }
     $("lpUpdatesLink").addEventListener("click", function (e) { e.preventDefault(); showRewards(false); showUpdates(true); });
+    lp.querySelectorAll("[data-updates-go]").forEach(function (b) { b.addEventListener("click", function (e) { e.preventDefault(); e.stopPropagation(); showRewards(false); showUpdates(true); }); });
+    lp.querySelectorAll("[data-rewards-go]").forEach(function (b) { b.addEventListener("click", function (e) { e.preventDefault(); showRewards(true); }); });
     $("lpUpdBack").addEventListener("click", function () { showUpdates(false); });
     lp.querySelectorAll(".lp-links a:not(#lpUpdatesLink):not(#lpRewardsLink), .lp-brand").forEach(function (a) { a.addEventListener("click", function () { if (lp.getAttribute("data-view") === "updates") showUpdates(false); if (lp.getAttribute("data-view") === "rewards") showRewards(false); }); });
   }
 
-  // scroll reveals: everything starts visible; only hide what is below the fold and can be revealed
+  // scroll reveals: sections rise in as they come into view (everything stays visible if this can't run)
   if ("IntersectionObserver" in window && !reduce) {
+    lp.classList.add("rv-on");
     var io = new IntersectionObserver(function (entries) {
-      entries.forEach(function (en) { if (en.isIntersecting) { en.target.classList.remove("pre"); io.unobserve(en.target); } });
-    }, { rootMargin: "0px 0px -8% 0px", threshold: 0.08 });
-    var armed = false;
-    function arm() {
-      if (armed || lp.hidden) return; armed = true;
-      lp.querySelectorAll(".lp-rv").forEach(function (el, i) {
-        if (el.getBoundingClientRect().top > innerHeight) { el.classList.add("pre"); el.style.transitionDelay = ((i % 3) * 70) + "ms"; io.observe(el); }
-      });
-    }
-    arm();
-    new MutationObserver(arm).observe(lp, { attributes: true, attributeFilter: ["hidden"] });
+      entries.forEach(function (en) { if (en.isIntersecting) { en.target.classList.add("in"); io.unobserve(en.target); } });
+    }, { rootMargin: "0px 0px -6% 0px", threshold: 0.06 });
+    lp.querySelectorAll(".rv").forEach(function (el) { io.observe(el); });
   }
 })();

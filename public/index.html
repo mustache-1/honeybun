@@ -1470,6 +1470,284 @@ dialog::backdrop{background:var(--backdrop)}
 .pager button:disabled:not(.on){opacity:.35;cursor:default}
 .pager .pg-gap{color:var(--soft);font-weight:800;padding:0 2px}
 .pager .pg-info{width:100%;text-align:center;font-size:12px;font-weight:700;color:var(--soft);margin-top:2px}
+/* =================== landing page v2 (hb-) =================== */
+.hb{--hb-r:28px;background:var(--bg)}
+.hb h1,.hb h2,.hb h3{font-family:Fredoka,Inter,sans-serif;font-weight:600;letter-spacing:-.02em;margin:0;text-wrap:balance}
+.hb p{margin:0}
+.hb-nav{position:sticky;top:0;z-index:40;background:var(--lp-nav-bg,rgba(246,244,248,.85));backdrop-filter:saturate(1.4) blur(14px);-webkit-backdrop-filter:saturate(1.4) blur(14px);border-bottom:1px solid var(--lp-nav-bd,var(--line))}
+.hb-big{height:56px;padding:0 28px;font-size:16px}
+.hb-big svg{width:18px;height:18px}
+.hb-eyebrow{display:inline-block;font-size:13px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--pink-d);margin-bottom:10px}
+.hb-head{max-width:700px;margin:0 auto 34px;text-align:center}
+.hb-head h2{font-size:clamp(30px,4.4vw,48px);line-height:1.05}
+.hb-head p{margin-top:12px;color:var(--soft);font-size:17px;line-height:1.55}
+.hb-sec{padding-block:64px;position:relative}
+@media(min-width:900px){.hb-sec{padding-block:88px}}
+
+/* hero */
+.hb-hero{position:relative;overflow:hidden;padding-top:40px}
+.hb-sky{position:absolute;inset:0;pointer-events:none}
+.hb-blob{position:absolute;border-radius:50%;filter:blur(60px);opacity:.55;animation:hbBlob 16s ease-in-out infinite alternate}
+.hb-blob.b1{width:420px;height:420px;background:var(--pink-t);top:-120px;right:-80px}
+.hb-blob.b2{width:360px;height:360px;background:var(--t-honey,#FDF3DA);bottom:40px;left:-140px;animation-delay:-5s}
+.hb-blob.b3{width:260px;height:260px;background:var(--t-lilac,#F0ECFA);top:40%;left:42%;animation-delay:-9s}
+@keyframes hbBlob{to{transform:translate(40px,30px) scale(1.12)}}
+.hb-spark,.hb-heart{position:absolute;font-style:normal;color:var(--c-honey,#A5751C);opacity:.7;animation:hbTwinkle 3.4s ease-in-out infinite}
+.hb-heart{color:var(--pink)}
+.hb-spark.s1{top:14%;left:8%;font-size:22px}.hb-spark.s2{top:22%;right:10%;font-size:16px;animation-delay:-1.2s}
+.hb-spark.s3{bottom:30%;left:46%;font-size:14px;animation-delay:-2s}.hb-spark.s4{bottom:18%;right:30%;font-size:20px;animation-delay:-.6s}
+.hb-heart.h1{top:60%;left:4%;font-size:18px;animation:hbFloatUp 7s ease-in infinite}.hb-heart.h2{top:70%;right:6%;font-size:14px;animation:hbFloatUp 9s ease-in infinite -3s}
+@keyframes hbTwinkle{50%{transform:scale(.6) rotate(20deg);opacity:.25}}
+@keyframes hbFloatUp{0%{transform:translateY(0);opacity:0}15%{opacity:.8}100%{transform:translateY(-220px) rotate(-15deg);opacity:0}}
+.hb-hero-in{position:relative;display:grid;gap:36px;align-items:center;padding-bottom:40px}
+@media(min-width:960px){.hb-hero-in{grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);padding-block:30px 60px}}
+.hb-pill{display:inline-flex;align-items:center;gap:8px;padding:6px 14px 6px 6px;border-radius:999px;background:var(--card);border:1px solid var(--line);font-size:13px;font-weight:700;color:var(--ink)!important;margin-bottom:22px;transition:transform .2s}
+.hb-pill:hover{transform:translateY(-2px)}
+.hb-pill b{background:var(--pink);color:var(--on-pink,#fff);border-radius:999px;padding:3px 9px;font-size:11px;text-transform:uppercase;letter-spacing:.05em}
+.hb-hero h1{font-size:clamp(44px,6.2vw,76px);line-height:.98}
+.hb-grad{background:linear-gradient(100deg,var(--pink) 10%,#F0A35E 55%,var(--pink-d) 90%);background-size:200% auto;-webkit-background-clip:text;background-clip:text;color:transparent;animation:hbShine 6s linear infinite}
+@keyframes hbShine{to{background-position:200% center}}
+.hb-lede{margin-top:20px!important;font-size:19px;line-height:1.55;color:var(--soft);max-width:540px}
+.hb-ctas{display:flex;flex-wrap:wrap;gap:12px;margin-top:28px}
+.hb-trust{list-style:none;padding:0;margin:26px 0 0;display:flex;flex-wrap:wrap;gap:10px 20px;font-size:14px;font-weight:700;color:var(--soft)}
+.hb-trust li{display:flex;align-items:center;gap:7px}
+.hb-trust svg{width:16px;height:16px;fill:none;stroke:var(--c-green,#2E7D57);stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
+
+/* hero stage */
+.hb-stage{position:relative;min-height:560px;--mx:0;--my:0}
+.hb-stage [data-depth]{transition:transform .25s ease-out;transform:translate(calc(var(--mx) * var(--d, 0) * 1px),calc(var(--my) * var(--d, 0) * 1px))}
+.hb-card{background:var(--card);border:1px solid var(--line);border-radius:var(--hb-r);box-shadow:0 30px 60px -30px rgba(43,39,51,.35)}
+.hb-money{position:absolute;left:0;right:14%;top:64px;padding:22px 24px}
+.hb-money-top{display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:800;color:var(--soft)}
+.hb-money-top em{font-style:normal;font-size:11px;padding:4px 10px;border-radius:99px;background:var(--t-green);color:var(--c-green)}
+.hb-money-amt{font-family:Inter,sans-serif;font-size:clamp(40px,5vw,56px);font-weight:900;letter-spacing:-.04em;margin:8px 0 12px}
+.hb-money-amt small{font-size:.5em;color:var(--soft)}
+.hb-meter{height:10px;border-radius:99px;background:var(--track,var(--panel2));overflow:hidden}
+.hb-meter i{display:block;height:100%;width:0;border-radius:99px;background:linear-gradient(90deg,var(--pink),#F0A35E);transition:width 1.6s cubic-bezier(.2,.8,.2,1)}
+.hb-money-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:16px}
+.hb-money-row span{background:var(--panel2,var(--bg));border-radius:14px;padding:9px 11px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.hb-money-row small{font-size:11px;font-weight:700;color:var(--soft)}
+.hb-money-row b{font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hb-bun-wrap{position:absolute;right:0;bottom:0;width:190px;height:210px}
+.hb-bubble{position:absolute;top:10px;left:-150px;background:var(--card);border:1px solid var(--line);border-radius:18px 18px 4px 18px;padding:8px 14px;font-size:14px;font-weight:800;white-space:nowrap;box-shadow:0 12px 30px -16px rgba(43,39,51,.4);animation:hbPop 5s ease-in-out infinite}
+@keyframes hbPop{0%,8%{transform:scale(.4);opacity:0}14%,70%{transform:scale(1);opacity:1}78%,100%{transform:scale(.4);opacity:0}}
+.hb-float{position:absolute;display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:10px 14px 10px 10px;box-shadow:0 20px 40px -24px rgba(43,39,51,.45);animation:hbBob 5s ease-in-out infinite}
+.hb-float b{display:block;font-size:14px}
+.hb-float small{display:block;font-size:12px;color:var(--soft);font-weight:700}
+.hb-float.f1{left:-2%;bottom:96px;animation-delay:-1s}
+.hb-float.f2{left:26%;bottom:10px;animation-delay:-2.5s}
+.hb-float.f3{right:0;top:0;animation-delay:-3.7s}
+@keyframes hbBob{50%{translate:0 -10px}}
+.hb-avs{display:flex}.hb-avs i{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-style:normal;font-size:17px;box-shadow:0 0 0 2px var(--card)}.hb-avs i+i{margin-left:-10px}
+.hb-ico{width:36px;height:36px;border-radius:12px;display:grid;place-items:center;font-size:18px;flex:none}
+.hb-ico.honey{background:var(--t-honey)}.hb-ico.rose{background:var(--t-rose);color:var(--c-rose)}
+.hb-ico svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+@media(max-width:959px){.hb-stage{min-height:520px;max-width:520px;margin:0 auto;width:100%}.hb-float.f1{left:0}.hb-float.f3{right:0}}
+@media(max-width:520px){.hb-stage{min-height:500px}.hb-money{right:0;top:58px}.hb-bun-wrap{width:130px;height:150px}.hb-bubble{left:-110px;top:0;font-size:12px}.hb-float.f2{left:0;bottom:6px}.hb-float.f1{bottom:74px}.hb-float.f3{right:auto;left:0}}
+
+/* the bunny */
+.hb-bun{width:100%;height:100%;overflow:visible}
+.hb-bun-body{transform-origin:80px 150px;animation:hbHop 3.2s cubic-bezier(.3,0,.3,1) infinite}
+.hb-bun-shadow{fill:rgba(43,39,51,.18);transform-origin:80px 162px;animation:hbShadow 3.2s cubic-bezier(.3,0,.3,1) infinite}
+.hb-ear path,.hb-head{fill:#fff;stroke:#2B2733;stroke-width:5;stroke-linejoin:round}
+.hb-ear-in{fill:#F6B8CB!important;stroke:none!important}
+.hb-ear{transform-box:fill-box;transform-origin:50% 100%}
+.hb-ear-l{animation:hbEarL 3.2s ease-in-out infinite}.hb-ear-r{animation:hbEarR 3.2s ease-in-out infinite}
+.hb-eyes ellipse{fill:#2B2733;transform-box:fill-box;transform-origin:center;animation:hbBlink 4.6s infinite}
+.hb-shine{fill:#fff}
+.hb-cheek{fill:#F6B8CB;animation:hbBlush 3.2s ease-in-out infinite}
+.hb-mouth{fill:none;stroke:#2B2733;stroke-width:3.5;stroke-linecap:round;stroke-linejoin:round}
+@keyframes hbHop{0%,55%,100%{transform:translateY(0) scale(1,1)}62%{transform:translateY(2px) scale(1.06,.92)}72%{transform:translateY(-26px) scale(.96,1.05)}84%{transform:translateY(0) scale(1.04,.95)}90%{transform:scale(1)}}
+@keyframes hbShadow{0%,55%,100%{transform:scale(1);opacity:1}72%{transform:scale(.7);opacity:.5}}
+@keyframes hbEarL{0%,55%,100%{transform:rotate(0)}70%{transform:rotate(-10deg)}82%{transform:rotate(6deg)}}
+@keyframes hbEarR{0%,55%,100%{transform:rotate(0)}70%{transform:rotate(10deg)}82%{transform:rotate(-6deg)}}
+@keyframes hbBlink{0%,44%,48%,100%{transform:scaleY(1)}46%{transform:scaleY(.1)}}
+@keyframes hbBlush{50%{opacity:.6}}
+
+/* ribbon */
+.hb-ribbon{border-block:1px solid var(--line);background:var(--card);overflow:hidden;padding:14px 0;-webkit-mask:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent);mask:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent)}
+.hb-ribbon-track{display:flex;gap:12px;width:max-content;animation:hbMarquee 38s linear infinite}
+.hb-ribbon:hover .hb-ribbon-track{animation-play-state:paused}
+.hb-ribbon span{white-space:nowrap;padding:8px 16px;border-radius:999px;background:var(--panel2,var(--bg));font-weight:800;font-size:14px}
+@keyframes hbMarquee{to{transform:translateX(-50%)}}
+
+/* bento */
+.hb-bento{display:grid;gap:16px;grid-template-columns:1fr}
+@media(min-width:720px){.hb-bento{grid-template-columns:repeat(2,minmax(0,1fr))}.t-split{grid-column:span 2}}
+@media(min-width:1040px){.hb-bento{grid-template-columns:repeat(3,minmax(0,1fr))}.t-split{grid-column:span 2}.t-cal{grid-row:span 2}}
+.hb-tile{background:var(--card);border:1px solid var(--line);border-radius:var(--hb-r);padding:24px;display:flex;flex-direction:column;gap:18px;overflow:hidden;position:relative;transition:transform .3s ease,box-shadow .3s ease}
+.hb-tile:hover{transform:translateY(-4px);box-shadow:0 30px 50px -30px rgba(43,39,51,.35)}
+.hb-tile h3{font-size:22px;line-height:1.15}
+.hb-tile-txt p{margin-top:6px;color:var(--soft);font-size:15px;line-height:1.5}
+.hb-tag{display:inline-block;font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.06em;padding:4px 10px;border-radius:99px;margin-bottom:10px}
+.hb-tag.rose{background:var(--t-rose);color:var(--c-rose)}.hb-tag.honey{background:var(--t-honey);color:var(--c-honey)}.hb-tag.lilac{background:var(--t-lilac);color:var(--c-lilac)}
+.hb-tag.green{background:var(--t-green);color:var(--c-green)}.hb-tag.blue{background:var(--t-blue);color:var(--c-blue)}.hb-tag.gray{background:var(--t-gray);color:var(--c-gray)}
+.hb-demo{margin-top:auto}
+/* split */
+.t-split{display:grid;gap:20px}
+@media(min-width:720px){.t-split{grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);align-items:center}}
+.hb-split{background:var(--panel2,var(--bg));border-radius:20px;padding:18px;display:flex;flex-direction:column;gap:14px}
+.hb-split-row{display:flex;align-items:center;gap:10px}
+.hb-av{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-size:20px;flex:none}
+.hb-split-bar{flex:1;display:flex;height:34px;border-radius:12px;overflow:hidden;gap:3px;font-size:12px;font-weight:900}
+.hb-split-bar i{font-style:normal;display:grid;place-items:center;color:#fff;animation:hbSplitA 7s ease-in-out infinite}
+.hb-split-bar .a{background:var(--pink);width:50%}.hb-split-bar .b{background:#8FA8EF;flex:1;animation:none}
+@keyframes hbSplitA{0%,25%{width:50%}35%,60%{width:70%}70%,100%{width:50%}}
+.hb-split-owe{display:flex;justify-content:space-between;align-items:center;font-weight:700;font-size:14px}
+.hb-settle{border:0;border-radius:999px;background:var(--c-green,#2E7D57);color:#fff;font:inherit;font-weight:900;font-size:13px;padding:9px 16px;animation:hbPulse 2.4s ease-in-out infinite}
+@keyframes hbPulse{50%{box-shadow:0 0 0 8px transparent,0 0 0 0 rgba(46,125,87,.35);transform:scale(1.04)}0%,100%{box-shadow:0 0 0 0 rgba(46,125,87,.35)}}
+/* hop calendar */
+.hb-cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
+.hb-cal span{aspect-ratio:1;border-radius:10px;background:var(--panel2,var(--bg));display:grid;place-items:center;position:relative;font-size:0}
+.hb-cal span::after{content:"";width:calc(6px + var(--r,0) * 18px);height:calc(6px + var(--r,0) * 18px);border-radius:50%;background:var(--c-honey,#A5751C);transform:scale(0);animation:hbDot 9s ease infinite;animation-delay:var(--t,0s)}
+.hb-cal span.paw::after{width:17px;height:17px;border-radius:0;background:var(--c-green);-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cellipse cx='12' cy='16' rx='4.5' ry='3.8'/%3E%3Ccircle cx='6.5' cy='10.5' r='1.8'/%3E%3Ccircle cx='10' cy='7' r='1.8'/%3E%3Ccircle cx='14' cy='7' r='1.8'/%3E%3Ccircle cx='17.5' cy='10.5' r='1.8'/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cellipse cx='12' cy='16' rx='4.5' ry='3.8'/%3E%3Ccircle cx='6.5' cy='10.5' r='1.8'/%3E%3Ccircle cx='10' cy='7' r='1.8'/%3E%3Ccircle cx='14' cy='7' r='1.8'/%3E%3Ccircle cx='17.5' cy='10.5' r='1.8'/%3E%3C/svg%3E") center/contain no-repeat}
+.hb-cal span.off{visibility:hidden}
+@keyframes hbDot{0%{transform:scale(0)}6%,85%{transform:scale(1)}92%,100%{transform:scale(0)}}
+.hb-cal-sum{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.hb-cal-sum span{border-radius:14px;padding:10px 12px;font-size:12px;font-weight:700}
+.hb-cal-sum b{display:block;font-size:20px;font-weight:900}
+.hb-cal-sum .g{background:var(--t-green);color:var(--c-green)}.hb-cal-sum .h{background:var(--t-honey);color:var(--c-honey)}
+/* chat */
+.hb-chat{display:flex;flex-direction:column;gap:8px;min-height:190px}
+.hb-msg{display:flex;align-items:flex-end;gap:8px;opacity:0;transform:translateY(8px) scale(.96);animation:hbMsg 10s ease infinite}
+.hb-msg img{width:26px;height:26px;border-radius:50%}
+.hb-msg p{background:var(--panel2,var(--bg));border-radius:16px 16px 16px 4px;padding:8px 12px;font-size:13px;font-weight:600;line-height:1.35}
+.hb-msg.me{justify-content:flex-end}.hb-msg.me p{background:var(--pink);color:var(--on-pink,#fff);border-radius:16px 16px 4px 16px}
+.hb-msg.m2{animation-delay:1.2s}.hb-msg.m3{animation-delay:2.6s}.hb-msg.m4{animation-delay:3.8s}
+@keyframes hbMsg{0%{opacity:0;transform:translateY(8px) scale(.96)}5%,80%{opacity:1;transform:none}88%,100%{opacity:0;transform:translateY(-4px)}}
+/* jar */
+.hb-jar{display:flex;align-items:center;gap:16px}
+.hb-jar svg{width:84px;height:100px;flex:none}
+.hb-honey{fill:#F4C052;animation:hbFill 6s ease-in-out infinite}
+.hb-wave{fill:#F4C052;animation:hbFill 6s ease-in-out infinite,hbWave 2s linear infinite}
+@keyframes hbFill{0%,100%{transform:translateY(96px)}45%,80%{transform:translateY(58px)}}
+@keyframes hbWave{to{translate:-30px 0}}
+.hb-jar-glass{fill:none;stroke:var(--ink);stroke-width:4;opacity:.8}
+.hb-jar-lid{fill:var(--pink)}
+.hb-jar b{display:block;font-size:16px}.hb-jar small{color:var(--soft);font-weight:700;font-size:13px}.hb-jar-pct{color:var(--c-honey);font-weight:900}
+/* bills */
+.hb-bills{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.hb-bills li{display:flex;align-items:center;gap:10px;background:var(--panel2,var(--bg));border-radius:14px;padding:10px 12px;font-size:14px;font-weight:700}
+.hb-bills li span{flex:1}
+.hb-bills i{width:20px;height:20px;border-radius:7px;border:2px solid var(--line);position:relative;flex:none;animation:hbCheck 8s ease infinite}
+.hb-bills li:nth-child(2) i{animation-delay:.8s}.hb-bills li:nth-child(3) i{animation-delay:1.6s}.hb-bills li:nth-child(4) i{animation-delay:2.4s}
+.hb-bills li.pay b{color:var(--c-green)}
+@keyframes hbCheck{0%,8%{background:transparent;border-color:var(--line);box-shadow:none}14%,80%{background:var(--c-green);border-color:var(--c-green);box-shadow:inset 0 0 0 3px var(--panel2,var(--bg))}90%,100%{background:transparent;border-color:var(--line)}}
+/* tap */
+.hb-tap{position:relative;height:130px;display:grid;place-items:center}
+.hb-card-mini{width:120px;height:76px;border-radius:14px;background:linear-gradient(135deg,#2B2733,#5a5163);box-shadow:0 14px 30px -14px rgba(0,0,0,.5);position:relative;animation:hbTapCard 4s ease-in-out infinite}
+.hb-card-mini i{position:absolute;left:14px;top:18px;width:20px;height:15px;border-radius:4px;background:#F4C052}
+.hb-ripple{position:absolute;width:60px;height:60px;border-radius:50%;border:2px solid var(--pink);opacity:0;animation:hbRipple 4s ease-out infinite}
+.hb-ripple.r2{animation-delay:.3s}
+.hb-toast{position:absolute;bottom:0;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:7px 12px;font-size:13px;font-weight:800;opacity:0;animation:hbToast 4s ease infinite;white-space:nowrap}
+@keyframes hbTapCard{0%,20%{transform:translateY(-10px) rotate(-8deg)}30%,50%{transform:translateY(4px) rotate(-2deg)}70%,100%{transform:translateY(-10px) rotate(-8deg)}}
+@keyframes hbRipple{0%,28%{transform:scale(.6);opacity:0}32%{opacity:.8}60%,100%{transform:scale(2.4);opacity:0}}
+@keyframes hbToast{0%,40%{opacity:0;transform:translateY(8px)}48%,85%{opacity:1;transform:none}95%,100%{opacity:0}}
+/* lock */
+.hb-lock{display:grid;place-items:center;height:110px}
+.hb-lock svg{width:70px;height:70px;fill:none;stroke:var(--c-lilac,#6B55B5);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.hb-shackle{animation:hbShackle 4s ease-in-out infinite}
+@keyframes hbShackle{0%,40%,100%{transform:translateY(0)}55%,80%{transform:translateY(-3px)}}
+
+/* how it works */
+.hb-steps{position:relative;display:grid;gap:16px;padding-top:70px}
+@media(min-width:820px){.hb-steps{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.hb-step{background:var(--card);border:1px solid var(--line);border-radius:var(--hb-r);padding:24px}
+.hb-step b{display:grid;place-items:center;width:40px;height:40px;border-radius:14px;background:var(--pink-t);color:var(--pink-d);font-size:17px;font-weight:900;margin-bottom:14px}
+.hb-step h3{font-size:20px}.hb-step p{margin-top:6px;color:var(--soft);font-size:15px;line-height:1.5}
+.hb-path{position:absolute;left:0;right:0;top:0;height:64px}
+.hb-path::before{content:"";position:absolute;left:8%;right:8%;top:52px;border-top:3px dashed var(--line)}
+.hb-hopper{position:absolute;top:0;left:4%;width:56px;height:60px;animation:hbAcross 7s ease-in-out infinite}
+.hb-hopper .hb-bun-body{animation-duration:.9s}.hb-hopper .hb-bun-shadow{animation-duration:.9s}
+.hb-path i{position:absolute;top:44px;font-style:normal;font-size:16px;opacity:0;animation:hbPaw 7s ease infinite}
+.hb-path .p1{left:20%;animation-delay:.9s}.hb-path .p2{left:40%;animation-delay:2.1s}.hb-path .p3{left:60%;animation-delay:3.3s}.hb-path .p4{left:80%;animation-delay:4.5s}
+@keyframes hbAcross{0%{left:4%}80%{left:calc(92% - 56px)}100%{left:calc(92% - 56px);opacity:0}}
+@keyframes hbPaw{0%{opacity:0;transform:scale(.4)}5%,60%{opacity:.7;transform:none}80%,100%{opacity:0}}
+@media(max-width:819px){.hb-path{display:none}.hb-steps{padding-top:0}}
+.hb-kinds{display:flex;justify-content:center;flex-wrap:wrap;gap:12px;margin-top:28px}
+.hb-kinds span{display:flex;align-items:center;gap:4px;padding:10px 18px;border-radius:999px;background:var(--card);border:1px solid var(--line);font-weight:800;font-size:15px}
+.hb-kinds span.on{border-color:var(--pink);background:var(--pink-t);color:var(--pink-d)}
+.hb-kinds i{font-style:normal;font-size:20px;display:inline-block;animation:hbBob 2.4s ease-in-out infinite}
+.hb-kinds i:nth-child(2){animation-delay:-.8s}.hb-kinds i:nth-child(3){animation-delay:-1.6s}
+
+/* download */
+.hb-dl{display:grid;gap:40px;align-items:center}
+@media(min-width:960px){.hb-dl{grid-template-columns:minmax(0,1fr) minmax(0,1.1fr)}}
+.hb-dl-copy h2{font-size:clamp(32px,4.4vw,50px);line-height:1.04}
+.hb-dl-copy>p{margin-top:14px!important;color:var(--soft);font-size:17px;line-height:1.55}
+.hb-dl-win{margin-top:26px;display:flex;flex-direction:column;align-items:flex-start;gap:10px}
+.hb-dl-win a{text-decoration:none}
+.hb-dl-win small{font-size:13px;color:var(--soft);font-weight:600;line-height:1.5;max-width:460px}
+.hb-dl-win small b{color:var(--ink)}
+.hb-dl-phones{display:grid;gap:10px;margin-top:22px}
+@media(min-width:560px){.hb-dl-phones{grid-template-columns:1fr 1fr}}
+.hb-dl-phones div{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:14px 16px;display:flex;flex-direction:column;gap:4px;font-size:14px;line-height:1.45;color:var(--soft)}
+.hb-dl-phones b{color:var(--ink);font-size:15px}
+.hb-devices{position:relative;height:380px}
+.hb-laptop{position:absolute;left:0;right:70px;top:10px}
+.hb-screen{aspect-ratio:16/10;border-radius:16px 16px 0 0;border:10px solid #2B2733;border-bottom-width:14px;background:var(--bg);display:flex;overflow:hidden}
+.hb-base{height:14px;margin:0 -24px;border-radius:0 0 14px 14px;background:linear-gradient(#3a3442,#231f29)}
+.hb-mini-side{width:22%;background:var(--card);border-right:1px solid var(--line);display:flex;flex-direction:column;gap:7px;padding:10px 8px}
+.hb-mini-side img{width:22px;height:22px;border-radius:6px;margin-bottom:6px}
+.hb-mini-side i{height:10px;border-radius:5px;background:var(--panel2,var(--line))}
+.hb-mini-side i.on{background:var(--pink-t);box-shadow:inset 3px 0 0 var(--pink)}
+.hb-mini-side span{flex:1}.hb-mini-side i.gift{background:var(--t-honey)}
+.hb-mini-main{flex:1;padding:10px 12px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.hb-mini-h{font-family:Fredoka,sans-serif;font-weight:600;font-size:14px;display:flex;justify-content:space-between}
+.hb-mini-h em{font-style:normal;font-size:10px;color:var(--soft);font-family:Inter,sans-serif;font-weight:800}
+.hb-mini-cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;flex:1}
+.hb-mini-cal span{border-radius:6px;background:var(--card);display:grid;place-items:center}
+.hb-mini-cal span::after{content:"";width:calc(4px + var(--r,0) * 9px);height:calc(4px + var(--r,0) * 9px);border-radius:50%;background:var(--c-honey,#A5751C)}
+.hb-mini-cal span.paw::after{width:10px;height:10px;border-radius:0;background:var(--c-green);-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cellipse cx='12' cy='16' rx='4.5' ry='3.8'/%3E%3Ccircle cx='6.5' cy='10.5' r='1.8'/%3E%3Ccircle cx='10' cy='7' r='1.8'/%3E%3Ccircle cx='14' cy='7' r='1.8'/%3E%3Ccircle cx='17.5' cy='10.5' r='1.8'/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cellipse cx='12' cy='16' rx='4.5' ry='3.8'/%3E%3Ccircle cx='6.5' cy='10.5' r='1.8'/%3E%3Ccircle cx='10' cy='7' r='1.8'/%3E%3Ccircle cx='14' cy='7' r='1.8'/%3E%3Ccircle cx='17.5' cy='10.5' r='1.8'/%3E%3C/svg%3E") center/contain no-repeat}
+.hb-phone{position:absolute;right:0;bottom:0;width:150px;height:300px;border-radius:30px;border:8px solid #2B2733;background:var(--bg);box-shadow:0 30px 60px -30px rgba(0,0,0,.5);overflow:hidden;animation:hbBob 6s ease-in-out infinite}
+.hb-notch{width:50px;height:12px;border-radius:0 0 10px 10px;background:#2B2733;margin:0 auto}
+.hb-ph-in{padding:12px 10px;display:flex;flex-direction:column;gap:6px}
+.hb-ph-in small{font-size:9px;font-weight:800;color:var(--soft)}
+.hb-ph-in>b{font-size:24px;font-weight:900;letter-spacing:-.03em}
+.hb-ph-in .hb-meter{height:6px}
+.hb-ph-list{display:flex;flex-direction:column;gap:5px;margin-top:6px}
+.hb-ph-list span{display:flex;justify-content:space-between;background:var(--card);border-radius:9px;padding:6px 7px;font-size:10px;font-weight:800}
+.hb-ph-list em{font-style:normal;color:var(--soft)}
+.hb-ph-list .new{animation:hbNew 5s ease infinite;transform-origin:center}
+@keyframes hbNew{0%,20%{opacity:0;transform:translateY(-8px) scale(.9)}30%,90%{opacity:1;transform:none;box-shadow:0 0 0 2px var(--pink)}100%{opacity:1;box-shadow:none}}
+.hb-sync{position:absolute;right:120px;bottom:40px;background:var(--t-green);color:var(--c-green);font-weight:900;font-size:13px;padding:7px 14px;border-radius:999px;animation:hbSync 5s ease infinite}
+@keyframes hbSync{0%,25%{opacity:0;transform:scale(.7)}35%,85%{opacity:1;transform:none}100%{opacity:0}}
+@media(max-width:560px){.hb-devices{height:300px}.hb-phone{width:120px;height:240px}.hb-laptop{right:40px}.hb-sync{right:80px}}
+
+/* rewards teaser */
+.hb-reward{display:grid;gap:28px;align-items:center;border-radius:36px;padding:36px;background:linear-gradient(135deg,var(--t-honey,#FDF3DA),var(--t-rose,#FCEBF1));border:1px solid var(--line)}
+@media(min-width:900px){.hb-reward{grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);padding:48px}}
+.hb-reward h2{font-size:clamp(28px,3.6vw,40px);line-height:1.08}
+.hb-reward-txt>p{margin-top:12px;color:var(--soft);font-size:16px;line-height:1.55}
+.hb-reward-dots{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;max-width:340px;justify-self:center;width:100%}
+.hb-reward-dots i{aspect-ratio:1;border-radius:50%;background:var(--card);box-shadow:inset 0 0 0 2px var(--line);font-style:normal;display:grid;place-items:center;font-size:24px;animation:hbFillDot 8s ease infinite}
+.hb-reward-dots i.gift{animation:hbGift 8s ease infinite;background:var(--card)}
+.hb-reward-dots i:nth-child(1){animation-delay:.2s}.hb-reward-dots i:nth-child(2){animation-delay:.5s}.hb-reward-dots i:nth-child(3){animation-delay:.8s}.hb-reward-dots i:nth-child(4){animation-delay:1.1s}.hb-reward-dots i:nth-child(5){animation-delay:1.4s}
+.hb-reward-dots i:nth-child(6){animation-delay:1.7s}.hb-reward-dots i:nth-child(7){animation-delay:2s}.hb-reward-dots i:nth-child(8){animation-delay:2.3s}.hb-reward-dots i:nth-child(9){animation-delay:2.6s}
+@keyframes hbFillDot{0%{background:var(--card)}6%,85%{background:var(--c-honey,#A5751C);box-shadow:none;transform:scale(1)}8%{transform:scale(1.15)}95%,100%{background:var(--card)}}
+@keyframes hbGift{0%,34%{transform:scale(1)}38%{transform:scale(1.3) rotate(-10deg)}42%{transform:scale(1.2) rotate(10deg)}46%,85%{transform:scale(1.15);box-shadow:0 0 0 4px var(--pink)}100%{transform:scale(1)}}
+
+/* faq */
+.hb-faq{max-width:900px;margin:0 auto}
+
+/* final */
+.hb-final{text-align:center;display:flex;flex-direction:column;align-items:center;gap:14px;position:relative;padding:20px 0 30px}
+.hb-final h2{font-size:clamp(36px,5vw,56px)}
+.hb-final>p{color:var(--soft);font-size:17px;margin-bottom:8px!important}
+.hb-final-bun{width:150px;height:160px}
+.hb-trail{display:flex;gap:26px;justify-content:center}
+.hb-trail i{font-style:normal;font-size:18px;opacity:0;animation:hbPaw 5s ease infinite}
+.hb-trail i:nth-child(odd){translate:0 10px}
+.hb-trail i:nth-child(2){animation-delay:.4s}.hb-trail i:nth-child(3){animation-delay:.8s}.hb-trail i:nth-child(4){animation-delay:1.2s}.hb-trail i:nth-child(5){animation-delay:1.6s}
+
+@media(max-width:640px){.hb-nav .lp-links{display:none!important}.hb-ctas .lp-btn{flex:1 1 100%}.hb-nav .lp-navbtns .lp-btn.g{display:inline-flex}}
+/* scroll reveal (only when JS is running) */
+.hb.rv-on .rv{opacity:0;transform:translateY(26px);transition:opacity .7s ease,transform .7s cubic-bezier(.2,.8,.2,1)}
+.hb.rv-on .rv.in{opacity:1;transform:none}
+.hb-bento .rv:nth-child(2){transition-delay:.08s}.hb-bento .rv:nth-child(3){transition-delay:.16s}.hb-bento .rv:nth-child(4){transition-delay:.08s}.hb-bento .rv:nth-child(5){transition-delay:.16s}.hb-bento .rv:nth-child(6){transition-delay:.24s}.hb-bento .rv:nth-child(7){transition-delay:.12s}
+
+@media(prefers-reduced-motion:reduce){.hb *,.hb *::before,.hb *::after{animation:none!important;transition:none!important}.hb .hb-msg,.hb .hb-toast,.hb .hb-sync{opacity:1;transform:none}.hb-cal span::after{transform:scale(1)}.hb .rv{opacity:1!important;transform:none!important}}
+
 /* ---------- stats: hop calendar ---------- */
 .st-grid{display:flex;flex-direction:column;gap:12px}
 .st-side{display:flex;flex-direction:column;gap:12px}
@@ -1685,11 +1963,11 @@ dialog::backdrop{background:var(--backdrop)}
 
 
   <!-- LANDING (first-time visitors) -->
-  <main id="scr-landing" class="lp" hidden>
-    <nav class="lp-nav" aria-label="Site">
+  <main id="scr-landing" class="lp hb" hidden>
+    <nav class="lp-nav hb-nav" aria-label="Site">
       <div class="lp-wrap">
         <a class="lp-brand" href="/"><img src="/icon-192.png" alt=""><span>Honeybun</span></a>
-        <div class="lp-links"><a href="#lp-features">Features</a><a href="#lp-demos">See it work</a><a href="#lp-faq">FAQ</a><a href="#lp-download" id="lpDownloadLink">Download</a><a href="#lp-updates" id="lpUpdatesLink" class="lp-upd-link">Updates <span class="lp-new" id="lpUpdCount"></span></a><a href="#lp-rewards" id="lpRewardsLink" class="lp-upd-link">🎁 Rewards</a></div>
+        <div class="lp-links"><a href="#lp-features">Features</a><a href="#lp-how">How it works</a><a href="#lp-download" id="lpDownloadLink">Download</a><a href="#lp-updates" id="lpUpdatesLink" class="lp-upd-link">Updates <span class="lp-new" id="lpUpdCount"></span></a><a href="#lp-rewards" id="lpRewardsLink" class="lp-upd-link">🎁 Rewards</a></div>
         <div class="lp-navbtns"><button class="lp-btn g sm" data-auth-go="login">Log in</button><button class="lp-btn p sm" data-auth-go="signup">Get started</button></div>
       </div>
     </nav>
@@ -1743,156 +2021,171 @@ dialog::backdrop{background:var(--backdrop)}
       </div>
     </section>
 
-    <header class="lp-hero">
-      <div class="lp-doodles" aria-hidden="true">
-        <svg class="d d1" viewBox="0 0 24 24"><path d="M16 8l4-4M14 5c1 0 3 1 3 3M5 19c1-6 4-9 9-10 2 3 1 6-1 8-3 2-6 2-8 2z"/></svg><svg class="d d2" viewBox="0 0 24 24"><circle cx="7" cy="9" r="2"/><circle cx="12" cy="6" r="2"/><circle cx="17" cy="9" r="2"/><path d="M12 11c3 0 6 3 6 6a3 3 0 0 1-3 3c-1 0-2-.5-3-.5s-2 .5-3 .5a3 3 0 0 1-3-3c0-3 3-6 6-6z"/></svg><svg class="d d3" viewBox="0 0 24 24"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg>
-        <svg class="d d4" viewBox="0 0 24 24"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5L18 18M6 18l2.5-2.5M15.5 8.5L18 6"/></svg><svg class="d d5" viewBox="0 0 24 24"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg><svg class="d d6" viewBox="0 0 24 24"><circle cx="7" cy="9" r="2"/><circle cx="12" cy="6" r="2"/><circle cx="17" cy="9" r="2"/><path d="M12 11c3 0 6 3 6 6a3 3 0 0 1-3 3c-1 0-2-.5-3-.5s-2 .5-3 .5a3 3 0 0 1-3-3c0-3 3-6 6-6z"/></svg>
+    <header class="hb-hero" id="lp-top">
+      <div class="hb-sky" aria-hidden="true">
+        <i class="hb-spark s1">✦</i><i class="hb-spark s2">✧</i><i class="hb-spark s3">✦</i><i class="hb-heart h1">♥</i><i class="hb-heart h2">♥</i><i class="hb-spark s4">✧</i>
+        <span class="hb-blob b1"></span><span class="hb-blob b2"></span><span class="hb-blob b3"></span>
       </div>
-      <div class="lp-wrap">
-        <div>
-          <span class="lp-pill"><i></i>Free · no bank connection · made for two</span>
-          <h1>Money, together.<br><span>Minus the stress.</span></h1>
-          <p class="lp-sub">A cute little budget for you, your partner, or your whole family. See what's left, split costs fairly, and never miss a bill, with a bunny cheering you on.</p>
-          <div class="lp-acts"><button class="lp-btn p" data-auth-go="signup">Get started, it's free</button><a class="lp-btn g" href="#lp-features">See how it works</a></div>
-          <div class="lp-trust">
-            <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l4 4 10-10"/></svg>Any phone or computer</span>
-            <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l4 4 10-10"/></svg>English · Español · 中文</span>
-            <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l4 4 10-10"/></svg>Passkeys, no passwords needed</span>
-          </div>
+      <div class="lp-wrap hb-hero-in">
+        <div class="hb-hero-copy">
+          <a class="hb-pill" href="#lp-updates" data-updates-go><b>New</b>Hop calendar, Windows app &amp; rewards <span aria-hidden="true">›</span></a>
+          <h1>Money, together.<br><span class="hb-grad">Minus the stress.</span></h1>
+          <p class="hb-lede">A cute little budget for you, your partner, or your whole family. See what's left, split costs fairly, never miss a bill, and let Bun cheer you on.</p>
+          <div class="hb-ctas"><button class="lp-btn p hb-big" data-auth-go="signup">Get started, it's free</button><a class="lp-btn g hb-big" href="#lp-download">Download the app</a></div>
+          <ul class="hb-trust">
+            <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l4 4 10-10"/></svg>Free, no bank login</li>
+            <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l4 4 10-10"/></svg>Phone, web &amp; Windows</li>
+            <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l4 4 10-10"/></svg>English · Español · 中文</li>
+          </ul>
         </div>
-        <div class="lp-stage" aria-label="Example of the Home screen">
-          <div class="lp-ring" aria-hidden="true"></div>
-          <div class="lp-money">
-            <div class="ears" aria-hidden="true"><i></i><i></i></div>
-            <div class="row"><span class="lp-avs"><i style="background:var(--t-rose);color:var(--c-rose)">A</i><i style="background:var(--t-honey);color:var(--c-honey)">J</i><b>Alex &amp; Jordan</b></span><span class="lp-chip">On track</span></div>
-            <div class="row" style="margin-top:10px"><span>Left in <b>September</b></span><span class="lp-carrot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 8l4-4M14 5c1 0 3 1 3 3M5 19c1-6 4-9 9-10 2 3 1 6-1 8-3 2-6 2-8 2z"/></svg>+10 today</span></div>
-            <div class="lp-amt" id="lpAmt">$0<small>.00</small></div>
-            <div class="lp-meter"><i id="lpMeter"></i></div>
-            <div class="lp-stats">
-              <div><span>Came in</span><b class="in" id="lpS1">$0</b></div>
-              <div><span>Spent</span><b id="lpS2">$0</b></div>
-              <div><span>Bills due</span><b id="lpS3">$0</b></div>
-            </div>
-            <div class="lp-bunnote"><svg viewBox="0 0 120 128" aria-hidden="true"><g fill="#f8f4f8" stroke="#141217" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"><path d="M44 54 C33 30 34 7 42 6 C50 5 54 28 55 48"/><path d="M76 54 C87 30 86 7 78 6 C70 5 66 28 65 48"/><ellipse cx="60" cy="84" rx="38" ry="34"/></g><circle cx="47" cy="81" r="4.5" fill="#141217"/><circle cx="73" cy="81" r="4.5" fill="#141217"/><ellipse cx="36" cy="93" rx="7" ry="4" fill="#F6B8CB"/><ellipse cx="84" cy="93" rx="7" ry="4" fill="#F6B8CB"/><path d="M53 92 q3.5 4 7 0 q3.5 4 7 0" fill="none" stroke="#141217" stroke-width="4" stroke-linecap="round"/></svg><span>Nice hop! Rent's covered and you're $2,006 ahead this month.</span></div>
+        <div class="hb-stage" id="hbStage" aria-label="Honeybun preview">
+          <div class="hb-money hb-card" data-depth="6">
+            <div class="hb-money-top"><span>Left in September</span><em>On track</em></div>
+            <div class="hb-money-amt" id="lpAmt">$0<small>.00</small></div>
+            <div class="hb-meter"><i id="lpMeter"></i></div>
+            <div class="hb-money-row"><span><small>Came in</small><b id="lpS1">$0.00</b></span><span><small>Spent</small><b id="lpS2">$0.00</b></span><span><small>Bills due</small><b id="lpS3">$0.00</b></span></div>
           </div>
-          <div class="lp-float lp-f1"><span class="ic t-rose"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v6a5 5 0 0 0 5 5M17 4v6a5 5 0 0 1-5 5v5"/></svg></span><span><b>Jordan owes Alex $21.34</b><small>Settle up in one tap</small></span></div>
-          <div class="lp-float lp-f2"><span class="ic t-lilac"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3L5 14h6l-1 7 9-11h-6z"/></svg></span><span><b>Electric is due Tuesday</b><small>Bun reminds you</small></span></div>
-          <div class="lp-float lp-f3"><span class="ic t-honey"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="7" cy="9" r="2"/><circle cx="12" cy="6" r="2"/><circle cx="17" cy="9" r="2"/><path d="M12 11c3 0 6 3 6 6a3 3 0 0 1-3 3c-1 0-2-.5-3-.5s-2 .5-3 .5a3 3 0 0 1-3-3c0-3 3-6 6-6z"/></svg></span><span><b>7-day hop streak</b><small>Level 3 · Curious Bun</small></span></div>
+          <div class="hb-bun-wrap" data-depth="14"><svg class="hb-bun" viewBox="0 0 160 170" aria-hidden="true"><ellipse class="hb-bun-shadow" cx="80" cy="162" rx="44" ry="6"/><g class="hb-bun-body"><g class="hb-ear hb-ear-l"><path d="M58 70 C44 40 44 8 55 6 C66 4 71 36 72 62" /><path class="hb-ear-in" d="M59 58 C52 38 53 18 57 16 C61 15 64 36 65 52"/></g><g class="hb-ear hb-ear-r"><path d="M102 70 C116 40 116 8 105 6 C94 4 89 36 88 62" /><path class="hb-ear-in" d="M101 58 C108 38 107 18 103 16 C99 15 96 36 95 52"/></g><ellipse class="hb-head" cx="80" cy="108" rx="50" ry="45"/><g class="hb-eyes"><ellipse cx="63" cy="103" rx="5.5" ry="6.5"/><ellipse cx="97" cy="103" rx="5.5" ry="6.5"/><circle class="hb-shine" cx="65" cy="100.5" r="1.8"/><circle class="hb-shine" cx="99" cy="100.5" r="1.8"/></g><ellipse class="hb-cheek" cx="49" cy="118" rx="9" ry="5"/><ellipse class="hb-cheek" cx="111" cy="118" rx="9" ry="5"/><path class="hb-mouth" d="M72 117 q4 5 8 0 q4 5 8 0"/></g></svg><span class="hb-bubble">You're doing great! 🥕</span></div>
+          <div class="hb-float f1" data-depth="22"><span class="hb-avs"><i style="background:#FFE1CC">🐻</i><i style="background:#FFD6E5">🐰</i></span><span><b>Rosie added Groceries</b><small>$86.40 · split evenly</small></span></div>
+          <div class="hb-float f2" data-depth="18"><span class="hb-ico honey">🐾</span><span><b>12-day hop streak</b><small>+10 carrots today</small></span></div>
+          <div class="hb-float f3" data-depth="26"><span class="hb-ico rose"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg></span><span><b>Rent is due in 3 days</b><small>Bun reminds you</small></span></div>
         </div>
       </div>
+      <div class="hb-ribbon" aria-hidden="true"><div class="hb-ribbon-track">
+        <span>🍯 Honey jars</span><span>🐾 Hop calendar</span><span>💞 Split fairly</span><span>📅 Bills before payday</span><span>💬 Bun's inbox</span><span>📱 Apple Pay auto-log</span><span>🎁 Referral rewards</span><span>🖥️ Windows app</span><span>🔑 Passkeys</span><span>🌙 Dark mode</span>
+        <span>🍯 Honey jars</span><span>🐾 Hop calendar</span><span>💞 Split fairly</span><span>📅 Bills before payday</span><span>💬 Bun's inbox</span><span>📱 Apple Pay auto-log</span><span>🎁 Referral rewards</span><span>🖥️ Windows app</span><span>🔑 Passkeys</span><span>🌙 Dark mode</span>
+      </div></div>
     </header>
 
-    <section class="lp-sec" id="lp-features">
+    <section class="hb-sec" id="lp-features">
       <div class="lp-wrap">
-        <div class="lp-head lp-rv"><span class="lp-eyebrow">Why people like it</span><h2>Everything a household needs. Nothing it doesn't.</h2><p class="lp-sub">For two people who share rent and one grocery run, and for anyone tired of budget apps that feel like homework. Bun keeps it light.</p></div>
-        <div class="lp-grid">
-          <div class="lp-card lp-rv" style="--glow:var(--c-rose)"><span class="lp-ic t-rose"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v6a5 5 0 0 0 5 5M17 4v6a5 5 0 0 1-5 5v5"/></svg></span><h3>Split costs fairly</h3><p>Evenly, by percent, or a set amount owed. Honeybun keeps a running balance so nobody keeps score.</p></div>
-          <div class="lp-card lp-rv" style="--glow:var(--c-blue)"><span class="lp-ic t-blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="3"/><path d="M4 10h16M9 3v4M15 3v4"/></svg></span><h3>Bills before payday</h3><p>Add rent, subscriptions, and paychecks once. See what's due before your next payday and what's left after.</p></div>
-          <div class="lp-card lp-rv" style="--glow:var(--c-honey)"><span class="lp-ic t-honey"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3L5 14h6l-1 7 9-11h-6z"/></svg></span><h3>Tap to pay, logged</h3><p>An iPhone Shortcut sends every Apple Pay purchase to Honeybun. Category guessed, split remembered. No bank connection, ever.</p></div>
-          <div class="lp-card lp-rv" style="--glow:var(--c-green)"><span class="lp-ic t-green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 8h8l1 2v9a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-9z"/><rect x="8" y="4" width="8" height="4" rx="1.5"/></svg></span><h3>Honey jar goals</h3><p>Save for a trip, a ring, or a rainy day, and pay down debt with a clear debt-free date.</p></div>
-          <div class="lp-card lp-rv" style="--glow:var(--c-lilac)"><span class="lp-ic t-lilac"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12a8 7 0 1 1 3.6 5.8L4 19.5l1.2-3.4A6.7 6.7 0 0 1 4 12z"/></svg></span><h3>Bun keeps you on track</h3><p>A push when a bill is due, a budget is almost used up, or your partner adds something shared.</p></div>
-          <div class="lp-card lp-rv" style="--glow:var(--c-gray)"><span class="lp-ic t-gray"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></span><h3>Private when you want</h3><p>Passkeys to log in, personal entries only you can see, no ads, and we never sell your data.</p></div>
-        </div>
-      </div>
-    </section>
-
-    <section class="lp-sec tight" id="lp-demos">
-      <div class="lp-wrap">
-        <div class="lp-head lp-rv"><span class="lp-eyebrow">See it work</span><h2>Two things you'll use every week</h2></div>
-        <div class="lp-two">
-          <div class="lp-panel lp-rv">
-            <div class="lp-ptop"><span class="lp-ic t-rose"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v6a5 5 0 0 0 5 5M17 4v6a5 5 0 0 1-5 5v5"/></svg></span><div><h3>No more "who paid for what?"</h3><p>Drag the slider. Shared expenses split automatically, and Settle up resets the balance.</p></div></div>
-            <div class="lp-demo" aria-label="Split example">
-              <div class="top"><span>Costco</span><small>$84.00 · Alex paid</small></div>
-              <div class="lp-modes" role="group" aria-label="Split mode">
-                <button type="button" data-mode="equal" aria-pressed="true">Evenly</button>
-                <button type="button" data-mode="percent" aria-pressed="false">By %</button>
-                <button type="button" data-mode="owed" aria-pressed="false">Set amount</button>
-              </div>
-              <label for="lpSl"><span id="lpSlLbl">Alex covers</span><span id="lpSlVal">50%</span></label>
-              <input id="lpSl" type="range" min="0" max="100" value="50" step="1">
-              <div class="lp-bar"><div class="a" id="lpBarA" style="width:50%">$42.00</div><div class="b" id="lpBarB" style="width:50%">$42.00</div></div>
-              <div class="lp-who">
-                <div><i style="background:var(--t-rose);color:var(--c-rose)">A</i><span><b>Alex</b><small id="lpWhoA">covers $42.00</small></span></div>
-                <div><i style="background:var(--t-honey);color:var(--c-honey)">J</i><span><b>Jordan</b><small id="lpWhoB">owes $42.00</small></span></div>
-              </div>
+        <div class="hb-head rv"><span class="hb-eyebrow">Why people like it</span><h2>Everything a household needs.<br>Nothing it doesn't.</h2><p>Budget apps usually feel like homework. Honeybun feels like a little friend who's good with money.</p></div>
+        <div class="hb-bento">
+          <article class="hb-tile t-split rv">
+            <div class="hb-tile-txt"><span class="hb-tag rose">Together</span><h3>Split costs fairly</h3><p>Evenly, by percent, or a set amount. A running balance means nobody keeps score.</p></div>
+            <div class="hb-demo hb-split">
+              <div class="hb-split-row"><span class="hb-av" style="background:#FFD6E5">🐰</span><div class="hb-split-bar"><i class="a">Alex</i><i class="b">Jordan</i></div><span class="hb-av" style="background:#FFE1CC">🐻</span></div>
+              <div class="hb-split-owe"><span>Jordan owes Alex <b>$21.34</b></span><button class="hb-settle" type="button" tabindex="-1">Settle up</button></div>
             </div>
-          </div>
-          <div class="lp-panel lp-rv">
-            <div class="lp-ptop"><span class="lp-ic t-honey"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3L5 14h6l-1 7 9-11h-6z"/></svg></span><div><h3>Tap to pay. Logged.</h3><p>An iPhone Shortcut sends every Apple Pay purchase to Honeybun. Category guessed, split remembered, undo from the notification.</p></div></div>
-            <div class="lp-scene" aria-hidden="true" data-nt>
-              <span class="lp-ripple"></span><span class="lp-ripple w2"></span>
-              <div class="lp-cardp"><span class="chipp"></span><svg class="wave" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 8a8 8 0 0 1 0 8M9.5 10a4 4 0 0 1 0 4M14.5 10a4 4 0 0 0 0 4M18 8a8 8 0 0 0 0 8"/></svg><b>Costco</b><small>$84.00 · Apple Pay</small></div>
-              <div class="lp-note"><img src="/icon-192.png" alt=""><span><b>Honeybun</b><small>Logged $84 at Costco · Groceries, split</small></span><em>now</em></div>
+          </article>
+          <article class="hb-tile t-cal rv">
+            <div class="hb-tile-txt"><span class="hb-tag honey">New · Stats</span><h3>Your month as a hop calendar</h3><p>Bigger dots mean bigger spending days. Paw prints mark days you spent nothing.</p></div>
+            <div class="hb-demo hb-cal" id="hbCal" aria-hidden="true"></div>
+            <div class="hb-cal-sum"><span class="g"><b>9</b>no-spend days</span><span class="h"><b>$212</b>biggest day</span></div>
+          </article>
+          <article class="hb-tile t-inbox rv">
+            <div class="hb-tile-txt"><span class="hb-tag lilac">Bun's inbox</span><h3>A buddy who texts first</h3></div>
+            <div class="hb-demo hb-chat" aria-hidden="true">
+              <div class="hb-msg m1"><img src="/icon-192.png" alt=""><p>Rent ($1,450) is due in 3 days 🐰</p></div>
+              <div class="hb-msg m2"><img src="/icon-192.png" alt=""><p>Rosie split Groceries with you 💞</p></div>
+              <div class="hb-msg me m3"><p>How are my referrals doing?</p></div>
+              <div class="hb-msg m4"><img src="/icon-192.png" alt=""><p>3 friends joined! 7 more for a $10 gift card 🎁</p></div>
             </div>
+          </article>
+          <article class="hb-tile t-jar rv">
+            <div class="hb-tile-txt"><span class="hb-tag green">Goals</span><h3>Honey jar savings</h3><p>Save for a trip or a rainy day, and see a debt-free date.</p></div>
+            <div class="hb-demo hb-jar" aria-hidden="true">
+              <svg viewBox="0 0 100 120"><defs><clipPath id="hbJarClip"><path d="M22 34 h56 a8 8 0 0 1 8 8 v58 a14 14 0 0 1 -14 14 h-44 a14 14 0 0 1 -14 -14 v-58 a8 8 0 0 1 8 -8z"/></clipPath></defs><g clip-path="url(#hbJarClip)"><rect class="hb-honey" x="0" y="0" width="100" height="120"/><path class="hb-wave" d="M-20 0 q15 -8 30 0 t30 0 t30 0 t30 0 t30 0 v12 h-150z"/></g><path class="hb-jar-glass" d="M22 34 h56 a8 8 0 0 1 8 8 v58 a14 14 0 0 1 -14 14 h-44 a14 14 0 0 1 -14 -14 v-58 a8 8 0 0 1 8 -8z"/><rect class="hb-jar-lid" x="26" y="20" width="48" height="14" rx="5"/></svg>
+              <div><b>Weekend getaway</b><small><span class="hb-jar-pct">62%</span> of $800</small></div>
+            </div>
+          </article>
+          <article class="hb-tile t-bills rv">
+            <div class="hb-tile-txt"><span class="hb-tag blue">Plan</span><h3>Bills before payday</h3></div>
+            <ul class="hb-demo hb-bills" aria-hidden="true">
+              <li><i></i><span>Rent</span><b>$1,450</b></li>
+              <li><i></i><span>Phone</span><b>$85</b></li>
+              <li><i></i><span>Netflix</span><b>$15.49</b></li>
+              <li class="pay"><i></i><span>Payday 💰</span><b>+$2,400</b></li>
+            </ul>
+          </article>
+          <article class="hb-tile t-tap rv">
+            <div class="hb-tile-txt"><span class="hb-tag honey">iPhone</span><h3>Tap to pay, logged</h3><p>An Apple Pay Shortcut sends each purchase to Honeybun. No bank connection, ever.</p></div>
+            <div class="hb-demo hb-tap" aria-hidden="true"><span class="hb-card-mini"><i></i></span><span class="hb-ripple"></span><span class="hb-ripple r2"></span><span class="hb-toast">☕ Coffee · $4.75 logged</span></div>
+          </article>
+          <article class="hb-tile t-safe rv">
+            <div class="hb-tile-txt"><span class="hb-tag gray">Private</span><h3>Yours, and only yours</h3><p>Log in with a passkey, keep personal entries private, no ads, and we never sell your data.</p></div>
+            <div class="hb-demo hb-lock" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2.5"/><path class="hb-shackle" d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="hb-sec hb-how" id="lp-how">
+      <div class="lp-wrap">
+        <div class="hb-head rv"><span class="hb-eyebrow">How it works</span><h2>Set up in about a minute.</h2></div>
+        <div class="hb-steps rv">
+          <div class="hb-path" aria-hidden="true"><span class="hb-hopper"><svg class="hb-bun" viewBox="0 0 160 170" aria-hidden="true"><ellipse class="hb-bun-shadow" cx="80" cy="162" rx="44" ry="6"/><g class="hb-bun-body"><g class="hb-ear hb-ear-l"><path d="M58 70 C44 40 44 8 55 6 C66 4 71 36 72 62" /><path class="hb-ear-in" d="M59 58 C52 38 53 18 57 16 C61 15 64 36 65 52"/></g><g class="hb-ear hb-ear-r"><path d="M102 70 C116 40 116 8 105 6 C94 4 89 36 88 62" /><path class="hb-ear-in" d="M101 58 C108 38 107 18 103 16 C99 15 96 36 95 52"/></g><ellipse class="hb-head" cx="80" cy="108" rx="50" ry="45"/><g class="hb-eyes"><ellipse cx="63" cy="103" rx="5.5" ry="6.5"/><ellipse cx="97" cy="103" rx="5.5" ry="6.5"/><circle class="hb-shine" cx="65" cy="100.5" r="1.8"/><circle class="hb-shine" cx="99" cy="100.5" r="1.8"/></g><ellipse class="hb-cheek" cx="49" cy="118" rx="9" ry="5"/><ellipse class="hb-cheek" cx="111" cy="118" rx="9" ry="5"/><path class="hb-mouth" d="M72 117 q4 5 8 0 q4 5 8 0"/></g></svg></span><i class="p1">🐾</i><i class="p2">🐾</i><i class="p3">🐾</i><i class="p4">🐾</i></div>
+          <div class="hb-step"><b>1</b><h3>Start your budget</h3><p>Make a free account and pick Just me, Couple, or Family.</p></div>
+          <div class="hb-step"><b>2</b><h3>Add bills and paydays</h3><p>Rent, subscriptions, paychecks. Add them once and Honeybun remembers.</p></div>
+          <div class="hb-step"><b>3</b><h3>Invite and hop</h3><p>Send your partner a link, log what you spend, and watch your streak grow.</p></div>
+        </div>
+        <div class="hb-kinds rv" aria-hidden="true">
+          <span><i>🐰</i>Just me</span><span class="on"><i>🐰</i><i>🐻</i>Couple</span><span><i>🐰</i><i>🐻</i><i>🐥</i>Family</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="hb-sec" id="lp-download">
+      <div class="lp-wrap hb-dl">
+        <div class="hb-dl-copy rv">
+          <span class="hb-eyebrow">Download</span>
+          <h2>Honeybun everywhere you are.</h2>
+          <p>One account on your computer, your phone, and the web. Add something on one and it shows up on the others right away.</p>
+          <div class="hb-dl-win">
+            <a class="lp-btn p hb-big" id="dlWin" href="/download/windows" download><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 5.5l7-1v7H3zM11 4.3L21 3v8.5H11zM3 12.5h7v7l-7-1zM11 12.5h10V21l-10-1.3z"/></svg>Download for Windows</a>
+            <small>Windows 10 and 11 · about 1 MB. If Windows shows "Windows protected your PC", click <b>More info</b>, then <b>Run anyway</b>.</small>
+          </div>
+          <div class="hb-dl-phones">
+            <div><b>iPhone</b><span>Open honeybun.me in Safari, tap Share, then <b>Add to Home Screen</b>.</span></div>
+            <div><b>Android</b><span>Open honeybun.me in Chrome, tap ⋮, then <b>Install app</b>.</span></div>
           </div>
         </div>
-      </div>
-    </section>
-
-    <section class="lp-sec tight" id="lp-screens">
-      <div class="lp-wrap">
-        <div class="lp-head lp-rv"><span class="lp-eyebrow">The whole app</span><h2>Four screens. That's the whole app.</h2></div>
-        <div class="lp-screens">
-          <div class="lp-shot lp-rv"><div class="ph"><img src="/lp-home.webp" alt="Home screen showing what's left this month" loading="lazy" width="390" height="780"></div><b>Home</b><span>What's left, what's due, what's new.</span></div>
-          <div class="lp-shot lp-rv"><div class="ph"><img src="/lp-plan.webp" alt="Plan screen with budgets and a calendar" loading="lazy" width="390" height="780"></div><b>Plan</b><span>Budgets, calendar, jars, and debts.</span></div>
-          <div class="lp-shot lp-rv"><div class="ph"><img src="/lp-stats.webp" alt="Stats screen with categories and streak" loading="lazy" width="390" height="780"></div><b>Stats</b><span>Where it went, streaks, and badges.</span></div>
-          <div class="lp-shot lp-rv"><div class="ph"><img src="/lp-us.webp" alt="Together screen with a settle-up button" loading="lazy" width="390" height="320"></div><b>Together</b><span>Who owes whom, one tap to settle.</span></div>
+        <div class="hb-devices rv" aria-hidden="true">
+          <div class="hb-laptop"><div class="hb-screen">
+            <div class="hb-mini-side"><img src="/icon-192.png" alt=""><i class="on"></i><i></i><i></i><i></i><span></span><i class="gift"></i></div>
+            <div class="hb-mini-main"><div class="hb-mini-h">Stats <em>Sep 2026</em></div><div class="hb-mini-cal" id="hbMiniCal"></div></div>
+          </div><div class="hb-base"></div></div>
+          <div class="hb-phone"><div class="hb-notch"></div>
+            <div class="hb-ph-in"><small>Left in September</small><b>$1,912</b><div class="hb-meter"><i style="width:62%"></i></div>
+              <div class="hb-ph-list"><span>🛒 Groceries<em>−$86</em></span><span>☕ Coffee<em>−$4.75</em></span><span class="new">🍕 Pizza<em>−$28</em></span></div></div>
+          </div>
+          <span class="hb-sync">Synced ✓</span>
         </div>
       </div>
     </section>
 
-    <section class="lp-sec tight" id="lp-download">
+    <section class="hb-sec">
       <div class="lp-wrap">
-        <div class="lp-head lp-rv"><span class="lp-eyebrow">Download</span><h2>Honeybun everywhere you are.</h2><p class="lp-sub">One account on your computer, your phone, and the web. Add something on one and it shows up on the others right away.</p></div>
-        <div class="lp-dl">
-          <article class="lp-card lp-dl-card lp-rv" style="--glow:var(--c-blue)">
-            <span class="lp-ic t-blue"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 5.5l7-1v7H3zM11 4.3L21 3v8.5H11zM3 12.5h7v7l-7-1zM11 12.5h10V21l-10-1.3z"/></svg></span>
-            <h3>Windows app</h3>
-            <p>Honeybun in its own window, pinned to your taskbar. Always up to date, nothing to update by hand.</p>
-            <a class="lp-btn p" id="dlWin" href="/download/windows" download>Download for Windows</a>
-            <small class="lp-dl-note">Windows 10 and 11 · about 1 MB. If Windows shows "Windows protected your PC", click <b>More info</b>, then <b>Run anyway</b>.</small>
-          </article>
-          <article class="lp-card lp-dl-card lp-rv" style="--glow:var(--c-green)">
-            <span class="lp-ic t-green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4M12 7v5M9.5 9.5L12 12l2.5-2.5"/></svg></span>
-            <h3>Install from your browser</h3>
-            <p>No download needed. Chrome and Edge install Honeybun as an app on Windows, Mac, and Chromebook.</p>
-            <button class="lp-btn g" type="button" id="dlInstall">Install Honeybun</button>
-            <small class="lp-dl-note" id="dlInstallNote">Opens as its own app with a Start menu or Dock icon.</small>
-          </article>
-          <article class="lp-card lp-dl-card lp-rv" style="--glow:var(--c-rose)">
-            <span class="lp-ic t-rose"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M11 18.5h2"/></svg></span>
-            <h3>On your phone</h3>
-            <p>Add Honeybun to your home screen and it opens full screen, just like an app.</p>
-            <ol class="lp-dl-steps">
-              <li><b>iPhone:</b> open honeybun.me in Safari, tap Share, then <b>Add to Home Screen</b>.</li>
-              <li><b>Android:</b> open honeybun.me in Chrome, tap ⋮, then <b>Install app</b>.</li>
-            </ol>
-          </article>
+        <div class="hb-reward rv">
+          <div class="hb-reward-txt"><span class="hb-eyebrow">Referral rewards</span><h2>Share Honeybun, get a $10 gift card.</h2><p>For every 10 friends who use Honeybun for a week, Bun sends you a $10 gift card. No limit.</p>
+            <div class="hb-ctas"><button class="lp-btn p" data-auth-go="signup">Get my link</button><button class="lp-btn g" type="button" data-rewards-go>How it works</button></div></div>
+          <div class="hb-reward-dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i class="gift">🎁</i></div>
         </div>
       </div>
     </section>
 
-    <section class="lp-sec tight" id="lp-faq">
+    <section class="hb-sec" id="lp-faq">
       <div class="lp-wrap">
-        <div class="lp-head lp-rv" style="margin-bottom:18px"><h2 style="font-size:28px">Good to know</h2></div>
-        <div class="lp-faq lp-rv">
+        <div class="hb-head rv"><span class="hb-eyebrow">Good to know</span><h2>Questions, answered.</h2></div>
+        <div class="lp-faq hb-faq rv">
           <details><summary>Is Honeybun free?</summary><p>Yes. Honeybun is free to use.</p></details>
           <details><summary>Do I have to connect my bank?</summary><p>No. You add what you spend yourself, or let an Apple Pay Shortcut do it. Your bank logins stay with you.</p></details>
-          <details><summary>Is there an app to download?</summary><p>Yes. There's a Windows app, you can install Honeybun from Chrome or Edge on any computer, and on iPhone or Android you can add it to your home screen. It's one account everywhere, so everything stays in sync. See Download above.</p></details>
+          <details><summary>Is there an app to download?</summary><p>Yes. There's a Windows app, and on iPhone or Android you can add Honeybun to your home screen. It's one account everywhere, so everything stays in sync.</p></details>
           <details><summary>Can my partner see everything?</summary><p>People in your budget see shared spending, bills, and goals. Anything you mark "Only I can see this" stays private.</p></details>
+          <details><summary>Can I use it on my own?</summary><p>Of course. Pick Just me when you start. You can invite someone later whenever you like.</p></details>
+          <details><summary>Can I delete my data?</summary><p>Anytime. Settings lets you download everything or delete your account for good.</p></details>
         </div>
       </div>
     </section>
 
-    <section class="lp-sec tight">
+    <section class="hb-sec hb-end">
       <div class="lp-wrap">
-        <div class="lp-final lp-rv">
-          <span class="bun"><svg viewBox="0 0 120 128" aria-hidden="true"><g fill="#f8f4f8" stroke="#141217" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"><path d="M44 54 C33 30 34 7 42 6 C50 5 54 28 55 48"/><path d="M76 54 C87 30 86 7 78 6 C70 5 66 28 65 48"/><ellipse cx="60" cy="84" rx="38" ry="34"/></g><circle cx="47" cy="81" r="4.5" fill="#141217"/><circle cx="73" cy="81" r="4.5" fill="#141217"/><ellipse cx="36" cy="93" rx="7" ry="4" fill="#F6B8CB"/><ellipse cx="84" cy="93" rx="7" ry="4" fill="#F6B8CB"/><path d="M53 92 q3.5 4 7 0 q3.5 4 7 0" fill="none" stroke="#141217" stroke-width="4" stroke-linecap="round"/></svg></span>
+        <div class="hb-final rv">
+          <div class="hb-trail" aria-hidden="true"><i>🐾</i><i>🐾</i><i>🐾</i><i>🐾</i><i>🐾</i></div>
+          <div class="hb-final-bun"><svg class="hb-bun" viewBox="0 0 160 170" aria-hidden="true"><ellipse class="hb-bun-shadow" cx="80" cy="162" rx="44" ry="6"/><g class="hb-bun-body"><g class="hb-ear hb-ear-l"><path d="M58 70 C44 40 44 8 55 6 C66 4 71 36 72 62" /><path class="hb-ear-in" d="M59 58 C52 38 53 18 57 16 C61 15 64 36 65 52"/></g><g class="hb-ear hb-ear-r"><path d="M102 70 C116 40 116 8 105 6 C94 4 89 36 88 62" /><path class="hb-ear-in" d="M101 58 C108 38 107 18 103 16 C99 15 96 36 95 52"/></g><ellipse class="hb-head" cx="80" cy="108" rx="50" ry="45"/><g class="hb-eyes"><ellipse cx="63" cy="103" rx="5.5" ry="6.5"/><ellipse cx="97" cy="103" rx="5.5" ry="6.5"/><circle class="hb-shine" cx="65" cy="100.5" r="1.8"/><circle class="hb-shine" cx="99" cy="100.5" r="1.8"/></g><ellipse class="hb-cheek" cx="49" cy="118" rx="9" ry="5"/><ellipse class="hb-cheek" cx="111" cy="118" rx="9" ry="5"/><path class="hb-mouth" d="M72 117 q4 5 8 0 q4 5 8 0"/></g></svg></div>
           <h2>Ready to hop in?</h2>
-          <p class="lp-sub" style="text-align:center">Set up takes about a minute. Bun takes it from there.</p>
-          <div class="lp-mini"><span><i>1</i>Create a free account</span><span><i>2</i>Add bills and paydays</span><span><i>3</i>Invite your partner and hop</span></div>
-          <button class="lp-btn p" data-auth-go="signup">Get started, it's free</button>
+          <p>Setup takes about a minute. Bun takes it from there.</p>
+          <button class="lp-btn p hb-big" data-auth-go="signup">Get started, it's free</button>
         </div>
         <footer class="lp-foot">
           <div class="lang-row" data-lang-picker></div>
@@ -2378,11 +2671,6 @@ dialog::backdrop{background:var(--backdrop)}
     <span class="lp-ic t-blue"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 5.5l7-1v7H3zM11 4.3L21 3v8.5H11zM3 12.5h7v7l-7-1zM11 12.5h10V21l-10-1.3z"/></svg></span>
     <div><b>Windows app</b><small>Its own window on your taskbar. If Windows says "Windows protected your PC", click More info, then Run anyway.</small></div>
     <a class="go" href="/download/windows" download>Download</a>
-  </div>
-  <div class="get-opt" id="getInstOpt">
-    <span class="lp-ic t-green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4M12 7v5M9.5 9.5L12 12l2.5-2.5"/></svg></span>
-    <div><b>Install from your browser</b><small id="getInstNote">Chrome and Edge can install Honeybun on Windows, Mac, and Chromebook.</small></div>
-    <button class="small" type="button" id="getInstall">Install</button>
   </div>
   <div class="get-opt">
     <span class="lp-ic t-rose"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M11 18.5h2"/></svg></span>
