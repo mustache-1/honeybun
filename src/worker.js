@@ -1535,12 +1535,12 @@ function withDevice(request, res) {
 }
 
 // The Windows installer is built on GitHub, but people download it from honeybun.me:
-// the Worker fetches the latest build and hands it over as Honeybun-Setup.exe (cached at the edge for an hour).
+// the Worker fetches the latest build and hands it over as Honeybun-Setup.exe (cached at the edge for 10 minutes).
 const WINDOWS_INSTALLER = "https://github.com/mustache-1/honeybun/releases/latest/download/Honeybun-Setup.exe";
 async function downloadWindows(request) {
   if (request.method !== "GET" && request.method !== "HEAD") return new Response("Method not allowed", { status: 405 });
   let res;
-  try { res = await fetch(WINDOWS_INSTALLER + "?v=2", { redirect: "follow", cf: { cacheEverything: true, cacheTtlByStatus: { "200-299": 3600, "300-599": 0 } } }); } catch (e) { console.error("installer fetch failed", e.message); res = null; }
+  try { res = await fetch(WINDOWS_INSTALLER + "?v=3", { redirect: "follow", cf: { cacheEverything: true, cacheTtlByStatus: { "200-299": 600, "300-599": 0 } } }); } catch (e) { console.error("installer fetch failed", e.message); res = null; }
   if (!res || !res.ok) {
     console.error("installer not available", res && res.status);
     return new Response(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Honeybun for Windows</title>
