@@ -1918,6 +1918,27 @@ dialog::backdrop{background:var(--backdrop)}
 .bills-foot{display:flex;flex-direction:column;align-items:center;gap:4px}
 .bills-foot:empty{display:none}
 .bills-subs-link{font-size:12px;margin-top:6px}
+/* ---------- plan: compact Debts card on desktop ---------- */
+@media (min-width:900px){
+  #debts{display:flex;flex-wrap:wrap;align-items:center;column-gap:12px}
+  #debts>*{flex:1 1 100%;min-width:0}
+  #debts>.strategy{flex:0 0 auto;margin:0 0 8px}
+  #debts>.strategy .split button{padding:5px 9px;font-size:.78rem}
+  #debts>.strategy .split{gap:4px}
+  #debts>.hint{display:none}
+  #debts>.extra{flex:1 1 0;margin:0 0 8px}
+  #debts>.extra .x-l{display:none}
+  #debts>.extra input{width:100%;min-height:34px;padding:4px 10px;font-size:13px}
+  #debts .payoff{padding:6px 10px;margin-bottom:2px;font-size:12px;line-height:1.35}
+  #debts .goal.debt{padding-block:6px}
+  #debts .goal.debt .s{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #debts .hist{margin-top:4px}
+  #debts .goal .t{align-items:baseline}
+  #debts .goal .t span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #debts .goal .t small{white-space:nowrap;flex:none}
+  #debts .goal .t small .lft{display:none}
+}
+
 /* ---------- home: Coming up pages ---------- */
 .due-pg{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:8px;font-size:12px;font-weight:800;color:var(--soft)}
 .due-pg button{width:30px;height:30px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);font:inherit;font-weight:900;cursor:pointer}

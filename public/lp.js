@@ -72,6 +72,7 @@
   var LOG = [
     { v: "1.10.1", date: "2026-09-29", name: "Tidier Home and Plan", items: [
       { t: "Pages for Coming up", d: "A long list of upcoming bills now shows 5 at a time with page buttons, so Home never needs to scroll and Latest always has room.", tags: ["improved"], icon: "budget" },
+      { t: "Debts fit on the page", d: "On desktop, Debts shows a few at a time with page buttons and a slimmer header, so Plan never needs to scroll.", tags: ["improved"], icon: "budget" },
       { t: "Tidier bills in Plan", d: "Bills & paydays and Subscriptions now show a page at a time, soonest first. Subscriptions only appear in their own tab, with a link to it from Bills & paydays.", tags: ["improved"], icon: "budget" },
       { t: "Smarter tips", d: "Bun no longer gives habit tips about the catch-all Other category.", tags: ["fixed"], icon: "bell" }
     ] },

@@ -251,6 +251,7 @@
   let billsTab = "bills"; // Plan: "bills" or "subs"
   let duePage = 0, dueSize = 5, lastDueLeft = 0; // Home: Coming up pages
   let billsPage = 0, billsSize = 6, billsSig = ""; // Plan: bills / subscriptions pages
+  let debtPage = 0, debtSize = 3, debtSig = ""; // Plan: debts pages (desktop)
   let screen = "loading", filter = null, authMode = "signup", newKind = "couple", calSel = null;
   let mode = "expense", cat = "groc", who = null, shared = true, splitMode = "equal", editing = null;
   let pendingCode = null, resetToken = null, verifyToken = null;
@@ -1288,7 +1289,7 @@
     const plan = payoffPlan(extra);
     box.innerHTML = `<div class="strategy"><div class="split"><button type="button" data-s="snowball" aria-pressed="${debtStrat === "snowball"}">Snowball</button><button type="button" data-s="avalanche" aria-pressed="${debtStrat === "avalanche"}">Avalanche</button></div></div>
       <p class="hint" style="margin:0 0 8px">${debtStrat === "snowball" ? "Pay the smallest balance first for quick wins." : "Pay the highest interest first to save the most money."}</p>
-      <label class="extra">Extra each month $<input id="debtExtra" type="number" inputmode="decimal" min="0" step="10" value="${extra || ""}" placeholder="0"></label>
+      <label class="extra"><span class="x-l">Extra each month $</span><input id="debtExtra" type="number" inputmode="decimal" min="0" step="10" value="${extra || ""}" placeholder="${matchMedia("(min-width: 900px)").matches ? esc(tr("Extra $/mo")) : "0"}" aria-label="${esc(tr("Extra each month $"))}"></label>
       <div class="payoff">${left <= 0 ? "Everything's paid off 🎉" : plan.months === null ? "Add minimum payments to see your debt-free date." : `<b>${fmt(left)}</b> left · debt-free around <b>${monthsOut(plan.months)}</b>`}${paid > 0 ? `<br><span style="color:var(--soft)">${fmt(paid)} paid so far</span>` : ""}</div>`;
     box.querySelectorAll("[data-s]").forEach((b) => (b.onclick = () => { debtStrat = b.dataset.s; store.set("hb-debt-strat", debtStrat); renderDebts(); }));
     $("debtExtra").onchange = (e) => { store.set("hb-debt-extra", String(parseFloat(e.target.value) || 0)); renderDebts(); };
@@ -1296,19 +1297,33 @@
       const ia = plan.order.indexOf(a.id), ib = plan.order.indexOf(b.id);
       return (ia < 0 ? 999 : ia) - (ib < 0 ? 999 : ib);
     });
-    sorted.forEach((d, i) => {
+    // desktop: a page of debts at a time so the card never pushes Plan into scrolling (phones show them all)
+    const deskPaged = matchMedia("(min-width: 900px)").matches;
+    const dsig = "d" + sorted.length; if (dsig !== debtSig) { debtSig = dsig; debtPage = 0; }
+    const dpages = deskPaged ? Math.max(1, Math.ceil(sorted.length / debtSize)) : 1;
+    debtPage = Math.min(debtPage, dpages - 1);
+    const shownDebts = deskPaged ? sorted.slice(debtPage * debtSize, (debtPage + 1) * debtSize) : sorted;
+    shownDebts.forEach((d) => {
+      const i = sorted.indexOf(d);
       const rem = Math.max(0, d.start_cents - d.paid_cents) / 100, pct = d.start_cents ? Math.min(100, (d.paid_cents / d.start_cents) * 100) : 0;
       const el = document.createElement("div"); el.className = "goal debt";
-      el.innerHTML = `<span class="em">${rem <= 0 ? tileHtml("party", "green", 38) : tileHtml("card", "rose", 38)}</span><div class="mid"><div class="t"><span>${rem > 0 ? `${i + 1}. ` : ""}${esc(d.name)}</span><small>${fmt(rem)} left</small></div>
+      el.innerHTML = `<span class="em">${rem <= 0 ? tileHtml("party", "green", 38) : tileHtml("card", "rose", 38)}</span><div class="mid"><div class="t"><span>${rem > 0 ? `${i + 1}. ` : ""}${esc(d.name)}</span><small title="${esc(tr("left"))}">${fmt(rem)}<span class="lft"> ${esc(tr("left"))}</span></small></div>
         <div class="s">${(d.apr_bp / 100).toFixed(2).replace(/\.00$/, "")}% APR · min ${fmt(d.min_cents / 100)}${plan.done[d.id] ? " · paid off ~" + monthsOut(plan.done[d.id]) : ""}</div>
         <div class="trk"><i style="width:${pct}%"></i></div></div>${rem > 0 ? '<button class="mini inc">Pay</button>' : ""}`;
       el.onclick = () => openDebt(d);
       const pb = el.querySelector("button"); if (pb) pb.onclick = (ev) => { ev.stopPropagation(); openPay(d); };
       box.appendChild(el);
     });
+    if (dpages > 1) {
+      const pg = document.createElement("div"); pg.className = "due-pg";
+      pg.innerHTML = `<button type="button" aria-label="${esc(tr("Previous page"))}" ${debtPage === 0 ? "disabled" : ""}>‹</button><span>${debtPage + 1} / ${dpages}</span><button type="button" aria-label="${esc(tr("Next page"))}" ${debtPage >= dpages - 1 ? "disabled" : ""}>›</button>`;
+      const [pv, nx] = pg.querySelectorAll("button");
+      pv.onclick = () => { debtPage--; renderDebts(); fitDesktop(); }; nx.onclick = () => { debtPage++; renderDebts(); fitDesktop(); };
+      box.appendChild(pg);
+    }
     if (DEBTPAYS.length) {
       const h = document.createElement("ul"); h.className = "hist";
-      DEBTPAYS.slice(0, 5).forEach((p) => {
+      DEBTPAYS.slice(0, deskPaged ? 1 : 5).forEach((p) => {
         const d = DEBTS.find((x) => x.id === p.debt_id); if (!d) return;
         const li = document.createElement("li");
         li.innerHTML = `<span><b>${esc(member(p.member_id).name)}</b> paid ${fmt(p.amount_cents / 100)} on ${esc(d.name)}, ${shortDay(parseD(p.date))}</span><button aria-label="Remove payment">✕</button>`;
@@ -1879,7 +1894,11 @@
       while (over() > 1 && ul.children.length > 4) { ul.lastElementChild.remove(); ul.lastElementChild.remove(); }
       while (over() > 1 && dueSize > 3 && $("dueCard").querySelector(".due-pg")) { dueSize--; renderDue(lastDueLeft); }
     }
-    if (screen === "plan") while (over() > 1 && billsSize > 3 && $("billsFoot").querySelector(".due-pg")) { billsSize--; render(); return; }
+    if (screen === "plan" && over() > 1) {
+      // shrink the debts list first (it's the tallest), then the bills list, one step at a time
+      if (debtSize > 1 && $("debts").querySelector(".due-pg")) { debtSize--; renderDebts(); return fitDesktop(); }
+      if (billsSize > 3 && $("billsFoot").querySelector(".due-pg")) { billsSize--; render(); return; }
+    }
     if (screen === "us" && over() > 1 && listRows && pageSize > 4) {
       const li = $("list").firstElementChild, rowH = li ? li.getBoundingClientRect().height / z : 60;
       pageSize = Math.max(4, pageSize - Math.ceil(over() / rowH)); drawPaged(listRows, listKey);
@@ -1887,7 +1906,7 @@
     // last resort: shrink this screen a little (never below 82%) instead of scrolling
     if (screen !== "inbox" && over() > 1) root.style.zoom = String(z * Math.max(0.82, el.clientHeight / el.scrollHeight - 0.004));
   }
-  window.addEventListener("resize", () => { pageSize = PAGE_SIZE; dueSize = 5; billsSize = 6; if (["us", "home", "plan"].includes(screen)) render(); else fitDesktop(); });
+  window.addEventListener("resize", () => { pageSize = PAGE_SIZE; dueSize = 5; billsSize = 6; debtSize = 3; if (["us", "home", "plan"].includes(screen)) render(); else fitDesktop(); });
   // Desktop only: move a few blocks into the columns the wide layout expects. Phones keep the original order.
   if (matchMedia("(min-width: 900px)").matches) {
     $("dueCard").after($("bunNote"));
