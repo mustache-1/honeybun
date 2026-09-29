@@ -64,6 +64,11 @@
     undo: '<path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/>', tap: '<path d="M13 3L5 14h6l-1 7 9-11h-6z"/>', repeat: '<path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>'
   };
   var LOG = [
+    { v: "1.7", date: "2026-09-29", name: "New Stats and one-screen desktop", items: [
+      { t: "Hop calendar", d: "Stats now opens on a calendar of your month. Bigger dots mean bigger spending days, and paw prints mark days you spent nothing. See your no-spend days, calmest week, and biggest day at a glance.", tags: ["new", "design"], icon: "landing" },
+      { t: "Where it went, by month or year", d: "One card with a Month and Year switch, plus a one-line 50/30/20 check. Your year chart and badges open in their own windows.", tags: ["improved"], icon: "landing" },
+      { t: "Desktop fits your screen, top to bottom", d: "Every tab now fits on one screen without scrolling, from small laptops to 1920×1080 monitors. Settings sits in three tidy columns and Plan in three.", tags: ["improved", "design"], icon: "landing" }
+    ] },
     { v: "1.6", date: "2026-09-28", name: "Referral rewards", items: [
       { t: "Invite friends, earn gift cards", d: "Share your personal link. For every 10 friends who use Honeybun for a week, you get a $10 gift card. Find it on Home, in Settings, or in the sidebar.", tags: ["new"], icon: "bell" },
       { t: "Ask Bun about your referrals", d: "Tap Referrals in Bun's inbox and Bun tells you who signed up, who counts, and how close you are to your next gift card.", tags: ["new"], icon: "bell" },

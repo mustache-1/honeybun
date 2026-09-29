@@ -529,35 +529,25 @@
   function renderBurrow() {
     const m = meMember(); if (!m) return;
     const li = levelInfo(m.xp || 0), st = streakOf(m);
-    // this week's hop days (Mon–Sun) from the current streak
-    const t = parseD(today()), mon = addDays(t, -((t.getDay() + 6) % 7));
-    const streakDays = new Set();
-    if (m.last_day && st) for (let i = 0; i < Math.min(st, 7); i++) streakDays.add(toS(addDays(parseD(m.last_day), -i)));
-    const week = [0, 1, 2, 3, 4, 5, 6].map((i) => {
-      const d = toS(addDays(mon, i)), n = addDays(mon, i).toLocaleDateString(LOCALE, { weekday: "narrow" });
-      return `<div><i class="${streakDays.has(d) ? "on" : ""} ${d === today() ? "today" : ""}">${streakDays.has(d) ? icon("paw") : ""}</i>${n}</div>`;
-    }).join("");
-    $("burrow").innerHTML = `<span class="bun-circle"><svg viewBox="0 0 120 128" aria-hidden="true">${bunnySvg(li.l)}</svg></span>
-      <div class="info"><div class="kick">Level ${li.l}</div><h2>${esc(li.title)}</h2>
-      <div class="xpbar"><i style="width:${li.pct * 100}%"></i></div>
-      <div class="nums"><span>${m.xp || 0} carrots</span><span>${li.hi - (m.xp || 0)} to level ${li.l + 1}</span></div>
-      <div class="week">${week}</div>
-      <div class="chips"><span>🐾 ${st}-day streak</span><span>Best ${m.best_streak || 0}</span></div></div>`;
-    const bg = $("badges"); bg.innerHTML = ""; let got = 0;
+    const wk = (() => { const d = parseD(today()); return toS(addDays(d, -((d.getDay() + 6) % 7))); })();
+    const carrots = MEMBERS.length > 1 ? " · " + MEMBERS.map((x) => `${x.name} ${x.week_key === wk ? x.week_xp : 0} 🥕`).join(" · ") : ` · ${m.xp || 0} ${tr("carrots")}`;
+    let got = 0;
+    const bg = $("badges"); bg.innerHTML = "";
     BADGES.forEach((b) => {
       const on = !!b.ok(m); if (on) got++;
       const el = document.createElement("button"); el.className = "badge" + (on ? " on" : "");
-      el.innerHTML = `<i>${on ? icon(b.k) : icon("lock")}</i>${esc(b.n)}<small>${on ? "earned" : "locked"}</small>`;
+      el.innerHTML = `<i>${on ? icon(b.k) : icon("lock")}</i>${esc(b.n)}<small>${esc(on ? "earned" : b.d)}</small>`;
       el.onclick = () => toast(on ? `${b.n}: unlocked ♡` : `${b.n}: ${b.d}`);
       bg.appendChild(el);
     });
     $("badgeCount").textContent = `${got} of ${BADGES.length}`;
-    const wk = (() => { const d = parseD(today()); return toS(addDays(d, -((d.getDay() + 6) % 7))); })();
-    $("boardWrap").hidden = MEMBERS.length < 2;
-    const rows = MEMBERS.map((x) => ({ x, v: x.week_key === wk ? x.week_xp : 0 })).sort((a, b) => b.v - a.v);
-    $("board").innerHTML = rows.map((r, i) => `<div class="board-row"><span class="rk">${i + 1}</span><span class="face" style="background:${esc(r.x.color)}">${esc(r.x.emoji)}</span>
-      <span class="nm">${esc(r.x.name)}${r.x.id === ME.id ? " (you)" : ""}</span><span class="xp">🥕 ${r.v}</span></div>`).join("");
+    $("burrow").innerHTML = `<span class="bc"><svg viewBox="0 0 120 128" aria-hidden="true">${bunnySvg(li.l)}</svg></span>
+      <span class="tx"><b>${esc(tr("Level"))} ${li.l} · ${esc(li.title)}</b><span class="xpbar"><i style="width:${li.pct * 100}%"></i></span>
+      <small>🐾 ${st}-day streak${esc(carrots)}</small></span>
+      <button type="button" class="bdg" id="openBadges" aria-label="${got} of ${BADGES.length} badges">🏅 ${got}/${BADGES.length} ›</button>`;
+    $("openBadges").onclick = () => $("badgeDlg").showModal();
   }
+  $("badgeClose").onclick = () => $("badgeDlg").close();
 
   // ---------- first-time setup ----------
   let ob = { steps: [], i: 0, rerun: false, pay: {}, bill: {} };
@@ -1032,6 +1022,7 @@
       $("signedAs").textContent = "Signed in as " + ME.email;
       $("acctName").textContent = $("hi").textContent;
     }
+    fitDesktop();
   }
 
   // ---------- plan: budgets ----------
@@ -1312,17 +1303,62 @@
   }
   $("prevY").onclick = () => { YEAR--; YDATA = null; renderStats(); loadYear(); };
   $("nextY").onclick = () => { YEAR++; YDATA = null; renderStats(); loadYear(); };
+  let whereMode = "month";
+  $("stWhM").onclick = () => { whereMode = "month"; renderStats(); };
+  $("stWhY").onclick = () => { whereMode = "year"; if (!YDATA) loadYear(); renderStats(); };
+  $("stYearBtn").onclick = () => { $("yearDlg").showModal(); if (!YDATA) loadYear(); };
+  $("yearClose").onclick = () => $("yearDlg").close();
+  function renderHopCal() {
+    const [y, mo] = MONTH.split("-").map(Number), first = new Date(y, mo - 1, 1), days = new Date(y, mo, 0).getDate();
+    const lead = (first.getDay() + 6) % 7, t = today(), isNow = MONTH === t.slice(0, 7), past = MONTH < t.slice(0, 7);
+    const spend = {};
+    ENTRIES.filter((e) => e.type === "expense" && !e.pending).forEach((e) => (spend[e.date] = (spend[e.date] || 0) + e.amount));
+    // dot size by rank, so one big bill (rent) doesn't shrink every other day to a speck
+    const sorted = Object.values(spend).filter((v) => v > 0).sort((a, b) => a - b);
+    const rank = (v) => (sorted.length < 2 ? 1 : sorted.indexOf(v) / (sorted.length - 1));
+    $("stWd").innerHTML = [0, 1, 2, 3, 4, 5, 6].map((i) => `<span>${esc(addDays(new Date(2024, 0, 1), i).toLocaleDateString(LOCALE, { weekday: "short" }))}</span>`).join("");
+    const cal = $("stCal"); cal.innerHTML = "";
+    const cells = Math.ceil((lead + days) / 7) * 7;
+    let noSpend = 0, big = null;
+    for (let i = 0; i < cells; i++) {
+      const n = i - lead + 1, b = document.createElement("button"); b.type = "button"; b.className = "st-day";
+      if (n < 1 || n > days) { b.classList.add("out"); b.tabIndex = -1; b.setAttribute("aria-hidden", "true"); cal.appendChild(b); continue; }
+      const ds = `${MONTH}-${String(n).padStart(2, "0")}`, sp = spend[ds] || 0, done = past || (isNow && ds <= t);
+      if (!done && !past) b.classList.add("future");
+      if (ds === t) b.classList.add("today");
+      let inner = `<span class="n">${n}</span>`;
+      if (done && !sp) { noSpend++; inner += icon("paw"); }
+      else if (sp) {
+        const r = rank(sp);
+        inner += `<span class="dot" style="--r:${r.toFixed(2)};opacity:${0.55 + r * 0.45}"></span><span class="amt">${esc(fmt(sp).replace(/\.\d\d$/, ""))}</span>`;
+        if (!big || sp > big.sp) big = { ds, sp };
+      }
+      b.innerHTML = inner;
+      const label = parseD(ds).toLocaleDateString(LOCALE, { weekday: "short", month: "short", day: "numeric" });
+      b.setAttribute("aria-label", `${label}: ${sp ? fmt(sp) : done ? tr("no spending") : ""}`);
+      if (done || sp) b.onclick = () => {
+        const list = ENTRIES.filter((e) => e.date === ds && e.type === "expense");
+        toast(list.length ? `${label}: ${list.slice(0, 3).map((e) => e.label).join(", ")}${list.length > 3 ? ` +${list.length - 3}` : ""} · ${fmt(sp)}` : `${label}: ${tr("no spending")} 🐾`);
+      };
+      cal.appendChild(b);
+    }
+    // calmest full week (Mon–Sun) so far this month
+    let calm = null;
+    for (let s0 = 1 - lead; s0 <= days; s0 += 7) {
+      const a = Math.max(1, s0), z = Math.min(days, s0 + 6), end = `${MONTH}-${String(z).padStart(2, "0")}`;
+      if (z - a < 6 || (!past && !(isNow && end <= t))) continue;
+      let tot = 0; for (let d = a; d <= z; d++) tot += spend[`${MONTH}-${String(d).padStart(2, "0")}`] || 0;
+      if (!calm || tot < calm.tot) calm = { a, z, tot };
+    }
+    const mn = (d) => parseD(`${MONTH}-${String(d).padStart(2, "0")}`).toLocaleDateString(LOCALE, { month: "short", day: "numeric" });
+    $("stSum").innerHTML = `<div class="g"><b>${noSpend}</b><small>${esc(tr("no-spend days"))}</small></div>
+      <div><b>${calm ? esc(`${mn(calm.a)}–${calm.z}`) : "–"}</b><small>${esc(tr("calmest week"))}</small></div>
+      <div class="h"><b>${big ? esc(fmt(big.sp).replace(/\.\d\d$/, "")) : "–"}</b><small>${big ? esc(tr("biggest day") + ", " + mn(+big.ds.slice(8))) : esc(tr("biggest day"))}</small></div>`;
+  }
   function renderStats() {
     renderBurrow();
-    {
-      const mIn = ENTRIES.filter((e) => e.type === "income").reduce((a, e) => a + e.amount, 0);
-      const mOut = ENTRIES.filter((e) => e.type === "expense").reduce((a, e) => a + e.amount, 0);
-      const bills = MONTH === today().slice(0, 7) && RECUR.length ? upcoming().bills.reduce((a, b) => a + b.r.amount_cents / 100, 0) : 0;
-      const whole = (n) => fmt(n).replace(/\.\d\d$/, "");
-      $("kpis").innerHTML = `<div class="kpi"><b>${whole(mOut)}</b><small>${esc(tr("spent this month"))}</small></div>
-        <div class="kpi"><b>${whole(bills)}</b><small>${esc(tr("bills due"))}</small></div>
-        <div class="kpi"><b>${mIn ? Math.max(0, Math.round(((mIn - mOut) / mIn) * 100)) + "%" : "–"}</b><small>${esc(tr("month left"))}</small></div>`;
-    }
+    renderHopCal();
+    $("stSub").textContent = tr(`${monthName(MONTH)} at a glance.`);
     $("yearLbl").textContent = YEAR;
     const ents = YDATA ? YDATA.entries : [];
     const inc = Array(12).fill(0), out = Array(12).fill(0), yc = {};
@@ -1332,7 +1368,6 @@
     });
     const ti = inc.reduce((a, b) => a + b, 0), to = out.reduce((a, b) => a + b, 0);
     $("yIn").textContent = fmt(ti); $("yOut").textContent = fmt(to); $("yKeep").textContent = ti ? Math.round(((ti - to) / ti) * 100) + "%" : "–";
-    // chart
     const W = 340, H = 150, top = Math.max(1, ...inc, ...out), gw = W / 12, bw = 9;
     let svg = `<svg viewBox="0 0 ${W} ${H + 18}" role="img" aria-label="Earned and spent by month">`;
     for (let i = 0; i < 12; i++) {
@@ -1342,26 +1377,27 @@
       svg += `<text x="${x}" y="${H + 14}" text-anchor="middle" font-size="9" font-weight="700" fill="var(--soft)">${LANG === "zh" ? i + 1 : name.slice(0, 1).toUpperCase()}</text>`;
     }
     $("yChart").innerHTML = svg + "</svg>";
-    // 50/30/20 for the selected month
-    $("ruleMonth").textContent = monthName(MONTH);
-    const mInc = ENTRIES.filter((e) => e.type === "income").reduce((s, e) => s + e.amount, 0);
-    const by = spentByCat(), needs = NEEDS.reduce((s, c) => s + (by[c] || 0), 0), wants = WANTS.reduce((s, c) => s + (by[c] || 0), 0);
-    if (!mInc) $("rule").innerHTML = `<p class="empty" style="margin:0">Add this month's income to see how your money splits between needs, wants, and savings.</p>`;
+    // where it went: month or year, top 5 + everything else
+    const by = spentByCat(), data = whereMode === "year" ? yc : by;
+    $("stWhM").setAttribute("aria-selected", whereMode === "month"); $("stWhY").setAttribute("aria-selected", whereMode === "year");
+    const total = Object.values(data).reduce((a, b) => a + b, 0);
+    $("barsMonth").textContent = total ? `${fmt(total)} · ${whereMode === "year" ? YEAR : monthName(MONTH)}` : "";
+    const rows = CATS.filter((c) => data[c.id]).sort((a, b) => data[b.id] - data[a.id]);
+    const shown = rows.slice(0, 5), rest = rows.slice(5).reduce((a, c) => a + data[c.id], 0), mx = Math.max(1, ...shown.map((c) => data[c.id]), rest);
+    $("bars").innerHTML = !rows.length ? `<p class="empty" style="margin:0">${esc(whereMode === "year" && !YDATA ? tr("Loading…") : tr("No spending yet."))}</p>`
+      : shown.map((c) => `<div class="bar"><div class="l"><span>${esc(tr(c.n))}</span><span>${fmt(data[c.id])}</span></div><div class="trk"><i style="width:${(data[c.id] / mx) * 100}%;background:${c.c}"></i></div></div>`).join("")
+        + (rest ? `<div class="bar"><div class="l"><span>${esc(tr("Everything else"))}</span><span>${fmt(rest)}</span></div><div class="trk"><i style="width:${(rest / mx) * 100}%;background:var(--soft)"></i></div></div>` : "");
+    // 50/30/20 in one line for the selected month
+    const mInc = ENTRIES.filter((e) => e.type === "income").reduce((a, e) => a + e.amount, 0);
+    const needs = NEEDS.reduce((a, c) => a + (by[c] || 0), 0), wants = WANTS.reduce((a, c) => a + (by[c] || 0), 0);
+    if (!mInc) $("rule").innerHTML = `<p>${esc(tr("Add this month's income to see your 50 / 30 / 20 split."))}</p>`;
     else {
-      const sav = Math.max(0, mInc - needs - wants);
-      $("rule").innerHTML = [["Needs", needs, 50, "#9BB8FF", "rent, groceries, bills, car, debt"], ["Wants", wants, 30, "var(--pink)", "eating out, fun, subscriptions"], ["Savings", sav, 20, "var(--mint)", "what's left over"]]
-        .map(([n, v, goal, c, d]) => { const p = (v / mInc) * 100; return `<div class="rule"><div class="l"><span>${n} <small>${d}</small></span><span>${Math.round(p)}% <small>/ ${goal}%</small></span></div>
-          <div class="trk"><i style="width:${Math.min(100, p)}%;background:${c}"></i><b style="left:${goal}%"></b></div></div>`; }).join("") +
-        `<p class="hint">The line marks the classic 50/30/20 target.</p>`;
+      const sav = Math.max(0, mInc - needs - wants), pc = (v) => Math.round((v / mInc) * 100);
+      const ok = pc(needs) <= 55 && pc(wants) <= 35;
+      $("rule").innerHTML = `<div class="top"><span>50 / 30 / 20</span><span class="${ok ? "ok" : "warn"}">${esc(tr(ok ? "On track" : pc(needs) > 55 ? "Needs are high" : "Wants are high"))}</span></div>
+        <div class="stack"><i style="width:${Math.min(100, pc(needs))}%;background:#9BB8FF"></i><i style="width:${Math.min(100, pc(wants))}%;background:var(--pink)"></i><i style="width:${Math.min(100, pc(sav))}%;background:var(--mint)"></i></div>
+        <div class="lg"><span>${esc(tr("Needs"))} ${pc(needs)}%</span><span>${esc(tr("Wants"))} ${pc(wants)}%</span><span>${esc(tr("Saved"))} ${pc(sav)}%</span></div>`;
     }
-    // where it went (month) + year categories
-    $("barsMonth").textContent = monthName(MONTH);
-    const bars = (el, data) => {
-      const rows = CATS.filter((c) => data[c.id]).sort((a, b) => data[b.id] - data[a.id]).slice(0, 8), mx = Math.max(1, ...rows.map((c) => data[c.id]));
-      el.innerHTML = rows.length ? rows.map((c) => `<div class="bar"><div class="l"><span>${c.n}</span><span>${fmt(data[c.id])}</span></div><div class="trk"><i style="width:${(data[c.id] / mx) * 100}%;background:${c.c}"></i></div></div>`).join("")
-        : `<p class="empty" style="margin:0">No spending yet.</p>`;
-    };
-    bars($("bars"), by); bars($("yCats"), yc);
   }
   $("exportCsv").onclick = () => {
     if (!YDATA) return;
@@ -1757,21 +1793,40 @@
   function fitDesktop() {
     const w = window.innerWidth;
     const inApp = APP_SCREENS.includes(screen);
-    document.documentElement.style.zoom = w >= 900 && inApp ? String(Math.min(1.6, Math.max(0.9, w / 1440))) : "";
+    // fit a 1440×900 design into the window by width AND height, so no screen needs to scroll
+    const z = w >= 900 && inApp ? Math.min(1.6, Math.max(0.7, Math.min(w / 1440, window.innerHeight / 900))) : 0;
+    const root = document.documentElement;
+    root.style.zoom = z ? String(z) : "";
+    root.style.setProperty("--app-h", z ? window.innerHeight / z + "px" : "100vh");
+    if (!z || $("scr-" + screen)?.hidden) return;
+    // all measuring below happens before the browser paints, so nothing flickers
+    const el = document.scrollingElement, over = () => el.scrollHeight - el.clientHeight;
+    if (screen === "home") { const ul = $("recent"); while (over() > 1 && ul.children.length > 4) { ul.lastElementChild.remove(); ul.lastElementChild.remove(); } }
+    if (screen === "us" && over() > 1 && listRows && pageSize > 4) {
+      const li = $("list").firstElementChild, rowH = li ? li.getBoundingClientRect().height / z : 60;
+      pageSize = Math.max(4, pageSize - Math.ceil(over() / rowH)); drawPaged(listRows, listKey);
+    }
+    // last resort: shrink this screen a little (never below 82%) instead of scrolling
+    if (screen !== "inbox" && over() > 1) root.style.zoom = String(z * Math.max(0.82, el.clientHeight / el.scrollHeight - 0.004));
   }
-  window.addEventListener("resize", fitDesktop);
+  window.addEventListener("resize", () => { pageSize = PAGE_SIZE; if (screen === "us") render(); else fitDesktop(); });
   // Desktop only: move a few blocks into the columns the wide layout expects. Phones keep the original order.
   if (matchMedia("(min-width: 900px)").matches) {
     $("dueCard").after($("bunNote"));
-    const top = $("statsTop"), blk = document.querySelectorAll("#scr-stats .grid2 > .blk");
-    top.append($("burrow"), $("kpis"));
-    const right = blk[1], left = blk[0];
-    // left: where it went + 50/30/20; right: year, badges, carrots, biggest categories, recap
-    const yearH = right.querySelector(".year-h");
-    const toRight = [...left.children]; // badges header, badges panel, board wrap
-    while (right.firstElementChild !== yearH) left.appendChild(right.firstElementChild);
-    const catsH = [...right.querySelectorAll(".section-h")].pop();
-    toRight.forEach((el) => right.insertBefore(el, catsH));
+    // Settings: three columns (account | notifications + preferences | data + about), footer moves into the header
+    {
+      const sc = $("scr-settings"), g = sc.querySelector(".grid2"), cards = [...g.children];
+      const nc = document.createElement("div"); nc.className = "card pad blk set-notif";
+      nc.innerHTML = '<div class="title"><h2>Notifications</h2><span>email &amp; push</span></div>';
+      nc.appendChild($("mailBills").closest(".setting-row"));
+      const cols = [0, 1, 2].map(() => { const d = document.createElement("div"); d.className = "set-col"; g.appendChild(d); return d; });
+      $("openPasskeys").before($("rerunSetup"), $("openShortcut")); // money setup rows sit with the account, balancing the columns
+      cols[0].append(cards[0]); cols[1].append(nc, cards[1]); cols[2].append(cards[2], cards[3]);
+      g.classList.add("set-cols");
+      const r = document.createElement("div"); r.className = "set-head-r";
+      r.append($("signedAs"), sc.querySelector("[data-coffee-wrap]"));
+      sc.querySelector(".pagehead").appendChild(r);
+    }
   }
   $("hiBtn").onclick = () => show("settings");
   $("setBtn").onclick = () => show("settings");
@@ -1938,6 +1993,7 @@
       prevDay = ds;
     });
   }
+  function chatToEnd() { const c = $("chat"); if (getComputedStyle(c).overflowY === "auto") c.scrollTo({ top: c.scrollHeight, behavior: "smooth" }); else window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" }); }
   async function openInbox() {
     show("inbox");
     const box = $("chat");
@@ -1946,7 +2002,7 @@
       const [d] = await Promise.all([api("/api/inbox"), new Promise((r) => setTimeout(r, INBOX.unread ? 700 : 250))]);
       CHAT = d.messages;
       drawChat(CHAT, true);
-      window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+      chatToEnd();
       if (CHAT.some((m) => !m.read_at)) {
         api("/api/inbox/read", { method: "POST" }).then(() => { INBOX = { unread: 0, latest: null }; CHAT.forEach((m) => (m.read_at = m.read_at || 1)); render(); }).catch(() => {});
       }
@@ -2081,7 +2137,7 @@
   async function askBunRefs() {
     if (screen !== "inbox") await openInbox();
     const box = $("chat");
-    const bubble = (cls, html) => { const el = document.createElement("div"); el.className = "msg first pop " + cls; el.innerHTML = `<div class="av"><img src="/icon-192.png" alt=""></div><div class="b">${html}</div>`; box.appendChild(el); window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" }); return el; };
+    const bubble = (cls, html) => { const el = document.createElement("div"); el.className = "msg first pop " + cls; el.innerHTML = `<div class="av"><img src="/icon-192.png" alt=""></div><div class="b">${html}</div>`; box.appendChild(el); chatToEnd(); return el; };
     const q = bubble("me", "<p></p>"); q.querySelector("p").textContent = R("How are my referrals doing?", "¿Cómo van mis referidos?", "我的邀请进展如何？");
     const ty = bubble("typing", "<i></i><i></i><i></i>");
     try {
@@ -2169,13 +2225,14 @@
   }
   // "Everything this month" and search results: 8 per page with page buttons underneath
   const PAGE_SIZE = 8;
-  let listPage = 0, listKey = "";
+  let listPage = 0, listKey = "", pageSize = PAGE_SIZE, listRows = null;
   function drawPaged(rows, key) {
     if (key !== listKey) { listKey = key; listPage = 0; }
-    const pages = Math.ceil(rows.length / PAGE_SIZE);
+    listRows = rows;
+    const pages = Math.ceil(rows.length / pageSize);
     listPage = Math.min(listPage, pages - 1);
     const l = $("list"); l.innerHTML = "";
-    rows.slice(listPage * PAGE_SIZE, (listPage + 1) * PAGE_SIZE).forEach((e) => l.appendChild(entryLi(e)));
+    rows.slice(listPage * pageSize, (listPage + 1) * pageSize).forEach((e) => l.appendChild(entryLi(e)));
     const pg = $("listPager");
     pg.hidden = pages < 2;
     if (pages < 2) return;
@@ -2193,7 +2250,7 @@
     btn("‹", listPage > 0 ? listPage - 1 : null, "pg-arrow", tr("Previous page"));
     nums.forEach((n) => n === "…" ? pg.insertAdjacentHTML("beforeend", '<span class="pg-gap">…</span>') : btn(String(n + 1), n === listPage ? null : n, "pg-num" + (n === listPage ? " on" : ""), null));
     btn("›", listPage < pages - 1 ? listPage + 1 : null, "pg-arrow", tr("Next page"));
-    const from = listPage * PAGE_SIZE + 1, to = Math.min(rows.length, (listPage + 1) * PAGE_SIZE);
+    const from = listPage * pageSize + 1, to = Math.min(rows.length, (listPage + 1) * pageSize);
     pg.insertAdjacentHTML("beforeend", `<span class="pg-info">${esc(tr(`${from}–${to} of ${rows.length}`))}</span>`);
   }
   let searchTimer;

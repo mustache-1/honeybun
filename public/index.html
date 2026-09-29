@@ -1138,7 +1138,8 @@ dialog::backdrop{background:var(--backdrop)}
   .cal-legend.desk-only,.empty-row.desk-only,.jar-add.desk-only{display:flex}
   .cal button.today{background:var(--pink-t);box-shadow:inset 0 0 0 1px var(--pink);color:var(--pink-d)}
   #scr-plan .panel.pad{padding:16px 18px}
-  .goals-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+  .goals-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+  #scr-plan .goals-grid .jar-add.desk-only{display:none}
   .jar-card{border-radius:20px;border:1px solid var(--line)}
   .hero-stats{grid-template-columns:repeat(4,minmax(0,1fr))}
   #scr-home .tiles2,#scr-home .couple,#scr-home .burrow-pill{display:none!important}
@@ -1203,11 +1204,16 @@ dialog::backdrop{background:var(--backdrop)}
   .hero-stats > div{background:var(--panel2);border-radius:14px;padding:12px 14px}
   .hero-stats b{font-size:18px}
   /* plan */
-  #scr-plan .grid2{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:20px;align-items:start}
-  #scr-plan .grid2>.blk{grid-column:span 2}
-  #scr-plan .grid2>.blk:nth-child(1){order:1}#scr-plan .grid2>.blk:nth-child(2){order:2}#scr-plan .grid2>.blk:nth-child(4){order:3}
-  #scr-plan .grid2>.blk:nth-child(3),#scr-plan .grid2>.blk:nth-child(5){grid-column:span 3;order:4}
-  #scr-plan .grid2>.blk:nth-child(5){order:5}
+  /* three columns: budget + debts | calendar + jars | bills & paydays */
+  #scr-plan .grid2{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:auto 1fr;gap:18px 20px;align-items:start}
+  #scr-plan .grid2>.blk{order:0!important;min-width:0}
+  #scr-plan .grid2>.blk:nth-child(1){grid-column:1;grid-row:1}
+  #scr-plan .grid2>.blk:nth-child(5){grid-column:1;grid-row:2}
+  #scr-plan .grid2>.blk:nth-child(2){grid-column:2;grid-row:1}
+  #scr-plan .grid2>.blk:nth-child(3){grid-column:2;grid-row:2}
+  #scr-plan .grid2>.blk:nth-child(4){grid-column:3;grid-row:1/3}
+  #scr-plan .goals-grid{grid-template-columns:1fr!important;gap:8px}
+  #scr-plan .jar-card{padding:10px 12px}
   #scr-plan .grid2>.blk .section-h{margin-top:0}
   .empty{display:flex;align-items:center;gap:14px;text-align:left;padding:6px 2px 10px}
   /* stats */
@@ -1464,6 +1470,120 @@ dialog::backdrop{background:var(--backdrop)}
 .pager button:disabled:not(.on){opacity:.35;cursor:default}
 .pager .pg-gap{color:var(--soft);font-weight:800;padding:0 2px}
 .pager .pg-info{width:100%;text-align:center;font-size:12px;font-weight:700;color:var(--soft);margin-top:2px}
+/* ---------- stats: hop calendar ---------- */
+.st-grid{display:flex;flex-direction:column;gap:12px}
+.st-side{display:flex;flex-direction:column;gap:12px}
+.st-grid .card{margin:0!important}
+.st-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.st-head h2{margin:0;font-size:16px}
+.st-legend{display:flex;gap:12px;font-size:11px;font-weight:700;color:var(--soft)}
+.st-legend span{display:flex;align-items:center;gap:5px}
+.st-legend svg{width:13px;height:13px;fill:var(--c-green)}
+.st-legend i{width:9px;height:9px;border-radius:50%;background:var(--c-honey)}
+.st-wd,.st-days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
+.st-wd{font-size:10px;font-weight:800;color:var(--soft);text-align:center;margin-bottom:6px;text-transform:uppercase}
+.st-day{position:relative;aspect-ratio:1;border:0;border-radius:12px;background:var(--panel2,var(--bg));display:grid;place-items:center;padding:0;color:var(--ink);font:inherit;cursor:pointer}
+.st-day.out{visibility:hidden}
+.st-day.future{opacity:.45;cursor:default}
+.st-day.today{box-shadow:inset 0 0 0 2px var(--pink)}
+.st-day .n{position:absolute;top:3px;left:5px;font-size:9px;font-weight:800;color:var(--soft)}
+.st-day .amt{display:none}
+.st-day .dot{border-radius:50%;background:var(--c-honey);width:calc(5px + var(--r,0) * 15px);height:calc(5px + var(--r,0) * 15px)}
+.st-day svg{width:58%;height:58%;fill:var(--c-green);stroke:none}
+.st-sum{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:12px}
+.st-sum div{border-radius:14px;padding:9px 11px;background:var(--panel2,var(--bg));min-width:0}
+.st-sum b{display:block;font-size:15px;font-weight:900;letter-spacing:-.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.st-sum small{display:block;font-size:11px;font-weight:700;color:var(--soft)}
+.st-sum .g{background:var(--t-green);color:var(--c-green)}.st-sum .g small{color:var(--c-green)}
+.st-sum .h{background:var(--t-honey);color:var(--c-honey)}.st-sum .h small{color:var(--c-honey)}
+.st-bun{display:flex;align-items:center;gap:12px;padding:12px 14px!important}
+.st-bun .bc{width:52px;height:52px;flex:none;border-radius:16px;background:var(--t-lilac);display:grid;place-items:center}
+.st-bun .bc svg{width:38px;height:40px}
+.st-bun .tx{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px}
+.st-bun .tx b{font-size:15px;font-weight:800}
+.st-bun .xpbar{height:6px;border-radius:99px;background:var(--track);overflow:hidden}
+.st-bun .xpbar i{display:block;height:100%;background:var(--c-honey);border-radius:99px}
+.st-bun .tx small{font-size:12px;font-weight:700;color:var(--soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.st-bun .bdg{flex:none;height:34px;padding:0 12px;border-radius:99px;border:1px solid var(--line);background:var(--panel2,var(--bg));color:var(--ink);font:inherit;font-size:12px;font-weight:800}
+.st-tog{display:flex;background:var(--panel2,var(--bg));border-radius:10px;padding:3px}
+.st-tog button{border:0;background:transparent;color:var(--soft);font:inherit;font-size:12px;font-weight:800;padding:5px 12px;border-radius:8px}
+.st-tog button[aria-selected="true"]{background:var(--tab-bg,var(--pink-t));color:var(--tab-fg,var(--pink-d))}
+.st-total{font-size:13px;font-weight:700;color:var(--soft);margin:-4px 0 8px}
+.st-where .bars{display:flex;flex-direction:column;gap:9px}
+.st-rule{margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
+.st-rule .top{display:flex;justify-content:space-between;font-size:12px;font-weight:800;color:var(--soft);margin-bottom:7px}
+.st-rule .ok{color:var(--c-green)}.st-rule .warn{color:var(--c-rose)}
+.st-rule .stack{display:flex;height:8px;border-radius:99px;overflow:hidden;gap:2px;background:var(--track)}
+.st-rule .stack i{display:block;height:100%}
+.st-rule .lg{display:flex;justify-content:space-between;font-size:11px;font-weight:700;color:var(--soft);margin-top:6px}
+.st-rule p{margin:0;font-size:12px;color:var(--soft);font-weight:600}
+.st-acts{display:flex;gap:8px;align-items:center;margin-top:14px}
+.st-acts .go{flex:1;margin:0;white-space:nowrap;font-size:15px}
+.st-acts .softbtn{height:46px;white-space:nowrap;padding:0 12px;flex:none}
+.st-sum b{white-space:normal;line-height:1.15}
+.year-dlg{width:min(94vw,560px)}
+.year-dlg .year-h{display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:10px}
+.year-dlg .year-h h2{margin:0}
+.badge-dlg{width:min(94vw,620px)}
+.badge-dlg h2 small{font-size:12px;color:var(--soft);font-weight:700;margin-left:6px}
+.badge-dlg .badges{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;max-height:60vh;overflow:auto;margin:10px 0}
+@media (min-width:900px){
+  .st-grid{display:grid;grid-template-columns:minmax(0,7fr) minmax(0,5fr);gap:16px;align-items:stretch;height:calc(var(--app-h,900px) - 222px);min-height:520px}
+  .st-sum b{font-size:18px}
+  .st-cal{display:flex;flex-direction:column}
+  .st-days{gap:8px;flex:1;grid-auto-rows:minmax(0,1fr)}
+  .st-day{aspect-ratio:auto;min-height:0}
+  .st-day .n{top:6px;left:9px;font-size:11px}
+  .st-day .amt{display:block;position:absolute;bottom:5px;right:8px;font-size:10px;font-weight:800;color:var(--soft)}
+  .st-day svg{width:30px;height:30px}
+  .st-day .dot{width:calc(8px + var(--r,0) * 24px);height:calc(8px + var(--r,0) * 24px)}
+  .st-where{flex:1;display:flex;flex-direction:column}
+  .st-acts{margin-top:auto;padding-top:14px}
+  .badge-dlg .badges{grid-template-columns:repeat(4,minmax(0,1fr))}
+}
+/* ---------- desktop: everything fits on one screen ---------- */
+@media (min-width:900px){
+  #scr-settings .grid2.set-cols{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;align-items:start}
+  .set-col{display:flex;flex-direction:column;gap:16px;min-width:0}
+  .set-col>.card{margin:0!important}
+  #scr-settings .card.pad{padding:12px 16px}
+  #scr-settings .title{margin-bottom:0}
+  #scr-settings .setting-row{padding:7px 0;gap:10px}
+  #scr-settings .setting-row .sicon{width:30px;height:30px;border-radius:10px}
+  #scr-settings .setting-row .sicon svg{width:16px;height:16px}
+  #scr-settings .setting-row .copy input{margin-top:6px;height:38px;min-height:0;font-size:13px;padding:0 12px}
+  #scr-settings .kinds{margin-top:6px;gap:6px}
+  #scr-settings .kinds button{padding:7px 4px;min-height:0;height:auto;font-size:12px}
+  #scr-settings .kinds button b{display:none}
+  #scr-settings .members{flex-direction:row;flex-wrap:wrap;gap:6px 12px;margin-top:6px}
+  #scr-settings .mem{gap:6px;font-size:13px}
+  #scr-settings .mem .face{width:26px;height:26px;font-size:13px}
+  #scr-settings .mem .nm{font-size:13px}
+  #scr-settings .mem .small{height:26px;padding:0 8px;font-size:11px}
+  #scr-settings .toggle{padding:3px 0;font-size:12px}
+  #scr-settings .toggle small{font-size:10px}
+  #scr-settings .toggle input{width:38px;height:22px}
+  #scr-settings .toggle input::after{width:16px;height:16px}
+  #scr-settings .swatches{gap:8px}
+  #scr-settings .swatches button{font-size:0;gap:0}
+  #scr-settings .swatches button i{width:26px;height:26px}
+  #scr-settings .lang-row button,#scr-settings #themePick button{height:28px;padding:0 10px;font-size:11px}
+  #scr-settings .set-notif .setting-row>.sicon,#scr-settings .set-notif .setting-row .copy>b,#scr-settings .set-notif .setting-row .copy>small:first-of-type{display:none}
+  #scr-settings .set-notif .setting-row{padding-top:2px}
+  #scr-settings .install,#scr-settings>.legal.credit{display:none}
+  #scr-settings .set-head-r{display:flex;align-items:center;gap:14px;margin-left:auto}
+  #scr-settings .set-head-r #signedAs{margin:0!important}
+  #scr-settings .set-head-r .coffee-wrap{margin:0}
+  #scr-settings .set-head-r .coffee{margin:0}
+  .app{padding-bottom:24px!important}
+  #scr-inbox{display:flex;flex-direction:column;height:calc(var(--app-h,900px) - 170px)}
+  #scr-help>.card{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);grid-template-rows:repeat(6,auto) 1fr;align-content:start;column-gap:28px;height:calc(var(--app-h,900px) - 212px);box-sizing:border-box}
+  #scr-help>.card>.title{grid-column:1/-1}
+  #scr-help>.card>*:not(.title):not(.faq){grid-column:1}
+  #scr-help>.card>.faq{grid-column:2;grid-row:2/-1;overflow-y:auto;min-height:0;scrollbar-width:thin;padding-right:6px;margin:0}
+  #scr-help .help-grid{grid-template-columns:repeat(2,minmax(0,1fr));margin-bottom:10px}
+  #scr-inbox .chat{flex:1;min-height:0;overflow-y:auto;scrollbar-width:thin;padding-right:6px}
+}
 /* ---------- referrals ---------- */
 .ref-card{display:flex;align-items:center;gap:12px;width:100%;margin-top:12px;border:0;border-radius:20px;padding:14px;text-align:left;color:var(--ink);
   background:linear-gradient(120deg,var(--t-honey,#FDF3DA),var(--t-rose,#FCEBF1));border:1px solid var(--line);position:relative;overflow:hidden;font-family:inherit}
@@ -1988,39 +2108,25 @@ dialog::backdrop{background:var(--backdrop)}
 
   <!-- STATS -->
   <main id="scr-stats" hidden>
-    <div class="pagehead"><div><h1>Stats</h1><p>A quick read on how you're doing.</p></div></div>
-    <div class="stats-top desk-only" id="statsTop"></div>
-    <div class="grid2">
-      <div class="blk">
-        <section class="burrow" id="burrow" aria-label="Your progress"></section>
-        <div class="kpis" id="kpis"></div>
-        <div class="section-h" id="badgesH"><h2>Badges</h2><span class="sub" id="badgeCount"></span></div>
-        <div class="panel pad"><div class="badges" id="badges"></div></div>
-        <div id="boardWrap"><div class="section-h"><h2>This week's carrots</h2></div>
-        <div class="panel pad" id="board"></div></div>
-      </div>
-      <div class="blk">
-        <div class="section-h" style="margin-top:0"><h2>Where it went</h2><span class="sub" id="barsMonth"></span></div>
-        <div class="panel pad"><div class="bars" id="bars"></div></div>
-        <div class="section-h"><h2>50 / 30 / 20 check</h2><span class="sub" id="ruleMonth"></span></div>
-        <div class="panel pad" id="rule"></div>
-        <div class="year-h">
-          <button class="linkbtn" id="prevY" aria-label="Previous year">‹</button>
-          <h2 id="yearLbl"></h2>
-          <button class="linkbtn" id="nextY" aria-label="Next year">›</button>
-        </div>
-        <div class="tiles">
-          <div class="tile"><small>Earned</small><b id="yIn"></b></div>
-          <div class="tile"><small>Spent</small><b id="yOut"></b></div>
-          <div class="tile"><small>Kept</small><b id="yKeep"></b></div>
-        </div>
-        <div class="panel pad chart" style="margin-top:10px"><div id="yChart"></div>
-          <div class="legend"><span><i style="background:var(--c-green)"></i>Earned</span><span><i style="background:var(--pink)"></i>Spent</span></div>
-        </div>
-        <div class="section-h"><h2>Biggest categories this year</h2></div>
-        <div class="panel pad"><div class="bars" id="yCats"></div></div>
-        <div class="recap-cta"><button class="go pinkbtn" id="makeRecap">Make my monthly recap</button></div>
-        <p class="center" style="margin-top:10px"><button class="softbtn" id="exportCsv">Download this year as a spreadsheet (CSV)</button></p>
+    <div class="pagehead"><div><h1>Stats</h1><p id="stSub">A quick read on how you're doing.</p></div><div class="ph-slot"></div></div>
+    <div class="st-grid">
+      <section class="card st-cal" aria-labelledby="stCalH">
+        <div class="st-head"><h2 id="stCalH">Hop calendar</h2>
+          <div class="st-legend"><span><svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="16" rx="4.5" ry="3.8"/><circle cx="6.5" cy="10.5" r="1.8"/><circle cx="10" cy="7" r="1.8"/><circle cx="14" cy="7" r="1.8"/><circle cx="17.5" cy="10.5" r="1.8"/></svg>No-spend day</span><span><i></i>Bigger dot, more spent</span></div></div>
+        <div class="st-wd" id="stWd" aria-hidden="true"></div>
+        <div class="st-days" id="stCal"></div>
+        <div class="st-sum" id="stSum"></div>
+      </section>
+      <div class="st-side">
+        <section class="card st-bun" id="burrow" aria-label="Your progress"></section>
+        <section class="card st-where" aria-labelledby="stWhereH">
+          <div class="st-head"><h2 id="stWhereH">Where it went</h2>
+            <div class="st-tog" role="tablist"><button type="button" role="tab" id="stWhM" aria-selected="true">Month</button><button type="button" role="tab" id="stWhY" aria-selected="false">Year</button></div></div>
+          <div class="st-total" id="barsMonth"></div>
+          <div class="bars" id="bars"></div>
+          <div class="st-rule" id="rule"></div>
+          <div class="st-acts"><button class="go pinkbtn" id="makeRecap">Make my monthly recap</button><button type="button" class="softbtn" id="stYearBtn">Your year ›</button></div>
+        </section>
       </div>
     </div>
   </main>
@@ -2192,6 +2298,23 @@ dialog::backdrop{background:var(--backdrop)}
 </div>
 
 <div class="toast" id="toast" role="status"><span id="toastText"></span><button id="toastBtn" hidden>Undo</button></div>
+
+<dialog id="yearDlg" class="year-dlg" aria-labelledby="yearLbl">
+  <div class="year-h"><button class="linkbtn" id="prevY" aria-label="Previous year">‹</button><h2 id="yearLbl"></h2><button class="linkbtn" id="nextY" aria-label="Next year">›</button></div>
+  <div class="tiles">
+    <div class="tile"><small>Earned</small><b id="yIn"></b></div>
+    <div class="tile"><small>Spent</small><b id="yOut"></b></div>
+    <div class="tile"><small>Kept</small><b id="yKeep"></b></div>
+  </div>
+  <div class="chart" style="margin-top:10px"><div id="yChart"></div>
+    <div class="legend"><span><i style="background:var(--c-green)"></i>Earned</span><span><i style="background:var(--pink)"></i>Spent</span></div></div>
+  <div class="acts"><button class="small" id="exportCsv">Download spreadsheet (CSV)</button><button class="go" id="yearClose">Done</button></div>
+</dialog>
+<dialog id="badgeDlg" class="badge-dlg" aria-labelledby="bdgTitle">
+  <h2 id="bdgTitle">Badges <small id="badgeCount"></small></h2>
+  <div class="badges" id="badges"></div>
+  <div class="acts"><button class="go" id="badgeClose">Done</button></div>
+</dialog>
 
 <dialog id="memberDlg" aria-labelledby="mdTitle">
   <h2 id="mdTitle">Edit you</h2>
