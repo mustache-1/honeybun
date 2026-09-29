@@ -1,7 +1,7 @@
 {
   "name": "honeybun-desktop",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Honeybun for Windows: a small window around honeybun.me, so everything stays in sync with your phone and the web.",
   "scripts": {
     "tauri": "tauri",
