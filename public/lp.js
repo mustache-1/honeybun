@@ -70,6 +70,11 @@
     undo: '<path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/>', tap: '<path d="M13 3L5 14h6l-1 7 9-11h-6z"/>', repeat: '<path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>'
   };
   var LOG = [
+    { v: "1.9.1", date: "2026-09-29", name: "Fixes for settings and downloads", items: [
+      { t: "Email reminders stay on", d: "After confirming your email, reminder switches and the email-confirmed status could reset a few seconds later. They now stay exactly as you set them, and confirming in another tab updates the app on its own.", tags: ["fixed"], icon: "bell" },
+      { t: "Homepage fits on phones", d: "The preview cards at the top of the homepage no longer overlap or cut off text on small screens.", tags: ["fixed", "design"], icon: "landing" },
+      { t: "Help with download warnings", d: "The Download section explains the Chrome, Edge, and Windows warnings new apps get, and what to click to finish installing.", tags: ["improved"], icon: "landing" }
+    ] },
     { v: "1.9", date: "2026-09-29", name: "A brand new homepage", items: [
       { t: "New homepage", d: "A fresh look with a hopping Bun, live mini demos of every feature, a hop calendar preview, and a Download section for Windows and phones.", tags: ["new", "design"], icon: "landing" },
       { t: "Windows app badge", d: "The Windows app shows a red dot on its taskbar icon when Bun has something new, like a shared expense, and flashes once without pulling you out of what you're doing.", tags: ["new"], icon: "bell" },
