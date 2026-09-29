@@ -1386,6 +1386,12 @@ async function handle(request, env, url) {
     const rows = (await env.DB.prepare("SELECT id, kind, data, created_at, read_at FROM messages WHERE user_id = ? ORDER BY created_at DESC LIMIT 80").bind(user.id).all()).results;
     return json({ messages: rows.reverse().map((r) => ({ ...r, data: JSON.parse(r.data || "{}") })) });
   }
+  // tiny check the Windows app makes about once a minute while minimized, to light up its taskbar badge
+  if (path === "/api/inbox/count" && method === "GET") {
+    await generateInbox(env, request, user, nestId, false);
+    const r = await env.DB.prepare("SELECT COUNT(*) AS n FROM messages WHERE user_id = ? AND read_at IS NULL").bind(user.id).first();
+    return json({ unread: r.n });
+  }
   if (path === "/api/inbox/read" && method === "POST") {
     await env.DB.prepare("UPDATE messages SET read_at = ? WHERE user_id = ? AND read_at IS NULL").bind(now(), user.id).run();
     return json({ ok: true });

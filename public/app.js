@@ -396,6 +396,7 @@
   }
   async function logout() {
     try { await api("/api/logout", { method: "POST" }); } catch {}
+    try { const inv = window.__TAURI_INTERNALS__ && window.__TAURI_INTERNALS__.invoke; if (inv) inv("set_unread", { count: 0 }).catch(() => {}); } catch {}
     ME = null; NEST = null; MEMBERS = []; ENTRIES = []; filter = null; editing = null;
     authMode = "login"; showAuth();
   }
@@ -1029,6 +1030,7 @@
       $("acctName").textContent = $("hi").textContent;
     }
     updBadges();
+    syncTaskbar();
     fitDesktop();
   }
 
@@ -2011,7 +2013,7 @@
       drawChat(CHAT, true);
       chatToEnd();
       if (CHAT.some((m) => !m.read_at)) {
-        api("/api/inbox/read", { method: "POST" }).then(() => { INBOX = { unread: 0, latest: null }; CHAT.forEach((m) => (m.read_at = m.read_at || 1)); render(); }).catch(() => {});
+        api("/api/inbox/read", { method: "POST" }).then(() => { INBOX = { unread: 0, latest: null }; CHAT.forEach((m) => (m.read_at = m.read_at || 1)); render(); syncTaskbar(); }).catch(() => {});
       }
     } catch (e) { box.innerHTML = `<div class="chat-empty">${esc(e.message)}</div>`; }
   }
@@ -2184,6 +2186,22 @@
     updBadges();
   }
   $("sideUpd").onclick = () => show("updates");
+  // Windows app: a red dot on the taskbar icon while Bun has unread messages or there's something new
+  // in What's new (the app also flashes its taskbar button when the count goes up). Websites get nothing here.
+  const tauriInvoke = () => window.__TAURI_INTERNALS__ && window.__TAURI_INTERNALS__.invoke;
+  let lastBadge = -1;
+  function syncTaskbar() {
+    const inv = tauriInvoke(); if (!inv || !ME) return;
+    const count = (INBOX.unread || 0) + (updLatest() && store.get("hb-upd-seen") !== updLatest() ? 1 : 0);
+    if (count === lastBadge) return;
+    lastBadge = count;
+    inv("set_unread", { count }).catch(() => {});
+  }
+  // while minimized the page skips its usual refresh, so check just the unread count once a minute
+  if (IS_DESKTOP_APP) setInterval(async () => {
+    if (!ME || !document.hidden || !tauriInvoke()) return;
+    try { const r = await api("/api/inbox/count"); INBOX.unread = r.unread; syncTaskbar(); } catch {}
+  }, 60000);
   // Get the app: Windows download, browser install, phone steps. Hidden inside the Windows app and installed apps.
   let installEvt = null;
   window.addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); installEvt = e; });

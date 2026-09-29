@@ -1,0 +1,10 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "honeybun-site",
+  "description": "Lets honeybun.me (and only honeybun.me) update the taskbar badge. Nothing else is exposed to the page.",
+  "windows": ["main"],
+  "remote": {
+    "urls": ["https://honeybun.me/*"]
+  },
+  "permissions": ["allow-set-unread"]
+}

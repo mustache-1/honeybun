@@ -3,7 +3,8 @@
 // and every website deploy shows up here without reinstalling.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use tauri::{Url, WebviewUrl, WebviewWindowBuilder};
+use std::sync::atomic::{AtomicU32, Ordering};
+use tauri::{image::Image, Url, UserAttentionType, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 
 const HOME: &str = "https://honeybun.me/?app=desktop";
 
@@ -17,9 +18,44 @@ fn stays_inside(url: &Url) -> bool {
     }
 }
 
+// A small red dot with a white ring, shown over the taskbar icon while something is unread (like Discord).
+fn badge_dot() -> Image<'static> {
+    const S: u32 = 32;
+    let mut px = vec![0u8; (S * S * 4) as usize];
+    let c = (S as f32 - 1.0) / 2.0;
+    for y in 0..S {
+        for x in 0..S {
+            let d = ((x as f32 - c).powi(2) + (y as f32 - c).powi(2)).sqrt();
+            let i = ((y * S + x) * 4) as usize;
+            let (rgb, a) = if d <= 12.5 { ([229u8, 72, 77], 1.0) } else if d <= 15.5 { ([255u8, 255, 255], 1.0) } else if d <= 16.2 { ([255u8, 255, 255], 16.2 - d) } else { ([0u8, 0, 0], 0.0) };
+            px[i..i + 3].copy_from_slice(&rgb);
+            px[i + 3] = (a * 255.0) as u8;
+        }
+    }
+    Image::new_owned(px, S, S)
+}
+
+static UNREAD: AtomicU32 = AtomicU32::new(0);
+
+// Called by honeybun.me with the number of unread things (Bun's inbox + new updates).
+// Shows or clears the red dot, and flashes the taskbar button when the count goes up while
+// the window isn't in front. It never takes focus, so it won't pull you out of a game.
+#[tauri::command]
+fn set_unread(window: WebviewWindow, count: u32) {
+    let before = UNREAD.swap(count, Ordering::Relaxed);
+    if count == before {
+        return;
+    }
+    let _ = window.set_overlay_icon(if count > 0 { Some(badge_dot()) } else { None });
+    if count > before && !window.is_focused().unwrap_or(true) {
+        let _ = window.request_user_attention(Some(UserAttentionType::Informational));
+    }
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .invoke_handler(tauri::generate_handler![set_unread])
         .setup(|app| {
             WebviewWindowBuilder::new(app, "main", WebviewUrl::External(HOME.parse().expect("valid url")))
                 .title("Honeybun")

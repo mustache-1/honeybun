@@ -1,6 +1,6 @@
 [package]
 name = "honeybun"
-version = "1.0.1"
+version = "1.0.2"
 description = "Honeybun for Windows"
 edition = "2021"
 
