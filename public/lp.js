@@ -100,9 +100,10 @@
   ];
   var T2 = window.HB_TR || function (x) { return x; };
   var list = $("lpUpdList"), legend = $("lpUpdLegend");
-  if (list) {
+  // the changelog renderer is shared with the app's What's new screen
+  function renderUpdates(list, legend) {
     var fmtDate = function (d) { var p = d.split("-"); return new Date(+p[0], +p[1] - 1, +p[2]).toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" }); };
-    legend.innerHTML = Object.keys(TAGS).map(function (k) { return '<span class="lp-tag ' + k + '"><i></i>' + T2(TAGS[k]) + '</span>'; }).join("");
+    if (legend) legend.innerHTML = Object.keys(TAGS).map(function (k) { return '<span class="lp-tag ' + k + '"><i></i>' + T2(TAGS[k]) + '</span>'; }).join("");
     var tile = { new: "t-green", improved: "t-blue", fixed: "t-rose", design: "t-lilac", security: "t-honey" };
     list.innerHTML = LOG.map(function (day, di) {
       var counts = {}; day.items.forEach(function (it) { it.tags.forEach(function (k) { counts[k] = (counts[k] || 0) + 1; }); });
@@ -116,6 +117,10 @@
     }).join("");
     list.querySelectorAll(".lp-rel").forEach(function (el, di) { el.querySelector(".lp-rel-main b").textContent = T2(LOG[di].name); });
     var i = 0; LOG.forEach(function (day) { day.items.forEach(function (it) { var el = list.querySelectorAll(".lp-upd")[i++]; el.querySelector("b").textContent = T2(it.t); el.querySelector("p").textContent = T2(it.d); }); });
+  }
+  window.HB_UPDATES = { log: LOG, render: renderUpdates };
+  if (list) {
+    renderUpdates(list, legend);
     var badge = $("lpUpdCount"); badge.textContent = LOG[0].items.length; badge.classList.add("on");
     function showRewards(on) {
       var sec = $("lp-rewards"); if (!sec) return;

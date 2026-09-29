@@ -276,7 +276,7 @@
   const loggedToday = () => meMember()?.last_day === today();
 
   // ---------- screens ----------
-  const APP_SCREENS = ["home", "plan", "add", "stats", "us", "inbox", "settings", "help", "refer"];
+  const APP_SCREENS = ["home", "plan", "add", "stats", "us", "inbox", "settings", "help", "refer", "updates"];
   const ALL_SCREENS = ["loading", "landing", "auth", "reset", "verify", "setup", "onboard", ...APP_SCREENS];
   function show(s) {
     screen = s;
@@ -290,6 +290,7 @@
     window.scrollTo(0, 0);
     if (s === "stats") loadYear();
     if (s === "refer" && ME) loadRef();
+    if (s === "updates") openUpdates();
     if (inApp) render();
   }
   document.querySelectorAll("nav.bottom [data-go]").forEach((b) => (b.onclick = () => {
@@ -1022,6 +1023,7 @@
       $("signedAs").textContent = "Signed in as " + ME.email;
       $("acctName").textContent = $("hi").textContent;
     }
+    updBadges();
     fitDesktop();
   }
 
@@ -2163,6 +2165,22 @@
   $("refAsk").onclick = askBunRefs;
   $("qrRefer").onclick = askBunRefs;
   $("openRefer").onclick = () => show("refer");
+  // What's new: the same changelog as the landing page, with a badge until you've seen the newest release
+  const updLatest = () => { const u = window.HB_UPDATES; return u && u.log[0] ? u.log[0].v : null; };
+  function updBadges() {
+    const u = window.HB_UPDATES, v = updLatest(), unseen = v && store.get("hb-upd-seen") !== v;
+    $("updBadge").hidden = !unseen; if (unseen) $("updBadge").textContent = u.log[0].items.length;
+    $("updDot").hidden = !unseen;
+  }
+  function openUpdates() {
+    const u = window.HB_UPDATES;
+    if (u && !$("updList").childElementCount) u.render($("updList"), $("updLegend"));
+    if (updLatest()) store.set("hb-upd-seen", updLatest());
+    updBadges();
+  }
+  $("sideUpd").onclick = () => show("updates");
+  $("openUpd").onclick = () => show("updates");
+  window.addEventListener("load", updBadges);
   $("sideRefer").onclick = () => show("refer");
 
   // ---------- help ----------
