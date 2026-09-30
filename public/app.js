@@ -1731,6 +1731,7 @@
     const dark = v === "dark" || (v !== "light" && matchMedia("(prefers-color-scheme: dark)").matches);
     document.querySelector('meta[name="theme-color"]')?.setAttribute("content", dark ? "#1D1B21" : "#F6F5F8");
     document.querySelectorAll("#themePick button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.themeOpt === (store.get("hb-theme") || "dark") ? "true" : "false"));
+    if (window.hbHalloweenRefresh) window.hbHalloweenRefresh(); // Halloween only shows in a dark theme
   }
   document.querySelectorAll("#themePick button").forEach((b) => (b.onclick = () => applyTheme(b.dataset.themeOpt)));
   applyTheme(store.get("hb-theme") || "dark");
@@ -2511,7 +2512,7 @@
     try {
       await api("/api/account/delete", { method: "POST", body: { password: $("delPw").value } });
       $("delDlg").close();
-      try { Object.keys(localStorage).filter((k) => k.startsWith("hb-") && k !== "hb-device" && k !== "hb-desktop").forEach((k) => localStorage.removeItem(k)); } catch {}
+      try { Object.keys(localStorage).filter((k) => k.startsWith("hb-") && k !== "hb-device" && k !== "hb-desktop" && k !== "hb-halloween").forEach((k) => localStorage.removeItem(k)); } catch {}
       ME = null; NEST = null; authMode = "signup"; showAuth(); toast("Your account was deleted. Take care ♡");
     } catch (e) { $("delErr").textContent = e.message; }
   };

@@ -70,6 +70,9 @@
     undo: '<path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/>', tap: '<path d="M13 3L5 14h6l-1 7 9-11h-6z"/>', repeat: '<path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>'
   };
   var LOG = [
+    { v: "1.11", date: "2026-09-30", name: "Halloween", items: [
+      { t: "Honeybun goes spooky", d: "A glowing moon, flapping bats, dangling spiders, cobwebs, drifting fog and a little graveyard with flickering jack-o'-lanterns now light up the homepage and the app, with warm orange buttons. It's on through the end of October and switches itself off after.", tags: ["new", "design"], icon: "sun" }
+    ] },
     { v: "1.10.1", date: "2026-09-29", name: "Tidier Home and Plan", items: [
       { t: "Pages for Coming up", d: "A long list of upcoming bills now shows 5 at a time with page buttons, so Home never needs to scroll and Latest always has room.", tags: ["improved"], icon: "budget" },
       { t: "Debts fit on the page", d: "On desktop, Debts shows a few at a time with page buttons and a slimmer header, so Plan never needs to scroll.", tags: ["improved"], icon: "budget" },

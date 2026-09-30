@@ -1,0 +1,119 @@
+/* ===== Honeybun Halloween: palette + scenery. Everything is scoped to html.hb-halloween or .hbh-*, so it does nothing unless the theme is on. ===== */
+html:root.hb-halloween,html:root.hb-halloween[data-theme],html:root.hb-halloween[data-accent],html:root.hb-halloween[data-theme][data-accent]{
+  --bg:#130F18;--card:#1E1825;--panel2:#271F2F;--panel3:#2E2538;--line:#3B2F47;--ink:#F8F2F6;--soft:#B8ACBE;--muted:#7F7288;
+  --track:#0E0B12;--nav:rgba(27,21,33,.96);--page:#0C0910;--backdrop:rgba(5,3,8,.62);
+  --pink:#F28C38;--pink-d:#F8A864;--pink-2:#FBB36A;--pink-t:#3B2617;--on-pink:#1B1108;
+  --tab-bg:#4A2D16;--tab-fg:#F8A864;--chip-fg:#F8A864;--chip-bd:#6B401E;
+  --t-rose:#3B2617;--c-rose:#F8A864;
+  --t-lilac:#33254A;--c-lilac:#C4A6F4;--lav-t:#33254A;
+  --t-green:#1D3321;--c-green:#9BDD7E;--mint:#9BDD7E;--mint-d:#9BDD7E;--mint-t:#1D3321;
+  --honey:#F6C94E;--honey-t:#3C2F14;--t-honey:#3C2F14;--c-honey:#F6C94E;
+  --hero-bd:#3E2F3E;--hero-bg1:#1F1826;--hero-bg2:#2B1D1D;--banner-bd:#5C3F1A;
+  --cta-sh:rgba(242,140,56,.26);--glow:rgba(242,140,56,.08);
+  --lp-nav-bg:rgba(19,15,24,.82);--lp-nav-bd:rgba(59,47,71,.6);
+  color-scheme:dark;
+}
+html.hb-halloween{background:#130F18}
+html.hb-halloween body{background:transparent}
+html.hb-halloween::before{content:"";position:fixed;inset:0;z-index:-2;pointer-events:none;
+  background:
+    radial-gradient(circle at 88% 6%,rgba(247,231,180,.16),transparent 22%),
+    radial-gradient(ellipse at 10% 100%,rgba(122,76,194,.16),transparent 45%),
+    radial-gradient(ellipse at 90% 100%,rgba(242,140,56,.10),transparent 40%),
+    #130F18}
+
+
+/* ============ scenery (behind the cards) ============ */
+.hbh-sky{position:fixed;inset:0;z-index:-1;pointer-events:none;overflow:hidden}
+.hbh-star{position:absolute;width:2px;height:2px;border-radius:50%;background:#E9DDF5;animation:hbhTwinkle ease-in-out infinite}
+@keyframes hbhTwinkle{0%,100%{opacity:.15}50%{opacity:.9}}
+
+.hbh-moonwrap{position:absolute;top:80px;right:16px;width:64px;height:64px}
+.hbh-halo{position:absolute;inset:-70%;border-radius:50%;background:radial-gradient(circle,rgba(255,232,170,.34),rgba(255,200,120,.12) 40%,transparent 68%);animation:hbhHalo 5s ease-in-out infinite}
+@keyframes hbhHalo{0%,100%{transform:scale(.92);opacity:.75}50%{transform:scale(1.08);opacity:1}}
+.hbh-moon{position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle at 36% 34%,#FFFBEA,#F7E3A6 55%,#E2C06F);
+  box-shadow:0 0 30px 6px rgba(255,226,150,.45),0 0 90px 30px rgba(255,190,110,.18),inset -8px -10px 18px rgba(170,120,50,.35);animation:hbhMoon 5s ease-in-out infinite}
+@keyframes hbhMoon{0%,100%{filter:brightness(1)}50%{filter:brightness(1.12)}}
+.hbh-moon i{position:absolute;border-radius:50%;background:rgba(190,150,80,.32)}
+.hbh-cloud{position:absolute;height:14px;border-radius:999px;background:rgba(40,30,52,.85);filter:blur(2px);animation:hbhCloud linear infinite}
+@keyframes hbhCloud{from{transform:translateX(-120%)}to{transform:translateX(160%)}}
+.hbh-orbit{position:absolute;inset:-60%;animation:hbhSpin linear infinite}
+.hbh-orbit .hbh-bat{position:absolute;top:0;left:50%;width:22px;height:12px}
+@keyframes hbhSpin{to{transform:rotate(360deg)}}
+
+.hbh-web{position:absolute;opacity:.34}
+.hbh-web.tl{top:-6px;left:-6px;width:170px;height:170px}
+.hbh-web.tr{top:-6px;right:-6px;width:130px;height:130px;transform:scaleX(-1)}
+.hbh-web.bl{bottom:60px;left:-6px;width:110px;height:110px;transform:scaleY(-1)}
+
+.hbh-ember{position:absolute;bottom:-10px;width:4px;height:4px;border-radius:50%;background:#FFB060;box-shadow:0 0 8px 2px rgba(255,150,60,.7);animation:hbhRise linear infinite;opacity:0}
+@keyframes hbhRise{0%{transform:translate(0,0);opacity:0}10%{opacity:.9}50%{transform:translate(18px,-45vh)}90%{opacity:.6}100%{transform:translate(-12px,-95vh);opacity:0}}
+
+.hbh-fog{position:absolute;left:-50%;bottom:0;width:200%;height:170px;opacity:.5;
+  background:radial-gradient(ellipse 18% 55% at 10% 80%,rgba(160,140,190,.35),transparent 70%),radial-gradient(ellipse 22% 60% at 35% 90%,rgba(160,140,190,.28),transparent 70%),radial-gradient(ellipse 20% 55% at 62% 85%,rgba(160,140,190,.32),transparent 70%),radial-gradient(ellipse 18% 55% at 88% 90%,rgba(160,140,190,.28),transparent 70%);
+  animation:hbhFog 40s linear infinite;filter:blur(6px)}
+.hbh-fog.b{animation-duration:65s;animation-direction:reverse;opacity:.35;height:120px}
+@keyframes hbhFog{from{transform:translateX(0)}to{transform:translateX(25%)}}
+
+.hbh-grave{position:absolute;bottom:0;left:0;width:100%;height:90px}
+.hbh-lantern{animation:hbhFlicker 2.4s ease-in-out infinite}
+.hbh-lantern.b{animation-delay:-1.1s;animation-duration:3.1s}
+@keyframes hbhFlicker{0%,100%{opacity:1}20%{opacity:.75}45%{opacity:.95}60%{opacity:.7}80%{opacity:1}}
+
+/* ============ effects that float above everything (never clickable) ============ */
+.hbh-fx{position:fixed;inset:0;z-index:40;pointer-events:none;overflow:hidden}
+.hbh-bat{display:block}
+.hbh-bat svg{width:100%;height:100%;display:block;animation:hbhFlap .32s ease-in-out infinite alternate;transform-origin:50% 55%}
+@keyframes hbhFlap{from{transform:scaleY(1)}to{transform:scaleY(.35)}}
+.hbh-fly{position:absolute;left:0;animation:hbhAcross linear infinite}
+.hbh-fly>div{animation:hbhBob ease-in-out infinite alternate}
+.hbh-fly .hbh-bat{filter:drop-shadow(0 0 3px rgba(242,140,56,.55))}
+@keyframes hbhAcross{0%{transform:translateX(-12vw)}100%{transform:translateX(112vw)}}
+@keyframes hbhBob{from{transform:translateY(-26px) rotate(-6deg)}to{transform:translateY(26px) rotate(6deg)}}
+.hbh-fly.rev{animation-name:hbhBack}
+.hbh-fly.rev .hbh-bat{transform:scaleX(-1)}
+@keyframes hbhBack{0%{transform:translateX(112vw)}100%{transform:translateX(-12vw)}}
+
+.hbh-spider{position:absolute;top:0;width:2px;transform-origin:top center;animation:hbhSwing 4s ease-in-out infinite}
+.hbh-spider .thread{width:1px;margin:0 auto;background:linear-gradient(rgba(200,185,215,.2),rgba(220,205,235,.75));animation:hbhDrop 6s ease-in-out infinite}
+.hbh-spider svg{position:absolute;left:-13px;width:28px;height:26px;margin-top:-3px}
+@keyframes hbhSwing{0%,100%{transform:rotate(4deg)}50%{transform:rotate(-4deg)}}
+@keyframes hbhDrop{0%,100%{height:var(--lo)}50%{height:var(--hi)}}
+
+.hbh-fxweb{position:absolute;opacity:.2}
+
+/* ============ placement per screen ============ */
+/* phone app: moon sits in the gap between the greeting and the header buttons */
+html.hbp-app .hbh-moonwrap{top:12px;left:52%;right:auto;width:38px;height:38px}
+html.hbp-app .hbh-web.tr{display:none}
+/* phone landing */
+html.hbp-landing .hbh-moonwrap{top:86px;right:18px;width:58px;height:58px}
+@media (min-width:900px){
+  /* desktop app: the side menu turns see-through so the webs and graveyard show */
+  html.hbp-app nav.bottom{background:rgba(27,21,33,.62)!important}
+  html.hbp-app .hbh-moonwrap{top:10px;left:auto;right:12%;width:74px;height:74px}
+  html.hbp-app .hbh-web.tr{display:block}
+  html.hbp-landing .hbh-moonwrap{top:100px;right:5%;width:150px;height:150px}
+  .hbh-web.tl{width:260px;height:260px}
+  .hbh-grave{height:140px}
+  .hbh-fog{height:220px}
+}
+@media (max-width:899px){.hbh-desk{display:none}}
+@media (min-width:900px){.hbh-phone{display:none}}
+
+/* a warm candle glow on the main buttons */
+html.hb-halloween .lp-btn.p{background:linear-gradient(180deg,#F59A4A,#E77C27);animation:hbhGlow 3s ease-in-out infinite}
+@keyframes hbhGlow{0%,100%{box-shadow:0 10px 30px rgba(242,140,56,.25)}50%{box-shadow:0 10px 40px rgba(242,140,56,.5),0 0 18px rgba(255,170,80,.35)}}
+html.hb-halloween ::selection{background:#F28C38;color:#1B1108}
+html.hb-halloween main.lp{background:transparent}
+
+@media (prefers-reduced-motion:reduce){.hbh-sky *,.hbh-fx *,html.hb-halloween .lp-btn.p{animation:none!important}.hbh-fly{display:none}}
+
+/* ============ wiring for the real app ============ */
+html.hb-halloween main.lp,html.hb-halloween .hb{background:transparent}
+html.hb-halloween .hb-nav{background:var(--lp-nav-bg)}
+/* spiders are drawn for both the landing page and the app; only the set for the current screen shows */
+html.hbp-app .hbh-spider.for-landing,html.hbp-landing .hbh-spider.for-app{display:none}
+/* keep the moving parts cheap: promote the blurry layers, and freeze everything while the window is hidden or minimized */
+.hbh-fog,.hbh-cloud{will-change:transform}
+html.hbh-paused .hbh-sky *,html.hbh-paused .hbh-fx *,html.hbh-paused .hbh-fx{animation-play-state:paused!important}
