@@ -32,6 +32,12 @@
     document.querySelectorAll("img.logo").forEach(function (i) { i.setAttribute("src", "/icon-192" + sfx + ".png"); });
   }
 
+  // the Windows app also swaps its window and taskbar icon (older installs simply ignore this)
+  function winIcon(on) {
+    var inv = window.__TAURI_INTERNALS__ && window.__TAURI_INTERNALS__.invoke;
+    if (inv) try { inv("set_season_icon", { on: on }).catch(function () {}); } catch (e) {}
+  }
+
   var sky = null, fx = null;
   function build() {
     if (sky || !document.body) return;
@@ -80,7 +86,7 @@
   function refresh() {
     var on = typeof window.hbHalloweenActive === "function" && window.hbHalloweenActive();
     root.classList.toggle("hb-halloween", on);
-    hats(on); icons(on);
+    hats(on); icons(on); winIcon(on);
     if (on) { build(); syncMode(); } else { teardown(); root.classList.remove("hbp-app", "hbp-landing"); }
     return on;
   }

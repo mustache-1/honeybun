@@ -1558,10 +1558,22 @@ async function downloadWindows(request) {
   return new Response(request.method === "HEAD" ? null : res.body, { status: 200, headers });
 }
 
+// Halloween (Sept 29 to Oct 31): the install manifest points at the witch-hat Bun icons, so phones that
+// installed the app pick the new icon up on their own. Everything else is the normal manifest.
+async function seasonalManifest(request, env) {
+  const res = await env.ASSETS.fetch(request);
+  const d = new Date(), m = d.getUTCMonth(), day = d.getUTCDate();
+  if (!(m === 9 || (m === 8 && day >= 29))) return res;
+  const man = await res.json();
+  man.icons = man.icons.map((i) => ({ ...i, src: i.src.replace(/\.png$/, "-halloween.png") }));
+  return new Response(JSON.stringify(man), { headers: { "content-type": "application/manifest+json", "cache-control": "public, max-age=3600" } });
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     if (url.pathname === "/download/windows" || url.pathname === "/download/windows/") return downloadWindows(request);
+    if (url.pathname === "/manifest.webmanifest") return seasonalManifest(request, env);
     if (!url.pathname.startsWith("/api/")) return env.ASSETS.fetch(request);
 
     // CSRF protection: changes must come from our own site, as JSON

@@ -52,10 +52,20 @@ fn set_unread(window: WebviewWindow, count: u32) {
     }
 }
 
+// Halloween: honeybun.me tells the app whether to show the witch-hat Bun in the window and taskbar.
+// (The .exe file and its Start menu shortcut keep the normal icon; those are fixed when installed.)
+#[tauri::command]
+fn set_season_icon(window: WebviewWindow, on: bool) {
+    let bytes: &[u8] = if on { include_bytes!("../icons/halloween.png") } else { include_bytes!("../icons/icon.png") };
+    if let Ok(img) = Image::from_bytes(bytes) {
+        let _ = window.set_icon(img);
+    }
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![set_unread])
+        .invoke_handler(tauri::generate_handler![set_unread, set_season_icon])
         .setup(|app| {
             WebviewWindowBuilder::new(app, "main", WebviewUrl::External(HOME.parse().expect("valid url")))
                 .title("Honeybun")

@@ -1,6 +1,6 @@
 [package]
 name = "honeybun"
-version = "1.0.2"
+version = "1.0.3"
 description = "Honeybun for Windows"
 edition = "2021"
 
@@ -8,7 +8,7 @@ edition = "2021"
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = [] }
+tauri = { version = "2", features = ["image-png"] }
 tauri-plugin-opener = "2"
 
 [profile.release]
