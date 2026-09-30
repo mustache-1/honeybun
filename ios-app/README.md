@@ -37,6 +37,21 @@ In Xcode: pick your team under Signing & Capabilities, choose a device, press Ru
    ```
    Optional: `APNS_ENV` = `sandbox` while testing from Xcode. Without these secrets, iPhone push is simply off.
 
+## TestFlight from GitHub (no Mac needed)
+
+Once you have an Apple Developer account, GitHub's Mac servers can build, sign and upload the app for you.
+
+1. App Store Connect: create the app (bundle id `me.honeybun.app`).
+2. App Store Connect, Users and Access, Integrations, **App Store Connect API**: create a key with the **Admin** role. Download the `.p8` (you only get it once) and note the **Key ID** and **Issuer ID**.
+3. On GitHub, Settings, Secrets and variables, Actions, add four secrets:
+   - `APPLE_TEAM_ID`: your 10-character team id (developer.apple.com, Membership)
+   - `ASC_KEY_ID`: the key id
+   - `ASC_ISSUER_ID`: the issuer id
+   - `ASC_KEY_P8`: the full text of the `.p8` file, including the BEGIN and END lines
+4. GitHub, Actions, **iPhone app (TestFlight)**, **Run workflow**. About 10 minutes later the build appears in App Store Connect, TestFlight. Install the TestFlight app on your iPhone, add yourself as an internal tester and open it.
+
+Each run gets a new build number automatically.
+
 ## Before the App Store
 
 1. Apple Developer account ($99/year), then create the app record (bundle id `me.honeybun.app`).
