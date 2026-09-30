@@ -95,8 +95,13 @@ html.hbp-landing .hbh-moonwrap{top:86px;right:18px;width:58px;height:58px}
   html.hbp-app .hbh-web.tr{display:block}
   html.hbp-landing .hbh-moonwrap{top:100px;right:5%;width:150px;height:150px}
   .hbh-web.tl{width:260px;height:260px}
-  .hbh-grave{height:140px}
-  .hbh-fog{height:220px}
+  .hbh-grave{height:120px}
+  .hbh-fog{height:180px}
+  /* inside the app the strip stays soft and low so it never fights the menu card or the lists */
+  html.hbp-app .hbh-grave{height:64px;opacity:.55;-webkit-mask-image:linear-gradient(transparent,#000 70%);mask-image:linear-gradient(transparent,#000 70%)}
+  html.hbp-app .hbh-lantern{display:none}
+  html.hbp-app .hbh-fog{height:90px;opacity:.28}
+  html.hbp-app .hbh-fog.b{display:none}
 }
 @media (max-width:899px){.hbh-desk{display:none}}
 @media (min-width:900px){.hbh-phone{display:none}}
@@ -117,3 +122,6 @@ html.hbp-app .hbh-spider.for-landing,html.hbp-landing .hbh-spider.for-app{displa
 /* keep the moving parts cheap: promote the blurry layers, and freeze everything while the window is hidden or minimized */
 .hbh-fog,.hbh-cloud{will-change:transform}
 html.hbh-paused .hbh-sky *,html.hbh-paused .hbh-fx *,html.hbh-paused .hbh-fx{animation-play-state:paused!important}
+
+/* the scrolling feature strip under the landing hero stays out of the Halloween look */
+html.hb-halloween .hb-ribbon{display:none}
