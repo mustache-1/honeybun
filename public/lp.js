@@ -70,38 +70,15 @@
     undo: '<path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/>', tap: '<path d="M13 3L5 14h6l-1 7 9-11h-6z"/>', repeat: '<path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>'
   };
   var LOG = [
-    { v: "1.11.1", date: "2026-09-30", name: "Windows app updates itself", items: [
-      { t: "Automatic updates", d: "Honeybun for Windows now checks for a newer version when it opens and every few hours, then installs it by itself and reopens. While it checks, Bun shows the progress on the opening screen, and there is a Check for updates button in the side menu if you want to look right now. Download the latest installer once and you never have to again.", tags: ["new"], icon: "sun" },
-      { t: "Bun waits in your tray", d: "Close the Windows app and Bun tucks into the little arrow by your clock, so Honeybun keeps an eye out for new things without a window open. Click Bun to bring it back, or right-click and Quit to close it for real.", tags: ["new"], icon: "sun" }
-    ] },
-    { v: "1.11", date: "2026-09-30", name: "Halloween", items: [
-      { t: "Honeybun goes spooky", d: "A glowing moon, flapping bats, dangling spiders, cobwebs, drifting fog and a little graveyard with flickering jack-o'-lanterns now light up the homepage and the app, with warm orange buttons. It's on through the end of October and switches itself off after.", tags: ["new", "design"], icon: "sun" },
-      { t: "Bun in a witch hat", d: "Bun wears a little witch hat on the homepage while Halloween is on.", tags: ["new", "design"], icon: "sun" }
-    ] },
-    { v: "1.10.1", date: "2026-09-29", name: "Tidier Home and Plan", items: [
-      { t: "Pages for Coming up", d: "A long list of upcoming bills now shows 5 at a time with page buttons, so Home never needs to scroll and Latest always has room.", tags: ["improved"], icon: "budget" },
-      { t: "Debts fit on the page", d: "On desktop, Debts shows a few at a time with page buttons and a slimmer header, so Plan never needs to scroll.", tags: ["improved"], icon: "budget" },
-      { t: "Tidier bills in Plan", d: "Bills & paydays and Subscriptions now show a page at a time, soonest first. Subscriptions only appear in their own tab, with a link to it from Bills & paydays.", tags: ["improved"], icon: "budget" },
-      { t: "Smarter tips", d: "Bun no longer gives habit tips about the catch-all Other category.", tags: ["fixed"], icon: "bell" }
-    ] },
-    { v: "1.10", date: "2026-09-29", name: "Bun's tips and subscriptions", items: [
-      { t: "Subscriptions in Plan", d: "Bills & paydays now has a Subscriptions tab: every subscription with its next charge, what they cost you a month and a year, and a button to add one.", tags: ["new"], icon: "budget" },
-      { t: "Bun's tip of the day", d: "A new card on Home with a tip from Bun. It looks at your month first: a budget running low, a habit that adds up, subscriptions, no-spend days, your savings goals and your streak. Tap Another tip for more.", tags: ["new"], icon: "bell" }
-    ] },
-    { v: "1.9.1", date: "2026-09-29", name: "Fixes for settings and downloads", items: [
-      { t: "Email reminders stay on", d: "After confirming your email, reminder switches and the email-confirmed status could reset a few seconds later. They now stay exactly as you set them, and confirming in another tab updates the app on its own.", tags: ["fixed"], icon: "bell" },
-      { t: "Homepage fits on phones", d: "The preview cards at the top of the homepage no longer overlap or cut off text on small screens.", tags: ["fixed", "design"], icon: "landing" },
-      { t: "Help with download warnings", d: "The Download section explains the Chrome, Edge, and Windows warnings new apps get, and what to click to finish installing.", tags: ["improved"], icon: "landing" }
-    ] },
-    { v: "1.9", date: "2026-09-29", name: "A brand new homepage", items: [
-      { t: "New homepage", d: "A fresh look with a hopping Bun, live mini demos of every feature, a hop calendar preview, and a Download section for Windows and phones.", tags: ["new", "design"], icon: "landing" },
-      { t: "Windows app badge", d: "The Windows app shows a red dot on its taskbar icon when Bun has something new, like a shared expense, and flashes once without pulling you out of what you're doing.", tags: ["new"], icon: "bell" },
-      { t: "Your logo on the installer", d: "The Windows installer now uses the Honeybun bunny instead of a generic icon.", tags: ["design"], icon: "landing" }
-    ] },
-    { v: "1.8", date: "2026-09-29", name: "Honeybun for Windows", items: [
-      { t: "Windows app", d: "Download Honeybun for Windows and keep it on your taskbar. It's the same account as your phone and the web, so everything stays in sync, and it updates itself.", tags: ["new"], icon: "landing" },
-      { t: "Install from your browser", d: "Chrome and Edge can install Honeybun as an app on Windows, Mac, and Chromebook with one click.", tags: ["new"], icon: "landing" },
-      { t: "Get the app, from inside the app", d: "Already have an account? Find Get the app in the sidebar, or in Settings on your phone.", tags: ["improved"], icon: "landing" }
+    { v: "2.0", date: "2026-09-30", name: "Honeybun 2.0", items: [
+      { t: "Honeybun goes spooky", d: "A glowing moon, flapping bats, dangling spiders, cobwebs, drifting fog and a little graveyard now light up the homepage and the app, with warm orange buttons and Bun in a witch hat. It's on from Sept 29 through October and switches itself off after.", tags: ["new", "design"], icon: "sun" },
+      { t: "Honeybun for Windows", d: "Download Honeybun for Windows and keep it on your taskbar, with the same account as your phone and the web. It shows a red dot when Bun has something new, and Bun can wait in your tray with no window open.", tags: ["new"], icon: "landing" },
+      { t: "It updates itself", d: "The Windows app checks for a newer version when it opens and every few hours, shows the progress under Bun, then installs it and reopens. There's also a Check for updates button in the side menu.", tags: ["new"], icon: "landing" },
+      { t: "A brand new homepage", d: "A fresh look with a hopping Bun, live mini demos of every feature, a hop calendar preview, and a Download section for Windows and phones. You can also install Honeybun from Chrome or Edge in one click.", tags: ["new", "design"], icon: "landing" },
+      { t: "Bun's tip of the day", d: "A new card on Home with a tip from Bun, based on your month: a budget running low, habits that add up, subscriptions, no-spend days, savings goals and your streak.", tags: ["new"], icon: "bell" },
+      { t: "Subscriptions in Plan", d: "Bills & paydays has a Subscriptions tab with every subscription, its next charge, what it costs you a month and a year, and a button to add one.", tags: ["new"], icon: "budget" },
+      { t: "Tidier Home and Plan", d: "Coming up, Debts, Bills and Subscriptions show a page at a time, so nothing needs to scroll on desktop.", tags: ["improved"], icon: "budget" },
+      { t: "Fixes", d: "Email reminders stay on after you confirm your email, the homepage cards no longer overlap on phones, and Bun skips habit tips about the catch-all Other category.", tags: ["fixed"], icon: "bell" }
     ] },
     { v: "1.7", date: "2026-09-29", name: "New Stats and one-screen desktop", items: [
       { t: "Hop calendar", d: "Stats now opens on a calendar of your month. Bigger dots mean bigger spending days, and paw prints mark days you spent nothing. See your no-spend days, calmest week, and biggest day at a glance.", tags: ["new", "design"], icon: "landing" },
