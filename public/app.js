@@ -2286,6 +2286,24 @@
     lastBadge = count;
     inv("set_unread", { count }).catch(() => {});
   }
+  // Windows app: "Check for updates" in the side menu. The app downloads and installs a newer version by itself.
+  (() => {
+    const btn = $("sideCheckUpd"), label = $("sideCheckUpdT");
+    if (!btn || !IS_DESKTOP_APP || !tauriInvoke()) return;
+    btn.hidden = false;
+    const base = label.textContent;
+    let busy = false, timer = 0;
+    window.hbUpdateStatus = (state, text, pct) => {
+      clearTimeout(timer);
+      label.textContent = tr(text) + (pct != null && state === "downloading" ? " " + pct + "%" : "");
+      if (state === "current" || state === "error") { busy = false; timer = setTimeout(() => { label.textContent = tr(base); }, 4000); }
+    };
+    btn.onclick = () => {
+      if (busy) return;
+      busy = true; label.textContent = tr("Checking for updates…");
+      tauriInvoke()("check_for_update").catch(() => window.hbUpdateStatus("error", "Couldn't check right now"));
+    };
+  })();
   // while minimized the page skips its usual refresh, so check just the unread count once a minute
   if (IS_DESKTOP_APP) setInterval(async () => {
     if (!ME || !document.hidden || !tauriInvoke()) return;

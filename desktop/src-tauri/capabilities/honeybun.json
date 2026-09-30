@@ -6,5 +6,5 @@
   "remote": {
     "urls": ["https://honeybun.me/*"]
   },
-  "permissions": ["allow-set-unread", "allow-set-season-icon"]
+  "permissions": ["allow-set-unread", "allow-set-season-icon", "allow-check-for-update"]
 }

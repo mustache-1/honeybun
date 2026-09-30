@@ -83,6 +83,34 @@ fn serde_json_str(s: &str) -> String {
     o
 }
 
+// "Check for updates" in the side menu. Returns right away; progress and the result come back to the page
+// through window.hbUpdateStatus(state, text, percent) so the button can show them.
+#[tauri::command]
+fn check_for_update(window: WebviewWindow) {
+    std::thread::spawn(move || {
+        let send = |state: &str, text: &str, pct: Option<u32>| {
+            let js = format!(
+                "window.hbUpdateStatus&&window.hbUpdateStatus({},{},{})",
+                serde_json_str(state),
+                serde_json_str(text),
+                pct.map(|p| p.to_string()).unwrap_or("null".into())
+            );
+            let _ = window.eval(&js);
+        };
+        send("checking", "Checking for updates…", None);
+        let out = update::run(true, true, &|msg, pct| send("downloading", msg, pct));
+        match out {
+            update::Outcome::Installing => {
+                send("installing", "Installing… Honeybun will reopen", Some(100));
+                std::thread::sleep(Duration::from_secs(3));
+                window.app_handle().exit(0);
+            }
+            update::Outcome::UpToDate => send("current", "Up to date", None),
+            update::Outcome::Unknown => send("error", "Couldn't check right now", None),
+        }
+    });
+}
+
 fn show_main(app: &AppHandle) {
     if let Some(w) = app.get_webview_window("main") {
         let _ = w.show();
@@ -103,7 +131,7 @@ fn main() {
                 let _ = window.hide();
             }
         })
-        .invoke_handler(tauri::generate_handler![set_unread, set_season_icon])
+        .invoke_handler(tauri::generate_handler![set_unread, set_season_icon, check_for_update])
         .setup(|app| {
             let win = WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
                 .title("Honeybun")
@@ -149,7 +177,7 @@ fn main() {
                 std::thread::sleep(Duration::from_millis(500)); // let the opening screen load first
                 say("Checking for updates…", None);
                 let started = std::time::Instant::now();
-                let out = update::run(true, &say);
+                let out = update::run(true, false, &say);
                 if let update::Outcome::Installing = out {
                     std::thread::sleep(Duration::from_secs(3));
                     handle.exit(0);
@@ -164,7 +192,7 @@ fn main() {
                 loop {
                     std::thread::sleep(update::every(6));
                     let idle = handle.get_webview_window("main").map(|w| !w.is_focused().unwrap_or(false)).unwrap_or(true);
-                    if let update::Outcome::Installing = update::run(idle, &|_, _| {}) {
+                    if let update::Outcome::Installing = update::run(idle, false, &|_, _| {}) {
                         std::thread::sleep(Duration::from_secs(3));
                         handle.exit(0);
                         return;

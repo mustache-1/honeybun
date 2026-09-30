@@ -61,8 +61,9 @@ fn installer_size() -> Option<u64> {
 
 // Looks for a newer version and, if there is one, downloads and starts the installer.
 // `progress` gets a short message and an optional percentage for the opening screen.
+// `force` skips the once-an-hour retry guard (someone clicked "Check for updates").
 // `quiet_ok` is false when someone is using the window, so a background check never interrupts them.
-pub fn run(quiet_ok: bool, progress: &dyn Fn(&str, Option<u32>)) -> Outcome {
+pub fn run(quiet_ok: bool, force: bool, progress: &dyn Fn(&str, Option<u32>)) -> Outcome {
     let out = match curl().args(["-fsSL", "--max-time", "10", VERSION_URL]).output() {
         Ok(o) if o.status.success() => o,
         _ => return Outcome::Unknown,
@@ -77,7 +78,7 @@ pub fn run(quiet_ok: bool, progress: &dyn Fn(&str, Option<u32>)) -> Outcome {
     let dir = std::env::temp_dir();
     // never retry the same version within an hour, so a stale cache can't cause an install loop
     let mark = dir.join("honeybun-update-tried.txt");
-    if let Ok(s) = std::fs::read_to_string(&mark) {
+    if let Some(s) = std::fs::read_to_string(&mark).ok().filter(|_| !force) {
         let mut it = s.trim().split(' ');
         if let (Some(v), Some(t)) = (it.next(), it.next().and_then(|t| t.parse::<u64>().ok())) {
             if v == latest && now().saturating_sub(t) < 3600 {
