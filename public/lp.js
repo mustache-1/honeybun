@@ -71,7 +71,8 @@
   };
   var LOG = [
     { v: "1.11", date: "2026-09-30", name: "Halloween", items: [
-      { t: "Honeybun goes spooky", d: "A glowing moon, flapping bats, dangling spiders, cobwebs, drifting fog and a little graveyard with flickering jack-o'-lanterns now light up the homepage and the app, with warm orange buttons. It's on through the end of October and switches itself off after.", tags: ["new", "design"], icon: "sun" }
+      { t: "Honeybun goes spooky", d: "A glowing moon, flapping bats, dangling spiders, cobwebs, drifting fog and a little graveyard with flickering jack-o'-lanterns now light up the homepage and the app, with warm orange buttons. It's on through the end of October and switches itself off after.", tags: ["new", "design"], icon: "sun" },
+      { t: "Bun in a witch hat", d: "Bun wears a little witch hat on the homepage while Halloween is on.", tags: ["new", "design"], icon: "sun" }
     ] },
     { v: "1.10.1", date: "2026-09-29", name: "Tidier Home and Plan", items: [
       { t: "Pages for Coming up", d: "A long list of upcoming bills now shows 5 at a time with page buttons, so Home never needs to scroll and Latest always has room.", tags: ["improved"], icon: "budget" },

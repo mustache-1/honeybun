@@ -125,3 +125,7 @@ html.hbh-paused .hbh-sky *,html.hbh-paused .hbh-fx *,html.hbh-paused .hbh-fx{ani
 
 /* the scrolling feature strip under the landing hero stays out of the Halloween look */
 html.hb-halloween .hb-ribbon{display:none}
+
+/* the witch hat on Bun */
+.hbh-hat{transform-origin:80px 70px;animation:hbhSway 1.6s ease-in-out infinite}
+@keyframes hbhSway{0%,45%,100%{transform:rotate(0)}64%{transform:rotate(-6deg) translateY(-3px)}80%{transform:rotate(3deg)}}

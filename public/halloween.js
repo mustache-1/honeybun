@@ -14,6 +14,15 @@
     return '<div class="hbh-spider ' + (cls || "") + '" style="' + pos + ';--lo:' + lo + 'px;--hi:' + hi + 'px;animation-delay:-' + delay + 's"><div class="thread" style="animation-delay:-' + delay + 's"></div>' + SPIDER + '</div>';
   }
 
+  var HAT = '<g class="hbh-hat"><path d="M56 70 Q80 56 104 70 Q80 78 56 70z" fill="#2a1b3d" stroke="#2B2733" stroke-width="3" stroke-linejoin="round"/><path d="M66 68 L76 24 Q80 14 88 28 L96 68 Q80 74 66 68z" fill="#3a2452" stroke="#2B2733" stroke-width="3" stroke-linejoin="round"/><path d="M68 60 Q80 66 94 60 L95.5 66 Q80 72 67 66z" fill="#F28C38"/><rect x="77" y="60" width="7" height="8" rx="1.5" fill="#F6C94E"/><path d="M84 20l1.6 3.6 3.9.4-2.9 2.6.9 3.8-3.5-2-3.5 2 .9-3.8-2.9-2.6 3.9-.4z" fill="#F6C94E"/></g>';
+  // the mascot on the landing page puts on a witch hat
+  function hats(on) {
+    document.querySelectorAll('.hb-bun-body').forEach(function (b) {
+      var h = b.querySelector('.hbh-hat');
+      if (on && !h) b.insertAdjacentHTML('beforeend', HAT); else if (!on && h) h.remove();
+    });
+  }
+
   var sky = null, fx = null;
   function build() {
     if (sky || !document.body) return;
@@ -62,6 +71,7 @@
   function refresh() {
     var on = typeof window.hbHalloweenActive === "function" && window.hbHalloweenActive();
     root.classList.toggle("hb-halloween", on);
+    hats(on);
     if (on) { build(); syncMode(); } else { teardown(); root.classList.remove("hbp-app", "hbp-landing"); }
     return on;
   }
