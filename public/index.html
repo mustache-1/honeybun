@@ -2009,6 +2009,37 @@ dialog::backdrop{background:var(--backdrop)}
 .msg.me .av{visibility:hidden}
 .quick-replies{overflow-x:auto;scrollbar-width:none}.quick-replies::-webkit-scrollbar{display:none}
 .quick-replies button{flex:1 0 auto;white-space:nowrap;padding-inline:14px}
+
+/* ---- Fair share (couples) ---- */
+.sh-grid{display:flex;flex-direction:column;gap:12px}
+.sh-card h2{font-size:15px;font-weight:800;margin:0 0 2px;letter-spacing:-.01em}
+.sh-card .sh-sub{margin:0 0 12px;color:var(--soft);font-size:12.5px;font-weight:600}
+.sh-row{display:flex;align-items:center;gap:10px;margin:10px 0}
+.sh-row .av{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-size:17px;flex:none}
+.sh-row .nm{font-weight:800;font-size:14px}
+.sh-row .nm small{display:block;color:var(--soft);font-weight:600;font-size:11.5px}
+.sh-row .amt{margin-left:auto;text-align:right;font-weight:900;font-size:19px;letter-spacing:-.02em}
+.sh-row .amt small{display:block;color:var(--soft);font-weight:700;font-size:11.5px;letter-spacing:0}
+.sh-bar{display:flex;height:12px;border-radius:99px;overflow:hidden;background:var(--line);margin-top:4px}
+.sh-bar i{display:block;height:100%;min-width:0;transition:width .3s}
+.sh-bar i+i{border-left:2px solid var(--card)}
+.sh-legend{display:flex;justify-content:space-between;color:var(--soft);font-size:12px;font-weight:700;margin-top:6px}
+.sh-tot{display:flex;justify-content:space-between;margin-top:12px;padding-top:10px;border-top:1px dashed var(--line);font-weight:800;font-size:13px}
+.sh-chips{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 10px}
+.sh-chips button{border:1.5px solid var(--line);background:transparent;color:var(--soft);font:800 12.5px inherit;font-family:inherit;padding:7px 12px;border-radius:99px;cursor:pointer}
+.sh-chips button[aria-pressed="true"]{border-color:var(--pink);color:var(--pink-d);background:color-mix(in srgb,var(--pink) 14%,transparent)}
+.sh-slider{width:100%;accent-color:var(--pink);margin:6px 0 2px}
+.sh-tip{margin:12px 0 0;padding:10px 12px;border-radius:14px;background:color-mix(in srgb,var(--pink) 10%,transparent);font-size:12.5px;font-weight:700;line-height:1.4}
+.sh-note{color:var(--muted,var(--soft));font-size:11.5px;font-weight:600;margin:10px 0 0}
+.sh-empty{text-align:center;padding:26px 10px;color:var(--soft);font-weight:700}
+@media (min-width:900px){
+  .sh-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:start}
+  .sh-col{display:flex;flex-direction:column;gap:16px}
+}
+nav.bottom.six .in{max-width:none}
+nav.bottom .sh-sm{display:none}
+@media (max-width:899px){nav.bottom .sh-lg{display:none}nav.bottom .sh-sm{display:inline}}
+@media (max-width:899px){nav.bottom.six button{width:auto;flex:1;min-width:0}nav.bottom.six .plus{flex:none;width:46px}}
 </style>
 <link rel="stylesheet" href="/halloween.css">
 </head>
@@ -2558,6 +2589,10 @@ dialog::backdrop{background:var(--backdrop)}
   </main>
 
   <!-- TOGETHER -->
+  <main id="scr-share" hidden>
+    <div class="pagehead"><div><h1>Fair share</h1><p>Who brought in what, and who has spent what.</p></div><div class="ph-slot"></div></div>
+    <div class="sh-grid" id="shareBody"></div>
+  </main>
   <main id="scr-us" hidden>
     <div class="pagehead"><div><h1>Together</h1><p>Shared money, without the awkwardness.</p></div><div class="ph-slot"></div></div>
     <div class="grid2">
@@ -2567,6 +2602,7 @@ dialog::backdrop{background:var(--backdrop)}
           <div id="settle"></div>
           <ul class="hist" id="settleHist"></ul>
           <div class="members-list" id="usMembers"></div>
+          <p class="center" style="margin:10px 0 0" id="usShareLink" hidden><button class="linkbtn" id="usShareBtn" type="button">See who brought in and spent what</button></p>
         </div>
         <div class="card pad" id="inviteCard">
           <div class="title"><h2 id="inviteTitle">Invite</h2><span>your household</span></div>
@@ -2715,6 +2751,7 @@ dialog::backdrop{background:var(--backdrop)}
     <button data-go="plan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="15" rx="3"/><path d="M4 10h16M9 3v4M15 3v4"/></svg>Plan</button>
     <button class="plus" data-go="add" aria-label="Add money"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
     <button data-go="stats"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 20V11M12 20V5M19 20v-7"/></svg>Stats</button>
+    <button data-go="share" id="navShare" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v16M8 20h8M5 8h14"/><path d="M5 8l-2.5 6a3 3 0 0 0 5 0zM19 8l-2.5 6a3 3 0 0 0 5 0z"/></svg><span class="sh-lg">Fair share</span><span class="sh-sm">Share</span></button>
     <button data-go="us"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg><span id="usLabel">Together</span></button>
   </div>
   <div class="side-foot">

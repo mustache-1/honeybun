@@ -285,7 +285,7 @@
   const loggedToday = () => meMember()?.last_day === today();
 
   // ---------- screens ----------
-  const APP_SCREENS = ["home", "plan", "add", "stats", "us", "inbox", "settings", "help", "refer", "updates"];
+  const APP_SCREENS = ["home", "plan", "add", "stats", "share", "us", "inbox", "settings", "help", "refer", "updates"];
   const ALL_SCREENS = ["loading", "landing", "auth", "reset", "verify", "setup", "onboard", ...APP_SCREENS];
   function show(s) {
     screen = s;
@@ -889,6 +889,8 @@
     const hr = new Date().getHours();
     $("greet").textContent = hr < 12 ? "Good morning" : hr < 18 ? "Good afternoon" : "Good evening";
     $("hdrAvs").innerHTML = MEMBERS.slice(0, 3).map((m) => `<span class="av" style="background:${esc(m.color)}">${esc(m.emoji)}</span>`).join("");
+    { const couple = KIND() === "couple"; $("navShare").hidden = !couple; $("usShareLink").hidden = !couple || MEMBERS.length < 2; $("usShareBtn").onclick = () => show("share"); $("nav").classList.toggle("six", couple);
+      if (!couple && screen === "share") { show("home"); return; } }
     $("usLabel").textContent = KIND() === "solo" && MEMBERS.length < 2 ? "Me" : "Together";
     $("inboxBadge").hidden = !INBOX.unread; $("inboxBadge").textContent = INBOX.unread > 9 ? "9+" : INBOX.unread;
     $("sideBadge").hidden = !INBOX.unread; $("sideBadge").textContent = INBOX.unread > 9 ? "9+" : INBOX.unread;
@@ -976,6 +978,7 @@
     if (screen === "help") { mailLinks(); renderHelp(); }
     if (screen === "plan") renderPlan();
     if (screen === "stats") renderStats();
+    if (screen === "share") renderShare();
 
     if (screen === "us") {
       $("settleWrap").hidden = MEMBERS.length < 2;
@@ -1878,6 +1881,62 @@
     clearTimeout(nameTimer);
     nameTimer = setTimeout(() => api("/api/nest", { method: "PATCH", body: { name: NEST.name } }).catch((err) => toast(err.message)), 600);
   };
+
+  // ---------- Fair share (couples only): who brought in what, who spent what ----------
+  let sharePct = null, shareMode = "income";
+  const sharePeople = () => { const me = meMember(), other = MEMBERS.find((m) => m.id !== me?.id); return me && other ? [me, other] : null; };
+  function shareStats(m) {
+    const mine = ENTRIES.filter((e) => e.member_id === m.id), sum = (t, f) => mine.filter((e) => e.type === t && (!f || f(e))).reduce((s, e) => s + e.amount, 0);
+    const inc = sum("income"), out = sum("expense"), sh = sum("expense", (e) => e.shared);
+    return { m, inc, out, sh, own: out - sh, left: inc - out };
+  }
+  const pctOf = (v, t) => (t > 0 ? Math.round((v / t) * 100) : 0);
+  function shareBar(a, b, va, vb) {
+    const t = va + vb, pa = t > 0 ? (va / t) * 100 : 50;
+    return `<div class="sh-bar" aria-hidden="true"><i style="width:${t > 0 ? pa : 50}%;background:${esc(a.color)}"></i><i style="width:${t > 0 ? 100 - pa : 50}%;background:${esc(b.color)}"></i></div>` +
+      `<div class="sh-legend"><span>${esc(a.name)} ${t > 0 ? pctOf(va, t) + "%" : "–"}</span><span>${esc(b.name)} ${t > 0 ? pctOf(vb, t) + "%" : "–"}</span></div>`;
+  }
+  function renderShare() {
+    const box = $("shareBody");
+    if (!box) return;
+    const ppl = sharePeople();
+    if (!ppl) {
+      box.innerHTML = `<div class="card pad sh-empty">${esc(tr("Invite your partner to see who brings in and spends what."))}<p style="margin:14px 0 0"><button class="softbtn" id="shareInv">${esc(tr("Invite your partner"))}</button></p></div>`;
+      $("shareInv").onclick = () => show("us");
+      return;
+    }
+    const [A, B] = ppl.map(shareStats);
+    const inc = A.inc + B.inc, out = A.out + B.out, S = A.sh + B.sh;
+    const row = (x, v, sub) => `<div class="sh-row"><span class="av" style="background:${esc(x.m.color)}">${esc(x.m.emoji)}</span><span class="nm">${esc(x.m.name)}${x.m.id === ME?.id ? `<small>${esc(tr("You"))}</small>` : ""}</span><span class="amt">${fmt(v)}<small>${sub}</small></span></div>`;
+    box.innerHTML =
+      `<div class="sh-col"><section class="card pad sh-card"><h2>${esc(tr("Brought in"))}</h2><p class="sh-sub">${esc(monthName(MONTH, true))}</p>` +
+        row(A, A.inc, pctOf(A.inc, inc) + "%") + row(B, B.inc, pctOf(B.inc, inc) + "%") + shareBar(A.m, B.m, A.inc, B.inc) +
+        `<div class="sh-tot"><span>${esc(tr("Together"))}</span><span>${fmt(inc)}</span></div></section>` +
+      `<section class="card pad sh-card"><h2>${esc(tr("Spent so far"))}</h2><p class="sh-sub">${esc(monthName(MONTH, true))}</p>` +
+        row(A, A.out, `${esc(tr("shared"))} ${fmt(A.sh)} · ${esc(tr("own"))} ${fmt(A.own)}`) + row(B, B.out, `${esc(tr("shared"))} ${fmt(B.sh)} · ${esc(tr("own"))} ${fmt(B.own)}`) + shareBar(A.m, B.m, A.out, B.out) +
+        `<div class="sh-tot"><span>${esc(tr("Together"))}</span><span>${fmt(out)}</span></div>` +
+        `<p class="sh-note">${esc(tr("Private entries only count for the person who made them."))}</p></section></div>` +
+      `<section class="card pad sh-card" id="shBrain"></section>`;
+    drawShareBrain(A, B, inc, S);
+  }
+  function drawShareBrain(A, B, inc, S) {
+    const el = $("shBrain");
+    const incPct = inc > 0 ? Math.round((A.inc / inc) * 100) : 50, nowPct = S > 0 ? Math.round((A.sh / S) * 100) : 50;
+    const pct = sharePct == null ? (shareMode === "even" ? 50 : shareMode === "now" ? nowPct : incPct) : sharePct;
+    const payA = S * pct / 100, payB = S - payA;
+    const leftA = A.inc - A.own - payA, leftB = B.inc - B.own - payB;
+    const chip = (id, label) => `<button type="button" data-sm="${id}" aria-pressed="${shareMode === id && sharePct == null}">${esc(tr(label))}</button>`;
+    el.innerHTML = `<h2>${esc(tr("Brainstorm: split the shared costs"))}</h2><p class="sh-sub">${esc(tr("Shared costs this month"))}: <b>${fmt(S)}</b></p>` +
+      `<div class="sh-chips">${chip("even", "50 / 50")}${chip("income", "By income")}${chip("now", "As it is now")}</div>` +
+      `<input class="sh-slider" id="shSlider" type="range" min="0" max="100" step="1" value="${pct}" aria-label="${esc(A.m.name)}">` +
+      `<div class="sh-legend"><span>${esc(A.m.name)} ${pct}%</span><span>${esc(B.m.name)} ${100 - pct}%</span></div>` +
+      `<div class="sh-row"><span class="av" style="background:${esc(A.m.color)}">${esc(A.m.emoji)}</span><span class="nm">${esc(A.m.name)}<small>${esc(tr("pays"))} ${fmt(payA)}</small></span><span class="amt">${fmt(leftA)}<small>${esc(tr("left over"))}</small></span></div>` +
+      `<div class="sh-row"><span class="av" style="background:${esc(B.m.color)}">${esc(B.m.emoji)}</span><span class="nm">${esc(B.m.name)}<small>${esc(tr("pays"))} ${fmt(payB)}</small></span><span class="amt">${fmt(leftB)}<small>${esc(tr("left over"))}</small></span></div>` +
+      (inc > 0 ? `<p class="sh-tip">${esc(A.m.name)} ${esc(tr("brings in"))} ${incPct}%, ${esc(B.m.name)} ${100 - incPct}%. ${esc(tr("Splitting shared costs the same way is one fair option, 50/50 is another. Slide to try your own."))}</p>` : `<p class="sh-tip">${esc(tr("Add some income to see what a fair split looks like."))}</p>`);
+    el.querySelectorAll("[data-sm]").forEach((b) => (b.onclick = () => { shareMode = b.dataset.sm; sharePct = null; drawShareBrain(A, B, inc, S); }));
+    $("shSlider").oninput = (ev) => { sharePct = +ev.target.value; const t = ev.target; drawShareBrain(A, B, inc, S); $("shSlider").focus(); };
+  }
+
   // Desktop only: scale the 1440px layout up to fill wider screens (and slightly down on small laptops)
   function fitDesktop() {
     const w = window.innerWidth;
