@@ -295,7 +295,7 @@
     $("nav").hidden = !inApp; $("topBar").hidden = !inApp;
     { const mn = $("monthNav"), slot = document.querySelector(`#scr-${s} .ph-slot`);
       if (slot) { slot.appendChild(mn); mn.style.display = ""; } else mn.style.display = "none"; }
-    document.querySelectorAll("nav.bottom [data-go]").forEach((b) => b.dataset.go === s ? b.setAttribute("aria-current", "page") : b.removeAttribute("aria-current"));
+    document.querySelectorAll("nav.bottom [data-go]").forEach((b) => b.dataset.go === (s === "share" && !matchMedia("(min-width: 900px)").matches ? "us" : s) ? b.setAttribute("aria-current", "page") : b.removeAttribute("aria-current"));
     window.scrollTo(0, 0);
     if (s === "stats") loadYear();
     if (s === "refer" && ME) loadRef();
@@ -889,7 +889,7 @@
     const hr = new Date().getHours();
     $("greet").textContent = hr < 12 ? "Good morning" : hr < 18 ? "Good afternoon" : "Good evening";
     $("hdrAvs").innerHTML = MEMBERS.slice(0, 3).map((m) => `<span class="av" style="background:${esc(m.color)}">${esc(m.emoji)}</span>`).join("");
-    { const couple = KIND() === "couple"; $("navShare").hidden = !couple; $("usShareLink").hidden = !couple || MEMBERS.length < 2; $("usShareBtn").onclick = () => show("share"); $("nav").classList.toggle("six", couple);
+    { const couple = KIND() === "couple"; $("navShare").hidden = !couple; $("usShareBtn").hidden = !couple || MEMBERS.length < 2; $("shBack").onclick = () => show("us"); $("usShareBtn").onclick = () => show("share"); 
       if (!couple && screen === "share") { show("home"); return; } }
     $("usLabel").textContent = KIND() === "solo" && MEMBERS.length < 2 ? "Me" : "Together";
     $("inboxBadge").hidden = !INBOX.unread; $("inboxBadge").textContent = INBOX.unread > 9 ? "9+" : INBOX.unread;
