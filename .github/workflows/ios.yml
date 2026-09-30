@@ -29,6 +29,8 @@ jobs:
         run: npm install
       - name: Sync the native project
         run: npx cap sync ios
+      - name: Add the widget, Siri and push setup to the Xcode project
+        run: ruby scripts/setup_native.rb
       - name: Install pods
         working-directory: ios-app/ios/App
         run: pod install

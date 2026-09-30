@@ -50,6 +50,11 @@ const TABLES = [
   `CREATE TABLE IF NOT EXISTS challenges (id TEXT PRIMARY KEY, user_id TEXT, kind TEXT NOT NULL, expires_at INTEGER NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS push_subs (endpoint TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, created_at INTEGER NOT NULL)`,
   `CREATE INDEX IF NOT EXISTS idx_push_user ON push_subs(user_id)`,
+  // iPhone app: APNs device tokens, and per-device tokens the widget and Siri shortcuts use instead of a login cookie
+  `CREATE TABLE IF NOT EXISTS apns_tokens (token TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, created_at INTEGER NOT NULL)`,
+  `CREATE INDEX IF NOT EXISTS idx_apns_user ON apns_tokens(user_id)`,
+  `CREATE TABLE IF NOT EXISTS app_tokens (token_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, created_at INTEGER NOT NULL)`,
+  `CREATE INDEX IF NOT EXISTS idx_app_tokens_user ON app_tokens(user_id)`,
   // referrals: invite friends, get a gift card for every REF_GOAL who stick around
   `CREATE TABLE IF NOT EXISTS referrals (id TEXT PRIMARY KEY, referrer_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, referred_id TEXT NOT NULL UNIQUE, referred_name TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'pending', reason TEXT, created_at INTEGER NOT NULL, decided_at INTEGER)`,
   `CREATE INDEX IF NOT EXISTS idx_referrals_referrer ON referrals(referrer_id)`,
@@ -136,6 +141,7 @@ async function vapidHeaders(env, endpoint) {
 }
 // Send a "something's new" push to all of a person's devices. The text is stored so the service worker can fetch it.
 async function sendPush(env, userId, text) {
+  await sendApns(env, userId, text).catch((e) => console.error("apns", e.message));
   if (!env.VAPID_PRIVATE_KEY || !env.VAPID_PUBLIC_KEY) return;
   const subs = (await env.DB.prepare("SELECT endpoint FROM push_subs WHERE user_id = ?").bind(userId).all()).results;
   if (!subs.length) return;
@@ -147,6 +153,42 @@ async function sendPush(env, userId, text) {
       if (res.status === 404 || res.status === 410) await env.DB.prepare("DELETE FROM push_subs WHERE endpoint = ?").bind(sub.endpoint).run();
       else if (!res.ok) console.error("push failed", res.status, await res.text().catch(() => ""));
     } catch (e) { console.error("push error", e.message); }
+  }
+}
+
+// ---------- Apple push (APNs) for the iPhone app. Needs APNS_KEY (the .p8 text), APNS_KEY_ID, APNS_TEAM_ID; APNS_TOPIC defaults to the app's bundle id. ----------
+let apnsJwt = null;
+async function apnsToken(env) {
+  if (apnsJwt && now() - apnsJwt.at < 3000) return apnsJwt.jwt;
+  const pem = String(env.APNS_KEY).replace(/\\n/g, "\n").replace(/-----[A-Z ]+-----/g, "").replace(/\s+/g, "");
+  const der = Uint8Array.from(atob(pem), (c) => c.charCodeAt(0));
+  const key = await crypto.subtle.importKey("pkcs8", der, { name: "ECDSA", namedCurve: "P-256" }, false, ["sign"]);
+  const part = (o) => b64u(enc.encode(JSON.stringify(o)));
+  const input = `${part({ alg: "ES256", kid: env.APNS_KEY_ID })}.${part({ iss: env.APNS_TEAM_ID, iat: now() })}`;
+  const sig = await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, key, enc.encode(input));
+  apnsJwt = { at: now(), jwt: `${input}.${b64u(sig)}` };
+  return apnsJwt.jwt;
+}
+async function sendApns(env, userId, text) {
+  if (!env.APNS_KEY || !env.APNS_KEY_ID || !env.APNS_TEAM_ID) return;
+  const toks = (await env.DB.prepare("SELECT token FROM apns_tokens WHERE user_id = ?").bind(userId).all()).results;
+  if (!toks.length) return;
+  const jwt = await apnsToken(env), topic = env.APNS_TOPIC || "me.honeybun.app";
+  const hosts = env.APNS_ENV === "sandbox" ? ["api.sandbox.push.apple.com", "api.push.apple.com"] : ["api.push.apple.com", "api.sandbox.push.apple.com"];
+  const payload = JSON.stringify({ aps: { alert: { title: "Honeybun", body: text.body }, sound: "default" }, kind: text.kind });
+  for (const t of toks) {
+    let gone = false;
+    for (const h of hosts) {
+      try {
+        const res = await fetch(`https://${h}/3/device/${t.token}`, { method: "POST", headers: { authorization: `bearer ${jwt}`, "apns-topic": topic, "apns-push-type": "alert", "apns-priority": "10" }, body: payload });
+        if (res.ok) { gone = false; break; }
+        const why = await res.text().catch(() => "");
+        // a token made for the other APNs server says BadDeviceToken: try the other one before giving up on it
+        gone = res.status === 410 || /BadDeviceToken|Unregistered|DeviceTokenNotForTopic/.test(why);
+        if (!gone) { console.error("apns failed", res.status, why); break; }
+      } catch (e) { console.error("apns error", e.message); break; }
+    }
+    if (gone) await env.DB.prepare("DELETE FROM apns_tokens WHERE token = ?").bind(t.token).run();
   }
 }
 const STREAK_MILESTONES = [3, 7, 14, 30, 50, 100, 200, 365];
@@ -746,7 +788,11 @@ async function keyUser(request, env) {
   const row = await env.DB.prepare(
     "SELECT u.id, u.email, u.name, u.lang, k.token_hash FROM api_keys k JOIN users u ON u.id = k.user_id WHERE k.token_hash = ?"
   ).bind(await sha256(m[1])).first();
-  return row || null;
+  if (row) return row;
+  // the iPhone app's own token (used by the widget and Siri shortcuts)
+  return (await env.DB.prepare(
+    "SELECT u.id, u.email, u.name, u.lang, a.token_hash FROM app_tokens a JOIN users u ON u.id = a.user_id WHERE a.token_hash = ?"
+  ).bind(await sha256(m[1])).first()) || null;
 }
 
 // ---------- routes ----------
@@ -928,6 +974,26 @@ async function handle(request, env, url) {
       message: `Logged ${money(amount)} at ${label} (${catName}${shared ? ", split" : ""}) 🐰` }, 201);
   }
 
+  // The iPhone widget asks for this with its own token: what's left this month and the next bill.
+  if (path === "/api/app/summary" && method === "GET") {
+    const ku = await keyUser(request, env);
+    if (!ku) throw new HttpError("Not signed in.", 401);
+    const nestId = await requireNest(env, ku);
+    const u = await env.DB.prepare("SELECT tz FROM users WHERE id = ?").bind(ku.id).first();
+    const L = localNow(u?.tz), ym = L.date.slice(0, 7);
+    const t = await env.DB.prepare(
+      "SELECT type, SUM(amount_cents) AS c FROM entries WHERE nest_id = ? AND substr(date, 1, 7) = ? AND (private = 0 OR member_id = ?) GROUP BY type"
+    ).bind(nestId, ym, ku.id).all();
+    const sum = Object.fromEntries(t.results.map((r) => [r.type, r.c]));
+    const nest = await env.DB.prepare("SELECT name, kind FROM nests WHERE id = ?").bind(nestId).first();
+    let next = null;
+    try {
+      const due = (await nestBillsDue(env, {}, nestId, L.date, sDay(pDay(L.date) + 14 * dayMs))).filter((x) => x.r.shared || x.r.member_id === ku.id);
+      if (due.length) next = { label: due[0].r.label, amount: due[0].r.amount_cents / 100, date: due[0].d };
+    } catch (e) { console.error("summary bills", e.message); }
+    return json({ month: ym, name: nest?.name || "Honeybun", kind: nest?.kind || "couple", income: (sum.income || 0) / 100, spent: (sum.expense || 0) / 100, left: ((sum.income || 0) - (sum.expense || 0)) / 100, next });
+  }
+
   // ===== signed in =====
   const user = await currentUser(request, env);
   if (!user) throw new HttpError("Please log in.", 401);
@@ -1015,6 +1081,29 @@ async function handle(request, env, url) {
     const row = await env.DB.prepare("SELECT kind FROM challenges WHERE id = ? AND expires_at > ?").bind("push:" + user.id, now()).first();
     let text = null; try { text = row ? JSON.parse(row.kind) : null; } catch {}
     return json({ title: "Honeybun", body: text ? text.body : "Bun has something for you 🐰", url: "/" });
+  }
+
+  // iPhone app: register the phone for real push notifications, and mint the token the widget and Siri use
+  if (path === "/api/push/apns" && method === "POST") {
+    const token = String(body.token || "");
+    if (!/^[0-9a-fA-F]{32,200}$/.test(token)) throw new HttpError("Bad device token.");
+    await env.DB.prepare("INSERT OR REPLACE INTO apns_tokens (token, user_id, created_at) VALUES (?, ?, ?)").bind(token.toLowerCase(), user.id, now()).run();
+    return json({ ok: true });
+  }
+  if (path === "/api/push/apns" && method === "DELETE") {
+    await env.DB.prepare("DELETE FROM apns_tokens WHERE token = ? AND user_id = ?").bind(String(body.token || "").toLowerCase(), user.id).run();
+    return json({ ok: true });
+  }
+  if (path === "/api/app/token" && method === "POST") {
+    if (await limited(env, "apptok:" + user.id, 20, 3600)) throw new HttpError("Too many tries. Try again in an hour.", 429);
+    await recordAttempt(env, "apptok:" + user.id);
+    const token = "hb_app_" + randomToken();
+    await env.DB.prepare("INSERT INTO app_tokens (token_hash, user_id, created_at) VALUES (?, ?, ?)").bind(await sha256(token), user.id, now()).run();
+    return json({ ok: true, token }, 201);
+  }
+  if (path === "/api/app/token" && method === "DELETE") {
+    await env.DB.prepare("DELETE FROM app_tokens WHERE user_id = ?").bind(user.id).run();
+    return json({ ok: true });
   }
 
   // Shortcut key: one per person, shown once. Making a new one replaces the old one.
@@ -1620,7 +1709,7 @@ export default {
       ]);
     }
     if (env.RESEND_API_KEY) await sendReminders(env);
-    if (env.VAPID_PRIVATE_KEY) await pushReminders(env);
+    if (env.VAPID_PRIVATE_KEY || env.APNS_KEY) await pushReminders(env);
     try { await checkReferrals(env); } catch (e) { console.error("referrals", e.message); }
   },
 };
@@ -1629,7 +1718,7 @@ export default {
 async function pushReminders(env) {
   const people = (await env.DB.prepare(
     `SELECT DISTINCT u.id, u.name, u.tz, u.lang, u.last_bill_push, u.last_streak_push, m.nest_id, m.streak, m.last_day
-     FROM users u JOIN members m ON m.user_id = u.id JOIN push_subs p ON p.user_id = u.id`
+     FROM users u JOIN members m ON m.user_id = u.id WHERE u.id IN (SELECT user_id FROM push_subs UNION SELECT user_id FROM apns_tokens)`
   ).all()).results;
   const cache = {};
   for (const p of people) {

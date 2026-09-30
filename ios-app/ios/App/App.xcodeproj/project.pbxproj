@@ -7,8 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		A1B2C3D4E5F60718293A4B04 /* MainViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B03 /* MainViewController.swift */; };
-		A1B2C3D4E5F60718293A4B02 /* BiometricLock.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B01 /* BiometricLock.swift */; };
+		009BEC25291536945ABEA072 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AA6D8A2C277C265379139701 /* Foundation.framework */; };
+		0BBA0D8A6E01EE548E03B480 /* HoneybunShared.swift in Sources */ = {isa = PBXBuildFile; fileRef = 081B8AAE1F792BA4E418AF09 /* HoneybunShared.swift */; };
+		1B2D3BBD6B2C01B13855957E /* HoneybunIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB7C4C003F9E581D6C42A753 /* HoneybunIntents.swift */; };
 		2FAD9763203C412B000D30F8 /* config.xml in Resources */ = {isa = PBXBuildFile; fileRef = 2FAD9762203C412B000D30F8 /* config.xml */; };
 		50379B232058CBB4000EE86E /* capacitor.config.json in Resources */ = {isa = PBXBuildFile; fileRef = 50379B222058CBB4000EE86E /* capacitor.config.json */; };
 		504EC3081FED79650016851F /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 504EC3071FED79650016851F /* AppDelegate.swift */; };
@@ -16,12 +17,41 @@
 		504EC30F1FED79650016851F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 504EC30E1FED79650016851F /* Assets.xcassets */; };
 		504EC3121FED79650016851F /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 504EC3101FED79650016851F /* LaunchScreen.storyboard */; };
 		50B271D11FEDC1A000F3C39B /* public in Resources */ = {isa = PBXBuildFile; fileRef = 50B271D01FEDC1A000F3C39B /* public */; };
+		7B8D0D38A064034CAD42BBD1 /* HoneybunShared.swift in Sources */ = {isa = PBXBuildFile; fileRef = 081B8AAE1F792BA4E418AF09 /* HoneybunShared.swift */; };
+		94D2DE343B1CCBD49EDE521B /* HoneybunNative.swift in Sources */ = {isa = PBXBuildFile; fileRef = F35DB03D472B673EF846B623 /* HoneybunNative.swift */; };
+		977F762EA3FDDA3235F59D6E /* HoneybunWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = B383C33A316ECAF91FF319E3 /* HoneybunWidget.swift */; };
 		A084ECDBA7D38E1E42DFC39D /* Pods_App.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AF277DCFFFF123FFC6DF26C7 /* Pods_App.framework */; };
+		A1B2C3D4E5F60718293A4B02 /* BiometricLock.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B01 /* BiometricLock.swift */; };
+		A1B2C3D4E5F60718293A4B04 /* MainViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B03 /* MainViewController.swift */; };
+		D48A29BB97A194D1795C66CD /* HoneybunWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 9509B66CBA6AC3D4E8C41291 /* HoneybunWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		1547F6779B938ED8256F9E74 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 504EC2FC1FED79650016851F /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 6FE1790B1FFEC161F91D8382;
+			remoteInfo = HoneybunWidget;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		7C62812EC2DE5A731BF9E03F /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				D48A29BB97A194D1795C66CD /* HoneybunWidget.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
-		A1B2C3D4E5F60718293A4B03 /* MainViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainViewController.swift; sourceTree = "<group>"; };
-		A1B2C3D4E5F60718293A4B01 /* BiometricLock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BiometricLock.swift; sourceTree = "<group>"; };
+		081B8AAE1F792BA4E418AF09 /* HoneybunShared.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HoneybunShared.swift; sourceTree = "<group>"; };
 		2FAD9762203C412B000D30F8 /* config.xml */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = config.xml; sourceTree = "<group>"; };
 		50379B222058CBB4000EE86E /* capacitor.config.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = capacitor.config.json; sourceTree = "<group>"; };
 		504EC3041FED79650016851F /* App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = App.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -31,12 +61,30 @@
 		504EC3111FED79650016851F /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		504EC3131FED79650016851F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		50B271D01FEDC1A000F3C39B /* public */ = {isa = PBXFileReference; lastKnownFileType = folder; path = public; sourceTree = "<group>"; };
+		674058568043B14FEECCD583 /* App.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = App.entitlements; sourceTree = "<group>"; };
+		6F51520EAA12EBC44BE62404 /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		9509B66CBA6AC3D4E8C41291 /* HoneybunWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = HoneybunWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		A1B2C3D4E5F60718293A4B01 /* BiometricLock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BiometricLock.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A4B03 /* MainViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainViewController.swift; sourceTree = "<group>"; };
+		AA6D8A2C277C265379139701 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
 		AF277DCFFFF123FFC6DF26C7 /* Pods_App.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_App.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		AF51FD2D460BCFE21FA515B2 /* Pods-App.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-App.release.xcconfig"; path = "Pods/Target Support Files/Pods-App/Pods-App.release.xcconfig"; sourceTree = "<group>"; };
+		B383C33A316ECAF91FF319E3 /* HoneybunWidget.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HoneybunWidget.swift; sourceTree = "<group>"; };
+		BB7C4C003F9E581D6C42A753 /* HoneybunIntents.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HoneybunIntents.swift; sourceTree = "<group>"; };
+		DD534A12B03B46FA4AE087DC /* HoneybunWidget.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = HoneybunWidget.entitlements; sourceTree = "<group>"; };
+		F35DB03D472B673EF846B623 /* HoneybunNative.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HoneybunNative.swift; sourceTree = "<group>"; };
 		FC68EB0AF532CFC21C3344DD /* Pods-App.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-App.debug.xcconfig"; path = "Pods/Target Support Files/Pods-App/Pods-App.debug.xcconfig"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		1B14BCC9614764E3B95A971A /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				009BEC25291536945ABEA072 /* Foundation.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		504EC3011FED79650016851F /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -52,6 +100,7 @@
 			isa = PBXGroup;
 			children = (
 				AF277DCFFFF123FFC6DF26C7 /* Pods_App.framework */,
+				903E08155EB4D93209FACD78 /* iOS */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -63,6 +112,8 @@
 				504EC3051FED79650016851F /* Products */,
 				7F8756D8B27F46E3366F6CEA /* Pods */,
 				27E2DDA53C4D2A4D1A88CE4A /* Frameworks */,
+				F3F32ADB5CC14E5A17CAB7AB /* Shared */,
+				C6298F0199184A619A8E405B /* HoneybunWidget */,
 			);
 			sourceTree = "<group>";
 		};
@@ -70,6 +121,7 @@
 			isa = PBXGroup;
 			children = (
 				504EC3041FED79650016851F /* App.app */,
+				9509B66CBA6AC3D4E8C41291 /* HoneybunWidget.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -87,6 +139,9 @@
 				504EC3131FED79650016851F /* Info.plist */,
 				2FAD9762203C412B000D30F8 /* config.xml */,
 				50B271D01FEDC1A000F3C39B /* public */,
+				F35DB03D472B673EF846B623 /* HoneybunNative.swift */,
+				BB7C4C003F9E581D6C42A753 /* HoneybunIntents.swift */,
+				674058568043B14FEECCD583 /* App.entitlements */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -100,6 +155,34 @@
 			name = Pods;
 			sourceTree = "<group>";
 		};
+		903E08155EB4D93209FACD78 /* iOS */ = {
+			isa = PBXGroup;
+			children = (
+				AA6D8A2C277C265379139701 /* Foundation.framework */,
+			);
+			name = iOS;
+			sourceTree = "<group>";
+		};
+		C6298F0199184A619A8E405B /* HoneybunWidget */ = {
+			isa = PBXGroup;
+			children = (
+				B383C33A316ECAF91FF319E3 /* HoneybunWidget.swift */,
+				6F51520EAA12EBC44BE62404 /* Info.plist */,
+				DD534A12B03B46FA4AE087DC /* HoneybunWidget.entitlements */,
+			);
+			name = HoneybunWidget;
+			path = HoneybunWidget;
+			sourceTree = "<group>";
+		};
+		F3F32ADB5CC14E5A17CAB7AB /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				081B8AAE1F792BA4E418AF09 /* HoneybunShared.swift */,
+			);
+			name = Shared;
+			path = Shared;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -111,16 +194,35 @@
 				504EC3001FED79650016851F /* Sources */,
 				504EC3011FED79650016851F /* Frameworks */,
 				504EC3021FED79650016851F /* Resources */,
+				7C62812EC2DE5A731BF9E03F /* Embed Foundation Extensions */,
 				9592DBEFFC6D2A0C8D5DEB22 /* [CP] Embed Pods Frameworks */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				0DEF153CA51AE162C8593B87 /* PBXTargetDependency */,
 			);
 			name = App;
 			productName = App;
 			productReference = 504EC3041FED79650016851F /* App.app */;
 			productType = "com.apple.product-type.application";
+		};
+		6FE1790B1FFEC161F91D8382 /* HoneybunWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 732EB54FA441806BD9576A31 /* Build configuration list for PBXNativeTarget "HoneybunWidget" */;
+			buildPhases = (
+				C94643A4D71CA67C71FBD3BF /* Sources */,
+				1B14BCC9614764E3B95A971A /* Frameworks */,
+				EBF2385EB979AF5460E893A9 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = HoneybunWidget;
+			productName = HoneybunWidget;
+			productReference = 9509B66CBA6AC3D4E8C41291 /* HoneybunWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -147,13 +249,12 @@
 				Base,
 			);
 			mainGroup = 504EC2FB1FED79650016851F;
-			packageReferences = (
-			);
 			productRefGroup = 504EC3051FED79650016851F /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
 				504EC3031FED79650016851F /* App */,
+				6FE1790B1FFEC161F91D8382 /* HoneybunWidget */,
 			);
 		};
 /* End PBXProject section */
@@ -169,6 +270,13 @@
 				50379B232058CBB4000EE86E /* capacitor.config.json in Resources */,
 				504EC30D1FED79650016851F /* Main.storyboard in Resources */,
 				2FAD9763203C412B000D30F8 /* config.xml in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		EBF2385EB979AF5460E893A9 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -218,10 +326,31 @@
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
 				A1B2C3D4E5F60718293A4B04 /* MainViewController.swift in Sources */,
 				A1B2C3D4E5F60718293A4B02 /* BiometricLock.swift in Sources */,
+				94D2DE343B1CCBD49EDE521B /* HoneybunNative.swift in Sources */,
+				1B2D3BBD6B2C01B13855957E /* HoneybunIntents.swift in Sources */,
+				0BBA0D8A6E01EE548E03B480 /* HoneybunShared.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C94643A4D71CA67C71FBD3BF /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				977F762EA3FDDA3235F59D6E /* HoneybunWidget.swift in Sources */,
+				7B8D0D38A064034CAD42BBD1 /* HoneybunShared.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		0DEF153CA51AE162C8593B87 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = HoneybunWidget;
+			target = 6FE1790B1FFEC161F91D8382 /* HoneybunWidget */;
+			targetProxy = 1547F6779B938ED8256F9E74 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin PBXVariantGroup section */
 		504EC30B1FED79650016851F /* Main.storyboard */ = {
@@ -355,6 +484,7 @@
 			baseConfigurationReference = FC68EB0AF532CFC21C3344DD /* Pods-App.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = App/App.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				INFOPLIST_FILE = App/Info.plist;
@@ -375,6 +505,7 @@
 			baseConfigurationReference = AF51FD2D460BCFE21FA515B2 /* Pods-App.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = App/App.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				INFOPLIST_FILE = App/Info.plist;
@@ -386,6 +517,47 @@
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		779C1E4D83D4D3EF260C8367 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_ENTITLEMENTS = HoneybunWidget/HoneybunWidget.entitlements;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = HoneybunWidget/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = me.honeybun.app.widget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		BEA47F24210F10A9A0EEFB82 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_ENTITLEMENTS = HoneybunWidget/HoneybunWidget.entitlements;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = HoneybunWidget/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = me.honeybun.app.widget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
 			};
 			name = Release;
 		};
@@ -406,6 +578,15 @@
 			buildConfigurations = (
 				504EC3171FED79650016851F /* Debug */,
 				504EC3181FED79650016851F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		732EB54FA441806BD9576A31 /* Build configuration list for PBXNativeTarget "HoneybunWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BEA47F24210F10A9A0EEFB82 /* Release */,
+				779C1E4D83D4D3EF260C8367 /* Debug */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

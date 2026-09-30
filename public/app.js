@@ -278,6 +278,35 @@
   // The iPhone app (a native shell around this site) adds a Face ID lock through its BiometricLock plugin.
   const IOS_NATIVE = !!(window.Capacitor && window.Capacitor.getPlatform && window.Capacitor.getPlatform() === "ios");
   const BIO = IOS_NATIVE && window.Capacitor.Plugins && window.Capacitor.Plugins.BiometricLock;
+  const NATIVE_PLUGINS = IOS_NATIVE ? window.Capacitor.Plugins || {} : {};
+  const HBN = NATIVE_PLUGINS.HoneybunNative, PUSHP = NATIVE_PLUGINS.PushNotifications;
+  let nativeDone = false;
+  // give the widget and Siri this phone's own token, and keep push notifications registered
+  async function nativeSetup() {
+    if (!ME || !(HBN || PUSHP)) return;
+    if (HBN) {
+      let tok = store.get("hb-app-token");
+      if (!tok) { try { tok = (await api("/api/app/token", { method: "POST" })).token; store.set("hb-app-token", tok); } catch { tok = null; } }
+      if (tok) { try { await HBN.setToken({ token: tok }); } catch {} }
+    }
+    if (PUSHP && store.get("hb-apns") === "1") registerPush(true);
+  }
+  let pushListening = false;
+  async function registerPush(quiet) {
+    if (!PUSHP) return false;
+    if (!pushListening) {
+      pushListening = true;
+      PUSHP.addListener("registration", async (t) => { try { await api("/api/push/apns", { method: "POST", body: { token: t.value } }); store.set("hb-apns-token", t.value); } catch {} });
+      PUSHP.addListener("registrationError", () => {});
+    }
+    try {
+      let perm = await PUSHP.checkPermissions();
+      if (perm.receive === "prompt" && !quiet) perm = await PUSHP.requestPermissions();
+      if (perm.receive !== "granted") return false;
+      await PUSHP.register();
+      return true;
+    } catch { return false; }
+  }
   let lockHiddenAt = 0, unlocking = false, lockChecked = false;
   const lockOn = () => store.get("hb-lock") === "1";
   async function tryUnlock() {
@@ -290,6 +319,27 @@
     unlocking = false;
   }
   function lockNow() { if (!BIO || !lockOn() || !ME) return; $("lockOverlay").hidden = false; $("lockMsg").textContent = tr("Use Face ID to open your budget."); tryUnlock(); }
+  if (PUSHP) {
+    const row = $("pushRow");
+    row.hidden = false;
+    const draw = () => { const on = store.get("hb-apns") === "1"; $("pushState").textContent = tr(on ? "On" : "Off"); $("pushState").classList.toggle("on", on); };
+    draw();
+    row.onclick = async () => {
+      if (store.get("hb-apns") === "1") {
+        const t = store.get("hb-apns-token");
+        store.set("hb-apns", "0");
+        if (t) { try { await api("/api/push/apns", { method: "DELETE", body: { token: t } }); } catch {} }
+        draw(); return;
+      }
+      if (await registerPush(false)) { store.set("hb-apns", "1"); draw(); toast(tr("Notifications are on")); }
+      else toast(tr("Allow notifications for Honeybun in your iPhone Settings."));
+    };
+  }
+  if (IOS_NATIVE) {
+    const row = $("siriRow");
+    row.hidden = false;
+    row.onclick = () => toast(tr('Try: "Hey Siri, how much is left in Honeybun?"'));
+  }
   if (BIO) {
     $("lockTry").onclick = tryUnlock;
     document.addEventListener("visibilitychange", () => {
@@ -328,6 +378,7 @@
     ALL_SCREENS.forEach((k) => ($("scr-" + k).hidden = k !== s));
     const inApp = APP_SCREENS.includes(s);
     if (inApp && !lockChecked) { lockChecked = true; lockNow(); }
+    if (inApp && !nativeDone) { nativeDone = true; nativeSetup(); }
     $("nav").hidden = !inApp; $("topBar").hidden = !inApp;
     { const mn = $("monthNav"), slot = document.querySelector(`#scr-${s} .ph-slot`);
       if (slot) { slot.appendChild(mn); mn.style.display = ""; } else mn.style.display = "none"; }
@@ -435,6 +486,13 @@
     show("home"); bunnyHop();
   }
   async function logout() {
+    if (HBN || PUSHP) {
+      const t = store.get("hb-apns-token");
+      try { if (t) await api("/api/push/apns", { method: "DELETE", body: { token: t } }); } catch {}
+      try { await api("/api/app/token", { method: "DELETE" }); } catch {}
+      try { if (HBN) await HBN.clear(); } catch {}
+      store.set("hb-app-token", ""); store.set("hb-apns", "0");
+    }
     try { await api("/api/logout", { method: "POST" }); } catch {}
     try { const inv = window.__TAURI_INTERNALS__ && window.__TAURI_INTERNALS__.invoke; if (inv) inv("set_unread", { count: 0 }).catch(() => {}); } catch {}
     ME = null; NEST = null; MEMBERS = []; ENTRIES = []; filter = null; editing = null;
