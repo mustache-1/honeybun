@@ -1543,6 +1543,15 @@ function withDevice(request, res) {
 // The Windows installer is built on GitHub, but people download it from honeybun.me:
 // the Worker fetches the latest build and hands it over as Honeybun-Setup.exe (cached at the edge for 10 minutes).
 const WINDOWS_INSTALLER = "https://github.com/mustache-1/honeybun/releases/latest/download/Honeybun-Setup.exe";
+// The newest app version, read from the latest release. The Windows app asks this to decide whether to update itself.
+async function windowsVersion() {
+  let res = null;
+  try { res = await fetch(WINDOWS_INSTALLER.replace(/[^/]+$/, "version.txt") + "?v=1", { redirect: "follow", cf: { cacheEverything: true, cacheTtlByStatus: { "200-299": 300, "300-599": 0 } } }); } catch (e) { res = null; }
+  const v = res && res.ok ? (await res.text()).trim() : "";
+  if (!/^\d+(\.\d+){1,3}$/.test(v)) return new Response("unavailable", { status: 503, headers: { "cache-control": "no-store" } });
+  return new Response(v, { headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "public, max-age=300" } });
+}
+
 async function downloadWindows(request) {
   if (request.method !== "GET" && request.method !== "HEAD") return new Response("Method not allowed", { status: 405 });
   let res;
@@ -1572,6 +1581,7 @@ async function seasonalManifest(request, env) {
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    if (url.pathname === "/download/windows/version") return windowsVersion();
     if (url.pathname === "/download/windows" || url.pathname === "/download/windows/") return downloadWindows(request);
     if (url.pathname === "/manifest.webmanifest") return seasonalManifest(request, env);
     if (!url.pathname.startsWith("/api/")) return env.ASSETS.fetch(request);

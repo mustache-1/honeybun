@@ -3,8 +3,11 @@
 // and every website deploy shows up here without reinstalling.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod update;
+
 use std::sync::atomic::{AtomicU32, Ordering};
-use tauri::{image::Image, Url, UserAttentionType, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
+use std::time::Duration;
+use tauri::{image::Image, Manager, Url, UserAttentionType, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 
 const HOME: &str = "https://honeybun.me/?app=desktop";
 
@@ -80,6 +83,22 @@ fn main() {
                     false
                 })
                 .build()?;
+            // look for a newer Honeybun a moment after opening, then every 6 hours (only when the window isn't in use)
+            let handle = app.handle().clone();
+            std::thread::spawn(move || {
+                std::thread::sleep(Duration::from_secs(20));
+                let mut first = true;
+                loop {
+                    let idle = first || handle.get_webview_window("main").map(|w| !w.is_focused().unwrap_or(false)).unwrap_or(true);
+                    first = false;
+                    if update::check_and_install(idle) {
+                        std::thread::sleep(Duration::from_secs(3));
+                        handle.exit(0);
+                        return;
+                    }
+                    std::thread::sleep(update::every(6));
+                }
+            });
             Ok(())
         })
         .run(tauri::generate_context!())

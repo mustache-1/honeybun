@@ -70,6 +70,9 @@
     undo: '<path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/>', tap: '<path d="M13 3L5 14h6l-1 7 9-11h-6z"/>', repeat: '<path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>'
   };
   var LOG = [
+    { v: "1.11.1", date: "2026-09-30", name: "Windows app updates itself", items: [
+      { t: "Automatic updates", d: "Honeybun for Windows now checks for a newer version when it opens and every few hours, then installs it by itself and reopens. Download the latest installer once and you never have to again.", tags: ["new"], icon: "sun" }
+    ] },
     { v: "1.11", date: "2026-09-30", name: "Halloween", items: [
       { t: "Honeybun goes spooky", d: "A glowing moon, flapping bats, dangling spiders, cobwebs, drifting fog and a little graveyard with flickering jack-o'-lanterns now light up the homepage and the app, with warm orange buttons. It's on through the end of October and switches itself off after.", tags: ["new", "design"], icon: "sun" },
       { t: "Bun in a witch hat", d: "Bun wears a little witch hat on the homepage while Halloween is on.", tags: ["new", "design"], icon: "sun" }
