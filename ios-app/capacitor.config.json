@@ -1,0 +1,11 @@
+{
+  "appId": "me.honeybun.app",
+  "appName": "Honeybun",
+  "webDir": "www",
+  "server": { "url": "https://honeybun.me/?app=ios", "cleartext": false, "allowNavigation": ["honeybun.me", "*.honeybun.me"] },
+  "ios": { "contentInset": "never", "backgroundColor": "#150F1B", "scheme": "Honeybun" },
+  "plugins": {
+    "SplashScreen": { "launchShowDuration": 1200, "backgroundColor": "#150F1B", "showSpinner": false },
+    "StatusBar": { "style": "DARK" }
+  }
+}

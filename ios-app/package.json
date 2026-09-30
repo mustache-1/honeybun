@@ -1,0 +1,16 @@
+{
+  "name": "honeybun-ios",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Honeybun for iPhone: a native iOS shell around honeybun.me with Face ID lock, widgets and in-app purchases.",
+  "scripts": { "sync": "cap sync ios", "open": "cap open ios" },
+  "dependencies": {
+    "@capacitor/core": "^7",
+    "@capacitor/ios": "^7",
+    "@capacitor/haptics": "^7",
+    "@capacitor/status-bar": "^7",
+    "@capacitor/splash-screen": "^7",
+    "@capacitor/push-notifications": "^7"
+  },
+  "devDependencies": { "@capacitor/cli": "^7" }
+}

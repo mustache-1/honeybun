@@ -275,6 +275,41 @@
     if (new URLSearchParams(location.search).get("app") === "desktop") { store.set("hb-desktop", "1"); history.replaceState(null, "", location.pathname + location.hash); }
     return store.get("hb-desktop") === "1";
   })();
+  // The iPhone app (a native shell around this site) adds a Face ID lock through its BiometricLock plugin.
+  const IOS_NATIVE = !!(window.Capacitor && window.Capacitor.getPlatform && window.Capacitor.getPlatform() === "ios");
+  const BIO = IOS_NATIVE && window.Capacitor.Plugins && window.Capacitor.Plugins.BiometricLock;
+  let lockHiddenAt = 0, unlocking = false, lockChecked = false;
+  const lockOn = () => store.get("hb-lock") === "1";
+  async function tryUnlock() {
+    if (!BIO || unlocking) return;
+    unlocking = true;
+    try {
+      const r = await BIO.authenticate({ reason: tr("Unlock Honeybun") });
+      if (r && r.success) $("lockOverlay").hidden = true; else $("lockMsg").textContent = tr("Couldn't unlock. Try again.");
+    } catch { $("lockMsg").textContent = tr("Couldn't unlock. Try again."); }
+    unlocking = false;
+  }
+  function lockNow() { if (!BIO || !lockOn() || !ME) return; $("lockOverlay").hidden = false; $("lockMsg").textContent = tr("Use Face ID to open your budget."); tryUnlock(); }
+  if (BIO) {
+    $("lockTry").onclick = tryUnlock;
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) lockHiddenAt = Date.now();
+      else if (lockOn() && lockHiddenAt && Date.now() - lockHiddenAt > 15000) lockNow();
+    });
+    const row = $("lockRow");
+    row.hidden = false;
+    const draw = () => { const on = lockOn(); $("lockState").textContent = tr(on ? "On" : "Off"); $("lockState").classList.toggle("on", on); };
+    draw();
+    row.onclick = async () => {
+      if (lockOn()) { store.set("hb-lock", "0"); draw(); return; }
+      try {
+        const a = await BIO.available();
+        if (!a.available) { toast(tr("Set up Face ID or a passcode in your iPhone Settings first.")); return; }
+        const r = await BIO.authenticate({ reason: tr("Turn on the Honeybun lock") });
+        if (r && r.success) { store.set("hb-lock", "1"); draw(); toast(tr("Lock is on")); }
+      } catch { toast(tr("Couldn't turn the lock on")); }
+    };
+  }
   function pendingRef() { try { const r = JSON.parse(store.get("hb-ref") || "null"); return r && Date.now() - r.t < 60 * 86400000 ? r.c : null; } catch { return null; } }
   const member = (id) => MEMBERS.find((m) => m.id === id) || { name: "Someone", emoji: "❔", color: "#EEE" };
   const meMember = () => MEMBERS.find((m) => m.id === ME?.id);
@@ -292,6 +327,7 @@
     fitDesktop();
     ALL_SCREENS.forEach((k) => ($("scr-" + k).hidden = k !== s));
     const inApp = APP_SCREENS.includes(s);
+    if (inApp && !lockChecked) { lockChecked = true; lockNow(); }
     $("nav").hidden = !inApp; $("topBar").hidden = !inApp;
     { const mn = $("monthNav"), slot = document.querySelector(`#scr-${s} .ph-slot`);
       if (slot) { slot.appendChild(mn); mn.style.display = ""; } else mn.style.display = "none"; }
@@ -2369,7 +2405,7 @@
     try { const r = await api("/api/inbox/count"); INBOX.unread = r.unread; syncTaskbar(); } catch {}
   }, 60000);
   // Get the app: Windows download, browser install, phone steps. Hidden inside the Windows app and installed apps.
-  const installedApp = IS_DESKTOP_APP || matchMedia("(display-mode: standalone)").matches;
+  const installedApp = IS_DESKTOP_APP || IOS_NATIVE || matchMedia("(display-mode: standalone)").matches;
   $("sideGet").hidden = installedApp; $("openGet").hidden = installedApp;
   const openGet = () => {
     const ua = navigator.userAgent, mobile = /iPhone|iPad|iPod|Android/.test(ua);

@@ -1,0 +1,40 @@
+# Checks that the Honeybun iPhone app builds (unsigned, for the simulator). Shipping to the App Store
+# needs an Apple Developer account and signing; see ios-app/README.md.
+name: iPhone app (build check)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "ios-app/**"
+      - ".github/workflows/ios.yml"
+
+concurrency:
+  group: ios-build
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-15
+    defaults:
+      run:
+        working-directory: ios-app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install Capacitor
+        run: npm install
+      - name: Sync the native project
+        run: npx cap sync ios
+      - name: Install pods
+        working-directory: ios-app/ios/App
+        run: pod install
+      - name: Build for the simulator
+        working-directory: ios-app/ios/App
+        run: |
+          xcodebuild -workspace App.xcworkspace -scheme App -configuration Debug \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO build | tail -40
