@@ -42,16 +42,37 @@ fn now() -> u64 {
     SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0)
 }
 
-// Downloads and starts the installer. Returns true when the installer was started (the app should then exit).
+pub enum Outcome {
+    // the installer was started; the app should close so it can replace the files
+    Installing,
+    UpToDate,
+    // couldn't reach honeybun.me (offline, or the version file isn't published yet)
+    Unknown,
+}
+
+// total size of the installer, so the splash can show a real percentage
+fn installer_size() -> Option<u64> {
+    let out = curl().args(["-sIL", "--max-time", "10", INSTALLER_URL]).output().ok()?;
+    String::from_utf8_lossy(&out.stdout)
+        .lines()
+        .filter_map(|l| l.to_ascii_lowercase().strip_prefix("content-length:").and_then(|v| v.trim().parse::<u64>().ok()))
+        .last()
+}
+
+// Looks for a newer version and, if there is one, downloads and starts the installer.
+// `progress` gets a short message and an optional percentage for the opening screen.
 // `quiet_ok` is false when someone is using the window, so a background check never interrupts them.
-pub fn check_and_install(quiet_ok: bool) -> bool {
-    let out = match curl().args(["-fsSL", "--max-time", "20", VERSION_URL]).output() {
+pub fn run(quiet_ok: bool, progress: &dyn Fn(&str, Option<u32>)) -> Outcome {
+    let out = match curl().args(["-fsSL", "--max-time", "10", VERSION_URL]).output() {
         Ok(o) if o.status.success() => o,
-        _ => return false,
+        _ => return Outcome::Unknown,
     };
     let latest = String::from_utf8_lossy(&out.stdout).trim().to_string();
+    if parts(&latest).is_none() {
+        return Outcome::Unknown;
+    }
     if !is_newer(&latest, THIS_VERSION) || !quiet_ok {
-        return false;
+        return Outcome::UpToDate;
     }
     let dir = std::env::temp_dir();
     // never retry the same version within an hour, so a stale cache can't cause an install loop
@@ -60,25 +81,42 @@ pub fn check_and_install(quiet_ok: bool) -> bool {
         let mut it = s.trim().split(' ');
         if let (Some(v), Some(t)) = (it.next(), it.next().and_then(|t| t.parse::<u64>().ok())) {
             if v == latest && now().saturating_sub(t) < 3600 {
-                return false;
+                return Outcome::UpToDate;
             }
         }
     }
     let _ = std::fs::write(&mark, format!("{} {}", latest, now()));
+    let msg = format!("Downloading Honeybun {}…", latest.trim_start_matches('v'));
+    progress(&msg, Some(0));
+    let total = installer_size();
     let exe = dir.join("Honeybun-Setup-update.exe");
-    let ok = curl()
-        .args(["-fsSL", "--max-time", "300", "-o"])
-        .arg(&exe)
-        .arg(INSTALLER_URL)
-        .status()
-        .map(|s| s.success())
-        .unwrap_or(false);
+    let _ = std::fs::remove_file(&exe);
+    let mut child = match curl().args(["-fsSL", "--max-time", "300", "-o"]).arg(&exe).arg(INSTALLER_URL).spawn() {
+        Ok(c) => c,
+        Err(_) => return Outcome::Unknown,
+    };
+    let ok = loop {
+        match child.try_wait() {
+            Ok(Some(st)) => break st.success(),
+            Ok(None) => {
+                let have = std::fs::metadata(&exe).map(|m| m.len()).unwrap_or(0);
+                progress(&msg, total.filter(|t| *t > 0).map(|t| ((have * 100 / t).min(99)) as u32));
+                std::thread::sleep(Duration::from_millis(250));
+            }
+            Err(_) => break false,
+        }
+    };
     // a real installer is several MB; anything tiny is an error page
     if !ok || std::fs::metadata(&exe).map(|m| m.len()).unwrap_or(0) < 1_000_000 {
         let _ = std::fs::remove_file(&exe);
-        return false;
+        return Outcome::Unknown;
     }
-    Command::new(&exe).args(["/S", "/UPDATE"]).spawn().is_ok()
+    progress("Installing… Honeybun will reopen by itself", Some(100));
+    if Command::new(&exe).args(["/S", "/UPDATE"]).spawn().is_ok() {
+        Outcome::Installing
+    } else {
+        Outcome::Unknown
+    }
 }
 
 pub fn every(hours: u64) -> Duration {

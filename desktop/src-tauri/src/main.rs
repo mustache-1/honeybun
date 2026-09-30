@@ -17,7 +17,8 @@ const HOME: &str = "https://honeybun.me/?app=desktop";
 // opens in the person's normal browser instead.
 fn stays_inside(url: &Url) -> bool {
     match url.scheme() {
-        "about" | "data" | "blob" => true,
+        "about" | "data" | "blob" | "tauri" => true,
+        "http" => matches!(url.host_str(), Some("tauri.localhost")),
         "https" => matches!(url.host_str(), Some(h) if h == "honeybun.me" || h.ends_with(".honeybun.me")),
         _ => false,
     }
@@ -67,6 +68,21 @@ fn set_season_icon(window: WebviewWindow, on: bool) {
     }
 }
 
+// a JavaScript string literal for the opening screen's status text
+fn serde_json_str(s: &str) -> String {
+    let mut o = String::from("\"");
+    for c in s.chars() {
+        match c {
+            '"' => o.push_str("\\\""),
+            '\\' => o.push_str("\\\\"),
+            '\n' => o.push_str("\\n"),
+            c => o.push(c),
+        }
+    }
+    o.push('"');
+    o
+}
+
 fn show_main(app: &AppHandle) {
     if let Some(w) = app.get_webview_window("main") {
         let _ = w.show();
@@ -89,7 +105,7 @@ fn main() {
         })
         .invoke_handler(tauri::generate_handler![set_unread, set_season_icon])
         .setup(|app| {
-            WebviewWindowBuilder::new(app, "main", WebviewUrl::External(HOME.parse().expect("valid url")))
+            let win = WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
                 .title("Honeybun")
                 .inner_size(1280.0, 820.0)
                 .min_inner_size(900.0, 600.0)
@@ -121,20 +137,38 @@ fn main() {
                     }
                 })
                 .build(app)?;
-            // look for a newer Honeybun a moment after opening, then every 6 hours (only when the window isn't in use)
+            // The opening screen (dist/index.html) shows "checking for updates" under Bun, installs a newer
+            // version if there is one, and then goes on to honeybun.me. After that it re-checks every 6 hours,
+            // only while the window isn't in use.
             let handle = app.handle().clone();
             std::thread::spawn(move || {
-                std::thread::sleep(Duration::from_secs(20));
-                let mut first = true;
+                let say = |msg: &str, pct: Option<u32>| {
+                    let js = format!("window.hbStatus&&window.hbStatus({},{})", serde_json_str(msg), pct.map(|p| p.to_string()).unwrap_or("null".into()));
+                    let _ = win.eval(&js);
+                };
+                std::thread::sleep(Duration::from_millis(500)); // let the opening screen load first
+                say("Checking for updates…", None);
+                let started = std::time::Instant::now();
+                let out = update::run(true, &say);
+                if let update::Outcome::Installing = out {
+                    std::thread::sleep(Duration::from_secs(3));
+                    handle.exit(0);
+                    return;
+                }
+                say(if let update::Outcome::UpToDate = out { "Honeybun is up to date" } else { "Opening Honeybun…" }, Some(100));
+                // keep the opening screen up long enough to read
+                if let Some(rest) = Duration::from_millis(1400).checked_sub(started.elapsed()) {
+                    std::thread::sleep(rest);
+                }
+                let _ = win.navigate(HOME.parse().expect("valid url"));
                 loop {
-                    let idle = first || handle.get_webview_window("main").map(|w| !w.is_focused().unwrap_or(false)).unwrap_or(true);
-                    first = false;
-                    if update::check_and_install(idle) {
+                    std::thread::sleep(update::every(6));
+                    let idle = handle.get_webview_window("main").map(|w| !w.is_focused().unwrap_or(false)).unwrap_or(true);
+                    if let update::Outcome::Installing = update::run(idle, &|_, _| {}) {
                         std::thread::sleep(Duration::from_secs(3));
                         handle.exit(0);
                         return;
                     }
-                    std::thread::sleep(update::every(6));
                 }
             });
             Ok(())
