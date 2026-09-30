@@ -7,7 +7,9 @@ mod update;
 
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::Duration;
-use tauri::{image::Image, Manager, Url, UserAttentionType, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
+use tauri::menu::{Menu, MenuItem};
+use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+use tauri::{image::Image, AppHandle, Manager, WindowEvent, Url, UserAttentionType, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 
 const HOME: &str = "https://honeybun.me/?app=desktop";
 
@@ -65,9 +67,26 @@ fn set_season_icon(window: WebviewWindow, on: bool) {
     }
 }
 
+fn show_main(app: &AppHandle) {
+    if let Some(w) = app.get_webview_window("main") {
+        let _ = w.show();
+        let _ = w.unminimize();
+        let _ = w.set_focus();
+    }
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        // opening Honeybun again while Bun waits in the tray just brings the window back
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| show_main(app)))
+        // the X button tucks Honeybun into the tray instead of quitting; "Quit Honeybun" in the tray menu really closes it
+        .on_window_event(|window, event| {
+            if let WindowEvent::CloseRequested { api, .. } = event {
+                api.prevent_close();
+                let _ = window.hide();
+            }
+        })
         .invoke_handler(tauri::generate_handler![set_unread, set_season_icon])
         .setup(|app| {
             WebviewWindowBuilder::new(app, "main", WebviewUrl::External(HOME.parse().expect("valid url")))
@@ -83,6 +102,25 @@ fn main() {
                     false
                 })
                 .build()?;
+            let open = MenuItem::with_id(app, "open", "Open Honeybun", true, None::<&str>)?;
+            let quit = MenuItem::with_id(app, "quit", "Quit Honeybun", true, None::<&str>)?;
+            let menu = Menu::with_items(app, &[&open, &quit])?;
+            TrayIconBuilder::new()
+                .icon(Image::from_bytes(include_bytes!("../icons/64x64.png"))?)
+                .tooltip("Honeybun")
+                .menu(&menu)
+                .show_menu_on_left_click(false)
+                .on_menu_event(|app, event| match event.id.as_ref() {
+                    "open" => show_main(app),
+                    "quit" => app.exit(0),
+                    _ => {}
+                })
+                .on_tray_icon_event(|tray, event| {
+                    if let TrayIconEvent::Click { button: MouseButton::Left, button_state: MouseButtonState::Up, .. } = event {
+                        show_main(tray.app_handle());
+                    }
+                })
+                .build(app)?;
             // look for a newer Honeybun a moment after opening, then every 6 hours (only when the window isn't in use)
             let handle = app.handle().clone();
             std::thread::spawn(move || {

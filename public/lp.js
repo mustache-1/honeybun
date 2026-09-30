@@ -71,7 +71,8 @@
   };
   var LOG = [
     { v: "1.11.1", date: "2026-09-30", name: "Windows app updates itself", items: [
-      { t: "Automatic updates", d: "Honeybun for Windows now checks for a newer version when it opens and every few hours, then installs it by itself and reopens. Download the latest installer once and you never have to again.", tags: ["new"], icon: "sun" }
+      { t: "Automatic updates", d: "Honeybun for Windows now checks for a newer version when it opens and every few hours, then installs it by itself and reopens. Download the latest installer once and you never have to again.", tags: ["new"], icon: "sun" },
+      { t: "Bun waits in your tray", d: "Close the Windows app and Bun tucks into the little arrow by your clock, so Honeybun keeps an eye out for new things without a window open. Click Bun to bring it back, or right-click and Quit to close it for real.", tags: ["new"], icon: "sun" }
     ] },
     { v: "1.11", date: "2026-09-30", name: "Halloween", items: [
       { t: "Honeybun goes spooky", d: "A glowing moon, flapping bats, dangling spiders, cobwebs, drifting fog and a little graveyard with flickering jack-o'-lanterns now light up the homepage and the app, with warm orange buttons. It's on through the end of October and switches itself off after.", tags: ["new", "design"], icon: "sun" },
