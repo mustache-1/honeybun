@@ -23,6 +23,15 @@
     });
   }
 
+  // tab icon, home-screen icon and the little logos swap to the witch-hat Bun
+  function icons(on) {
+    var sfx = on ? "-halloween" : "";
+    var f = document.querySelector('link[rel="icon"]'), a = document.querySelector('link[rel="apple-touch-icon"]');
+    if (f) f.href = "/favicon-32" + sfx + ".png";
+    if (a) a.href = "/apple-touch-icon" + sfx + ".png";
+    document.querySelectorAll("img.logo").forEach(function (i) { i.setAttribute("src", "/icon-192" + sfx + ".png"); });
+  }
+
   var sky = null, fx = null;
   function build() {
     if (sky || !document.body) return;
@@ -71,7 +80,7 @@
   function refresh() {
     var on = typeof window.hbHalloweenActive === "function" && window.hbHalloweenActive();
     root.classList.toggle("hb-halloween", on);
-    hats(on);
+    hats(on); icons(on);
     if (on) { build(); syncMode(); } else { teardown(); root.classList.remove("hbp-app", "hbp-landing"); }
     return on;
   }
