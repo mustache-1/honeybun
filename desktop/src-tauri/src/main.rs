@@ -61,7 +61,7 @@ fn set_unread(window: WebviewWindow, count: u32) {
 // (The .exe file and its Start menu shortcut keep the normal icon; those are fixed when installed.)
 #[tauri::command]
 fn set_season_icon(window: WebviewWindow, on: bool) {
-    let bytes: &[u8] = if on { include_bytes!("../icons/halloween.png") } else { include_bytes!("../icons/icon.png") };
+    let bytes: &[u8] = if on { include_bytes!("../assets/halloween.png") } else { include_bytes!("../icons/icon.png") };
     if let Ok(img) = Image::from_bytes(bytes) {
         let _ = window.set_icon(img);
     }
