@@ -550,7 +550,7 @@
     if (APP_SCREENS.includes(screen)) render();
   }
   async function refresh() {
-    if (!ME || !APP_SCREENS.includes(screen) || document.hidden || screen === "add") return;
+    if (!ME || !APP_SCREENS.includes(screen) || document.hidden || window.hbNativeHidden || screen === "add") return;
     if (document.querySelector("dialog[open]")) return;
     try { await loadNest(); } catch {}
     // pick up account changes made elsewhere (e.g. the email was confirmed in another tab), at most once a minute
@@ -2060,7 +2060,12 @@
     // last resort: shrink this screen a little (never below 82%) instead of scrolling
     if (screen !== "inbox" && over() > 1) root.style.zoom = String(z * Math.max(0.82, el.clientHeight / el.scrollHeight - 0.004));
   }
-  window.addEventListener("resize", () => { pageSize = PAGE_SIZE; dueSize = 5; billsSize = 6; debtSize = 3; if (["us", "home", "plan"].includes(screen)) render(); else fitDesktop(); });
+  // resizing the window fires this dozens of times a second: wait for it to settle instead of re-laying out every frame
+  let resizeTimer = 0;
+  window.addEventListener("resize", () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => { pageSize = PAGE_SIZE; dueSize = 5; billsSize = 6; debtSize = 3; if (["us", "home", "plan"].includes(screen)) render(); else fitDesktop(); }, 120);
+  });
   // Desktop only: move a few blocks into the columns the wide layout expects. Phones keep the original order.
   if (matchMedia("(min-width: 900px)").matches) {
     $("dueCard").after($("bunNote"));
@@ -2459,7 +2464,7 @@
   })();
   // while minimized the page skips its usual refresh, so check just the unread count once a minute
   if (IS_DESKTOP_APP) setInterval(async () => {
-    if (!ME || !document.hidden || !tauriInvoke()) return;
+    if (!ME || !(document.hidden || window.hbNativeHidden) || !tauriInvoke()) return;
     try { const r = await api("/api/inbox/count"); INBOX.unread = r.unread; syncTaskbar(); } catch {}
   }, 60000);
   // Get the app: Windows download, browser install, phone steps. Hidden inside the Windows app and installed apps.

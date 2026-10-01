@@ -113,6 +113,7 @@ fn check_for_update(window: WebviewWindow) {
 
 fn show_main(app: &AppHandle) {
     if let Some(w) = app.get_webview_window("main") {
+        let _ = w.eval("window.hbNativeHidden=false;window.dispatchEvent(new Event('hb-native-visibility'))");
         let _ = w.show();
         let _ = w.unminimize();
         let _ = w.set_focus();
@@ -128,6 +129,10 @@ fn main() {
         .on_window_event(|window, event| {
             if let WindowEvent::CloseRequested { api, .. } = event {
                 api.prevent_close();
+                // tell the page it is hidden so it stops animating and refreshing while Bun waits in the tray
+                if let Some(w) = window.app_handle().get_webview_window("main") {
+                    let _ = w.eval("window.hbNativeHidden=true;window.dispatchEvent(new Event('hb-native-visibility'))");
+                }
                 let _ = window.hide();
             }
         })

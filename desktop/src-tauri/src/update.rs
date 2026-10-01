@@ -64,7 +64,7 @@ fn installer_size() -> Option<u64> {
 // `force` skips the once-an-hour retry guard (someone clicked "Check for updates").
 // `quiet_ok` is false when someone is using the window, so a background check never interrupts them.
 pub fn run(quiet_ok: bool, force: bool, progress: &dyn Fn(&str, Option<u32>)) -> Outcome {
-    let out = match curl().args(["-fsSL", "--max-time", "10", VERSION_URL]).output() {
+    let out = match curl().args(["-fsSL", "--connect-timeout", "3", "--max-time", "6", VERSION_URL]).output() {
         Ok(o) if o.status.success() => o,
         _ => return Outcome::Unknown,
     };

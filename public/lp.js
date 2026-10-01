@@ -79,6 +79,7 @@
       { t: "Subscriptions in Plan", d: "Bills & paydays has a Subscriptions tab with every subscription, its next charge, what it costs you a month and a year, and a button to add one.", tags: ["new"], icon: "budget" },
       { t: "Honeybun for iPhone", d: "A native iPhone app with a Face ID lock, home-screen and lock-screen widgets that show what is left this month, real push notifications, and Siri shortcuts like Hey Siri, log an expense in Honeybun.", tags: ["new"], icon: "landing" },
       { t: "Fair share for couples", d: "A new tab for partners: who brought in how much, who has spent how much, and a little brainstorm tool to try splitting shared costs 50/50, by income, or with your own slider.", tags: ["new"], icon: "landing" },
+      { t: "Lighter on your computer", d: "The Windows app now pauses its animations and refreshing whenever the window is in the background or hidden in the tray, resizing is smoother, and slower computers switch to a lite look on their own.", tags: ["improved"], icon: "landing" },
       { t: "Tidier Home and Plan", d: "Coming up, Debts, Bills and Subscriptions show a page at a time, so nothing needs to scroll on desktop.", tags: ["improved"], icon: "budget" },
       { t: "Fixes", d: "Email reminders stay on after you confirm your email, the homepage cards no longer overlap on phones, and Bun skips habit tips about the catch-all Other category.", tags: ["fixed"], icon: "bell" }
     ] },

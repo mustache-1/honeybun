@@ -38,6 +38,34 @@
     if (inv) try { inv("set_season_icon", { on: on }).catch(function () {}); } catch (e) {}
   }
 
+
+  // Lite mode: on slower computers the glow, twinkle and blur effects can make scrolling stutter, so they switch off.
+  // It turns on by itself for low-power devices, "reduce motion", or when the first seconds run under ~40 frames a second.
+  function liteWanted() {
+    try {
+      if (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) return true;
+      var t = +localStorage.getItem("hb-lite-until") || 0;
+      if (t > Date.now()) return true;
+      if ((navigator.hardwareConcurrency || 8) <= 4 || (navigator.deviceMemory || 8) <= 4) return true;
+    } catch (e) {}
+    return false;
+  }
+  function probeFrames() {
+    if (root.classList.contains("hbh-lite") || document.hidden) return;
+    var n = 0, t0 = 0;
+    function tick(t) {
+      if (!t0) t0 = t;
+      n++;
+      if (t - t0 < 1500) return requestAnimationFrame(tick);
+      var fps = n / ((t - t0) / 1000);
+      if (fps < 40 && !document.hidden && document.hasFocus()) {
+        root.classList.add("hbh-lite");
+        try { localStorage.setItem("hb-lite-until", String(Date.now() + 7 * 86400000)); } catch (e) {}
+      }
+    }
+    requestAnimationFrame(tick);
+  }
+
   var sky = null, fx = null;
   function build() {
     if (sky || !document.body) return;
@@ -87,7 +115,7 @@
     var on = typeof window.hbHalloweenActive === "function" && window.hbHalloweenActive();
     root.classList.toggle("hb-halloween", on);
     hats(on); icons(on); winIcon(on);
-    if (on) { build(); syncMode(); } else { teardown(); root.classList.remove("hbp-app", "hbp-landing"); }
+    if (on) { build(); syncMode(); if (liteWanted()) root.classList.add("hbh-lite"); else setTimeout(probeFrames, 2500); } else { teardown(); root.classList.remove("hbp-app", "hbp-landing", "hbh-lite"); }
     return on;
   }
   window.hbHalloweenRefresh = refresh;
@@ -95,8 +123,19 @@
   function start() {
     var nav = document.getElementById("nav");
     if (nav && window.MutationObserver) new MutationObserver(function () { if (sky) syncMode(); }).observe(nav, { attributes: true, attributeFilter: ["hidden"] });
-    document.addEventListener("visibilitychange", function () { root.classList.toggle("hbh-paused", document.hidden); });
-    root.classList.toggle("hbh-paused", document.hidden);
+    // Freeze the scenery whenever nobody can see it, and in the Windows app also whenever the window isn't in front,
+    // so Honeybun costs almost nothing while you're gaming with it open in the background.
+    var desktopApp = false;
+    try { desktopApp = localStorage.getItem("hb-desktop") === "1"; } catch (e) {}
+    function syncPause() {
+      var away = document.hidden || window.hbNativeHidden || (desktopApp && !document.hasFocus());
+      root.classList.toggle("hbh-paused", !!away);
+    }
+    document.addEventListener("visibilitychange", syncPause);
+    window.addEventListener("blur", syncPause);
+    window.addEventListener("focus", syncPause);
+    window.addEventListener("hb-native-visibility", syncPause);
+    syncPause();
     refresh();
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start); else start();
