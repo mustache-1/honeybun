@@ -63,7 +63,7 @@ const TABLES = [
   `CREATE TABLE IF NOT EXISTS rewards (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, amount_cents INTEGER NOT NULL, referrals INTEGER NOT NULL, status TEXT NOT NULL DEFAULT 'pending', created_at INTEGER NOT NULL, sent_at INTEGER, notified INTEGER NOT NULL DEFAULT 0)`,
 ];
 const NEW_COLUMNS = {
-  users: [["email_verified", "INTEGER NOT NULL DEFAULT 0"], ["tz", "TEXT"], ["lang", "TEXT NOT NULL DEFAULT 'en'"],
+  users: [["recovery_hash", "TEXT"], ["email_verified", "INTEGER NOT NULL DEFAULT 0"], ["tz", "TEXT"], ["lang", "TEXT NOT NULL DEFAULT 'en'"],
     ["mail_bills", "INTEGER NOT NULL DEFAULT 1"], ["mail_streak", "INTEGER NOT NULL DEFAULT 1"], ["mail_weekly", "INTEGER NOT NULL DEFAULT 1"],
     ["last_bill_mail", "TEXT"], ["last_streak_mail", "TEXT"], ["last_week_mail", "TEXT"], ["unsub_token", "TEXT"], ["last_bill_push", "TEXT"], ["last_streak_push", "TEXT"], ["ref_code", "TEXT"], ["referred_by", "TEXT"]],
   entries: [["split_mode", "TEXT"], ["split_value", "INTEGER"], ["shares", "TEXT"], ["private", "INTEGER NOT NULL DEFAULT 0"], ["recurring_id", "TEXT"], ["occ_date", "TEXT"]],
@@ -485,7 +485,22 @@ async function limited(env, key, max, windowSec) {
 const recordAttempt = (env, key) => env.DB.prepare("INSERT INTO auth_attempts (key, ts) VALUES (?, ?)").bind(key, now()).run();
 
 // ---------- email (Resend) ----------
+// ---------- usernames (accounts without an email) ----------
+// A username account is stored as username@u.honeybun.invalid so every existing login rule keeps working.
+// That address never receives mail; the person gets a recovery code to reset a forgotten password instead.
+const USERNAME_DOMAIN = "u.honeybun.invalid";
+const isUsername = (u) => /^[a-z0-9][a-z0-9._-]{2,19}$/.test(u);
+const toLoginKey = (v) => { const x = String(v ?? "").trim().toLowerCase(); return x.includes("@") ? x : x + "@" + USERNAME_DOMAIN; };
+const hasRealEmail = (e) => !String(e).endsWith("@" + USERNAME_DOMAIN);
+function newRecoveryCode() {
+  const A = "ABCDEFGHJKMNPQRSTUVWXYZ23456789", b = crypto.getRandomValues(new Uint8Array(12));
+  const c = Array.from(b, (x) => A[x % A.length]).join("");
+  return `${c.slice(0, 4)}-${c.slice(4, 8)}-${c.slice(8)}`;
+}
+const recoveryKey = (c) => String(c ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+
 async function sendEmail(env, to, subject, text, html, headers) {
+  if (!hasRealEmail(to)) return; // username accounts have no inbox
   if (!env.RESEND_API_KEY) throw new HttpError("Emails aren't set up yet. Ask the site owner to add the email key.", 503);
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -817,29 +832,34 @@ async function handle(request, env, url) {
   // ===== public =====
   if (path === "/api/signup" && method === "POST") {
     if (await limited(env, "signup:" + ip, 10, 3600)) throw new HttpError("Too many sign-ups from here. Try again in an hour.", 429);
-    const name = cleanText(body.name, 24), email = cleanText(body.email, 254).toLowerCase();
+    const name = cleanText(body.name, 24);
+    const username = body.username ? String(body.username).trim().toLowerCase() : "";
+    const email = username ? username + "@" + USERNAME_DOMAIN : cleanText(body.email, 254).toLowerCase();
     if (!name) throw new HttpError("Enter your name.");
-    if (!isEmail(email)) throw new HttpError("Enter a valid email address.");
-    const password = checkPassword(body.password);
+    if (username) { if (!isUsername(username)) throw new HttpError("Usernames are 3 to 20 letters, numbers, dots, dashes or underscores."); }
+    else if (!isEmail(email)) throw new HttpError("Enter a valid email address.");
+    // a passkey-only account has no password to type: it gets a long random one nobody knows
+    const password = body.passkey ? randomToken() : checkPassword(body.password);
     await recordAttempt(env, "signup:" + ip);
     if (await env.DB.prepare("SELECT 1 FROM users WHERE email = ?").bind(email).first())
-      throw new HttpError("An account with that email already exists. Log in instead.", 409);
+      throw new HttpError(username ? "That username is taken. Try another one." : "An account with that email already exists. Log in instead.", 409);
     const id = crypto.randomUUID(), lang = LANGS.includes(body.lang) ? body.lang : "en";
-    await env.DB.prepare("INSERT INTO users (id, email, name, pw, lang, created_at) VALUES (?, ?, ?, ?, ?, ?)").bind(id, email, name, await hashPassword(password), lang, now()).run();
+    const code = username ? newRecoveryCode() : null;
+    await env.DB.prepare("INSERT INTO users (id, email, name, pw, lang, created_at, recovery_hash) VALUES (?, ?, ?, ?, ?, ?, ?)").bind(id, email, name, await hashPassword(password), lang, now(), code ? await sha256(recoveryKey(code)) : null).run();
     try { if (body.ref) await recordReferral(env, request, { id, name }, body.ref); await rememberDevices(env, request, id); } catch (e) { console.error("referral failed", e.message); }
-    try { await sendVerify(env, { id, email, name, lang }, appUrl); } catch (e) { console.error("verify email failed", e.message); }
-    return json({ ok: true }, 201, { "set-cookie": await createSession(env, id) });
+    if (!username) { try { await sendVerify(env, { id, email, name, lang }, appUrl); } catch (e) { console.error("verify email failed", e.message); } }
+    return json({ ok: true, ...(code ? { recovery_code: code } : {}) }, 201, { "set-cookie": await createSession(env, id) });
   }
 
   if (path === "/api/login" && method === "POST") {
-    const email = cleanText(body.email, 254).toLowerCase(), password = String(body.password ?? "");
+    const email = toLoginKey(cleanText(body.email, 254)), password = String(body.password ?? "");
     if ((await limited(env, "login:" + email, 10, 900)) || (await limited(env, "loginip:" + ip, 40, 900)))
       throw new HttpError("Too many tries. Wait 15 minutes and try again.", 429);
     const user = await env.DB.prepare("SELECT id, pw FROM users WHERE email = ?").bind(email).first();
     const ok = await verifyPassword(password, user ? user.pw : DUMMY_HASH);
     if (!user || !ok) {
       await recordAttempt(env, "login:" + email); await recordAttempt(env, "loginip:" + ip);
-      throw new HttpError("Wrong email or password.", 401);
+      throw new HttpError("Wrong email, username or password.", 401);
     }
     return json({ ok: true }, 200, { "set-cookie": await createSession(env, user.id) });
   }
@@ -998,6 +1018,51 @@ async function handle(request, env, url) {
     return json({ month: ym, name: nest?.name || "Honeybun", kind: nest?.kind || "couple", income: (sum.income || 0) / 100, spent: (sum.expense || 0) / 100, left: ((sum.income || 0) - (sum.expense || 0)) / 100, next });
   }
 
+  if (path === "/api/auth/config" && method === "GET") return json({ google: env.GOOGLE_CLIENT_ID || null });
+
+  // Forgot your password and you have no email? The recovery code from sign-up sets a new one (and gives you a fresh code).
+  if (path === "/api/password/recover" && method === "POST") {
+    const key = toLoginKey(cleanText(body.username, 254));
+    if ((await limited(env, "recover:" + key, 6, 3600)) || (await limited(env, "recoverip:" + ip, 20, 3600)))
+      throw new HttpError("Too many tries. Wait an hour and try again.", 429);
+    await recordAttempt(env, "recover:" + key); await recordAttempt(env, "recoverip:" + ip);
+    const password = checkPassword(body.password);
+    const u = await env.DB.prepare("SELECT id, recovery_hash FROM users WHERE email = ?").bind(key).first();
+    if (!u || !u.recovery_hash || u.recovery_hash !== (await sha256(recoveryKey(body.code))))
+      throw new HttpError("That username and recovery code don't match.", 401);
+    const code = newRecoveryCode();
+    await env.DB.batch([
+      env.DB.prepare("UPDATE users SET pw = ?, recovery_hash = ? WHERE id = ?").bind(await hashPassword(password), await sha256(recoveryKey(code)), u.id),
+      env.DB.prepare("DELETE FROM sessions WHERE user_id = ?").bind(u.id),
+    ]);
+    return json({ ok: true, recovery_code: code }, 200, { "set-cookie": await createSession(env, u.id) });
+  }
+
+  // Sign in with Google: the page hands us Google's signed ID token and we check it with Google.
+  if (path === "/api/auth/google" && method === "POST") {
+    if (!env.GOOGLE_CLIENT_ID) throw new HttpError("Google sign-in isn't set up yet.", 503);
+    if (await limited(env, "google:" + ip, 30, 3600)) throw new HttpError("Too many tries. Try again in an hour.", 429);
+    await recordAttempt(env, "google:" + ip);
+    const credential = String(body.credential || "");
+    if (credential.length < 100 || credential.length > 4000) throw new HttpError("Google sign-in failed. Try again.", 400);
+    const res = await fetch("https://oauth2.googleapis.com/tokeninfo?id_token=" + encodeURIComponent(credential));
+    const info = res.ok ? await res.json().catch(() => null) : null;
+    if (!info || info.aud !== env.GOOGLE_CLIENT_ID || !["accounts.google.com", "https://accounts.google.com"].includes(info.iss)
+        || String(info.email_verified) !== "true" || !info.email || Number(info.exp) < now())
+      throw new HttpError("Google sign-in failed. Try again.", 401);
+    const email = String(info.email).toLowerCase();
+    let user = await env.DB.prepare("SELECT id FROM users WHERE email = ?").bind(email).first();
+    if (user) {
+      await env.DB.prepare("UPDATE users SET email_verified = 1 WHERE id = ?").bind(user.id).run(); // Google already confirmed this address
+    } else {
+      const id = crypto.randomUUID(), lang = LANGS.includes(body.lang) ? body.lang : "en", name = cleanText(info.given_name || info.name || email.split("@")[0], 24) || "Friend";
+      await env.DB.prepare("INSERT INTO users (id, email, name, pw, lang, created_at, email_verified) VALUES (?, ?, ?, ?, ?, ?, 1)").bind(id, email, name, await hashPassword(randomToken()), lang, now()).run();
+      try { if (body.ref) await recordReferral(env, request, { id, name }, body.ref); await rememberDevices(env, request, id); } catch (e) { console.error("referral failed", e.message); }
+      user = { id };
+    }
+    return json({ ok: true }, 200, { "set-cookie": await createSession(env, user.id) });
+  }
+
   // ===== signed in =====
   const user = await currentUser(request, env);
   if (!user) throw new HttpError("Please log in.", 401);
@@ -1023,7 +1088,7 @@ async function handle(request, env, url) {
     const m = await membership(env, user.id);
     const u = await env.DB.prepare("SELECT email_verified, tz, lang, mail_bills, mail_streak, mail_weekly FROM users WHERE id = ?").bind(user.id).first();
     const k = await env.DB.prepare("SELECT created_at, last_used, uses FROM api_keys WHERE user_id = ?").bind(user.id).first();
-    return json({ user: { ...me, verified: !!u.email_verified, tz: u.tz, lang: u.lang, mail: { bills: !!u.mail_bills, streak: !!u.mail_streak, weekly: !!u.mail_weekly },
+    return json({ user: { ...me, verified: !!u.email_verified, has_email: hasRealEmail(user.email), tz: u.tz, lang: u.lang, mail: { bills: !!u.mail_bills, streak: !!u.mail_streak, weekly: !!u.mail_weekly },
       shortcut: k ? { created_at: k.created_at, last_used: k.last_used, uses: k.uses } : null, ref }, nest_id: m ? m.nest_id : null });
   }
 
@@ -1110,6 +1175,15 @@ async function handle(request, env, url) {
     return json({ ok: true });
   }
 
+  // username accounts: make a fresh recovery code (the old one stops working)
+  if (path === "/api/recovery/new" && method === "POST") {
+    if (hasRealEmail(user.email)) throw new HttpError("Accounts with an email reset their password by email.");
+    if (await limited(env, "rcnew:" + user.id, 10, 3600)) throw new HttpError("Too many tries. Try again in an hour.", 429);
+    await recordAttempt(env, "rcnew:" + user.id);
+    const code = newRecoveryCode();
+    await env.DB.prepare("UPDATE users SET recovery_hash = ? WHERE id = ?").bind(await sha256(recoveryKey(code)), user.id).run();
+    return json({ ok: true, recovery_code: code });
+  }
   // Shortcut key: one per person, shown once. Making a new one replaces the old one.
   if (path === "/api/shortcut/key" && method === "POST") {
     if (await limited(env, "key:" + user.id, 10, 3600)) throw new HttpError("Too many new keys. Try again in an hour.", 429);

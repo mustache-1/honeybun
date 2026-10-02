@@ -2075,6 +2075,19 @@ dialog::backdrop{background:var(--backdrop)}
 .ba-row.warn .ba-ic{background:color-mix(in srgb,#E8504A 18%,transparent)}
 .ba-x{border:0;background:transparent;color:var(--soft);font-size:18px;cursor:pointer;padding:4px 6px;flex:none}
 @media (min-width:900px){.bun-mood{padding:12px 14px;flex-direction:row;flex-wrap:wrap;justify-content:center;text-align:left}.bun-mood img{width:44px;height:44px}.bun-mood p{margin:0;max-width:none;flex:1 1 100%;text-align:center}.bun-mood .lp-btn{min-width:140px;height:40px}}
+
+/* sign-up: Google, passkey, username */
+.soc{display:flex;flex-direction:column;gap:10px;margin:2px 0 0}
+.g-slot{display:flex;justify-content:center;min-height:44px}
+.alt-btn{display:flex;align-items:center;justify-content:center;gap:10px;min-height:48px;border-radius:14px;border:1.5px solid var(--line);background:var(--card);color:var(--ink);font:800 15px inherit;font-family:inherit;cursor:pointer;width:100%}
+.alt-btn svg{width:20px;height:20px;color:var(--pink)}
+.alt-btn[hidden],.g-slot[hidden]{display:none}
+#modeWrap{margin:8px 0 0}
+.rc-code{font:900 26px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.08em;text-align:center;padding:16px 10px;border-radius:16px;background:var(--panel2,var(--line));margin:12px 0;user-select:all}
+.rc-ack{display:flex;gap:10px;align-items:center;justify-content:center;margin:14px 0;font-weight:800}
+.rc-ack input{width:22px;height:22px;flex:none;margin:0;accent-color:var(--pink)}
+#recoveryDlg .btnrow{display:flex;justify-content:center}
+#recoveryDlg .go[disabled]{opacity:.5}
 </style>
 <link rel="stylesheet" href="/halloween.css">
 </head>
@@ -2341,12 +2354,20 @@ dialog::backdrop{background:var(--backdrop)}
         <button role="tab" data-auth="signup" aria-selected="true">Create account</button>
         <button role="tab" data-auth="login" aria-selected="false">Log in</button>
       </div>
+      <div class="soc" id="socialBtns">
+        <div id="googleBtn" class="g-slot" hidden></div>
+        <button type="button" class="alt-btn" id="passkeyCreate" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="8" cy="12" r="4"/><path d="M12 12h9M18 12v3M15 12v2"/></svg><span>Use Face ID or a passkey</span></button>
+      </div>
+      <div class="or-row" id="orRow" hidden><span>or</span></div>
       <form id="authForm" novalidate>
         <div class="field" id="nameField"><label for="aName">Your name</label><input id="aName" autocomplete="given-name" maxlength="24"></div>
-        <div class="field"><label for="aEmail">Email</label><input id="aEmail" type="email" autocomplete="email" inputmode="email" autocapitalize="none" spellcheck="false"></div>
+        <div class="field" id="userField"><label for="aUser" id="aUserL">Username</label><input id="aUser" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="40" placeholder="Pick a username"></div>
+        <div class="field" id="emailField" hidden><label for="aEmail">Email</label><input id="aEmail" type="email" autocomplete="email" inputmode="email" autocapitalize="none" spellcheck="false"></div>
         <div class="field"><label for="aPass">Password</label><input id="aPass" type="password" autocomplete="new-password" minlength="8" placeholder="At least 8 characters"></div>
-        <button class="go" id="authBtn" type="submit">Create account</button>
+        <button class="go" id="authBtn" type="submit">Create my budget</button>
         <p class="err" id="authErr" role="alert"></p>
+        <p class="center" id="modeWrap"><button type="button" class="linkbtn" id="modeSwitch">I'd rather use an email</button></p>
+        <p class="center sub" id="noEmailHint">No email? You'll get a recovery code to save instead.</p>
         <p class="center" id="forgotWrap" hidden><button type="button" class="linkbtn" id="forgotLink">Forgot your password?</button></p>
       </form>
       <div class="or-row" id="passkeyWrap" hidden><span>or</span></div>
@@ -2359,7 +2380,20 @@ dialog::backdrop{background:var(--backdrop)}
         <div class="field"><label for="fEmail">Email</label><input id="fEmail" type="email" autocomplete="email" inputmode="email" autocapitalize="none" spellcheck="false"></div>
         <button class="go" id="forgotBtn" type="submit">Send reset link</button>
         <p class="err" id="forgotMsg" role="status"></p>
+        <p class="center"><button type="button" class="linkbtn" id="toRecover">No email on your account? Use your recovery code</button></p>
         <p class="center"><button type="button" class="linkbtn" id="backToLogin">Back to log in</button></p>
+      </form>
+    </div>
+    <div class="card" id="recoverCard" hidden>
+      <h2>Use your recovery code</h2>
+      <p class="sub">Enter your username, the code you saved when you signed up, and a new password.</p>
+      <form id="recoverForm" novalidate>
+        <div class="field"><label for="rcUser">Username</label><input id="rcUser" autocomplete="username" autocapitalize="none" spellcheck="false"></div>
+        <div class="field"><label for="rcCodeIn">Recovery code</label><input id="rcCodeIn" autocapitalize="characters" spellcheck="false" placeholder="XXXX-XXXX-XXXX"></div>
+        <div class="field"><label for="rcPass">New password</label><input id="rcPass" type="password" autocomplete="new-password" placeholder="At least 8 characters"></div>
+        <button class="go" id="rcGo" type="submit">Set new password</button>
+        <p class="err" id="rcErr" role="alert"></p>
+        <p class="center"><button type="button" class="linkbtn" id="rcBack">Back to log in</button></p>
       </form>
     </div>
     <div class="lang-row" data-lang-picker></div>
@@ -2721,6 +2755,7 @@ dialog::backdrop{background:var(--backdrop)}
       </div>
       <div class="card pad blk">
         <div class="title"><h2>About</h2><span>support</span></div>
+        <button class="setting-row" id="recRow" hidden><span class="sicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></span><span class="copy"><b>Recovery code</b><small>Make a new code for resetting your password</small></span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></button>
         <button class="setting-row" id="pushRow" hidden><span class="sicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg></span><span class="copy"><b>Notifications on this iPhone</b><small>Bills due, shared expenses and Bun's nudges</small></span><span class="lock-state" id="pushState">Off</span></button>
         <button class="setting-row" id="siriRow" hidden><span class="sicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12h.01M12 12h.01M16 12h.01"/></svg></span><span class="copy"><b>Siri &amp; Shortcuts</b><small>Say "Hey Siri, log an expense in Honeybun"</small></span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></button>
         <button class="setting-row" id="lockRow" hidden><span class="sicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></span><span class="copy"><b id="lockT">Lock with Face ID</b><small id="lockS">Ask for Face ID when you open Honeybun</small></span><span class="lock-state" id="lockState">Off</span></button>
@@ -2823,6 +2858,14 @@ dialog::backdrop{background:var(--backdrop)}
 
 <div class="toast" id="toast" role="status"><span id="toastText"></span><button id="toastBtn" hidden>Undo</button></div>
 
+<dialog id="recoveryDlg" class="get-dlg" aria-labelledby="rcTitle">
+  <h2 id="rcTitle">Save your recovery code</h2>
+  <p class="get-sub">You signed up without an email, so this code is the only way to reset your password if you forget it. Keep it somewhere safe, like a photo or your notes app.</p>
+  <div class="rc-code" id="rcCode" aria-live="polite"></div>
+  <div class="btnrow"><button type="button" class="softbtn" id="rcCopy">Copy code</button></div>
+  <label class="rc-ack"><input type="checkbox" id="rcAck"> I saved it</label>
+  <button class="go" id="rcDone" type="button" disabled>Continue</button>
+</dialog>
 <dialog id="getDlg" class="get-dlg" aria-labelledby="getTitle">
   <h2 id="getTitle">Get the app</h2>
   <p class="get-sub">Same account everywhere. Add something on one and it shows up on the others right away.</p>

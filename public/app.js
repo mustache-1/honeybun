@@ -404,36 +404,137 @@
     setAuthMode(authMode);
     show("auth");
   }
+  let idMode = "user", googleOn = false; // sign-up asks for a username or an email
   function setAuthMode(m) {
     authMode = m;
+    const signup = m === "signup", useEmail = signup && idMode === "email";
     document.querySelectorAll("[data-auth]").forEach((b) => b.setAttribute("aria-selected", b.dataset.auth === m ? "true" : "false"));
-    $("nameField").hidden = m !== "signup";
+    $("nameField").hidden = !signup;
+    $("userField").hidden = useEmail; $("emailField").hidden = !useEmail;
+    $("aUserL").textContent = tr(signup ? "Username" : "Email or username");
+    $("aUser").placeholder = signup ? tr("Pick a username") : "";
+    $("modeWrap").hidden = !signup; $("noEmailHint").hidden = !(signup && !useEmail);
+    $("modeSwitch").textContent = tr(useEmail ? "I'd rather use a username" : "I'd rather use an email");
     $("forgotWrap").hidden = m !== "login";
-    $("aPass").setAttribute("autocomplete", m === "signup" ? "new-password" : "current-password");
-    $("aPass").placeholder = m === "signup" ? "At least 8 characters" : "";
-    $("authBtn").textContent = m === "signup" ? "Create account" : "Log in";
+    $("aPass").setAttribute("autocomplete", signup ? "new-password" : "current-password");
+    $("aPass").placeholder = signup ? tr("At least 8 characters") : "";
+    $("authBtn").textContent = tr(signup ? "Create my budget" : "Log in");
+    const pk = signup && hasPasskeys();
+    $("passkeyCreate").hidden = !pk;
+    $("googleBtn").hidden = !googleOn;
+    $("orRow").hidden = !(pk || googleOn);
     $("passkeyWrap").hidden = $("passkeyLogin").hidden = !(m === "login" && hasPasskeys());
     $("authErr").textContent = "";
   }
   document.querySelectorAll("[data-auth]").forEach((b) => (b.onclick = () => setAuthMode(b.dataset.auth)));
+  $("modeSwitch").onclick = () => { idMode = idMode === "user" ? "email" : "user"; setAuthMode("signup"); };
+
+  // the recovery code (shown once, after signing up with a username)
+  function showRecovery(code) {
+    return new Promise((resolve) => {
+      $("rcCode").textContent = code; $("rcAck").checked = false; $("rcDone").disabled = true;
+      $("rcCopy").onclick = async () => { try { await navigator.clipboard.writeText(code); toast(tr("Copied")); } catch { const r = document.createRange(); r.selectNodeContents($("rcCode")); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); } };
+      $("rcAck").onchange = () => ($("rcDone").disabled = !$("rcAck").checked);
+      $("rcDone").onclick = () => { $("recoveryDlg").close(); resolve(); };
+      $("recoveryDlg").addEventListener("cancel", (e) => e.preventDefault(), { once: true });
+      $("recoveryDlg").showModal();
+    });
+  }
+  function signupBody() {
+    const name = $("aName").value.trim(), password = $("aPass").value;
+    const idv = idMode === "email" ? { email: $("aEmail").value.trim() } : { username: $("aUser").value.trim().toLowerCase() };
+    return { name, password, lang: LANG, ...idv, ...(pendingRef() ? { ref: pendingRef() } : {}) };
+  }
+  function checkSignup(needPassword) {
+    const b = signupBody();
+    if (!b.name) { $("authErr").textContent = tr("Enter your name."); $("aName").focus(); return null; }
+    if (idMode === "email" ? !b.email : !b.username) { $("authErr").textContent = tr(idMode === "email" ? "Enter your email." : "Pick a username."); (idMode === "email" ? $("aEmail") : $("aUser")).focus(); return null; }
+    if (needPassword && b.password.length < 8) { $("authErr").textContent = tr("Use a password with at least 8 characters."); $("aPass").focus(); return null; }
+    return b;
+  }
   $("authForm").onsubmit = async (ev) => {
     ev.preventDefault();
-    const email = $("aEmail").value.trim(), password = $("aPass").value, name = $("aName").value.trim();
-    if (authMode === "signup" && !name) { $("authErr").textContent = "Enter your name."; $("aName").focus(); return; }
-    if (!email) { $("authErr").textContent = "Enter your email."; $("aEmail").focus(); return; }
-    if (authMode === "signup" && password.length < 8) { $("authErr").textContent = "Use a password with at least 8 characters."; $("aPass").focus(); return; }
+    let body;
+    if (authMode === "signup") { body = checkSignup(true); if (!body) return; }
+    else {
+      const who = $("aUser").value.trim(), password = $("aPass").value;
+      if (!who) { $("authErr").textContent = tr("Enter your email or username."); $("aUser").focus(); return; }
+      body = { email: who, password };
+    }
     busy($("authBtn"), true); $("authErr").textContent = "";
     try {
-      await api(authMode === "signup" ? "/api/signup" : "/api/login", { method: "POST", body: { name, email, password, lang: LANG, ...(authMode === "signup" && pendingRef() ? { ref: pendingRef() } : {}) } });
+      const r = await api(authMode === "signup" ? "/api/signup" : "/api/login", { method: "POST", body });
       if (authMode === "signup") store.set("hb-ref", "");
       $("aPass").value = "";
+      if (r.recovery_code) await showRecovery(r.recovery_code);
       await afterAuth();
     } catch (e) {
-      if (e.status === 409) setAuthMode("login");
+      if (e.status === 409 && idMode === "email") setAuthMode("login");
       $("authErr").textContent = e.message;
     } finally { busy($("authBtn"), false); }
   };
-  $("forgotLink").onclick = () => { $("authCard").hidden = true; $("forgotCard").hidden = false; $("fEmail").value = $("aEmail").value; $("forgotMsg").textContent = ""; $("fEmail").focus(); };
+
+  // sign up with Face ID / a passkey: make the account (no password to remember), then add the passkey right away
+  $("passkeyCreate").onclick = async () => {
+    const b = checkSignup(false); if (!b) return;
+    busy($("passkeyCreate"), true); $("authErr").textContent = "";
+    try {
+      const r = await api("/api/signup", { method: "POST", body: { ...b, password: undefined, passkey: true } });
+      store.set("hb-ref", "");
+      try {
+        const o = await api("/api/passkeys/options", { method: "POST" });
+        const pub = { ...o, challenge: b64uBuf(o.challenge), user: { ...o.user, id: b64uBuf(o.user.id) }, excludeCredentials: o.excludeCredentials.map((c) => ({ ...c, id: b64uBuf(c.id) })) };
+        const cred = await navigator.credentials.create({ publicKey: pub });
+        const rr = cred.response;
+        await api("/api/passkeys", { method: "POST", body: { id: cred.id, publicKey: bufB64u(rr.getPublicKey()), alg: rr.getPublicKeyAlgorithm(), clientDataJSON: bufB64u(rr.clientDataJSON), authenticatorData: bufB64u(rr.getAuthenticatorData()), transports: rr.getTransports ? rr.getTransports() : [] } });
+        toast(tr("Passkey added ♡"));
+      } catch { toast(tr("Account made. You can add a passkey later in Settings.")); }
+      if (r.recovery_code) await showRecovery(r.recovery_code);
+      await afterAuth();
+    } catch (e) {
+      $("authErr").textContent = e.message;
+    } finally { busy($("passkeyCreate"), false); }
+  };
+
+  // Sign in with Google (only when the site has a Google client id set)
+  async function setupGoogle() {
+    try {
+      const cfg = await api("/api/auth/config");
+      if (!cfg.google) return;
+      await new Promise((ok, no) => { const sc = document.createElement("script"); sc.src = "https://accounts.google.com/gsi/client"; sc.async = true; sc.onload = ok; sc.onerror = no; document.head.appendChild(sc); });
+      google.accounts.id.initialize({
+        client_id: cfg.google, ux_mode: "popup",
+        callback: async (resp) => {
+          $("authErr").textContent = "";
+          try { await api("/api/auth/google", { method: "POST", body: { credential: resp.credential, lang: LANG, ...(pendingRef() ? { ref: pendingRef() } : {}) } }); store.set("hb-ref", ""); await afterAuth(); }
+          catch (e) { $("authErr").textContent = e.message; }
+        },
+      });
+      google.accounts.id.renderButton($("googleBtn"), { theme: "filled_black", size: "large", text: "continue_with", shape: "pill", width: Math.min(340, Math.max(220, ($("authCard").clientWidth || 340) - 36)), logo_alignment: "center" });
+      googleOn = true; setAuthMode(authMode);
+    } catch {}
+  }
+  setupGoogle();
+
+  // forgot your password without an email: use the recovery code
+  const linkRecover = () => { $("authCard").hidden = true; $("forgotCard").hidden = true; $("recoverCard").hidden = false; $("rcErr").textContent = ""; $("rcUser").value = $("aUser").value.includes("@") ? "" : $("aUser").value; $("rcUser").focus(); };
+  $("toRecover").onclick = () => linkRecover();
+  $("rcBack").onclick = () => { $("recoverCard").hidden = true; $("authCard").hidden = false; setAuthMode("login"); };
+  $("recoverForm").onsubmit = async (ev) => {
+    ev.preventDefault();
+    const username = $("rcUser").value.trim(), code = $("rcCodeIn").value.trim(), password = $("rcPass").value;
+    if (!username || !code) { $("rcErr").textContent = tr("Enter your username and recovery code."); return; }
+    if (password.length < 8) { $("rcErr").textContent = tr("Use a password with at least 8 characters."); return; }
+    busy($("rcGo"), true); $("rcErr").textContent = "";
+    try {
+      const r = await api("/api/password/recover", { method: "POST", body: { username, code, password } });
+      $("recoverCard").hidden = true; $("authCard").hidden = false;
+      if (r.recovery_code) await showRecovery(r.recovery_code);
+      await afterAuth();
+    } catch (e) { $("rcErr").textContent = e.message; }
+    finally { busy($("rcGo"), false); }
+  };
+  $("forgotLink").onclick = () => { if ($("aUser").value.trim() && !$("aUser").value.includes("@")) return linkRecover(); $("authCard").hidden = true; $("forgotCard").hidden = false; $("fEmail").value = $("aUser").value.includes("@") ? $("aUser").value : ""; $("forgotMsg").textContent = ""; $("fEmail").focus(); };
   $("backToLogin").onclick = () => { $("forgotCard").hidden = true; $("authCard").hidden = false; setAuthMode("login"); };
   $("forgotForm").onsubmit = async (ev) => {
     ev.preventDefault();
@@ -1033,7 +1134,7 @@
       renderRefCard();
       renderTip(false);
       renderBunExtras();
-      $("verifyBanner").hidden = !!ME.verified || +(store.get("hb-verify-hide") || 0) > Date.now();
+      $("verifyBanner").hidden = !!ME.verified || ME.has_email === false || +(store.get("hb-verify-hide") || 0) > Date.now();
       const isThisMonth = MONTH === today().slice(0, 7);
       $("dueCard").hidden = !isThisMonth;
       if (isThisMonth) renderDue(sum(all, "income") - sum(all, "expense"));
@@ -1173,7 +1274,8 @@
         mm.appendChild(r);
       });
       drawSwatches($("swatches"));
-      $("signedAs").textContent = "Signed in as " + ME.email;
+      $("signedAs").textContent = "Signed in as " + (ME.has_email === false ? ME.email.split("@")[0] : ME.email);
+      { const rr = $("recRow"); rr.hidden = ME.has_email !== false; rr.onclick = async () => { try { const r = await api("/api/recovery/new", { method: "POST" }); await showRecovery(r.recovery_code); } catch (e) { toast(e.message); } }; }
       $("acctName").textContent = $("hi").textContent;
     }
     updBadges();
