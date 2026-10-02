@@ -366,7 +366,7 @@
   const others = (id) => MEMBERS.filter((m) => m.id !== id);
   const KIND = () => NEST?.kind || "couple";
   // Joint account: the household keeps its money in one pot, so everything adds up and nobody owes anybody
-  const JOINT = () => !!NEST?.joint && MEMBERS.length > 1 && KIND() !== "solo";
+  const JOINT = () => !!NEST?.joint && MEMBERS.length > 1 && KIND() === "couple";
   const yesterday = () => toS(addDays(parseD(today()), -1));
   const streakOf = (m) => (m && (m.last_day === today() || m.last_day === yesterday()) ? m.streak : 0);
   const loggedToday = () => meMember()?.last_day === today();
@@ -1158,7 +1158,7 @@
         b.onclick = async () => { NEST.kind = id; render(); try { await api("/api/nest", { method: "PATCH", body: { kind: id } }); } catch (err) { toast(err.message); } };
         ks.appendChild(b);
       });
-      { const jr = $("jointRow"); jr.hidden = KIND() === "solo" || MEMBERS.length < 2;
+      { const jr = $("jointRow"); jr.hidden = KIND() !== "couple" || MEMBERS.length < 2;
         const on = !!NEST.joint; $("jointState").textContent = tr(on ? "On" : "Off"); $("jointState").classList.toggle("on", on);
         jr.onclick = async () => { NEST.joint = NEST.joint ? 0 : 1; render(); try { await api("/api/nest", { method: "PATCH", body: { joint: !!NEST.joint } }); toast(tr(NEST.joint ? "Joint account is on. Everything adds up together." : "Joint account is off.")); } catch (err) { NEST.joint = NEST.joint ? 0 : 1; render(); toast(err.message); } }; }
       const mm = $("members"); mm.innerHTML = "";
