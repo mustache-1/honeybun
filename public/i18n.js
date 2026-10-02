@@ -185,6 +185,8 @@ window.HB_I18N = (() => {
       "We keep our money in one pot, so everything adds up together": "Guardamos el dinero en un solo fondo, así que todo se suma",
       "Joint account is on. Everything adds up together.": "Cuenta conjunta activada. Todo se suma junto.",
       "Joint account is off.": "Cuenta conjunta desactivada.",
+      "Joint account was turned on. Everything adds up together.": "Se activó la cuenta conjunta. Todo se suma junto.",
+      "Joint account was turned off.": "Se desactivó la cuenta conjunta.",
       "Help": "Ayuda",
       "Balance": "Saldo",
       "split expenses": "gastos compartidos",

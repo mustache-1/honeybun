@@ -119,12 +119,15 @@ async function postToOthers(env, nestId, exceptId, kind, data, dedupe) {
 // ---------- Web Push (no payload: the service worker asks /api/push/latest for the text) ----------
 const PUSH_TEXT = {
   en: { shared_expense: (d) => `${d.name} added ${money(d.amount)} for ${d.label}, split with you.`, joined: (d) => `${d.name} joined your budget 🎉`,
+        joint: (d) => d.on ? `${d.name} turned on Joint account. Everything adds up together now.` : `${d.name} turned off Joint account.`,
         bills: (d) => d.n === 1 ? `${d.label} (${money(d.amount)}) is due ${d.when}.` : `${d.n} bills are due in the next 3 days.`,
         streak: (d) => `Log one thing today to keep your ${d.streak}-day hop streak 🐾`, other: () => "Bun has something for you 🐰" },
   es: { shared_expense: (d) => `${d.name} agregó ${money(d.amount)} de ${d.label}, dividido contigo.`, joined: (d) => `${d.name} se unió a tu presupuesto 🎉`,
+        joint: (d) => d.on ? `${d.name} activó la cuenta conjunta. Ahora todo se suma junto.` : `${d.name} desactivó la cuenta conjunta.`,
         bills: (d) => d.n === 1 ? `${d.label} (${money(d.amount)}) vence ${d.when}.` : `${d.n} facturas vencen en los próximos 3 días.`,
         streak: (d) => `Registra algo hoy para mantener tu racha de ${d.streak} días 🐾`, other: () => "Bun tiene algo para ti 🐰" },
   zh: { shared_expense: (d) => `${d.name} 记了一笔 ${money(d.amount)}（${d.label}），和你分摊。`, joined: (d) => `${d.name} 加入了你的预算 🎉`,
+        joint: (d) => d.on ? `${d.name} 开启了共同账户，所有金额合并计算。` : `${d.name} 关闭了共同账户。`,
         bills: (d) => d.n === 1 ? `${d.label}（${money(d.amount)}）${d.when}到期。` : `未来 3 天有 ${d.n} 笔账单到期。`,
         streak: (d) => `今天记一笔，保持你 ${d.streak} 天的连续记录 🐾`, other: () => "Bun 有话对你说 🐰" },
 };
@@ -1314,7 +1317,14 @@ async function handle(request, env, url) {
       if (!["solo", "couple", "family"].includes(body.kind)) throw new HttpError("Unknown budget type.");
       await env.DB.prepare("UPDATE nests SET kind = ? WHERE id = ?").bind(body.kind, nestId).run();
     }
-    if (body.joint !== undefined) await env.DB.prepare("UPDATE nests SET joint = ? WHERE id = ?").bind(body.joint && body.joint !== "false" ? 1 : 0, nestId).run();
+    if (body.joint !== undefined) {
+      const on = body.joint && body.joint !== "false" ? 1 : 0;
+      const cur = await env.DB.prepare("SELECT joint, kind FROM nests WHERE id = ?").bind(nestId).first();
+      if (on && cur.kind !== "couple") throw new HttpError("Joint account is for couples.");
+      await env.DB.prepare("UPDATE nests SET joint = ? WHERE id = ?").bind(on, nestId).run();
+      // the other person sees it change on their screen within seconds; tell them in their inbox and by push too
+      if ((cur.joint ? 1 : 0) !== on) await postToOthers(env, nestId, user.id, "joint", { name: user.name, on: !!on }, "joint:" + crypto.randomUUID());
+    }
     if (body.accent !== undefined) {
       if (!ACCENTS.includes(body.accent)) throw new HttpError("Unknown theme.");
       await env.DB.prepare("UPDATE nests SET accent = ? WHERE id = ?").bind(body.accent, nestId).run();

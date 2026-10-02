@@ -530,7 +530,10 @@
   async function loadNest() {
     const d = await api("/api/nest?month=" + MONTH);
     // the budget refresh only sends id, name and email: merge them in so email-confirmed, reminders, referrals, etc. aren't wiped
+    const wasJoint = NEST ? !!NEST.joint : null;
     ME = { ...(ME || {}), ...d.me }; NEST = d.nest; MEMBERS = d.members;
+    // your partner switched Joint account on or off: everything on this screen follows, and we say so
+    if (wasJoint !== null && wasJoint !== !!NEST.joint) toast(tr(NEST.joint ? "Joint account was turned on. Everything adds up together." : "Joint account was turned off."));
     ENTRIES = d.entries.map((e) => ({ ...e, amount: e.amount_cents / 100, shared: !!e.shared, private: !!e.private }));
     queued().filter((q) => (q.date || "").slice(0, 7) === MONTH).forEach((q) => ENTRIES.unshift({
       id: q.pending_id, pending: true, member_id: q.member_id, type: q.type, amount: +q.amount, amount_cents: Math.round(q.amount * 100),
@@ -2163,6 +2166,7 @@
       goal_done: (d) => `You reached your "${d.goal}" goal! 🍯 So proud of you.`,
       debt_done: (d) => `${d.debt} is paid off! 🎉 One less thing to carry.`,
       joined: (d) => `${d.name} joined your budget 💞 Say hi!`,
+      joint: (d) => d.on ? `${d.name} turned on Joint account. Everything now adds up together and nobody owes anybody.` : `${d.name} turned off Joint account. Splitting and balances are back.`,
       settled: (d) => d.you_paid ? `${d.name} marked your ${money(d.amount)} payment as received 💸` : `${d.name} marked ${money(d.amount)} as paid to you 💸`,
       shared_expense: (d) => `${d.name} added ${d.label} (${money(d.amount)}) and split it with you.`,
     },
@@ -2181,6 +2185,7 @@
       goal_done: (d) => `¡Lograste tu meta "${d.goal}"! 🍯 Estoy muy orgulloso.`,
       debt_done: (d) => `¡${d.debt} está pagada! 🎉 Una carga menos.`,
       joined: (d) => `${d.name} se unió a tu presupuesto 💞 ¡Salúdalo!`,
+      joint: (d) => d.on ? `${d.name} activó la cuenta conjunta. Todo se suma junto y nadie le debe a nadie.` : `${d.name} desactivó la cuenta conjunta. Vuelven la división y los saldos.`,
       settled: (d) => d.you_paid ? `${d.name} marcó tu pago de ${money(d.amount)} como recibido 💸` : `${d.name} marcó ${money(d.amount)} como pagado para ti 💸`,
       shared_expense: (d) => `${d.name} agregó ${d.label} (${money(d.amount)}) y lo dividió contigo.`,
     },
@@ -2199,6 +2204,7 @@
       goal_done: (d) => `你达成了「${d.goal}」目标！🍯 为你骄傲。`,
       debt_done: (d) => `「${d.debt}」还清啦！🎉 少了一份负担。`,
       joined: (d) => `${d.name} 加入了你的预算 💞 打个招呼吧！`,
+      joint: (d) => d.on ? `${d.name} 开启了共同账户。所有金额合并计算，没人欠谁。` : `${d.name} 关闭了共同账户。分摊和结算恢复。`,
       settled: (d) => d.you_paid ? `${d.name} 确认收到了你的 ${money(d.amount)} 💸` : `${d.name} 标记已付给你 ${money(d.amount)} 💸`,
       shared_expense: (d) => `${d.name} 添加了 ${d.label}（${money(d.amount)}），和你一起分摊。`,
     },
