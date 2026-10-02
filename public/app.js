@@ -397,6 +397,7 @@
 
   // ---------- auth ----------
   function showAuth() {
+    try { if (googleOn) google.accounts.id.prompt(); } catch {}
     $("inviteNotice").hidden = !pendingCode;
     $("refNotice").hidden = !!pendingCode || !pendingRef();
     $("authBackWrap").hidden = !!pendingCode;
@@ -503,15 +504,17 @@
       if (!cfg.google) return;
       await new Promise((ok, no) => { const sc = document.createElement("script"); sc.src = "https://accounts.google.com/gsi/client"; sc.async = true; sc.onload = ok; sc.onerror = no; document.head.appendChild(sc); });
       google.accounts.id.initialize({
-        client_id: cfg.google, ux_mode: "popup",
+        client_id: cfg.google, ux_mode: "popup", auto_select: true, cancel_on_tap_outside: true, itp_support: true,
         callback: async (resp) => {
           $("authErr").textContent = tr("Signing you in…");
-          try { await api("/api/auth/google", { method: "POST", body: { credential: resp.credential, lang: LANG, ...(pendingRef() ? { ref: pendingRef() } : {}) } }); store.set("hb-ref", ""); await afterAuth(); }
+          try { await api("/api/auth/google", { method: "POST", body: { credential: resp.credential, lang: LANG, ...(pendingRef() ? { ref: pendingRef() } : {}) } }); store.set("hb-ref", ""); await afterAuth(); $("authErr").textContent = ""; }
           catch (e) { $("authErr").textContent = e.message || tr("Google sign-in failed. Try again."); }
         },
       });
       google.accounts.id.renderButton($("googleBtn"), { theme: "filled_black", size: "large", text: "continue_with", shape: "pill", width: Math.min(340, Math.max(220, ($("authCard").clientWidth || 340) - 36)), logo_alignment: "center" });
       googleOn = true; setAuthMode(authMode);
+      // returning visitors are signed in automatically; first-timers see a one-tap sign-in card
+      if (screen === "auth") try { google.accounts.id.prompt(); } catch {}
     } catch {}
   }
   setupGoogle();
@@ -589,6 +592,7 @@
     show("home"); bunnyHop();
   }
   async function logout() {
+    try { if (window.google && google.accounts) google.accounts.id.disableAutoSelect(); } catch {}
     if (HBN || PUSHP) {
       const t = store.get("hb-apns-token");
       try { if (t) await api("/api/push/apns", { method: "DELETE", body: { token: t } }); } catch {}
