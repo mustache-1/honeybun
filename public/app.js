@@ -505,9 +505,9 @@
       google.accounts.id.initialize({
         client_id: cfg.google, ux_mode: "popup",
         callback: async (resp) => {
-          $("authErr").textContent = "";
+          $("authErr").textContent = tr("Signing you in…");
           try { await api("/api/auth/google", { method: "POST", body: { credential: resp.credential, lang: LANG, ...(pendingRef() ? { ref: pendingRef() } : {}) } }); store.set("hb-ref", ""); await afterAuth(); }
-          catch (e) { $("authErr").textContent = e.message; }
+          catch (e) { $("authErr").textContent = e.message || tr("Google sign-in failed. Try again."); }
         },
       });
       google.accounts.id.renderButton($("googleBtn"), { theme: "filled_black", size: "large", text: "continue_with", shape: "pill", width: Math.min(340, Math.max(220, ($("authCard").clientWidth || 340) - 36)), logo_alignment: "center" });

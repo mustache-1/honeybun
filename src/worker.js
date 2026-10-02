@@ -1045,7 +1045,7 @@ async function handle(request, env, url) {
     await recordAttempt(env, "google:" + ip);
     const credential = String(body.credential || "");
     if (credential.length < 100 || credential.length > 4000) throw new HttpError("Google sign-in failed. Try again.", 400);
-    const res = await fetch("https://oauth2.googleapis.com/tokeninfo?id_token=" + encodeURIComponent(credential));
+    const res = await fetch((env.GOOGLE_TOKENINFO_URL || "https://oauth2.googleapis.com/tokeninfo") + "?id_token=" + encodeURIComponent(credential));
     const info = res.ok ? await res.json().catch(() => null) : null;
     if (!info || info.aud !== env.GOOGLE_CLIENT_ID || !["accounts.google.com", "https://accounts.google.com"].includes(info.iss)
         || String(info.email_verified) !== "true" || !info.email || Number(info.exp) < now())
