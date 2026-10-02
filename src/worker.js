@@ -56,6 +56,9 @@ const TABLES = [
   // your own spending categories (name + emoji), per household
   `CREATE TABLE IF NOT EXISTS custom_categories (id TEXT PRIMARY KEY, nest_id TEXT NOT NULL REFERENCES nests(id) ON DELETE CASCADE, name TEXT NOT NULL, emoji TEXT NOT NULL, created_at INTEGER NOT NULL)`,
   `CREATE INDEX IF NOT EXISTS idx_custom_cat_nest ON custom_categories(nest_id)`,
+  // shared shopping list
+  `CREATE TABLE IF NOT EXISTS shopping_items (id TEXT PRIMARY KEY, nest_id TEXT NOT NULL REFERENCES nests(id) ON DELETE CASCADE, label TEXT NOT NULL, added_by TEXT NOT NULL, done INTEGER NOT NULL DEFAULT 0, done_by TEXT, created_at INTEGER NOT NULL, done_at INTEGER)`,
+  `CREATE INDEX IF NOT EXISTS idx_shopping_nest ON shopping_items(nest_id, done)`,
   `CREATE TABLE IF NOT EXISTS app_tokens (token_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, created_at INTEGER NOT NULL)`,
   `CREATE INDEX IF NOT EXISTS idx_app_tokens_user ON app_tokens(user_id)`,
   // referrals: invite friends, get a gift card for every REF_GOAL who stick around
@@ -1306,7 +1309,7 @@ async function handle(request, env, url) {
     await env.DB.batch(stmts);
     if (m) {
       const left = await env.DB.prepare("SELECT COUNT(*) AS n FROM members WHERE nest_id = ?").bind(m.nest_id).first();
-      if (left.n === 0) await env.DB.batch(["entries", "settlements", "jar_moves", "recurring", "goals", "budgets", "debts", "debt_payments", "messages", "custom_categories"]
+      if (left.n === 0) await env.DB.batch(["entries", "settlements", "jar_moves", "recurring", "goals", "budgets", "debts", "debt_payments", "messages", "custom_categories", "shopping_items"]
         .map((t) => env.DB.prepare(`DELETE FROM ${t} WHERE nest_id = ?`).bind(m.nest_id)).concat([env.DB.prepare("DELETE FROM nests WHERE id = ?").bind(m.nest_id)]));
     }
     return json({ ok: true }, 200, { "set-cookie": clearCookie });
@@ -1384,9 +1387,10 @@ async function handle(request, env, url) {
       if (s.to_id in balances) balances[s.to_id] -= s.amount_cents;
     }
 
+    const shopping_open = (await env.DB.prepare("SELECT COUNT(*) AS n FROM shopping_items WHERE nest_id = ? AND done = 0").bind(nestId).first()).n;
     const categories = (await env.DB.prepare("SELECT id, name, emoji FROM custom_categories WHERE nest_id = ? ORDER BY created_at").bind(nestId).all()).results;
     return json({
-      me, nest: nest.results[0], members: members.results, entries: entries.results, categories,
+      me, nest: nest.results[0], members: members.results, entries: entries.results, categories, shopping_open,
       balances, settlements: settlements.results.slice(0, 10), recurring: recurring.results,
       logged: logged.results, jar: jar.results, goals: goals.results, budgets: budgets.results,
       debts: debts.results, debt_payments: debtPays.results, setup_done: !!mine.results[0]?.setup_done,
@@ -1427,7 +1431,7 @@ async function handle(request, env, url) {
     await env.DB.batch([env.DB.prepare("DELETE FROM members WHERE user_id = ? AND nest_id = ?").bind(user.id, nestId), env.DB.prepare("DELETE FROM messages WHERE user_id = ?").bind(user.id)]);
     const left = await env.DB.prepare("SELECT COUNT(*) AS n FROM members WHERE nest_id = ?").bind(nestId).first();
     if (left.n === 0) {
-      await env.DB.batch(["entries", "settlements", "jar_moves", "recurring", "goals", "budgets", "debts", "debt_payments", "messages", "custom_categories"].map((t) => env.DB.prepare(`DELETE FROM ${t} WHERE nest_id = ?`).bind(nestId))
+      await env.DB.batch(["entries", "settlements", "jar_moves", "recurring", "goals", "budgets", "debts", "debt_payments", "messages", "custom_categories", "shopping_items"].map((t) => env.DB.prepare(`DELETE FROM ${t} WHERE nest_id = ?`).bind(nestId))
         .concat([env.DB.prepare("DELETE FROM nests WHERE id = ?").bind(nestId)]));
     }
     return json({ ok: true });
@@ -1517,6 +1521,50 @@ async function handle(request, env, url) {
       env.DB.prepare("DELETE FROM budgets WHERE nest_id = ? AND category = ?").bind(nestId, catId[1]),
       env.DB.prepare("DELETE FROM custom_categories WHERE id = ? AND nest_id = ?").bind(catId[1], nestId),
     ]);
+    return json({ ok: true });
+  }
+
+  // ----- shared shopping list -----
+  if (path === "/api/shopping" && method === "GET") {
+    const items = (await env.DB.prepare("SELECT id, label, added_by, done, done_by FROM shopping_items WHERE nest_id = ? ORDER BY done, CASE WHEN done = 1 THEN done_at ELSE created_at END DESC LIMIT 120").bind(nestId).all()).results;
+    return json({ items: items.map((i) => ({ ...i, done: !!i.done })) });
+  }
+  if (path === "/api/shopping" && method === "POST") {
+    const label = cleanText(body.label, 60);
+    if (!label) throw new HttpError("Type what you need.");
+    const n = (await env.DB.prepare("SELECT COUNT(*) AS n FROM shopping_items WHERE nest_id = ?").bind(nestId).first()).n;
+    if (n >= 100) throw new HttpError("The list is full. Clear the checked items first.");
+    const id = crypto.randomUUID();
+    await env.DB.prepare("INSERT INTO shopping_items (id, nest_id, label, added_by, created_at) VALUES (?, ?, ?, ?, ?)").bind(id, nestId, label, user.id, now()).run();
+    return json({ ok: true, id }, 201);
+  }
+  if (path === "/api/shopping/clear" && method === "POST") {
+    await env.DB.prepare("DELETE FROM shopping_items WHERE nest_id = ? AND done = 1").bind(nestId).run();
+    return json({ ok: true });
+  }
+  // "Done shopping?": log what you spent as groceries (split like any shared expense, unless it's a joint account) and clear the checked items
+  if (path === "/api/shopping/checkout" && method === "POST") {
+    const ids = await memberIds(env, nestId);
+    const joint = !!(await env.DB.prepare("SELECT joint FROM nests WHERE id = ?").bind(nestId).first())?.joint;
+    const shared = ids.length > 1 && !joint;
+    const e = await readEntry(env, nestId, user, { type: "expense", amount: body.amount, member_id: user.id, label: cleanText(body.label, 40) || "Groceries", category: "groc", shared, split_mode: "equal", date: isDate(body.date) ? body.date : undefined });
+    const entryId = await insertEntry(env, nestId, user, e);
+    await env.DB.batch([
+      env.DB.prepare("DELETE FROM shopping_items WHERE nest_id = ? AND done = 1").bind(nestId),
+      env.DB.prepare("UPDATE members SET inbox_gen_at = 0 WHERE nest_id = ?").bind(nestId),
+    ]);
+    if (e.shared) { try { await postToOthers(env, nestId, user.id, "shared_expense", { name: user.name, label: e.label, amount: e.amount }, `shared:${entryId}`); } catch (err) { console.error("shop notify", err.message); } }
+    return json({ ok: true, id: entryId, reward: await award(env, request, user.id, nestId, "entry") }, 201);
+  }
+  const shopId = path.match(/^\/api\/shopping\/([0-9a-f-]{36})$/);
+  if (shopId && method === "PATCH") {
+    const done = body.done && body.done !== "false" ? 1 : 0;
+    const r = await env.DB.prepare("UPDATE shopping_items SET done = ?, done_by = ?, done_at = ? WHERE id = ? AND nest_id = ?").bind(done, done ? user.id : null, done ? now() : null, shopId[1], nestId).run();
+    if (!r.meta.changes) throw new HttpError("That item is gone.", 404);
+    return json({ ok: true });
+  }
+  if (shopId && method === "DELETE") {
+    await env.DB.prepare("DELETE FROM shopping_items WHERE id = ? AND nest_id = ?").bind(shopId[1], nestId).run();
     return json({ ok: true });
   }
 

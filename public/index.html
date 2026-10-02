@@ -2110,6 +2110,22 @@ dialog::backdrop{background:var(--backdrop)}
 .cat-mine{margin-top:10px}.cat-mine .cm-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line)}
 .cat-mine .cm-row .e{font-size:22px}.cat-mine .cm-row b{flex:1}.cat-mine .cm-h{display:block;font-size:12px;font-weight:900;letter-spacing:.04em;text-transform:uppercase;color:var(--soft);margin-bottom:2px}
 .cat-new{border:2px dashed var(--line)!important;background:transparent!important}
+
+/* shopping list */
+.shop-wrap{display:flex;flex-direction:column;gap:12px;max-width:560px}
+.shop-add{display:flex;gap:8px}.shop-add input{flex:1;margin:0}.shop-add .go{width:56px;flex:none;font-size:24px;padding:0}
+.shop-card{padding:6px 16px!important}
+.shop-item{display:flex;align-items:center;gap:12px;padding:12px 0}.shop-item+.shop-item{border-top:1px solid var(--line)}
+.shop-item .bx{width:26px;height:26px;border-radius:9px;border:2px solid var(--soft);background:transparent;flex:none;display:grid;place-items:center;color:var(--on-pink,#1B1108);font-weight:900;cursor:pointer;padding:0}
+.shop-item.done .bx{background:var(--pink);border-color:var(--pink)}
+.shop-item .t{flex:1;min-width:0;font-weight:700;font-size:15px;overflow-wrap:anywhere}.shop-item.done .t{color:var(--soft);text-decoration:line-through}
+.shop-item .who{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font-size:13px;flex:none}
+.shop-item .x{border:0;background:transparent;color:var(--soft);font-size:18px;cursor:pointer;padding:2px 6px}
+.shop-empty{padding:22px 4px;text-align:center;color:var(--soft);font-weight:700}
+.shop-done .row{display:flex;flex-direction:column;gap:2px;margin-bottom:10px}.shop-done small{color:var(--soft);font-weight:600}
+.shop-pay{display:flex;gap:10px;align-items:center}.shop-pay .bigamt{flex:1}.shop-pay .go{width:auto;padding:0 22px;height:52px}
+.shop-home{margin-top:12px}
+@media (min-width:900px){.shop-wrap{max-width:none;display:grid;grid-template-columns:minmax(0,1fr) 340px;align-items:start}.shop-add{grid-column:1}.shop-card{grid-column:1}.shop-done{grid-column:2;grid-row:1/3}}
 </style>
 <link rel="stylesheet" href="/halloween.css">
 </head>
@@ -2564,7 +2580,7 @@ dialog::backdrop{background:var(--backdrop)}
     </section>
     <section class="bun-alerts" id="bunAlerts" aria-label="Heads up from Bun" hidden></section>
   </div>
-  <aside class="side-col" id="homeSide"><div class="due side" id="dueCard" aria-label="Coming up"></div><div class="desk-only" id="homeJars"></div></aside>
+  <aside class="side-col" id="homeSide"><div class="due side" id="dueCard" aria-label="Coming up"></div><button type="button" class="sh-link shop-home" id="homeShop" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h2l2.4 11h10.2L20 7H6.2"/><circle cx="9" cy="19" r="1.5"/><circle cx="17" cy="19" r="1.5"/></svg><span><b>Shopping list</b><small id="homeShopSub"></small></span><i aria-hidden="true">›</i></button><div class="desk-only" id="homeJars"></div></aside>
 </div>
     <div id="homeBud"></div>
 
@@ -2693,10 +2709,24 @@ dialog::backdrop{background:var(--backdrop)}
     <div class="pagehead"><div><button type="button" class="sh-back" id="shBack">‹ Together</button><h1>Fair share</h1><p>Who brought in what, and who has spent what.</p></div><div class="ph-slot"></div></div>
     <div class="sh-grid" id="shareBody"></div>
   </main>
+  <main id="scr-shop" hidden>
+    <div class="pagehead"><div><button type="button" class="sh-back" id="shopBack">‹ Back</button><h1>Shopping list</h1><p id="shopSub">Things to pick up.</p></div></div>
+    <div class="shop-wrap">
+      <form class="shop-add" id="shopForm" novalidate><input id="shopIn" maxlength="60" placeholder="Add something…" autocomplete="off" aria-label="Add to the shopping list"><button class="go" type="submit" aria-label="Add">+</button></form>
+      <section class="card shop-card" id="shopList" aria-live="polite"></section>
+      <section class="card shop-done" id="shopDone" hidden>
+        <div class="row"><b>Done shopping?</b><small id="shopDoneSub">Log it as groceries in one tap</small></div>
+        <div class="shop-pay"><label class="bigamt" for="shopAmt" style="margin:0"><span>$</span><input id="shopAmt" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0" aria-label="Total at checkout"></label><button class="go" id="shopPay" type="button">Log it</button></div>
+        <p class="err" id="shopErr" role="alert"></p>
+        <button class="linkbtn" id="shopClear" type="button">Clear checked items</button>
+      </section>
+    </div>
+  </main>
   <main id="scr-us" hidden>
     <div class="pagehead"><div><h1>Together</h1><p>Shared money, without the awkwardness.</p></div><div class="ph-slot"></div></div>
     <div class="grid2">
       <div class="blk">
+        <button type="button" class="sh-link" id="usShopBtn" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h2l2.4 11h10.2L20 7H6.2"/><circle cx="9" cy="19" r="1.5"/><circle cx="17" cy="19" r="1.5"/></svg><span><b>Shopping list</b><small id="usShopSub">Pick things up together</small></span><i aria-hidden="true">›</i></button>
         <button type="button" class="sh-link" id="usShareBtn" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v16M8 20h8M5 8h14"/><path d="M5 8l-2.5 6a3 3 0 0 0 5 0zM19 8l-2.5 6a3 3 0 0 0 5 0z"/></svg><span><b>Fair share</b><small>Who brought in and spent what</small></span><i aria-hidden="true">›</i></button>
         <div class="card pad" id="settleWrap">
           <div class="title"><h2>Balance</h2><span>split expenses</span></div>

@@ -381,7 +381,7 @@
   const loggedToday = () => meMember()?.last_day === today();
 
   // ---------- screens ----------
-  const APP_SCREENS = ["home", "plan", "add", "stats", "share", "us", "inbox", "settings", "help", "refer", "updates"];
+  const APP_SCREENS = ["home", "plan", "add", "stats", "share", "shop", "us", "inbox", "settings", "help", "refer", "updates"];
   const ALL_SCREENS = ["loading", "landing", "auth", "reset", "verify", "setup", "onboard", ...APP_SCREENS];
   function show(s) {
     screen = s;
@@ -393,9 +393,10 @@
     $("nav").hidden = !inApp; $("topBar").hidden = !inApp;
     { const mn = $("monthNav"), slot = document.querySelector(`#scr-${s} .ph-slot`);
       if (slot) { slot.appendChild(mn); mn.style.display = ""; } else mn.style.display = "none"; }
-    document.querySelectorAll("nav.bottom [data-go]").forEach((b) => b.dataset.go === (s === "share" && !matchMedia("(min-width: 900px)").matches ? "us" : s) ? b.setAttribute("aria-current", "page") : b.removeAttribute("aria-current"));
+    document.querySelectorAll("nav.bottom [data-go]").forEach((b) => b.dataset.go === (s === "share" && !matchMedia("(min-width: 900px)").matches ? "us" : s === "shop" ? (MEMBERS.length > 1 ? "us" : "home") : s) ? b.setAttribute("aria-current", "page") : b.removeAttribute("aria-current"));
     window.scrollTo(0, 0);
     if (s === "stats") loadYear();
+    if (s === "shop") loadShop();
     if (s === "refer" && ME) loadRef();
     if (s === "updates") openUpdates();
     if (inApp) render();
@@ -644,6 +645,7 @@
     const wasJoint = NEST ? !!NEST.joint : null;
     ME = { ...(ME || {}), ...d.me }; NEST = d.nest; MEMBERS = d.members;
     syncCustomCats(d.categories);
+    SHOP_OPEN = d.shopping_open || 0;
     // your partner switched Joint account on or off: everything on this screen follows, and we say so
     if (wasJoint !== null && wasJoint !== !!NEST.joint) toast(tr(NEST.joint ? "Joint account was turned on. Everything adds up together." : "Joint account was turned off."));
     ENTRIES = d.entries.map((e) => ({ ...e, amount: e.amount_cents / 100, shared: !!e.shared, private: !!e.private }));
@@ -1201,6 +1203,8 @@
     if (screen === "plan") renderPlan();
     if (screen === "stats") renderStats();
     if (screen === "share") renderShare();
+    renderShopLinks();
+    if (screen === "shop") { drawShop(); if (!SHOP.length) loadShop(); }
 
     if (screen === "us") {
       $("settleWrap").hidden = MEMBERS.length < 2;
@@ -2707,6 +2711,50 @@
 
 
 
+
+
+  // ---------- shared shopping list ----------
+  let SHOP = [], SHOP_OPEN = 0;
+  async function loadShop() {
+    try { SHOP = (await api("/api/shopping")).items; SHOP_OPEN = SHOP.filter((i) => !i.done).length; } catch (e) { return; }
+    if (screen === "shop") drawShop();
+  }
+  function drawShop() {
+    const box = $("shopList"), open = SHOP.filter((i) => !i.done), done = SHOP.filter((i) => i.done);
+    $("shopSub").textContent = MEMBERS.length > 1 ? tr("Shared with") + " " + others(ME.id).map((m) => m.name).join(" & ") + ". " + tr("Updates for both of you.") : tr("Things to pick up.");
+    box.innerHTML = SHOP.length ? "" : `<div class="shop-empty">${esc(tr("Nothing on the list yet. Add what you need above."))}</div>`;
+    SHOP.forEach((it) => {
+      const m = member(it.added_by), r = document.createElement("div"); r.className = "shop-item" + (it.done ? " done" : "");
+      r.innerHTML = `<button class="bx" type="button" aria-label="${esc(it.label)}" aria-pressed="${it.done}">${it.done ? "✓" : ""}</button><span class="t">${esc(it.label)}</span>${MEMBERS.length > 1 ? `<span class="who" style="background:${esc(m.color)}" title="${esc(m.name)}">${esc(m.emoji)}</span>` : ""}<button class="x" type="button" aria-label="${esc(tr("Remove"))}">×</button>`;
+      r.querySelector(".bx").onclick = async () => { it.done = !it.done; drawShop(); try { await api("/api/shopping/" + it.id, { method: "PATCH", body: { done: it.done } }); } catch (e) { toast(e.message); } loadShop(); };
+      r.querySelector(".x").onclick = async () => { SHOP = SHOP.filter((x) => x.id !== it.id); drawShop(); try { await api("/api/shopping/" + it.id, { method: "DELETE" }); } catch (e) { toast(e.message); } loadShop(); };
+      box.appendChild(r);
+    });
+    $("shopDone").hidden = !done.length;
+    $("shopDoneSub").textContent = tr(JOINT() ? "Log it as groceries in one tap" : MEMBERS.length > 1 ? "Log it as groceries in one tap, split with your partner" : "Log it as groceries in one tap");
+    SHOP_OPEN = open.length; renderShopLinks();
+  }
+  function renderShopLinks() {
+    const n = SHOP_OPEN, line = n ? `${n} ${tr(n === 1 ? "thing to get" : "things to get")}` : tr("Nothing on it yet");
+    if ($("usShopBtn")) { $("usShopBtn").hidden = MEMBERS.length < 2; $("usShopSub").textContent = line; $("usShopBtn").onclick = () => show("shop"); }
+    if ($("homeShop")) { $("homeShop").hidden = !n; $("homeShopSub").textContent = line; $("homeShop").onclick = () => show("shop"); }
+  }
+  $("shopBack").onclick = () => show(MEMBERS.length > 1 ? "us" : "home");
+  $("shopForm").onsubmit = async (ev) => {
+    ev.preventDefault();
+    const label = $("shopIn").value.trim(); if (!label) return;
+    $("shopIn").value = "";
+    try { await api("/api/shopping", { method: "POST", body: { label } }); } catch (e) { toast(e.message); }
+    loadShop();
+  };
+  $("shopClear").onclick = async () => { try { await api("/api/shopping/clear", { method: "POST" }); } catch (e) { toast(e.message); } loadShop(); };
+  $("shopPay").onclick = async () => {
+    const amount = +$("shopAmt").value; if (!(amount > 0)) { $("shopErr").textContent = tr("Type what you paid."); $("shopAmt").focus(); return; }
+    busy($("shopPay"), true); $("shopErr").textContent = "";
+    try { await api("/api/shopping/checkout", { method: "POST", body: { amount } }); $("shopAmt").value = ""; toast(tr("Logged as groceries") + " ♡"); await loadNest(); await loadShop(); }
+    catch (e) { $("shopErr").textContent = e.message; } finally { busy($("shopPay"), false); }
+  };
+  setInterval(() => { if (screen === "shop" && !document.hidden && !window.hbNativeHidden) loadShop(); }, 15000);
 
   // ---------- your own categories ----------
   const CAT_EMOJIS = ["🐶", "🐱", "🎮", "🌱", "✈️", "🎁", "☕", "🏋️", "💅", "📚", "🎬", "🍷", "🧸", "🛠️", "💊", "🎨"];
