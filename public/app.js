@@ -365,6 +365,8 @@
   const meMember = () => MEMBERS.find((m) => m.id === ME?.id);
   const others = (id) => MEMBERS.filter((m) => m.id !== id);
   const KIND = () => NEST?.kind || "couple";
+  // Joint account: the household keeps its money in one pot, so everything adds up and nobody owes anybody
+  const JOINT = () => !!NEST?.joint && MEMBERS.length > 1 && KIND() !== "solo";
   const yesterday = () => toS(addDays(parseD(today()), -1));
   const streakOf = (m) => (m && (m.last_day === today() || m.last_day === yesterday()) ? m.streak : 0);
   const loggedToday = () => meMember()?.last_day === today();
@@ -908,6 +910,7 @@
   const prettyCode = (c) => c.slice(0, 4) + "-" + c.slice(4);
 
   function pairs() {
+    if (JOINT()) return [];
     const debt = [], cred = [];
     MEMBERS.forEach((m) => { const v = (BAL[m.id] || 0) / 100; if (v < -0.005) debt.push({ m, v: -v }); else if (v > 0.005) cred.push({ m, v }); });
     const out = []; let i = 0, j = 0;
@@ -991,6 +994,7 @@
     $("sideAvs").innerHTML = $("hdrAvs").innerHTML; $("sideName").textContent = $("hi").textContent;
     { const m = meMember() || {}; $("sideSub").textContent = tr({ solo: "Just me", couple: "Couple", family: "Family" }[KIND()]) + " · Lv " + levelInfo(m.xp || 0).l; }
 
+    if (JOINT() && filter) filter = null;
     const all = ENTRIES, view = filter ? all.filter((e) => e.member_id === filter) : all;
     const sum = (arr, t) => arr.filter((e) => e.type === t).reduce((s, e) => s + e.amount, 0);
     const inc = sum(view, "income"), out = sum(view, "expense"), left = inc - out;
@@ -1039,6 +1043,14 @@
 
       const cp = $("couple"); cp.innerHTML = "";
       const amp = () => { const h = document.createElement("span"); h.className = "heart"; h.textContent = "&"; h.setAttribute("aria-hidden", "true"); return h; };
+      if (JOINT()) {
+        // one card for the joint account instead of a card per person
+        const ji = all.filter((e) => e.type === "income").reduce((a, e) => a + e.amount, 0), jo = all.filter((e) => e.type === "expense").reduce((a, e) => a + e.amount, 0);
+        const b = document.createElement("div"); b.className = "pal joint";
+        b.setAttribute("aria-label", `Joint account: came in ${fmt(ji)}, spent ${fmt(jo)}.`);
+        b.innerHTML = `<span class="faces">${MEMBERS.slice(0, 3).map((m) => `<span class="face" style="background:${esc(m.color)}">${esc(m.emoji)}</span>`).join("")}</span><span class="nm">${esc(tr("Joint account"))}</span><span class="st">${esc(MEMBERS.map((m) => m.name).join(" & "))}<br>+${fmt(ji)} / −${fmt(jo).replace("−", "")}</span>`;
+        cp.appendChild(b);
+      } else
       MEMBERS.forEach((m, i) => {
         if (i > 0 && MEMBERS.length === 2) cp.appendChild(amp());
         const mi = all.filter((e) => e.member_id === m.id && e.type === "income").reduce((s, e) => s + e.amount, 0);
@@ -1077,6 +1089,14 @@
     if (screen === "us") {
       $("settleWrap").hidden = MEMBERS.length < 2;
       const st = $("settle"), ps = pairs();
+      { const h = $("settleWrap").querySelector(".title h2"), sp = $("settleWrap").querySelector(".title span");
+        h.textContent = tr(JOINT() ? "Joint account" : "Balance"); sp.textContent = tr(JOINT() ? "one shared pot" : "split expenses"); }
+      if (JOINT()) {
+        const ji = all.filter((e) => e.type === "income").reduce((a, e) => a + e.amount, 0), jo = all.filter((e) => e.type === "expense").reduce((a, e) => a + e.amount, 0);
+        st.innerHTML = `<div class="balance">${fmt(ji - jo)}</div><div class="balance-note">${esc(tr("left in your joint account this month"))}</div>` +
+          `<div class="owe"><span>${esc(tr("Came in"))}</span><span class="amt">${fmt(ji)}</span></div><div class="owe"><span>${esc(tr("Spent"))}</span><span class="amt">${fmt(jo)}</span></div>` +
+          `<p class="hint" style="margin:8px 0 0">${esc(tr("Everything adds up together, so nobody owes anybody."))}</p>`;
+      } else
       if (!ps.length) st.innerHTML = `<div class="balance">$0.00</div><div class="balance-note">You're all even ♡</div>`;
       else {
         const p0 = ps[0];
@@ -1094,7 +1114,7 @@
       MEMBERS.forEach((m) => {
         const spent = all.filter((e) => e.member_id === m.id && e.type === "expense").reduce((a, e) => a + e.amount, 0);
         const r = document.createElement("div"); r.className = "member";
-        r.innerHTML = `<span class="face" style="background:${esc(m.color)}">${esc(m.emoji)}</span><span class="meta"><b>${esc(m.name)}</b><small>${fmt(spent)} spent this month</small></span>${m.id === ME.id ? '<span class="tagb">you</span>' : ""}`;
+        r.innerHTML = `<span class="face" style="background:${esc(m.color)}">${esc(m.emoji)}</span><span class="meta"><b>${esc(m.name)}</b><small>${JOINT() ? `${esc(tr("added"))} ${fmt(all.filter((e) => e.member_id === m.id && e.type === "income").reduce((a, e) => a + e.amount, 0))} · ${esc(tr("spent"))} ${fmt(spent)}` : `${fmt(spent)} spent this month`}</small></span>${m.id === ME.id ? '<span class="tagb">you</span>' : ""}`;
         um.appendChild(r);
       });
       const sh = $("settleHist"); sh.innerHTML = "";
@@ -1138,6 +1158,9 @@
         b.onclick = async () => { NEST.kind = id; render(); try { await api("/api/nest", { method: "PATCH", body: { kind: id } }); } catch (err) { toast(err.message); } };
         ks.appendChild(b);
       });
+      { const jr = $("jointRow"); jr.hidden = KIND() === "solo" || MEMBERS.length < 2;
+        const on = !!NEST.joint; $("jointState").textContent = tr(on ? "On" : "Off"); $("jointState").classList.toggle("on", on);
+        jr.onclick = async () => { NEST.joint = NEST.joint ? 0 : 1; render(); try { await api("/api/nest", { method: "PATCH", body: { joint: !!NEST.joint } }); toast(tr(NEST.joint ? "Joint account is on. Everything adds up together." : "Joint account is off.")); } catch (err) { NEST.joint = NEST.joint ? 0 : 1; render(); toast(err.message); } }; }
       const mm = $("members"); mm.innerHTML = "";
       MEMBERS.forEach((m) => {
         const r = document.createElement("div"); r.className = "mem";
@@ -1659,7 +1682,7 @@
     $("whoLabel").textContent = isInc ? "Who gets paid?" : "Who pays?";
 
     // split
-    const canSplit = !isInc && MEMBERS.length > 1;
+    const canSplit = !isInc && MEMBERS.length > 1 && !JOINT();
     $("splitField").hidden = !canSplit;
     $("spShared").setAttribute("aria-pressed", shared ? "true" : "false");
     $("spMine").setAttribute("aria-pressed", shared ? "false" : "true");
@@ -1717,7 +1740,7 @@
   async function submitEntry() {
     const amount = parseFloat($("amt").value);
     if (!(amount > 0)) { $("err").textContent = "Type an amount above $0 first."; $("amt").focus(); return; }
-    const rep = $("repeat").value, isShared = mode === "expense" && shared && MEMBERS.length > 1;
+    const rep = $("repeat").value, isShared = mode === "expense" && shared && MEMBERS.length > 1 && !JOINT();
     let split_value = null;
     if (isShared && splitMode !== "equal") {
       split_value = parseFloat($("splitVal").value);
@@ -2007,11 +2030,17 @@
         row(A, A.inc, pctOf(A.inc, inc) + "%") + row(B, B.inc, pctOf(B.inc, inc) + "%") + shareBar(A.m, B.m, A.inc, B.inc) +
         `<div class="sh-tot"><span>${esc(tr("Together"))}</span><span>${fmt(inc)}</span></div></section>` +
       `<section class="card pad sh-card"><h2>${esc(tr("Spent so far"))}</h2><p class="sh-sub">${esc(monthName(MONTH, true))}</p>` +
-        row(A, A.out, `${esc(tr("shared"))} ${fmt(A.sh)} · ${esc(tr("own"))} ${fmt(A.own)}`) + row(B, B.out, `${esc(tr("shared"))} ${fmt(B.sh)} · ${esc(tr("own"))} ${fmt(B.own)}`) + shareBar(A.m, B.m, A.out, B.out) +
+        row(A, A.out, JOINT() ? pctOf(A.out, out) + "%" : `${esc(tr("shared"))} ${fmt(A.sh)} · ${esc(tr("own"))} ${fmt(A.own)}`) + row(B, B.out, JOINT() ? pctOf(B.out, out) + "%" : `${esc(tr("shared"))} ${fmt(B.sh)} · ${esc(tr("own"))} ${fmt(B.own)}`) + shareBar(A.m, B.m, A.out, B.out) +
         `<div class="sh-tot"><span>${esc(tr("Together"))}</span><span>${fmt(out)}</span></div>` +
         `<p class="sh-note">${esc(tr("Private entries only count for the person who made them."))}</p></section></div>` +
       `<section class="card pad sh-card" id="shBrain"></section>`;
-    drawShareBrain(A, B, inc, S);
+    if (JOINT()) {
+      const el = $("shBrain"), left = inc - out;
+      el.innerHTML = `<h2>${esc(tr("Joint account"))}</h2><p class="sh-sub">${esc(tr("One shared pot, so the numbers add up together."))}</p>` +
+        `<div class="sh-row"><span class="nm">${esc(tr("Came in"))}</span><span class="amt">${fmt(inc)}</span></div><div class="sh-row"><span class="nm">${esc(tr("Spent"))}</span><span class="amt">${fmt(out)}</span></div>` +
+        `<div class="sh-tot"><span>${esc(tr("Left"))}</span><span>${fmt(left)}</span></div>` +
+        `<p class="sh-tip">${esc(A.m.name)} ${esc(tr("brings in"))} ${pctOf(A.inc, inc)}%, ${esc(B.m.name)} ${pctOf(B.inc, inc)}%.</p>`;
+    } else drawShareBrain(A, B, inc, S);
   }
   function drawShareBrain(A, B, inc, S) {
     const el = $("shBrain");

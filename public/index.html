@@ -2051,6 +2051,9 @@ dialog::backdrop{background:var(--backdrop)}
 .lock-box h2{margin:6px 0 0;font-size:20px}.lock-box p{margin:0 0 6px;color:var(--soft);font-weight:600}
 .lock-state{font-weight:800;font-size:13px;color:var(--soft)}
 .lock-state.on{color:var(--pink-d,#F59A4A)}
+.pal.joint{cursor:default;width:100%;max-width:none;display:flex;align-items:center;gap:12px;text-align:left}
+.pal.joint .faces{display:flex}.pal.joint .faces .face{margin-left:-10px;border:2px solid var(--card)}.pal.joint .faces .face:first-child{margin-left:0}
+.pal.joint .nm{font-weight:800}
 </style>
 <link rel="stylesheet" href="/halloween.css">
 </head>
@@ -2660,6 +2663,7 @@ dialog::backdrop{background:var(--backdrop)}
           <input id="nestName" maxlength="24" placeholder="Leave blank to show your names" aria-label="Budget name">
           <span class="kinds small-kinds" id="kindSet"></span>
           <span class="members" id="members"></span></span></div>
+        <button class="setting-row" id="jointRow" hidden><span class="sicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="9" r="4"/><circle cx="16" cy="9" r="4"/><path d="M3 20c0-3 3-5 6-5M21 20c0-3-3-5-6-5M9 20c0-2 1.5-3.5 3-3.5s3 1.5 3 3.5"/></svg></span><span class="copy"><b>Joint account</b><small>We keep our money in one pot, so everything adds up together</small></span><span class="lock-state" id="jointState">Off</span></button>
         <div class="setting-row col"><span class="sicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg></span><span class="copy"><b>Notifications</b><small>Bills, streaks and reminders by email</small>
           <label class="toggle"><span>Bills due soon<small>A heads-up at 9am, 3 days ahead</small></span><input type="checkbox" id="mailBills"></label>
           <label class="toggle"><span>Streak reminder<small>At 7pm if you haven't logged yet</small></span><input type="checkbox" id="mailStreak"></label>

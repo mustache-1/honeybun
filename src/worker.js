@@ -70,7 +70,7 @@ const NEW_COLUMNS = {
   members: [["setup_done", "INTEGER NOT NULL DEFAULT 1"], ["xp", "INTEGER NOT NULL DEFAULT 0"], ["streak", "INTEGER NOT NULL DEFAULT 0"],
     ["best_streak", "INTEGER NOT NULL DEFAULT 0"], ["last_day", "TEXT"], ["day_xp", "INTEGER NOT NULL DEFAULT 0"],
     ["week_key", "TEXT"], ["week_xp", "INTEGER NOT NULL DEFAULT 0"], ["logs", "INTEGER NOT NULL DEFAULT 0"], ["inbox_gen_at", "INTEGER NOT NULL DEFAULT 0"]],
-  nests: [["goals_migrated", "INTEGER NOT NULL DEFAULT 0"], ["kind", "TEXT NOT NULL DEFAULT 'couple'"], ["rollover", "INTEGER NOT NULL DEFAULT 0"], ["rollover_since", "TEXT"]],
+  nests: [["goals_migrated", "INTEGER NOT NULL DEFAULT 0"], ["kind", "TEXT NOT NULL DEFAULT 'couple'"], ["rollover", "INTEGER NOT NULL DEFAULT 0"], ["rollover_since", "TEXT"], ["joint", "INTEGER NOT NULL DEFAULT 0"]],
   jar_moves: [["goal_id", "TEXT"]],
 };
 
@@ -1265,7 +1265,7 @@ async function handle(request, env, url) {
     if (!/^\d{4}-\d{2}$/.test(month)) throw new HttpError("Bad month.");
     const since = new Date(Date.now() - 45 * 86400000).toISOString().slice(0, 10);
     const [nest, members, entries, sharedAll, settlements, recurring, logged, jar, goals, budgets, debts, debtPays, mine] = await env.DB.batch([
-      env.DB.prepare("SELECT id, name, invite_code, accent, kind, rollover FROM nests WHERE id = ?").bind(nestId),
+      env.DB.prepare("SELECT id, name, invite_code, accent, kind, rollover, joint FROM nests WHERE id = ?").bind(nestId),
       env.DB.prepare("SELECT u.id, u.name, m.emoji, m.color, m.xp, m.streak, m.best_streak, m.last_day, m.week_key, m.week_xp, m.logs FROM members m JOIN users u ON u.id = m.user_id WHERE m.nest_id = ? ORDER BY m.joined_at").bind(nestId),
       env.DB.prepare(
         `SELECT id, member_id, type, amount_cents, label, category, shared, split_mode, split_value, shares, private, date, recurring_id, occ_date, created_at
@@ -1314,6 +1314,7 @@ async function handle(request, env, url) {
       if (!["solo", "couple", "family"].includes(body.kind)) throw new HttpError("Unknown budget type.");
       await env.DB.prepare("UPDATE nests SET kind = ? WHERE id = ?").bind(body.kind, nestId).run();
     }
+    if (body.joint !== undefined) await env.DB.prepare("UPDATE nests SET joint = ? WHERE id = ?").bind(body.joint && body.joint !== "false" ? 1 : 0, nestId).run();
     if (body.accent !== undefined) {
       if (!ACCENTS.includes(body.accent)) throw new HttpError("Unknown theme.");
       await env.DB.prepare("UPDATE nests SET accent = ? WHERE id = ?").bind(body.accent, nestId).run();
