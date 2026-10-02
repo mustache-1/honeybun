@@ -71,6 +71,7 @@ const NEW_COLUMNS = {
     ["best_streak", "INTEGER NOT NULL DEFAULT 0"], ["last_day", "TEXT"], ["day_xp", "INTEGER NOT NULL DEFAULT 0"],
     ["week_key", "TEXT"], ["week_xp", "INTEGER NOT NULL DEFAULT 0"], ["logs", "INTEGER NOT NULL DEFAULT 0"], ["inbox_gen_at", "INTEGER NOT NULL DEFAULT 0"]],
   nests: [["goals_migrated", "INTEGER NOT NULL DEFAULT 0"], ["kind", "TEXT NOT NULL DEFAULT 'couple'"], ["rollover", "INTEGER NOT NULL DEFAULT 0"], ["rollover_since", "TEXT"], ["joint", "INTEGER NOT NULL DEFAULT 0"]],
+  recurring: [["prev_amount_cents", "INTEGER"], ["price_changed_at", "TEXT"]],
   jar_moves: [["goal_id", "TEXT"]],
 };
 
@@ -1276,7 +1277,7 @@ async function handle(request, env, url) {
       ).bind(nestId, month + "-01", month + "-31", user.id),
       env.DB.prepare("SELECT member_id, amount_cents, shares FROM entries WHERE nest_id = ? AND type = 'expense' AND shared = 1").bind(nestId),
       env.DB.prepare("SELECT id, from_id, to_id, amount_cents, date, created_at FROM settlements WHERE nest_id = ? ORDER BY date DESC, created_at DESC").bind(nestId),
-      env.DB.prepare("SELECT id, type, label, amount_cents, category, member_id, shared, split_mode, split_value, freq, anchor_date FROM recurring WHERE nest_id = ? ORDER BY type DESC, label").bind(nestId),
+      env.DB.prepare("SELECT id, type, label, amount_cents, category, member_id, shared, split_mode, split_value, freq, anchor_date, prev_amount_cents, price_changed_at FROM recurring WHERE nest_id = ? ORDER BY type DESC, label").bind(nestId),
       env.DB.prepare("SELECT recurring_id, occ_date FROM entries WHERE nest_id = ? AND recurring_id IS NOT NULL AND occ_date >= ?").bind(nestId, since),
       env.DB.prepare("SELECT id, goal_id, member_id, amount_cents, created_at FROM jar_moves WHERE nest_id = ? ORDER BY created_at DESC LIMIT 60").bind(nestId),
       env.DB.prepare("SELECT id, name, emoji, target_cents, saved_cents FROM goals WHERE nest_id = ? ORDER BY created_at").bind(nestId),
@@ -1602,9 +1603,14 @@ async function handle(request, env, url) {
   const recId = path.match(/^\/api\/recurring\/([0-9a-f-]{36})$/);
   if (recId && method === "PATCH") {
     const r = await readRecurring();
+    const before = await env.DB.prepare("SELECT amount_cents FROM recurring WHERE id = ? AND nest_id = ?").bind(recId[1], nestId).first();
     await env.DB.prepare(
       "UPDATE recurring SET type = ?, label = ?, amount_cents = ?, category = ?, member_id = ?, shared = ?, split_mode = ?, split_value = ?, freq = ?, anchor_date = ? WHERE id = ? AND nest_id = ?"
     ).bind(r.type, r.label, r.amount, r.category, r.memberId, r.shared, r.split.mode, r.split.value, r.freq, r.anchor, recId[1], nestId).run();
+    // a changed price is remembered for a while so Bun can say "Netflix went from $15.49 to $17.99"
+    if (before && before.amount_cents !== r.amount && r.type === "expense") {
+      await env.DB.prepare("UPDATE recurring SET prev_amount_cents = ?, price_changed_at = ? WHERE id = ? AND nest_id = ?").bind(before.amount_cents, todayStr(), recId[1], nestId).run();
+    }
     return json({ ok: true });
   }
   if (recId && method === "DELETE") {

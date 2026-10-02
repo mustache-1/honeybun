@@ -1032,6 +1032,7 @@
       renderPill();
       renderRefCard();
       renderTip(false);
+      renderBunExtras();
       $("verifyBanner").hidden = !!ME.verified || +(store.get("hb-verify-hide") || 0) > Date.now();
       const isThisMonth = MONTH === today().slice(0, 7);
       $("dueCard").hidden = !isThisMonth;
@@ -2587,6 +2588,44 @@
     setTimeout(() => { p.textContent = text; p.classList.remove("swap"); }, 200);
   }
   $("bunTipNext").onclick = () => renderTip(true);
+
+
+  // ---------- Bun's moods and heads-up alerts (Home) ----------
+  function renderBunExtras() {
+    const t = today(), m = meMember() || {};
+    // mood: after 3 quiet days Bun gets sleepy and asks you to log something; logging brings the tip card back
+    const gap = m.last_day ? Math.round((parseD(t) - parseD(m.last_day)) / 86400000) : 0;
+    const sleepy = MONTH === t.slice(0, 7) && gap >= 3;
+    const mood = $("bunMood"); mood.hidden = !sleepy;
+    if (sleepy) {
+      $("bunMoodH").textContent = tr("Bun is a little sleepy…");
+      $("bunMoodP").textContent = tr("No spending logged in") + " " + gap + " " + tr("days. Add what you spent and Bun perks right up.");
+      $("bunMoodBtn").textContent = tr("Log something");
+      $("bunMoodBtn").onclick = () => openAdd();
+      $("bunTip").hidden = true;
+    }
+    // alerts: budgets close to or over their limit, and subscription price changes from the last month
+    const box = $("bunAlerts"), rows = [], by = spentByCat();
+    const [y, mo] = MONTH.split("-").map(Number), dim = new Date(y, mo, 0).getDate(), daysLeft = MONTH === t.slice(0, 7) ? dim - +t.slice(8) + 1 : 0;
+    Object.entries(BUDGETS).map(([c, lim]) => ({ c, lim, sp: by[c] || 0 })).filter((x) => x.lim > 0 && x.sp >= x.lim * 0.8)
+      .sort((a, b) => b.sp / b.lim - a.sp / a.lim).slice(0, 2).forEach((x) => {
+        const pct = Math.round((x.sp / x.lim) * 100), name = tr(catOf(x.c).n);
+        const over = x.sp > x.lim;
+        const note = over ? `${whole(x.sp - x.lim)} ${tr("over")} · ${whole(x.sp)} ${tr("of")} ${whole(x.lim)}` : `${whole(x.sp)} ${tr("of")} ${whole(x.lim)}${daysLeft > 1 ? " · " + fmt((x.lim - x.sp) / daysLeft) + " " + tr("a day left") : ""}`;
+        rows.push(`<div class="ba-row warn"><span class="ba-ic">${esc(catOf(x.c).e || "📊")}</span><div class="ba-t">${esc(name)}: ${over ? esc(tr("over budget")) : pct + "% " + esc(tr("of your budget used"))}<small>${esc(note)}</small><div class="ba-bar"><i style="width:${Math.min(100, pct)}%"></i></div></div></div>`);
+      });
+    const seen = (() => { try { return JSON.parse(store.get("hb-price-seen") || "[]"); } catch { return []; } })();
+    RECUR.filter((r) => r.type === "expense" && r.prev_amount_cents && r.price_changed_at && !seen.includes(r.id + "|" + r.amount_cents)
+      && (parseD(t) - parseD(r.price_changed_at)) / 86400000 <= 30).slice(0, 2).forEach((r) => {
+        const up = r.amount_cents > r.prev_amount_cents;
+        rows.push(`<div class="ba-row"><span class="ba-ic">${up ? "📈" : "📉"}</span><div class="ba-t">${esc(r.label)} ${esc(tr(up ? "is now" : "dropped to"))} ${fmt(r.amount_cents / 100)}<small>${esc(tr("It was"))} ${fmt(r.prev_amount_cents / 100)}</small></div><button class="ba-x" type="button" data-seen="${esc(r.id + "|" + r.amount_cents)}" aria-label="${esc(tr("Dismiss"))}">×</button></div>`);
+      });
+    box.hidden = !rows.length;
+    if (rows.length) {
+      box.innerHTML = `<b class="ba-h">${esc(tr("Heads up from Bun"))}</b>` + rows.join("");
+      box.querySelectorAll("[data-seen]").forEach((b) => (b.onclick = () => { seen.push(b.dataset.seen); store.set("hb-price-seen", JSON.stringify(seen.slice(-40))); renderBunExtras(); fitDesktop(); }));
+    }
+  }
 
   // ---------- help ----------
   const HELP = [
