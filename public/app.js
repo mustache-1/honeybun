@@ -15,6 +15,11 @@
     { id: "debt", e: "💳", n: "Debt payments", c: "#E88AA8" },
     { id: "other", e: "✨", n: "Other", c: "#B7A9C4" },
   ];
+  const BASE_CATS = CATS.length; // the built-in ones; households can add their own after these
+  function syncCustomCats(list) {
+    CATS.length = BASE_CATS;
+    (list || []).forEach((c) => CATS.push({ id: c.id, e: c.emoji, n: c.name, c: "#C9B6E8", custom: true }));
+  }
   // line icons (replace emoji in the UI)
   const ICONS = {
     house: '<path d="M3 11l9-7 9 7v9H3z"/><path d="M10 20v-5h4v5"/>',
@@ -48,9 +53,13 @@
   const CAT_LOOK = { home: ["house", "blue"], groc: ["cart", "green"], food: ["cup", "honey"], date: ["heart", "rose"], bills: ["bolt", "lilac"], subs: ["tv", "lilac"],
     car: ["car", "blue"], fun: ["gift", "rose"], pets: ["paw", "honey"], debt: ["card", "rose"], other: ["sparkle", "gray"] };
   const tileHtml = (k, tint, size = 38) => `<span class="ct t-${tint}" style="width:${size}px;height:${size}px;border-radius:${Math.round(size * 0.34)}px">${icon(k)}</span>`;
-  const catTile = (id, size) => { const [k, t] = CAT_LOOK[id] || CAT_LOOK.other; return tileHtml(k, t, size); };
+  const catTile = (id, size = 38) => {
+    const k0 = CATS.find((c) => c.id === id);
+    if (k0 && k0.custom) return `<span class="ct t-lilac" style="width:${size}px;height:${size}px;border-radius:${Math.round(size * 0.34)}px;font-size:${Math.round(size * 0.55)}px;line-height:1">${esc(k0.e)}</span>`;
+    const [k, t] = CAT_LOOK[id] || CAT_LOOK.other; return tileHtml(k, t, size);
+  };
   const incTile = (size) => tileHtml("coin", "green", size);
-  const catOf = (id) => CATS.find((c) => c.id === id) || CATS[CATS.length - 1];
+  const catOf = (id) => CATS.find((c) => c.id === id) || CATS[BASE_CATS - 1];
   const NEEDS = ["home", "groc", "bills", "car", "pets", "debt"];
   const WANTS = ["food", "date", "fun", "subs", "other"];
   const EMOJIS = ["🐰", "🐻", "🐱", "🐶", "🦊", "🐼", "🐨", "🐸", "🐧", "🦄", "🐥", "🐹"];
@@ -634,6 +643,7 @@
     // the budget refresh only sends id, name and email: merge them in so email-confirmed, reminders, referrals, etc. aren't wiped
     const wasJoint = NEST ? !!NEST.joint : null;
     ME = { ...(ME || {}), ...d.me }; NEST = d.nest; MEMBERS = d.members;
+    syncCustomCats(d.categories);
     // your partner switched Joint account on or off: everything on this screen follows, and we say so
     if (wasJoint !== null && wasJoint !== !!NEST.joint) toast(tr(NEST.joint ? "Joint account was turned on. Everything adds up together." : "Joint account was turned off."));
     ENTRIES = d.entries.map((e) => ({ ...e, amount: e.amount_cents / 100, shared: !!e.shared, private: !!e.private }));
@@ -1367,6 +1377,7 @@
       l.querySelector("input").value = BUDGETS[c.id] ?? "";
       box.appendChild(l);
     });
+    drawMyCats();
     $("bdRollover").checked = !!NEST.rollover;
     $("bdErr").textContent = ""; $("budgetDlg").showModal();
   }
@@ -1671,6 +1682,7 @@
   function renderStats() {
     renderBurrow();
     renderHopCal();
+    renderForecast();
     $("stSub").textContent = tr(`${monthName(MONTH)} at a glance.`);
     $("yearLbl").textContent = YEAR;
     const ents = YDATA ? YDATA.entries : [];
@@ -1776,6 +1788,7 @@
       const b = document.createElement("button"); b.type = "button"; b.innerHTML = `${catTile(k.id, 54)}<span>${k.n}</span>`;
       b.setAttribute("aria-pressed", k.id === cat ? "true" : "false"); b.onclick = () => { cat = k.id; renderForm(); }; c.appendChild(b);
     });
+    { const nb = document.createElement("button"); nb.type = "button"; nb.className = "cat-new"; nb.innerHTML = `<span class="ct" style="width:54px;height:54px;border-radius:18px;font-size:26px;display:grid;place-items:center">＋</span><span>${esc(tr("New"))}</span>`; nb.onclick = () => openCatDlg(true); c.appendChild(nb); }
     const w = $("whos"); w.innerHTML = "";
     if (!MEMBERS.some((m) => m.id === who)) who = ME.id;
     MEMBERS.forEach((m) => {
@@ -2693,6 +2706,119 @@
   $("bunTipNext").onclick = () => renderTip(true);
 
 
+
+
+  // ---------- your own categories ----------
+  const CAT_EMOJIS = ["🐶", "🐱", "🎮", "🌱", "✈️", "🎁", "☕", "🏋️", "💅", "📚", "🎬", "🍷", "🧸", "🛠️", "💊", "🎨"];
+  let catEdit = null, catEmoji = "🐶", catPick = false;
+  function drawMyCats() {
+    const box = $("catMine"); if (!box) return;
+    const mine = CATS.filter((c) => c.custom);
+    box.innerHTML = mine.length ? `<b class="cm-h">${esc(tr("Your categories"))}</b>` : "";
+    mine.forEach((c) => {
+      const r = document.createElement("div"); r.className = "cm-row";
+      r.innerHTML = `<span class="e">${esc(c.e)}</span><b>${esc(c.n)}</b><button class="small" type="button" data-edit>${esc(tr("Edit"))}</button><button class="small" type="button" data-del style="color:var(--red,#E8504A)">${esc(tr("Delete"))}</button>`;
+      r.querySelector("[data-edit]").onclick = () => { $("budgetDlg").close(); openCatDlg(false, c); };
+      r.querySelector("[data-del]").onclick = async () => {
+        if (!confirm(tr("Delete this category? Things filed under it move to Other."))) return;
+        try { await api("/api/categories/" + c.id, { method: "DELETE" }); if (cat === c.id) cat = "other"; await loadNest(); drawMyCats(); } catch (e) { toast(e.message); }
+      };
+      box.appendChild(r);
+    });
+  }
+  function paintCatDlg() {
+    $("catPrevE").textContent = catEmoji; $("catPrevN").textContent = $("catName").value.trim() || tr("Your category");
+    $("catEmojis").innerHTML = "";
+    CAT_EMOJIS.forEach((e) => { const b = document.createElement("button"); b.type = "button"; b.textContent = e; b.setAttribute("aria-pressed", e === catEmoji ? "true" : "false"); b.onclick = () => { catEmoji = e; paintCatDlg(); }; $("catEmojis").appendChild(b); });
+  }
+  function openCatDlg(fromAdd, existing) {
+    catEdit = existing || null; catPick = !!fromAdd;
+    $("catTitle").textContent = tr(existing ? "Edit category" : "New category");
+    $("catName").value = existing ? existing.n : ""; $("catLimit").value = existing ? (BUDGETS[existing.id] ?? "") : ""; $("catLimit").closest(".field").hidden = !!existing;
+    catEmoji = existing ? existing.e : CAT_EMOJIS[0]; $("catErr").textContent = ""; paintCatDlg(); $("catDlg").showModal(); $("catName").focus();
+  }
+  $("catName").addEventListener("input", paintCatDlg);
+  $("catCancel").onclick = () => $("catDlg").close();
+  $("bdNewCat").onclick = () => { $("budgetDlg").close(); openCatDlg(false); };
+  $("catSave").onclick = async () => {
+    const name = $("catName").value.trim(); if (!name) { $("catErr").textContent = tr("Give the category a name."); $("catName").focus(); return; }
+    busy($("catSave"), true); $("catErr").textContent = "";
+    try {
+      if (catEdit) await api("/api/categories/" + catEdit.id, { method: "PATCH", body: { name, emoji: catEmoji } });
+      else {
+        const lim = +$("catLimit").value, r = await api("/api/categories", { method: "POST", body: { name, emoji: catEmoji, ...(lim > 0 ? { limit: lim } : {}) } });
+        if (catPick) cat = r.id;
+      }
+      $("catDlg").close(); await loadNest(); if (screen === "add") renderForm(); toast(tr(catEdit ? "Category updated" : "Category added") + " ♡");
+    } catch (e) { $("catErr").textContent = e.message; } finally { busy($("catSave"), false); }
+  };
+
+  // ---------- month-end forecast ----------
+  // Where the month is heading: what's left now, minus a normal day's spending for the days to go,
+  // minus bills still due, plus paydays still coming.
+  function forecast() {
+    const t = today();
+    if (MONTH !== t.slice(0, 7)) return null;
+    const [y, mo] = MONTH.split("-").map(Number), dim = new Date(y, mo, 0).getDate(), day = +t.slice(8), daysLeft = dim - day;
+    const exp = ENTRIES.filter((e) => e.type === "expense" && !e.pending), inc = ENTRIES.filter((e) => e.type === "income" && !e.pending);
+    const spent = exp.reduce((a, e) => a + e.amount, 0), came = inc.reduce((a, e) => a + e.amount, 0);
+    if (day < 3 || exp.length < 3) return { wait: true, day };
+    const variable = exp.filter((e) => !e.recurring_id).reduce((a, e) => a + e.amount, 0), perDay = variable / day;
+    const end = parseD(MONTH + "-" + String(dim).padStart(2, "0")), from = parseD(t);
+    let bills = 0, pays = 0;
+    RECUR.forEach((r) => {
+      if (r.type === "expense" && !(r.shared || r.member_id === ME?.id)) return;
+      occurrences(r, from, end).forEach((d) => { if (isLogged(r, d)) return; if (r.type === "income") pays += r.amount_cents / 100; else bills += r.amount_cents / 100; });
+    });
+    const leftNow = came - spent, endLeft = leftNow + pays - bills - perDay * daysLeft;
+    // cumulative "left" line for the chart
+    const byDay = Array(dim + 1).fill(0);
+    ENTRIES.filter((e) => !e.pending).forEach((e) => { const d = +e.date.slice(8); if (d >= 1 && d <= dim) byDay[d] += e.type === "income" ? e.amount : -e.amount; });
+    const pts = []; let run = 0; for (let d = 1; d <= day; d++) { run += byDay[d]; pts.push([d, run]); }
+    // a category that is on pace to blow past its budget
+    const by = spentByCat();
+    const risky = Object.entries(BUDGETS).map(([c, lim]) => ({ c, lim, proj: ((by[c] || 0) / day) * dim })).filter((x) => x.lim > 0 && x.proj > x.lim * 1.05)
+      .sort((a, b) => b.proj / b.lim - a.proj / a.lim)[0];
+    // compared with last month (needs the year's data from the Stats screen)
+    let vs = null;
+    if (YDATA && mo > 1) {
+      const pm = `${y}-${String(mo - 1).padStart(2, "0")}`;
+      const last = YDATA.entries.filter((e) => e.type === "expense" && e.date.slice(0, 7) === pm).reduce((a, e) => a + e.amount_cents / 100, 0);
+      if (last > 0) vs = { pct: Math.round(((spent + perDay * daysLeft + bills) / last - 1) * 100), name: new Date(y, mo - 2, 1).toLocaleDateString(LOCALE, { month: "long" }) };
+    }
+    return { day, dim, daysLeft, endLeft, pts, perDay, risky, vs, saveEach: 5, saveEnd: endLeft + 5 * daysLeft };
+  }
+  function renderForecast() {
+    const box = $("stForecast"); if (!box) return;
+    const f = forecast();
+    box.hidden = !f;
+    if (!f) return;
+    const month = new Date().toLocaleDateString(LOCALE, { month: "long" });
+    if (f.wait) {
+      box.className = "card st-fc wait";
+      box.innerHTML = `<span class="fc-tag" id="stFcH">${esc(tr("Month-end forecast"))}</span><p class="fc-big">${esc(tr("Check back in a few days"))}</p><p class="fc-note">${esc(tr("Bun needs a few days of spending to guess where the month is heading."))}</p>`;
+      return;
+    }
+    box.className = "card st-fc";
+    const neg = f.endLeft < 0, W = 330, H = 70, vals = f.pts.map((p) => p[1]).concat([f.endLeft, 0]);
+    const lo = Math.min(...vals), hi = Math.max(...vals), span = hi - lo || 1;
+    const X = (d) => ((d - 1) / (f.dim - 1)) * W, Yp = (v) => H - ((v - lo) / span) * (H - 8) - 4;
+    const solid = f.pts.map((p, i) => (i ? "L" : "M") + X(p[0]).toFixed(1) + " " + Yp(p[1]).toFixed(1)).join(" ");
+    const last = f.pts[f.pts.length - 1];
+    const col = neg ? "#E8504A" : "var(--c-honey,#F59A4A)";
+    const notes = [];
+    if (f.risky) notes.push(`<b>${esc(tr(catOf(f.risky.c).n))}</b> ${esc(tr("is on pace to hit"))} ${whole(Math.round(f.risky.proj))} ${esc(tr("of your"))} ${whole(f.risky.lim)} ${esc(tr("budget"))}.`);
+    if (f.daysLeft > 1) notes.push(`${esc(tr("Cut"))} <b>${whole(f.saveEach)}</b> ${esc(tr("a day and you'd end with"))} <b>${fmt(f.saveEnd)}</b>.`);
+    if (f.vs) notes.push(`${esc(tr("Spending is on pace to be"))} <b>${Math.abs(f.vs.pct)}%</b> ${esc(tr(f.vs.pct <= 0 ? "lower than" : "higher than"))} ${esc(f.vs.name)}.`);
+    box.innerHTML = `<span class="fc-tag" id="stFcH">${esc(tr("Month-end forecast"))}</span>` +
+      `<p class="fc-big">${esc(tr(neg ? "You're on pace to run" : "You'll end with about"))} <em class="${neg ? "neg" : ""}">${neg ? fmt(Math.abs(f.endLeft)) + " " + esc(tr("short")) : fmt(f.endLeft) + " " + esc(tr("left"))}</em></p>` +
+      `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true"><path d="${solid}" fill="none" stroke="${col}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>` +
+      `<path d="M${X(last[0]).toFixed(1)} ${Yp(last[1]).toFixed(1)} L${W} ${Yp(f.endLeft).toFixed(1)}" fill="none" stroke="${col}" stroke-width="3" stroke-dasharray="3 7" stroke-linecap="round" vector-effect="non-scaling-stroke"/>` +
+      `<circle cx="${X(last[0]).toFixed(1)}" cy="${Yp(last[1]).toFixed(1)}" r="4.5" fill="${col}"/></svg>` +
+      `<div class="fc-axis"><span>${esc(month)} 1</span><span>${esc(tr("today"))}</span><span>${esc(month)} ${f.dim}</span></div>` +
+      (notes.length ? `<p class="fc-note">${notes.slice(0, matchMedia("(min-width: 900px)").matches ? 1 : 3).join("<br>")}</p>` : "");
+  }
+
   // ---------- Bun's moods and heads-up alerts (Home) ----------
   function renderBunExtras() {
     const t = today(), m = meMember() || {};
@@ -2723,9 +2849,13 @@
         const up = r.amount_cents > r.prev_amount_cents;
         rows.push(`<div class="ba-row"><span class="ba-ic">${up ? "📈" : "📉"}</span><div class="ba-t">${esc(r.label)} ${esc(tr(up ? "is now" : "dropped to"))} ${fmt(r.amount_cents / 100)}<small>${esc(tr("It was"))} ${fmt(r.prev_amount_cents / 100)}</small></div><button class="ba-x" type="button" data-seen="${esc(r.id + "|" + r.amount_cents)}" aria-label="${esc(tr("Dismiss"))}">×</button></div>`);
       });
+    { const f = MONTH === t.slice(0, 7) ? forecast() : null;
+      if (f && !f.wait) { const neg = f.endLeft < 0;
+        rows.push(`<div class="ba-row${neg ? " warn" : ""}" data-go-stats="1" style="cursor:pointer"><span class="ba-ic">${neg ? "⚠️" : "🔮"}</span><div class="ba-t">${esc(tr(neg ? "On pace to run" : "On pace to end with about"))} ${neg ? fmt(Math.abs(f.endLeft)) + " " + esc(tr("short")) : fmt(f.endLeft)}<small>${esc(tr("See the month-end forecast"))} ›</small></div></div>`); } }
     box.hidden = !rows.length;
     if (rows.length) {
       box.innerHTML = `<b class="ba-h">${esc(tr("Heads up from Bun"))}</b>` + rows.join("");
+      box.querySelectorAll("[data-go-stats]").forEach((r) => (r.onclick = () => show("stats")));
       box.querySelectorAll("[data-seen]").forEach((b) => (b.onclick = () => { seen.push(b.dataset.seen); store.set("hb-price-seen", JSON.stringify(seen.slice(-40))); renderBunExtras(); fitDesktop(); }));
     }
   }

@@ -2089,6 +2089,27 @@ dialog::backdrop{background:var(--backdrop)}
 .rc-ack input{width:22px;height:22px;flex:none;margin:0;accent-color:var(--pink)}
 #recoveryDlg .btnrow{display:flex;justify-content:center}
 #recoveryDlg .go[disabled]{opacity:.5}
+
+/* month-end forecast */
+.st-fc[hidden]{display:none}
+.st-fc .fc-tag{font-size:11px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;color:var(--c-honey,#F59A4A)}
+.st-fc .fc-big{font-size:22px;font-weight:900;letter-spacing:-.02em;line-height:1.15;margin:4px 0 0}
+.st-fc .fc-big em{font-style:normal;color:var(--c-green,#4fb36a)}.st-fc .fc-big em.neg{color:#E8504A}
+.st-fc svg{display:block;width:100%;height:84px;margin-top:6px;overflow:visible}
+.st-fc .fc-axis{display:flex;justify-content:space-between;color:var(--soft);font-size:11px;font-weight:700}
+.st-fc .fc-note{margin:8px 0 0;color:var(--soft);font-size:12.5px;font-weight:600;line-height:1.4}
+.st-fc .fc-note b{color:var(--ink)}
+.st-fc.wait .fc-big{font-size:16px}
+@media(min-width:900px){.st-fc svg{height:60px}.st-fc .fc-big{font-size:19px}}
+
+.cat-prev{display:flex;flex-direction:column;align-items:center;gap:4px;padding:14px;border-radius:18px;background:var(--panel2,var(--line));margin:10px 0}
+.cat-prev span{font-size:44px;line-height:1}.cat-prev b{font-size:18px}
+.cat-emojis{display:flex;flex-wrap:wrap;gap:8px}
+.cat-emojis button{width:42px;height:42px;border-radius:14px;border:1.5px solid var(--line);background:var(--card);font-size:22px;cursor:pointer;padding:0}
+.cat-emojis button[aria-pressed="true"]{border-color:var(--pink);background:color-mix(in srgb,var(--pink) 14%,transparent)}
+.cat-mine{margin-top:10px}.cat-mine .cm-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line)}
+.cat-mine .cm-row .e{font-size:22px}.cat-mine .cm-row b{flex:1}.cat-mine .cm-h{display:block;font-size:12px;font-weight:900;letter-spacing:.04em;text-transform:uppercase;color:var(--soft);margin-bottom:2px}
+.cat-new{border:2px dashed var(--line)!important;background:transparent!important}
 </style>
 <link rel="stylesheet" href="/halloween.css">
 </head>
@@ -2653,6 +2674,7 @@ dialog::backdrop{background:var(--backdrop)}
         <div class="st-sum" id="stSum"></div>
       </section>
       <div class="st-side">
+        <section class="card st-fc" id="stForecast" aria-labelledby="stFcH" hidden></section>
         <section class="card st-bun" id="burrow" aria-label="Your progress"></section>
         <section class="card st-where" aria-labelledby="stWhereH">
           <div class="st-head"><h2 id="stWhereH">Where it went</h2>
@@ -2909,10 +2931,23 @@ dialog::backdrop{background:var(--backdrop)}
   <div class="acts"><button class="small" id="mCancel">Cancel</button><button class="go" id="mSave">Save</button></div>
 </dialog>
 
+<dialog id="catDlg" aria-labelledby="catTitle">
+  <h2 id="catTitle">New category</h2>
+  <p class="hint" style="margin:0">Make your own, with your own emoji.</p>
+  <div class="cat-prev" aria-hidden="true"><span id="catPrevE">✨</span><b id="catPrevN">Your category</b></div>
+  <div class="field"><label for="catName">Name</label><input id="catName" maxlength="20" placeholder="Dog treats" autocomplete="off"></div>
+  <div class="field"><span class="lbl">Pick an emoji</span><div class="cat-emojis" id="catEmojis"></div></div>
+  <div class="field"><label for="catLimit">Monthly budget (optional)</label><input id="catLimit" type="number" inputmode="decimal" min="0" step="1" placeholder="No limit"></div>
+  <p class="err" id="catErr"></p>
+  <div class="acts"><button class="small" id="catCancel" type="button">Cancel</button><button class="go" id="catSave" type="button">Save category</button></div>
+</dialog>
+
 <dialog id="budgetDlg" aria-labelledby="bdTitle">
   <h2 id="bdTitle">Monthly budgets</h2>
   <p class="hint" style="margin:0">Set a monthly limit for any category. Leave blank for no limit.</p>
   <div class="budget-edit" id="budgetEdit"></div>
+  <div class="cat-mine" id="catMine"></div>
+  <button class="small" type="button" id="bdNewCat" style="margin-top:8px">＋ New category</button>
   <label class="toggle" style="margin-top:10px"><span>Roll over what's left<small>Unspent budget carries into next month</small></span><input type="checkbox" id="bdRollover"></label>
   <p class="err" id="bdErr"></p>
   <div class="acts"><button class="small" id="bdCancel">Cancel</button><button class="go" id="bdSave">Save budgets</button></div>

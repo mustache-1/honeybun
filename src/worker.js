@@ -53,6 +53,9 @@ const TABLES = [
   // iPhone app: APNs device tokens, and per-device tokens the widget and Siri shortcuts use instead of a login cookie
   `CREATE TABLE IF NOT EXISTS apns_tokens (token TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, created_at INTEGER NOT NULL)`,
   `CREATE INDEX IF NOT EXISTS idx_apns_user ON apns_tokens(user_id)`,
+  // your own spending categories (name + emoji), per household
+  `CREATE TABLE IF NOT EXISTS custom_categories (id TEXT PRIMARY KEY, nest_id TEXT NOT NULL REFERENCES nests(id) ON DELETE CASCADE, name TEXT NOT NULL, emoji TEXT NOT NULL, created_at INTEGER NOT NULL)`,
+  `CREATE INDEX IF NOT EXISTS idx_custom_cat_nest ON custom_categories(nest_id)`,
   `CREATE TABLE IF NOT EXISTS app_tokens (token_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, created_at INTEGER NOT NULL)`,
   `CREATE INDEX IF NOT EXISTS idx_app_tokens_user ON app_tokens(user_id)`,
   // referrals: invite friends, get a gift card for every REF_GOAL who stick around
@@ -672,6 +675,12 @@ function readSplit(body, amount) {
 }
 
 // Build a clean entry from the request body (used for create + edit)
+const MAX_CUSTOM = 12;
+async function customCategoryIds(env, nestId) {
+  return new Set((await env.DB.prepare("SELECT id FROM custom_categories WHERE nest_id = ?").bind(nestId).all()).results.map((r) => r.id));
+}
+const isCustomId = (c) => typeof c === "string" && /^c_[0-9a-f]{12}$/.test(c);
+
 async function readEntry(env, nestId, user, body) {
   const type = body.type === "income" ? "income" : body.type === "expense" ? "expense" : null;
   if (!type) throw new HttpError("Bad entry type.");
@@ -685,7 +694,7 @@ async function readEntry(env, nestId, user, body) {
   const priv = !shared && !!body.private && memberId === user.id ? 1 : 0;
   return {
     type, amount, memberId, shared: shared ? 1 : 0, split, shares, priv,
-    category: type === "expense" ? (CATEGORIES.includes(body.category) ? body.category : "other") : null,
+    category: type === "expense" ? (CATEGORIES.includes(body.category) || (isCustomId(body.category) && (await customCategoryIds(env, nestId)).has(body.category)) ? body.category : "other") : null,
     label: cleanText(body.label, 40) || (type === "income" ? "Paycheck" : "Expense"),
     date: isDate(body.date) ? body.date : todayStr(),
   };
@@ -973,7 +982,7 @@ async function handle(request, env, url) {
     const prev = await env.DB.prepare(
       "SELECT category, shared, split_mode, split_value, private FROM entries WHERE nest_id = ? AND member_id = ? AND type = 'expense' AND lower(label) = lower(?) ORDER BY date DESC, created_at DESC LIMIT 1"
     ).bind(nestId, ku.id, label).first();
-    const category = CATEGORIES.includes(body.category) ? body.category : prev ? prev.category || "other" : guessCategory(label);
+    const category = CATEGORIES.includes(body.category) || (isCustomId(body.category) && (await customCategoryIds(env, nestId)).has(body.category)) ? body.category : prev ? prev.category || "other" : guessCategory(label);
     const shared = ids.length > 1 && (body.shared !== undefined ? !!body.shared && body.shared !== "false" && body.shared !== "no" : prev ? !!prev.shared : true);
     let split = { mode: null, value: null }, shares = null;
     if (shared) {
@@ -1297,7 +1306,7 @@ async function handle(request, env, url) {
     await env.DB.batch(stmts);
     if (m) {
       const left = await env.DB.prepare("SELECT COUNT(*) AS n FROM members WHERE nest_id = ?").bind(m.nest_id).first();
-      if (left.n === 0) await env.DB.batch(["entries", "settlements", "jar_moves", "recurring", "goals", "budgets", "debts", "debt_payments", "messages"]
+      if (left.n === 0) await env.DB.batch(["entries", "settlements", "jar_moves", "recurring", "goals", "budgets", "debts", "debt_payments", "messages", "custom_categories"]
         .map((t) => env.DB.prepare(`DELETE FROM ${t} WHERE nest_id = ?`).bind(m.nest_id)).concat([env.DB.prepare("DELETE FROM nests WHERE id = ?").bind(m.nest_id)]));
     }
     return json({ ok: true }, 200, { "set-cookie": clearCookie });
@@ -1375,8 +1384,9 @@ async function handle(request, env, url) {
       if (s.to_id in balances) balances[s.to_id] -= s.amount_cents;
     }
 
+    const categories = (await env.DB.prepare("SELECT id, name, emoji FROM custom_categories WHERE nest_id = ? ORDER BY created_at").bind(nestId).all()).results;
     return json({
-      me, nest: nest.results[0], members: members.results, entries: entries.results,
+      me, nest: nest.results[0], members: members.results, entries: entries.results, categories,
       balances, settlements: settlements.results.slice(0, 10), recurring: recurring.results,
       logged: logged.results, jar: jar.results, goals: goals.results, budgets: budgets.results,
       debts: debts.results, debt_payments: debtPays.results, setup_done: !!mine.results[0]?.setup_done,
@@ -1417,7 +1427,7 @@ async function handle(request, env, url) {
     await env.DB.batch([env.DB.prepare("DELETE FROM members WHERE user_id = ? AND nest_id = ?").bind(user.id, nestId), env.DB.prepare("DELETE FROM messages WHERE user_id = ?").bind(user.id)]);
     const left = await env.DB.prepare("SELECT COUNT(*) AS n FROM members WHERE nest_id = ?").bind(nestId).first();
     if (left.n === 0) {
-      await env.DB.batch(["entries", "settlements", "jar_moves", "recurring", "goals", "budgets", "debts", "debt_payments", "messages"].map((t) => env.DB.prepare(`DELETE FROM ${t} WHERE nest_id = ?`).bind(nestId))
+      await env.DB.batch(["entries", "settlements", "jar_moves", "recurring", "goals", "budgets", "debts", "debt_payments", "messages", "custom_categories"].map((t) => env.DB.prepare(`DELETE FROM ${t} WHERE nest_id = ?`).bind(nestId))
         .concat([env.DB.prepare("DELETE FROM nests WHERE id = ?").bind(nestId)]));
     }
     return json({ ok: true });
@@ -1474,12 +1484,49 @@ async function handle(request, env, url) {
     return json({ ok: true });
   }
 
+  // ----- your own categories -----
+  const readCat = () => {
+    const name = cleanText(body.name, 20);
+    if (!name) throw new HttpError("Give the category a name.");
+    const em = String(body.emoji || "").trim();
+    const emoji = /\p{Extended_Pictographic}/u.test(em) && em.length <= 12 ? em : "✨";
+    return { name, emoji };
+  };
+  if (path === "/api/categories" && method === "POST") {
+    const c = readCat();
+    const n = (await env.DB.prepare("SELECT COUNT(*) AS n FROM custom_categories WHERE nest_id = ?").bind(nestId).first()).n;
+    if (n >= MAX_CUSTOM) throw new HttpError(`You can make up to ${MAX_CUSTOM} of your own categories.`);
+    const id = "c_" + Array.from(crypto.getRandomValues(new Uint8Array(6)), (b) => b.toString(16).padStart(2, "0")).join("");
+    await env.DB.prepare("INSERT INTO custom_categories (id, nest_id, name, emoji, created_at) VALUES (?, ?, ?, ?, ?)").bind(id, nestId, c.name, c.emoji, now()).run();
+    if (body.limit !== undefined && Number(body.limit) > 0 && Number(body.limit) <= 10_000_000)
+      await env.DB.prepare("INSERT OR REPLACE INTO budgets (nest_id, category, limit_cents) VALUES (?, ?, ?)").bind(nestId, id, Math.round(Number(body.limit) * 100)).run();
+    return json({ ok: true, id, name: c.name, emoji: c.emoji }, 201);
+  }
+  const catId = path.match(/^\/api\/categories\/(c_[0-9a-f]{12})$/);
+  if (catId && method === "PATCH") {
+    const c = readCat();
+    const r = await env.DB.prepare("UPDATE custom_categories SET name = ?, emoji = ? WHERE id = ? AND nest_id = ?").bind(c.name, c.emoji, catId[1], nestId).run();
+    if (!r.meta.changes) throw new HttpError("That category doesn't exist.", 404);
+    return json({ ok: true });
+  }
+  if (catId && method === "DELETE") {
+    // anything filed under it moves to Other, and its budget goes away
+    await env.DB.batch([
+      env.DB.prepare("UPDATE entries SET category = 'other' WHERE nest_id = ? AND category = ?").bind(nestId, catId[1]),
+      env.DB.prepare("UPDATE recurring SET category = 'other' WHERE nest_id = ? AND category = ?").bind(nestId, catId[1]),
+      env.DB.prepare("DELETE FROM budgets WHERE nest_id = ? AND category = ?").bind(nestId, catId[1]),
+      env.DB.prepare("DELETE FROM custom_categories WHERE id = ? AND nest_id = ?").bind(catId[1], nestId),
+    ]);
+    return json({ ok: true });
+  }
+
   // ----- monthly category budgets -----
   if (path === "/api/budgets" && method === "PUT") {
-    const items = Array.isArray(body.items) ? body.items.slice(0, CATEGORIES.length) : [];
+    const items = Array.isArray(body.items) ? body.items.slice(0, CATEGORIES.length + MAX_CUSTOM) : [];
+    const customs = await customCategoryIds(env, nestId);
     const stmts = [env.DB.prepare("DELETE FROM budgets WHERE nest_id = ?").bind(nestId)];
     for (const it of items) {
-      if (!CATEGORIES.includes(it.category)) continue;
+      if (!CATEGORIES.includes(it.category) && !customs.has(it.category)) continue;
       const n = Number(it.limit);
       if (!Number.isFinite(n) || n <= 0) continue;
       if (n > 10_000_000) throw new HttpError("That budget is too big.");
@@ -1579,7 +1626,7 @@ async function handle(request, env, url) {
     const args = [nestId, user.id];
     if (q) { sql += " AND label LIKE ? ESCAPE '\\'"; args.push("%" + q.replace(/[\\%_]/g, (c) => "\\" + c) + "%"); }
     if (type === "income" || type === "expense") { sql += " AND type = ?"; args.push(type); }
-    if (CATEGORIES.includes(cat)) { sql += " AND category = ?"; args.push(cat); }
+    if (CATEGORIES.includes(cat) || isCustomId(cat)) { sql += " AND category = ?"; args.push(cat); }
     if (who) { sql += " AND member_id = ?"; args.push(who); }
     const min = Number(url.searchParams.get("min")), max = Number(url.searchParams.get("max"));
     if (url.searchParams.get("min") && Number.isFinite(min) && min > 0) { sql += " AND amount_cents >= ?"; args.push(Math.round(min * 100)); }
