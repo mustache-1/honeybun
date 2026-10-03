@@ -2226,6 +2226,12 @@
       while (over() > 1 && ul.children.length > 2) { ul.lastElementChild.remove(); ul.lastElementChild.remove(); }
       if (over() > 1 && !$("verifyBanner").hidden) $("verifyBanner").hidden = true;
     }
+    if (screen === "stats") {
+      // the forecast's breakdown and notes only show when there is room for them
+      const how = document.querySelector("#stForecast .fc-how");
+      if (over() > 1 && how) how.hidden = true;
+      if (over() > 1) document.querySelectorAll("#stForecast .fc-note").forEach((n) => (n.hidden = true));
+    }
     if (screen === "plan" && over() > 1) {
       // shrink the debts list first (it's the tallest), then the bills list, one step at a time
       if (debtSize > 1 && $("debts").querySelector(".due-pg")) { debtSize--; renderDebts(); return fitDesktop(); }
@@ -2904,7 +2910,7 @@
       const last = YDATA.entries.filter((e) => e.type === "expense" && e.date.slice(0, 7) === pm).reduce((a, e) => a + e.amount_cents / 100, 0);
       if (last > 0) vs = { pct: Math.round(((spent + perDay * daysLeft + bills) / last - 1) * 100), name: new Date(y, mo - 2, 1).toLocaleDateString(LOCALE, { month: "long" }) };
     }
-    return { day, dim, daysLeft, endLeft, pts, perDay, risky, vs, saveEach: 5, saveEnd: endLeft + 5 * daysLeft };
+    return { day, dim, daysLeft, endLeft, leftNow, pays, bills, ahead: perDay * daysLeft, pts, perDay, risky, vs, saveEach: 5, saveEnd: endLeft + 5 * daysLeft };
   }
   function renderForecast() {
     const box = $("stForecast"); if (!box) return;
@@ -2934,6 +2940,11 @@
       `<path d="M${X(last[0]).toFixed(1)} ${Yp(last[1]).toFixed(1)} L${W} ${Yp(f.endLeft).toFixed(1)}" fill="none" stroke="${col}" stroke-width="3" stroke-dasharray="3 7" stroke-linecap="round" vector-effect="non-scaling-stroke"/>` +
       `<circle cx="${X(last[0]).toFixed(1)}" cy="${Yp(last[1]).toFixed(1)}" r="4.5" fill="${col}"/></svg>` +
       `<div class="fc-axis"><span>${esc(month)} 1</span><span>${esc(tr("today"))}</span><span>${esc(month)} ${f.dim}</span></div>` +
+      `<div class="fc-how"><div><span>${esc(tr("Left right now"))}</span><b>${fmt(f.leftNow)}</b></div>` +
+      `<div><span>${esc(tr("Paychecks still coming"))}</span><b>+${fmt(f.pays)}</b></div>` +
+      `<div><span>${esc(tr("Bills still due"))}</span><b>−${fmt(f.bills)}</b></div>` +
+      `<div><span>${esc(tr("Everyday spending ahead"))}</span><b>−${fmt(f.ahead)}</b></div></div>` +
+      (f.pays === 0 ? `<p class="fc-note">${esc(tr("No paychecks are scheduled. Set your pay as a recurring income in Plan for a better guess."))}</p>` : "") +
       (notes.length ? `<p class="fc-note">${notes.slice(0, matchMedia("(min-width: 900px)").matches ? 1 : 3).join("<br>")}</p>` : "");
   }
 
