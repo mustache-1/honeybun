@@ -510,6 +510,14 @@ header.top.scrolled{border-bottom-color:var(--line)}
 .msg .b time{display:block;font-size:.7rem;color:var(--soft);font-weight:700;margin-top:4px}
 .msg .b .acts{display:flex;gap:6px;justify-content:flex-start;margin-top:8px}
 .msg .b .acts .mini{font-size:.8rem}
+.bun-status .bs-list{display:grid;gap:6px;margin-top:8px}
+.bs-row{display:flex;align-items:center;gap:10px;width:100%;border:0;border-radius:14px;padding:9px 10px;background:var(--panel3);color:var(--ink);font:inherit;text-align:left;cursor:pointer}
+.bs-row .bs-ico{width:34px;height:34px;border-radius:11px;background:var(--card);display:grid;place-items:center;font-size:17px;flex:none}
+.bs-row .bs-t{display:flex;flex-direction:column;min-width:0;flex:1}
+.bs-row b{font-size:.92rem;font-weight:800;line-height:1.2}
+.bs-row small{font-size:.74rem;font-weight:700;color:var(--soft)}
+.bs-row.todo small{color:var(--c-rose)}
+.bs-row svg{width:16px;height:16px;color:var(--soft);flex:none}
 .msg .b .ok{display:inline-block;margin-top:6px;font-size:.8rem;font-weight:800;color:var(--mint-d)}
 .msg.pop{animation:pop .35s cubic-bezier(.2,.9,.3,1.3)}
 @keyframes pop{from{transform:translateY(8px) scale(.96);opacity:0}}
@@ -2573,10 +2581,6 @@ dialog::backdrop{background:var(--backdrop)}
     </button>
 
     <div class="verify-banner" id="verifyBanner" hidden><span>Please confirm your email</span><button class="mini" id="resendVerify">Resend</button><button class="vb-x" id="hideVerify" aria-label="Hide for now">✕</button></div>
-    <div class="tiles2">
-      <button class="tile2" id="streakTile" aria-label="Hop streak"></button>
-      <button class="tile2" id="levelTile" aria-label="Level"></button>
-    </div>
     <button class="burrow-pill" id="burrowPill" hidden></button>
     <button class="ref-card" id="refCard" hidden><span class="ref-gift" aria-hidden="true">🎁</span><span class="ref-txt"><b id="refCardT" data-nt></b><small id="refCardSub" data-nt></small><span class="ref-pips" id="refCardPips" aria-hidden="true"></span></span><span class="ref-new" id="refNew" hidden data-nt>NEW</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></button>
     <section class="bun-tip" id="bunTip" aria-live="polite" hidden>

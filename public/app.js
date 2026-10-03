@@ -730,14 +730,8 @@
   function renderPill() {
     const m = meMember(); if (!m) return;
     const li = levelInfo(m.xp || 0), st = streakOf(m), done = loggedToday();
-    $("streakTile").innerHTML = `${tileHtml("paw", "honey", 40)}<span class="tt"><b>${st === 1 ? "1 day" : st + " days"}</b>
-      <small class="${done ? "" : "todo"}">${done ? "hop streak" : "Log today to hop"}</small></span>`;
-    $("levelTile").innerHTML = `${tileHtml("carrot", "rose", 40)}<span class="tt"><b>Level ${li.l}</b><small>${m.xp || 0} carrots</small>
-      <span class="xp"><i style="width:${li.pct * 100}%"></i></span></span>`;
     $("gear").innerHTML = gearSvg(li.l);
   }
-  $("streakTile").onclick = () => show("stats");
-  $("levelTile").onclick = () => show("stats");
 
 
   const BADGES = [
@@ -2427,7 +2421,7 @@
   let CHAT = [];
   function drawChat(msgs, animateNew) {
     const box = $("chat"); box.innerHTML = "";
-    if (!msgs.length) { box.innerHTML = `<div class="chat-empty">${esc(tr("No messages yet. I'll hop in when something's coming up 🐰"))}</div>`; return; }
+    if (!msgs.length) { box.innerHTML = `<div class="chat-empty">${esc(tr("No messages yet. I'll hop in when something's coming up 🐰"))}</div>`; drawBunStatus(); return; }
     let lastDay = "", prevDay = null;
     const t = today(), y = yesterday();
     msgs.forEach((m, i) => {
@@ -2445,6 +2439,23 @@
       box.appendChild(el);
       prevDay = ds;
     });
+    drawBunStatus();
+  }
+  // streak, level and the gift card live in Bun's inbox now, as one tidy card under the messages
+  function drawBunStatus() {
+    const m = meMember(), box = $("chat"); if (!m || !box) return;
+    const li = levelInfo(m.xp || 0), st = streakOf(m), done = loggedToday(), r = ME && ME.ref;
+    const row = (go, ico, t, sub, cls) => `<button type="button" class="bs-row ${cls || ""}" data-go="${go}"><span class="bs-ico">${ico}</span><span class="bs-t"><b>${esc(t)}</b><small>${esc(sub)}</small></span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></button>`;
+    const rows = [
+      row("stats", "🐾", st === 1 ? tr("1 day") : st + " " + tr("days"), done ? tr("hop streak") : tr("Log today to hop"), done ? "" : "todo"),
+      row("stats", "🥕", tr("Level") + " " + li.l, (m.xp || 0) + " " + tr("carrots") + " · " + Math.max(0, li.hi - (m.xp || 0)) + " " + tr("to next level")),
+    ];
+    if (r) rows.push(row("refer", "🎁", R(`Get a ${refAmt(r)} gift card`, `Gana una tarjeta de regalo de ${refAmt(r)}`, `赢取 ${refAmt(r)} 礼品卡`), refSub(r)));
+    box.querySelector(".bun-status")?.remove();
+    const el = document.createElement("div"); el.className = "msg first bun-status";
+    el.innerHTML = `<div class="av"><img src="/icon-192.png" alt=""></div><div class="b"><p>${esc(tr("Here's where you are 🐰"))}</p><div class="bs-list">${rows.join("")}</div></div>`;
+    el.querySelectorAll(".bs-row").forEach((b) => (b.onclick = () => show(b.dataset.go)));
+    box.appendChild(el);
   }
   function chatToEnd() { const c = $("chat"); if (getComputedStyle(c).overflowY === "auto") c.scrollTo({ top: c.scrollHeight, behavior: "smooth" }); else window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" }); }
   async function openInbox() {
@@ -2495,7 +2506,10 @@
   function renderRefCard() {
     const r = ME && ME.ref, c = $("refCard");
     if (!r) { c.hidden = true; return; }
-    c.hidden = false;
+    // new for a few days, then it moves into Bun's inbox unless friends are already on the way
+    const first = +store.get("hb-ref-first") || (store.set("hb-ref-first", String(Date.now())), Date.now());
+    c.hidden = Date.now() - first > 4 * 864e5 && !r.qualified && !r.pending;
+    if (c.hidden) return;
     $("refCardT").textContent = R(`Get a ${refAmt(r)} gift card`, `Gana una tarjeta de regalo de ${refAmt(r)}`, `赢取 ${refAmt(r)} 礼品卡`);
     $("refCardSub").textContent = refSub(r);
     refPips(r, $("refCardPips"));
