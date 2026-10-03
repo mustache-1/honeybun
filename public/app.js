@@ -985,7 +985,7 @@
   function bunnyHop() { const b = $("bunny"); b.classList.remove("hop"); void b.getBoundingClientRect(); b.classList.add("hop"); }
 
   function splitText(e) {
-    if (!e.shared) return e.private ? "personal, private" : "personal";
+    if (!e.shared) return e.private ? "personal, private" : JOINT() ? "joint account" : "personal";
     if (e.split_mode === "percent" && MEMBERS.length === 2) return `split ${e.split_value}/${100 - e.split_value}`;
     if (e.split_mode === "percent") return `split, ${member(e.member_id).name} covers ${e.split_value}%`;
     if (e.split_mode === "owed") {
