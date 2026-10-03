@@ -59,6 +59,8 @@ const TABLES = [
   // shared shopping list
   `CREATE TABLE IF NOT EXISTS shopping_items (id TEXT PRIMARY KEY, nest_id TEXT NOT NULL REFERENCES nests(id) ON DELETE CASCADE, label TEXT NOT NULL, added_by TEXT NOT NULL, done INTEGER NOT NULL DEFAULT 0, done_by TEXT, created_at INTEGER NOT NULL, done_at INTEGER)`,
   `CREATE INDEX IF NOT EXISTS idx_shopping_nest ON shopping_items(nest_id, done)`,
+  // carrying a month's leftover (or shortfall) into the next month; one decision per household per month
+  `CREATE TABLE IF NOT EXISTS month_carry (nest_id TEXT NOT NULL REFERENCES nests(id) ON DELETE CASCADE, month TEXT NOT NULL, amount_cents INTEGER NOT NULL, accepted INTEGER NOT NULL DEFAULT 1, decided_by TEXT, created_at INTEGER NOT NULL, PRIMARY KEY (nest_id, month))`,
   `CREATE TABLE IF NOT EXISTS app_tokens (token_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, created_at INTEGER NOT NULL)`,
   `CREATE INDEX IF NOT EXISTS idx_app_tokens_user ON app_tokens(user_id)`,
   // referrals: invite friends, get a gift card for every REF_GOAL who stick around
@@ -126,14 +128,20 @@ async function postToOthers(env, nestId, exceptId, kind, data, dedupe) {
 // ---------- Web Push (no payload: the service worker asks /api/push/latest for the text) ----------
 const PUSH_TEXT = {
   en: { shared_expense: (d) => `${d.name} added ${money(d.amount)} for ${d.label}, split with you.`, joined: (d) => `${d.name} joined your budget 🎉`,
+        carry_ask: (d) => `New month! ${d.from} ended at ${d.neg ? "-" : ""}${money(d.amount)}. Open Honeybun to carry it over or start fresh.`,
+        carry_done: (d) => d.accepted ? `${d.name} carried over ${d.neg ? "-" : ""}${money(d.amount)} from last month.` : `${d.name} started this month fresh.`,
         joint: (d) => d.on ? `${d.name} turned on Joint account. Everything adds up together now.` : `${d.name} turned off Joint account.`,
         bills: (d) => d.n === 1 ? `${d.label} (${money(d.amount)}) is due ${d.when}.` : `${d.n} bills are due in the next 3 days.`,
         streak: (d) => `Log one thing today to keep your ${d.streak}-day hop streak 🐾`, other: () => "Bun has something for you 🐰" },
   es: { shared_expense: (d) => `${d.name} agregó ${money(d.amount)} de ${d.label}, dividido contigo.`, joined: (d) => `${d.name} se unió a tu presupuesto 🎉`,
+        carry_ask: (d) => `¡Nuevo mes! ${d.from} terminó en ${d.neg ? "-" : ""}${money(d.amount)}. Abre Honeybun para trasladarlo o empezar de cero.`,
+        carry_done: (d) => d.accepted ? `${d.name} trasladó ${d.neg ? "-" : ""}${money(d.amount)} del mes pasado.` : `${d.name} empezó este mes de cero.`,
         joint: (d) => d.on ? `${d.name} activó la cuenta conjunta. Ahora todo se suma junto.` : `${d.name} desactivó la cuenta conjunta.`,
         bills: (d) => d.n === 1 ? `${d.label} (${money(d.amount)}) vence ${d.when}.` : `${d.n} facturas vencen en los próximos 3 días.`,
         streak: (d) => `Registra algo hoy para mantener tu racha de ${d.streak} días 🐾`, other: () => "Bun tiene algo para ti 🐰" },
   zh: { shared_expense: (d) => `${d.name} 记了一笔 ${money(d.amount)}（${d.label}），和你分摊。`, joined: (d) => `${d.name} 加入了你的预算 🎉`,
+        carry_ask: (d) => `新的一个月！${d.from} 结余 ${d.neg ? "-" : ""}${money(d.amount)}。打开 Honeybun 选择结转或重新开始。`,
+        carry_done: (d) => d.accepted ? `${d.name} 把上月的 ${d.neg ? "-" : ""}${money(d.amount)} 结转到了本月。` : `${d.name} 选择本月重新开始。`,
         joint: (d) => d.on ? `${d.name} 开启了共同账户，所有金额合并计算。` : `${d.name} 关闭了共同账户。`,
         bills: (d) => d.n === 1 ? `${d.label}（${money(d.amount)}）${d.when}到期。` : `未来 3 天有 ${d.n} 笔账单到期。`,
         streak: (d) => `今天记一笔，保持你 ${d.streak} 天的连续记录 🐾`, other: () => "Bun 有话对你说 🐰" },
@@ -678,6 +686,16 @@ function readSplit(body, amount) {
 }
 
 // Build a clean entry from the request body (used for create + edit)
+// ---------- carry over: a month's leftover (or shortfall) moves into the next month ----------
+const prevMonth = (ym) => { const [y, m] = ym.split("-").map(Number); return m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, "0")}`; };
+// what the household ended a month with: income minus spending (private entries stay private), plus what came in from the month before
+async function monthBalance(env, nestId, ym) {
+  const r = await env.DB.prepare(
+    "SELECT COALESCE(SUM(CASE WHEN type='income' THEN amount_cents ELSE -amount_cents END), 0) AS b, COUNT(*) AS n FROM entries WHERE nest_id = ? AND substr(date, 1, 7) = ? AND private = 0"
+  ).bind(nestId, ym).first();
+  const c = await env.DB.prepare("SELECT amount_cents FROM month_carry WHERE nest_id = ? AND month = ?").bind(nestId, ym).first();
+  return { cents: r.b + (c ? c.amount_cents : 0), entries: r.n, carried: c ? c.amount_cents : 0 };
+}
 const MAX_CUSTOM = 12;
 async function customCategoryIds(env, nestId) {
   return new Set((await env.DB.prepare("SELECT id FROM custom_categories WHERE nest_id = ?").bind(nestId).all()).results.map((r) => r.id));
@@ -1309,7 +1327,7 @@ async function handle(request, env, url) {
     await env.DB.batch(stmts);
     if (m) {
       const left = await env.DB.prepare("SELECT COUNT(*) AS n FROM members WHERE nest_id = ?").bind(m.nest_id).first();
-      if (left.n === 0) await env.DB.batch(["entries", "settlements", "jar_moves", "recurring", "goals", "budgets", "debts", "debt_payments", "messages", "custom_categories", "shopping_items"]
+      if (left.n === 0) await env.DB.batch(["entries", "settlements", "jar_moves", "recurring", "goals", "budgets", "debts", "debt_payments", "messages", "custom_categories", "shopping_items", "month_carry"]
         .map((t) => env.DB.prepare(`DELETE FROM ${t} WHERE nest_id = ?`).bind(m.nest_id)).concat([env.DB.prepare("DELETE FROM nests WHERE id = ?").bind(m.nest_id)]));
     }
     return json({ ok: true }, 200, { "set-cookie": clearCookie });
@@ -1388,9 +1406,18 @@ async function handle(request, env, url) {
     }
 
     const shopping_open = (await env.DB.prepare("SELECT COUNT(*) AS n FROM shopping_items WHERE nest_id = ? AND done = 0").bind(nestId).first()).n;
+    const carryRow = await env.DB.prepare("SELECT amount_cents, accepted FROM month_carry WHERE nest_id = ? AND month = ?").bind(nestId, month).first();
+    let carryPending = null;
+    {
+      const nowYm = localNow((await env.DB.prepare("SELECT tz FROM users WHERE id = ?").bind(user.id).first())?.tz).date.slice(0, 7);
+      if (month === nowYm && !carryRow) {
+        const prev = prevMonth(month), pb = await monthBalance(env, nestId, prev);
+        if (pb.entries > 0 || pb.carried !== 0) carryPending = { from: prev, amount_cents: pb.cents };
+      }
+    }
     const categories = (await env.DB.prepare("SELECT id, name, emoji FROM custom_categories WHERE nest_id = ? ORDER BY created_at").bind(nestId).all()).results;
     return json({
-      me, nest: nest.results[0], members: members.results, entries: entries.results, categories, shopping_open,
+      me, nest: nest.results[0], members: members.results, entries: entries.results, categories, shopping_open, carry_in: carryRow ? { amount_cents: carryRow.amount_cents, accepted: !!carryRow.accepted } : null, carry_pending: carryPending,
       balances, settlements: settlements.results.slice(0, 10), recurring: recurring.results,
       logged: logged.results, jar: jar.results, goals: goals.results, budgets: budgets.results,
       debts: debts.results, debt_payments: debtPays.results, setup_done: !!mine.results[0]?.setup_done,
@@ -1431,7 +1458,7 @@ async function handle(request, env, url) {
     await env.DB.batch([env.DB.prepare("DELETE FROM members WHERE user_id = ? AND nest_id = ?").bind(user.id, nestId), env.DB.prepare("DELETE FROM messages WHERE user_id = ?").bind(user.id)]);
     const left = await env.DB.prepare("SELECT COUNT(*) AS n FROM members WHERE nest_id = ?").bind(nestId).first();
     if (left.n === 0) {
-      await env.DB.batch(["entries", "settlements", "jar_moves", "recurring", "goals", "budgets", "debts", "debt_payments", "messages", "custom_categories", "shopping_items"].map((t) => env.DB.prepare(`DELETE FROM ${t} WHERE nest_id = ?`).bind(nestId))
+      await env.DB.batch(["entries", "settlements", "jar_moves", "recurring", "goals", "budgets", "debts", "debt_payments", "messages", "custom_categories", "shopping_items", "month_carry"].map((t) => env.DB.prepare(`DELETE FROM ${t} WHERE nest_id = ?`).bind(nestId))
         .concat([env.DB.prepare("DELETE FROM nests WHERE id = ?").bind(nestId)]));
     }
     return json({ ok: true });
@@ -1566,6 +1593,21 @@ async function handle(request, env, url) {
   if (shopId && method === "DELETE") {
     await env.DB.prepare("DELETE FROM shopping_items WHERE id = ? AND nest_id = ?").bind(shopId[1], nestId).run();
     return json({ ok: true });
+  }
+
+  // ----- carry over last month's balance -----
+  if (path === "/api/carry" && method === "POST") {
+    const month = String(body.month || "");
+    if (!/^\d{4}-\d{2}$/.test(month)) throw new HttpError("Bad month.");
+    const nowYm = localNow((await env.DB.prepare("SELECT tz FROM users WHERE id = ?").bind(user.id).first())?.tz).date.slice(0, 7);
+    if (month > nowYm) throw new HttpError("That month hasn't started yet.");
+    if (await env.DB.prepare("SELECT 1 FROM month_carry WHERE nest_id = ? AND month = ?").bind(nestId, month).first()) return json({ ok: true, already: true });
+    const accept = !!body.accept && body.accept !== "false";
+    const bal = await monthBalance(env, nestId, prevMonth(month));
+    await env.DB.prepare("INSERT OR IGNORE INTO month_carry (nest_id, month, amount_cents, accepted, decided_by, created_at) VALUES (?, ?, ?, ?, ?, ?)")
+      .bind(nestId, month, accept ? bal.cents : 0, accept ? 1 : 0, user.id, now()).run();
+    await postToOthers(env, nestId, user.id, "carry_done", { name: user.name, accepted: accept, amount: Math.abs(bal.cents), neg: bal.cents < 0, from: new Date(+prevMonth(month).slice(0, 4), +prevMonth(month).slice(5) - 1, 1).toLocaleDateString("en-US", { month: "long" }) }, "carry_done:" + month);
+    return json({ ok: true, amount_cents: accept ? bal.cents : 0, accepted: accept });
   }
 
   // ----- monthly category budgets -----
@@ -1894,6 +1936,7 @@ export default {
         env.DB.prepare("DELETE FROM challenges WHERE expires_at < ?").bind(now()),
       ]);
     }
+    try { await carryNudges(env); } catch (e) { console.error("carry nudges", e.message); }
     if (env.RESEND_API_KEY) await sendReminders(env);
     if (env.VAPID_PRIVATE_KEY || env.APNS_KEY) await pushReminders(env);
     try { await checkReferrals(env); } catch (e) { console.error("referrals", e.message); }
@@ -1937,6 +1980,30 @@ async function nestBillsDue(env, cache, nestId, from, to) {
   const c = cache[nestId], out = [];
   for (const r of c.rec) for (const d of occurrencesS(r, from, to)) if (!c.logged.has(r.id + "|" + d)) out.push({ r, d });
   return out.sort((a, b) => a.d.localeCompare(b.d));
+}
+
+
+// On the 1st of the month (9am where each person lives) everyone gets asked whether to carry last month's balance forward.
+async function carryNudges(env) {
+  const people = (await env.DB.prepare("SELECT u.id, u.tz, u.lang, m.nest_id FROM users u JOIN members m ON m.user_id = u.id").all()).results;
+  const cache = {};
+  for (const p of people) {
+    try {
+      const L = localNow(p.tz);
+      if (L.hour !== 9 || L.date.slice(8) !== "01") continue;
+      const month = L.date.slice(0, 7), key = p.nest_id + "|" + month;
+      if (!(key in cache)) {
+        const decided = await env.DB.prepare("SELECT 1 FROM month_carry WHERE nest_id = ? AND month = ?").bind(p.nest_id, month).first();
+        const pb = decided ? null : await monthBalance(env, p.nest_id, prevMonth(month));
+        cache[key] = pb && (pb.entries > 0 || pb.carried !== 0) ? pb : null;
+      }
+      const pb = cache[key];
+      if (!pb) continue;
+      const data = { amount: Math.abs(pb.cents), neg: pb.cents < 0, from: new Date(+prevMonth(month).slice(0, 4), +prevMonth(month).slice(5) - 1, 1).toLocaleDateString(p.lang === "es" ? "es" : p.lang === "zh" ? "zh-CN" : "en-US", { month: "long" }) };
+      await postMessage(env, p.id, p.nest_id, "carry_ask", data, "carry_ask:" + month);
+      await sendPush(env, p.id, pushText("carry_ask", data, p.lang));
+    } catch (e) { console.error("carry nudge", p.id, e.message); }
+  }
 }
 
 async function sendReminders(env) {
