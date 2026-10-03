@@ -2877,7 +2877,7 @@
     const [y, mo] = MONTH.split("-").map(Number), dim = new Date(y, mo, 0).getDate(), day = +t.slice(8), daysLeft = dim - day;
     const exp = ENTRIES.filter((e) => e.type === "expense" && !e.pending), inc = ENTRIES.filter((e) => e.type === "income" && !e.pending);
     const spent = exp.reduce((a, e) => a + e.amount, 0), came = inc.reduce((a, e) => a + e.amount, 0);
-    if (day < 3 || exp.length < 3) return { wait: true, day };
+    if (day < 7 || exp.length < 5) return { wait: true, day };
     // big one-off purchases (rent paid by hand, a laptop...) already happened: count them once, don't repeat them every day
     const loose = exp.filter((e) => !e.recurring_id), amts = loose.map((e) => e.amount).sort((a, b) => a - b);
     const med = amts.length ? amts[Math.floor(amts.length / 2)] : 0, bigCut = Math.max(150, med * 6);
