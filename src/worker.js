@@ -78,7 +78,7 @@ const NEW_COLUMNS = {
   members: [["setup_done", "INTEGER NOT NULL DEFAULT 1"], ["xp", "INTEGER NOT NULL DEFAULT 0"], ["streak", "INTEGER NOT NULL DEFAULT 0"],
     ["best_streak", "INTEGER NOT NULL DEFAULT 0"], ["last_day", "TEXT"], ["day_xp", "INTEGER NOT NULL DEFAULT 0"],
     ["week_key", "TEXT"], ["week_xp", "INTEGER NOT NULL DEFAULT 0"], ["logs", "INTEGER NOT NULL DEFAULT 0"], ["inbox_gen_at", "INTEGER NOT NULL DEFAULT 0"]],
-  nests: [["goals_migrated", "INTEGER NOT NULL DEFAULT 0"], ["kind", "TEXT NOT NULL DEFAULT 'couple'"], ["rollover", "INTEGER NOT NULL DEFAULT 0"], ["rollover_since", "TEXT"], ["joint", "INTEGER NOT NULL DEFAULT 0"]],
+  nests: [["goals_migrated", "INTEGER NOT NULL DEFAULT 0"], ["kind", "TEXT NOT NULL DEFAULT 'couple'"], ["rollover", "INTEGER NOT NULL DEFAULT 0"], ["rollover_since", "TEXT"], ["joint", "INTEGER NOT NULL DEFAULT 0"], ["carry_mode", "TEXT NOT NULL DEFAULT 'ask'"]],
   recurring: [["prev_amount_cents", "INTEGER"], ["price_changed_at", "TEXT"]],
   jar_moves: [["goal_id", "TEXT"]],
 };
@@ -130,6 +130,7 @@ const PUSH_TEXT = {
   en: { shared_expense: (d) => `${d.name} added ${money(d.amount)} for ${d.label}, split with you.`, joined: (d) => `${d.name} joined your budget 🎉`,
         carry_ask: (d) => `New month! ${d.from} ended at ${d.neg ? "-" : ""}${money(d.amount)}. Open Honeybun to carry it over or start fresh.`,
         carry_done: (d) => d.accepted ? `${d.name} carried over ${d.neg ? "-" : ""}${money(d.amount)} from last month.` : `${d.name} started this month fresh.`,
+        carry_auto: (d) => `New month! ${d.neg ? "-" : ""}${money(d.amount)} from ${d.from} was carried over for you.`,
         joint: (d) => d.on ? `${d.name} turned on Joint account. Everything adds up together now.` : `${d.name} turned off Joint account.`,
         bills: (d) => d.n === 1 ? `${d.label} (${money(d.amount)}) is due ${d.when}.` : `${d.n} bills are due in the next 3 days.`,
         streak: (d) => `Log one thing today to keep your ${d.streak}-day hop streak 🐾`, other: () => "Bun has something for you 🐰" },
@@ -1373,7 +1374,7 @@ async function handle(request, env, url) {
     if (!/^\d{4}-\d{2}$/.test(month)) throw new HttpError("Bad month.");
     const since = new Date(Date.now() - 45 * 86400000).toISOString().slice(0, 10);
     const [nest, members, entries, sharedAll, settlements, recurring, logged, jar, goals, budgets, debts, debtPays, mine] = await env.DB.batch([
-      env.DB.prepare("SELECT id, name, invite_code, accent, kind, rollover, joint FROM nests WHERE id = ?").bind(nestId),
+      env.DB.prepare("SELECT id, name, invite_code, accent, kind, rollover, joint, carry_mode FROM nests WHERE id = ?").bind(nestId),
       env.DB.prepare("SELECT u.id, u.name, m.emoji, m.color, m.xp, m.streak, m.best_streak, m.last_day, m.week_key, m.week_xp, m.logs FROM members m JOIN users u ON u.id = m.user_id WHERE m.nest_id = ? ORDER BY m.joined_at").bind(nestId),
       env.DB.prepare(
         `SELECT id, member_id, type, amount_cents, label, category, shared, split_mode, split_value, shares, private, date, recurring_id, occ_date, created_at
@@ -1406,18 +1407,28 @@ async function handle(request, env, url) {
     }
 
     const shopping_open = (await env.DB.prepare("SELECT COUNT(*) AS n FROM shopping_items WHERE nest_id = ? AND done = 0").bind(nestId).first()).n;
-    const carryRow = await env.DB.prepare("SELECT amount_cents, accepted FROM month_carry WHERE nest_id = ? AND month = ?").bind(nestId, month).first();
-    let carryPending = null;
+    let carryRow = await env.DB.prepare("SELECT amount_cents, accepted FROM month_carry WHERE nest_id = ? AND month = ?").bind(nestId, month).first();
+    let carryPending = null, carryPrev = null;
     {
       const nowYm = localNow((await env.DB.prepare("SELECT tz FROM users WHERE id = ?").bind(user.id).first())?.tz).date.slice(0, 7);
-      if (month === nowYm && !carryRow) {
+      if (month === nowYm) {
         const prev = prevMonth(month), pb = await monthBalance(env, nestId, prev);
-        if (pb.entries > 0 || pb.carried !== 0) carryPending = { from: prev, amount_cents: pb.cents };
+        if (pb.entries > 0 || pb.carried !== 0) {
+          carryPrev = { from: prev, amount_cents: pb.cents };
+          // a remembered choice ("always" / "never") answers the question for you
+          const mode = nest.results[0]?.carry_mode || "ask";
+          if (!carryRow && mode !== "ask") {
+            const accept = mode === "always";
+            await env.DB.prepare("INSERT OR IGNORE INTO month_carry (nest_id, month, amount_cents, accepted, decided_by, created_at) VALUES (?, ?, ?, ?, NULL, ?)").bind(nestId, month, accept ? pb.cents : 0, accept ? 1 : 0, now()).run();
+            carryRow = { amount_cents: accept ? pb.cents : 0, accepted: accept ? 1 : 0 };
+            if (accept) await postMessage(env, user.id, nestId, "carry_auto", { amount: Math.abs(pb.cents), neg: pb.cents < 0, from: new Date(+prev.slice(0, 4), +prev.slice(5) - 1, 1).toLocaleDateString("en-US", { month: "long" }) }, "carry_auto:" + month);
+          } else if (!carryRow) carryPending = { from: prev, amount_cents: pb.cents };
+        }
       }
     }
     const categories = (await env.DB.prepare("SELECT id, name, emoji FROM custom_categories WHERE nest_id = ? ORDER BY created_at").bind(nestId).all()).results;
     return json({
-      me, nest: nest.results[0], members: members.results, entries: entries.results, categories, shopping_open, carry_in: carryRow ? { amount_cents: carryRow.amount_cents, accepted: !!carryRow.accepted } : null, carry_pending: carryPending,
+      me, nest: nest.results[0], members: members.results, entries: entries.results, categories, shopping_open, carry_in: carryRow ? { amount_cents: carryRow.amount_cents, accepted: !!carryRow.accepted } : null, carry_pending: carryPending, carry_prev: carryPrev,
       balances, settlements: settlements.results.slice(0, 10), recurring: recurring.results,
       logged: logged.results, jar: jar.results, goals: goals.results, budgets: budgets.results,
       debts: debts.results, debt_payments: debtPays.results, setup_done: !!mine.results[0]?.setup_done,
@@ -1432,6 +1443,10 @@ async function handle(request, env, url) {
     if (body.kind !== undefined) {
       if (!["solo", "couple", "family"].includes(body.kind)) throw new HttpError("Unknown budget type.");
       await env.DB.prepare("UPDATE nests SET kind = ? WHERE id = ?").bind(body.kind, nestId).run();
+    }
+    if (body.carry_mode !== undefined) {
+      if (!["ask", "always", "never"].includes(body.carry_mode)) throw new HttpError("Unknown carry-over choice.");
+      await env.DB.prepare("UPDATE nests SET carry_mode = ? WHERE id = ?").bind(body.carry_mode, nestId).run();
     }
     if (body.joint !== undefined) {
       const on = body.joint && body.joint !== "false" ? 1 : 0;
@@ -1601,12 +1616,17 @@ async function handle(request, env, url) {
     if (!/^\d{4}-\d{2}$/.test(month)) throw new HttpError("Bad month.");
     const nowYm = localNow((await env.DB.prepare("SELECT tz FROM users WHERE id = ?").bind(user.id).first())?.tz).date.slice(0, 7);
     if (month > nowYm) throw new HttpError("That month hasn't started yet.");
-    if (await env.DB.prepare("SELECT 1 FROM month_carry WHERE nest_id = ? AND month = ?").bind(nestId, month).first()) return json({ ok: true, already: true });
+    const had = await env.DB.prepare("SELECT 1 FROM month_carry WHERE nest_id = ? AND month = ?").bind(nestId, month).first();
+    const change = !!body.change && body.change !== "false";
+    if (had && !change) return json({ ok: true, already: true });
+    if (had && month !== nowYm) throw new HttpError("Only this month's choice can be changed.");
     const accept = !!body.accept && body.accept !== "false";
     const bal = await monthBalance(env, nestId, prevMonth(month));
-    await env.DB.prepare("INSERT OR IGNORE INTO month_carry (nest_id, month, amount_cents, accepted, decided_by, created_at) VALUES (?, ?, ?, ?, ?, ?)")
+    await env.DB.prepare("INSERT INTO month_carry (nest_id, month, amount_cents, accepted, decided_by, created_at) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(nest_id, month) DO UPDATE SET amount_cents = excluded.amount_cents, accepted = excluded.accepted, decided_by = excluded.decided_by, created_at = excluded.created_at")
       .bind(nestId, month, accept ? bal.cents : 0, accept ? 1 : 0, user.id, now()).run();
-    await postToOthers(env, nestId, user.id, "carry_done", { name: user.name, accepted: accept, amount: Math.abs(bal.cents), neg: bal.cents < 0, from: new Date(+prevMonth(month).slice(0, 4), +prevMonth(month).slice(5) - 1, 1).toLocaleDateString("en-US", { month: "long" }) }, "carry_done:" + month);
+    // "remember my choice": ask less next time (always carry over / never carry over); you can switch back in Settings
+    if (body.remember) await env.DB.prepare("UPDATE nests SET carry_mode = ? WHERE id = ?").bind(accept ? "always" : "never", nestId).run();
+    await postToOthers(env, nestId, user.id, "carry_done", { name: user.name, accepted: accept, amount: Math.abs(bal.cents), neg: bal.cents < 0, from: new Date(+prevMonth(month).slice(0, 4), +prevMonth(month).slice(5) - 1, 1).toLocaleDateString("en-US", { month: "long" }) }, "carry_done:" + month + (had ? ":" + crypto.randomUUID() : ""));
     return json({ ok: true, amount_cents: accept ? bal.cents : 0, accepted: accept });
   }
 
@@ -1994,6 +2014,8 @@ async function carryNudges(env) {
       const month = L.date.slice(0, 7), key = p.nest_id + "|" + month;
       if (!(key in cache)) {
         const decided = await env.DB.prepare("SELECT 1 FROM month_carry WHERE nest_id = ? AND month = ?").bind(p.nest_id, month).first();
+        const mode = (await env.DB.prepare("SELECT carry_mode FROM nests WHERE id = ?").bind(p.nest_id).first())?.carry_mode || "ask";
+        if (!decided && mode !== "ask") { cache[key] = null; continue; } // answered by their remembered choice the first time they open the app
         const pb = decided ? null : await monthBalance(env, p.nest_id, prevMonth(month));
         cache[key] = pb && (pb.entries > 0 || pb.carried !== 0) ? pb : null;
       }

@@ -2127,7 +2127,8 @@ dialog::backdrop{background:var(--backdrop)}
 .shop-home{margin-top:12px}
 @media (min-width:900px){.shop-wrap{max-width:none;display:grid;grid-template-columns:minmax(0,1fr) 340px;align-items:start}.shop-add{grid-column:1}.shop-card{grid-column:1}.shop-done{grid-column:2;grid-row:1/3}}
 
-.left-carry{margin:-2px 0 6px;font-size:12.5px;font-weight:800;color:var(--soft)}
+.left-carry{margin:-2px 0 6px;font-size:12.5px;font-weight:800;color:var(--soft);display:flex;flex-wrap:wrap;gap:2px 10px;align-items:center}
+.left-carry button{border:0;background:transparent;color:var(--pink-d,#F59A4A);font:inherit;font-weight:900;cursor:pointer;padding:0}
 .left-carry b{color:var(--c-green,#4fb36a)}.left-carry b.neg{color:#E8504A}
 .carry-amt{font:900 34px/1.1 inherit;font-family:inherit;text-align:center;margin:10px 0;letter-spacing:-.02em}
 .carry-amt.pos{color:var(--c-green,#4fb36a)}.carry-amt.neg{color:#E8504A}
@@ -2785,6 +2786,7 @@ dialog::backdrop{background:var(--backdrop)}
           <input id="nestName" maxlength="24" placeholder="Leave blank to show your names" aria-label="Budget name">
           <span class="kinds small-kinds" id="kindSet"></span>
           <span class="members" id="members"></span></span></div>
+        <div class="setting-row col" id="carryRow" hidden><span class="sicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h12M12 7l5 5-5 5"/><path d="M20 5v14"/></svg></span><span class="copy"><b>Monthly carry-over</b><small>What happens to last month's balance on the 1st</small></span><span class="kinds small-kinds" id="carrySet"></span></div>
         <button class="setting-row" id="jointRow" hidden><span class="sicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="9" r="4"/><circle cx="16" cy="9" r="4"/><path d="M3 20c0-3 3-5 6-5M21 20c0-3-3-5-6-5M9 20c0-2 1.5-3.5 3-3.5s3 1.5 3 3.5"/></svg></span><span class="copy"><b>Joint account</b><small>We keep our money in one pot, so everything adds up together</small></span><span class="lock-state" id="jointState">Off</span></button>
         <div class="setting-row col"><span class="sicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg></span><span class="copy"><b>Notifications</b><small>Bills, streaks and reminders by email</small>
           <label class="toggle"><span>Bills due soon<small>A heads-up at 9am, 3 days ahead</small></span><input type="checkbox" id="mailBills"></label>
@@ -2930,6 +2932,7 @@ dialog::backdrop{background:var(--backdrop)}
   <p class="get-sub" id="carrySub"></p>
   <div class="carry-amt" id="carryAmt"></div>
   <p class="get-sub" id="carryAsk"></p>
+  <label class="rc-ack" style="justify-content:flex-start;margin:6px 0 12px"><input type="checkbox" id="carryRemember"> <span><b id="carryRememberT">Do this every month</b><small style="display:block;color:var(--soft);font-weight:600">You can change it any time in Settings.</small></span></label>
   <button class="go" id="carryYes" type="button">Carry it over</button>
   <button class="softbtn" id="carryNo" type="button" style="width:100%;margin-top:8px">Start fresh</button>
   <p class="center" style="margin:10px 0 0"><button class="linkbtn" id="carryLater" type="button">Decide later</button></p>

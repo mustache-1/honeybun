@@ -254,7 +254,7 @@
   if ("serviceWorker" in navigator) window.addEventListener("load", () => navigator.serviceWorker.register("/sw.js").catch(() => {}));
 
   // ---------- state ----------
-  let MCARRY_IN = 0, MCARRY_ASK = null, carryLater = false;
+  let MCARRY_IN = 0, MCARRY_ASK = null, MCARRY_PREV = null, MCARRY_ACC = null, carryLater = false, carryChanging = false;
   let ME = null, NEST = null, MEMBERS = [], ENTRIES = [], BAL = {}, SETTLES = [], RECUR = [], LOGGED = new Set(), JAR = [];
   let GOALS = [], BUDGETS = {}, DEBTS = [], DEBTPAYS = [], SETUP_DONE = true, INBOX = { unread: 0, latest: null }, REPEATS = [], CARRY = {}, PASSKEYS = [];
   let MONTH = today().slice(0, 7), YEAR = new Date().getFullYear(), YDATA = null;
@@ -647,7 +647,7 @@
     ME = { ...(ME || {}), ...d.me }; NEST = d.nest; MEMBERS = d.members;
     syncCustomCats(d.categories);
     SHOP_OPEN = d.shopping_open || 0;
-    MCARRY_IN = d.carry_in ? d.carry_in.amount_cents / 100 : 0; MCARRY_ASK = d.carry_pending || null;
+    MCARRY_IN = d.carry_in ? d.carry_in.amount_cents / 100 : 0; MCARRY_ASK = d.carry_pending || null; MCARRY_PREV = d.carry_prev || null; MCARRY_ACC = d.carry_in ? d.carry_in.accepted : null;
     // your partner switched Joint account on or off: everything on this screen follows, and we say so
     if (wasJoint !== null && wasJoint !== !!NEST.joint) toast(tr(NEST.joint ? "Joint account was turned on. Everything adds up together." : "Joint account was turned off."));
     ENTRIES = d.entries.map((e) => ({ ...e, amount: e.amount_cents / 100, shared: !!e.shared, private: !!e.private }));
@@ -1124,8 +1124,13 @@
       $("heroMonth").textContent = new Date(+MONTH.slice(0, 4), +MONTH.slice(5) - 1, 1).toLocaleDateString(LOCALE, { month: "long" });
       { const [whole, cents] = fmt(left).split("."); $("leftAmt").innerHTML = `${esc(whole)}${cents ? `<span class="cents">.${esc(cents)}</span>` : ""}`; }
       $("leftAmt").classList.toggle("neg", left < 0);
-      { const lc = $("leftCarry"), pm = new Date(+MONTH.slice(0, 4), +MONTH.slice(5) - 2, 1).toLocaleDateString(LOCALE, { month: "long" });
-        lc.hidden = !carryIn; if (carryIn) lc.innerHTML = `${esc(tr("Carried over from"))} ${esc(pm)} <b class="${carryIn < 0 ? "neg" : ""}">${carryIn > 0 ? "+" : ""}${fmt(carryIn)}</b>`; }
+      { const lc = $("leftCarry"), cur = MONTH === today().slice(0, 7);
+        const pm = new Date(+MONTH.slice(0, 4), +MONTH.slice(5) - 2, 1).toLocaleDateString(LOCALE, { month: "long" });
+        const thisMonth = inc - out, sg = (v) => (v > 0 ? "+" : "") + fmt(v);
+        lc.hidden = !(carryIn || (cur && MCARRY_ACC === false && MCARRY_PREV && !filter));
+        if (carryIn) lc.innerHTML = `<span>${esc(tr("Carried over from"))} ${esc(pm)} <b class="${carryIn < 0 ? "neg" : ""}">${sg(carryIn)}</b></span><span>${esc(tr("This month"))} <b class="${thisMonth < 0 ? "neg" : ""}">${sg(thisMonth)}</b></span>${cur && MCARRY_PREV ? `<button type="button" id="carryChange">${esc(tr("Change"))}</button>` : ""}`;
+        else if (!lc.hidden) lc.innerHTML = `<span>${esc(tr("Started this month fresh"))}</span><button type="button" id="carryChange">${esc(tr("Change"))}</button>`;
+        if ($("carryChange")) $("carryChange").onclick = openCarryChange; }
       const chip = $("heroChip"), ratio = inc > 0 ? out / inc : out > 0 ? 2 : 0;
       chip.hidden = !inc && !out;
       chip.className = "chip " + (ratio > 1 ? "over" : ratio > 0.85 ? "warn" : "ok");
@@ -1286,6 +1291,13 @@
       { const jr = $("jointRow"); jr.hidden = KIND() !== "couple" || MEMBERS.length < 2;
         const on = !!NEST.joint; $("jointState").textContent = tr(on ? "On" : "Off"); $("jointState").classList.toggle("on", on);
         jr.onclick = async () => { NEST.joint = NEST.joint ? 0 : 1; render(); try { await api("/api/nest", { method: "PATCH", body: { joint: !!NEST.joint } }); toast(tr(NEST.joint ? "Joint account is on. Everything adds up together." : "Joint account is off.")); } catch (err) { NEST.joint = NEST.joint ? 0 : 1; render(); toast(err.message); } }; }
+      { const cr = $("carryRow"), cs = $("carrySet"); cr.hidden = false; cs.innerHTML = "";
+        [["ask", "Ask me"], ["always", "Always carry"], ["never", "Start fresh"]].forEach(([id, n]) => {
+          const b = document.createElement("button"); b.type = "button"; b.textContent = tr(n);
+          b.setAttribute("aria-pressed", (NEST.carry_mode || "ask") === id ? "true" : "false");
+          b.onclick = async () => { const was = NEST.carry_mode; NEST.carry_mode = id; render(); try { await api("/api/nest", { method: "PATCH", body: { carry_mode: id } }); toast(tr("Saved")); } catch (err) { NEST.carry_mode = was; render(); toast(err.message); } };
+          cs.appendChild(b);
+        }); }
       const mm = $("members"); mm.innerHTML = "";
       MEMBERS.forEach((m) => {
         const r = document.createElement("div"); r.className = "mem";
@@ -2292,6 +2304,7 @@
       goal_done: (d) => `You reached your "${d.goal}" goal! 🍯 So proud of you.`,
       debt_done: (d) => `${d.debt} is paid off! 🎉 One less thing to carry.`,
       joined: (d) => `${d.name} joined your budget 💞 Say hi!`,
+      carry_auto: (d) => `New month! ${d.neg ? "-" : ""}${money(d.amount)} from ${d.from} was carried over for you.`,
       carry_ask: (d) => `New month! ${d.from} ended at ${d.neg ? "-" : ""}${money(d.amount)}. Carry it over or start fresh?`,
       carry_done: (d) => d.accepted ? `${d.name} carried ${d.neg ? "-" : ""}${money(d.amount)} over from ${d.from}.` : `${d.name} started this month fresh.`,
       joint: (d) => d.on ? `${d.name} turned on Joint account. Everything now adds up together and nobody owes anybody.` : `${d.name} turned off Joint account. Splitting and balances are back.`,
@@ -2313,6 +2326,7 @@
       goal_done: (d) => `¡Lograste tu meta "${d.goal}"! 🍯 Estoy muy orgulloso.`,
       debt_done: (d) => `¡${d.debt} está pagada! 🎉 Una carga menos.`,
       joined: (d) => `${d.name} se unió a tu presupuesto 💞 ¡Salúdalo!`,
+      carry_auto: (d) => `¡Nuevo mes! Se trasladaron ${d.neg ? "-" : ""}${money(d.amount)} de ${d.from}.`,
       carry_ask: (d) => `¡Nuevo mes! ${d.from} terminó en ${d.neg ? "-" : ""}${money(d.amount)}. ¿Lo trasladas o empiezas de cero?`,
       carry_done: (d) => d.accepted ? `${d.name} trasladó ${d.neg ? "-" : ""}${money(d.amount)} de ${d.from}.` : `${d.name} empezó este mes de cero.`,
       joint: (d) => d.on ? `${d.name} activó la cuenta conjunta. Todo se suma junto y nadie le debe a nadie.` : `${d.name} desactivó la cuenta conjunta. Vuelven la división y los saldos.`,
@@ -2334,6 +2348,7 @@
       goal_done: (d) => `你达成了「${d.goal}」目标！🍯 为你骄傲。`,
       debt_done: (d) => `「${d.debt}」还清啦！🎉 少了一份负担。`,
       joined: (d) => `${d.name} 加入了你的预算 💞 打个招呼吧！`,
+      carry_auto: (d) => `新的一个月！已为你结转 ${d.from} 的 ${d.neg ? "-" : ""}${money(d.amount)}。`,
       carry_ask: (d) => `新的一个月！${d.from} 结余 ${d.neg ? "-" : ""}${money(d.amount)}。要结转还是重新开始？`,
       carry_done: (d) => d.accepted ? `${d.name} 结转了 ${d.from} 的 ${d.neg ? "-" : ""}${money(d.amount)}。` : `${d.name} 选择本月重新开始。`,
       joint: (d) => d.on ? `${d.name} 开启了共同账户。所有金额合并计算，没人欠谁。` : `${d.name} 关闭了共同账户。分摊和结算恢复。`,
@@ -2727,22 +2742,29 @@
 
 
   // ---------- carry over last month's balance ----------
-  function maybeAskCarry() {
-    if (!MCARRY_ASK || carryLater || $("carryDlg").open || !ME || screen !== "home") return;
-    const a = MCARRY_ASK, v = a.amount_cents / 100, neg = v < 0;
+  function showCarryDialog(a, changing) {
+    const v = a.amount_cents / 100, neg = v < 0;
     const mn = (ym) => new Date(+ym.slice(0, 4), +ym.slice(5) - 1, 1).toLocaleDateString(LOCALE, { month: "long" });
     const from = mn(a.from), to = mn(MONTH);
-    $("carryTitle").textContent = tr("New month!");
+    carryChanging = !!changing;
+    $("carryTitle").textContent = tr(changing ? "Change your choice" : "New month!");
     $("carrySub").textContent = `${from} ${tr("ended at")}`;
     $("carryAmt").textContent = (v > 0 ? "+" : "") + fmt(v); $("carryAmt").className = "carry-amt " + (neg ? "neg" : "pos");
     $("carryAsk").textContent = neg ? `${tr("Carry the shortfall into")} ${to}?` : `${tr("Carry it over to")} ${to} ${tr("so it counts toward your balance?")}`;
     $("carryYes").textContent = tr(neg ? "Carry the shortfall" : "Carry it over");
+    $("carryRemember").checked = false; $("carryLater").parentElement.hidden = !!changing;
+    $("carryLater").textContent = tr("Decide later");
     $("carryErr").textContent = "";
     $("carryDlg").showModal();
   }
+  function maybeAskCarry() {
+    if (!MCARRY_ASK || carryLater || $("carryDlg").open || !ME || screen !== "home") return;
+    showCarryDialog(MCARRY_ASK, false);
+  }
+  function openCarryChange() { if (MCARRY_PREV) showCarryDialog(MCARRY_PREV, true); }
   async function decideCarry(accept) {
     busy($(accept ? "carryYes" : "carryNo"), true); $("carryErr").textContent = "";
-    try { await api("/api/carry", { method: "POST", body: { month: MONTH, accept } }); MCARRY_ASK = null; $("carryDlg").close(); await loadNest(); toast(tr(accept ? "Carried over" : "Starting fresh") + " ♡"); }
+    try { await api("/api/carry", { method: "POST", body: { month: MONTH, accept, change: carryChanging, remember: $("carryRemember").checked } }); MCARRY_ASK = null; $("carryDlg").close(); await loadNest(); toast(tr(accept ? "Carried over" : "Starting fresh") + " ♡"); }
     catch (e) { $("carryErr").textContent = e.message; } finally { busy($(accept ? "carryYes" : "carryNo"), false); }
   }
   $("carryYes").onclick = () => decideCarry(true);
