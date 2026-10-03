@@ -2125,6 +2125,8 @@ dialog::backdrop{background:var(--backdrop)}
 .shop-done .row{display:flex;flex-direction:column;gap:2px;margin-bottom:10px}.shop-done small{color:var(--soft);font-weight:600}
 .shop-pay{display:flex;gap:10px;align-items:center}.shop-pay .bigamt{flex:1}.shop-pay .go{width:auto;padding:0 22px;height:52px}
 .shop-home{margin-top:12px}
+.us-links{display:flex;flex-direction:column}
+@media (min-width:900px){.us-links{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}.us-links .sh-link{margin:0;padding:10px 12px;gap:8px}.us-links .sh-link[hidden]{display:none}.us-links .sh-link small{font-size:11px}.us-links .sh-link i{display:none}.us-links:has(> .sh-link[hidden]:only-child){display:flex}}
 @media (min-width:900px){.shop-wrap{max-width:none;display:grid;grid-template-columns:minmax(0,1fr) 340px;align-items:start}.shop-add{grid-column:1}.shop-card{grid-column:1}.shop-done{grid-column:2;grid-row:1/3}}
 
 .left-carry{margin:-2px 0 6px;font-size:12.5px;font-weight:800;color:var(--soft);display:flex;flex-wrap:wrap;gap:2px 10px;align-items:center}
@@ -2733,8 +2735,8 @@ dialog::backdrop{background:var(--backdrop)}
     <div class="pagehead"><div><h1>Together</h1><p>Shared money, without the awkwardness.</p></div><div class="ph-slot"></div></div>
     <div class="grid2">
       <div class="blk">
-        <button type="button" class="sh-link" id="usShopBtn" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h2l2.4 11h10.2L20 7H6.2"/><circle cx="9" cy="19" r="1.5"/><circle cx="17" cy="19" r="1.5"/></svg><span><b>Shopping list</b><small id="usShopSub">Pick things up together</small></span><i aria-hidden="true">›</i></button>
-        <button type="button" class="sh-link" id="usShareBtn" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v16M8 20h8M5 8h14"/><path d="M5 8l-2.5 6a3 3 0 0 0 5 0zM19 8l-2.5 6a3 3 0 0 0 5 0z"/></svg><span><b>Fair share</b><small>Who brought in and spent what</small></span><i aria-hidden="true">›</i></button>
+        <div class="us-links"><button type="button" class="sh-link" id="usShopBtn" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h2l2.4 11h10.2L20 7H6.2"/><circle cx="9" cy="19" r="1.5"/><circle cx="17" cy="19" r="1.5"/></svg><span><b>Shopping list</b><small id="usShopSub">Pick things up together</small></span><i aria-hidden="true">›</i></button>
+        <button type="button" class="sh-link" id="usShareBtn" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v16M8 20h8M5 8h14"/><path d="M5 8l-2.5 6a3 3 0 0 0 5 0zM19 8l-2.5 6a3 3 0 0 0 5 0z"/></svg><span><b>Fair share</b><small>Who brought in and spent what</small></span><i aria-hidden="true">›</i></button></div>
         <div class="card pad" id="settleWrap">
           <div class="title"><h2>Balance</h2><span>split expenses</span></div>
           <div id="settle"></div>

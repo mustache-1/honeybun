@@ -1155,6 +1155,7 @@
       renderPill();
       renderRefCard();
       renderTip(false);
+      $("bunNote").hidden = false;
       renderBunExtras();
       maybeAskCarry();
       $("verifyBanner").hidden = !!ME.verified || ME.has_email === false || +(store.get("hb-verify-hide") || 0) > Date.now();
@@ -2217,6 +2218,13 @@
       const ul = $("recent");
       while (over() > 1 && ul.children.length > 4) { ul.lastElementChild.remove(); ul.lastElementChild.remove(); }
       while (over() > 1 && dueSize > 3 && $("dueCard").querySelector(".due-pg")) { dueSize--; renderDue(lastDueLeft); }
+      // still too tall: drop the least important cards one at a time (they come back on bigger windows) before shrinking anything
+      if (over() > 1) { $("bunTip").hidden = true; }
+      if (over() > 1 && !$("bunAlerts").hidden) renderBunExtras(1);
+      if (over() > 1) $("bunNote").hidden = true;
+      if (over() > 1 && !$("refCard").hidden) $("refCard").hidden = true;
+      while (over() > 1 && ul.children.length > 2) { ul.lastElementChild.remove(); ul.lastElementChild.remove(); }
+      if (over() > 1 && !$("verifyBanner").hidden) $("verifyBanner").hidden = true;
     }
     if (screen === "plan" && over() > 1) {
       // shrink the debts list first (it's the tallest), then the bills list, one step at a time
@@ -2927,7 +2935,7 @@
   }
 
   // ---------- Bun's moods and heads-up alerts (Home) ----------
-  function renderBunExtras() {
+  function renderBunExtras(maxRows = 9) {
     const t = today(), m = meMember() || {};
     // mood: after 3 quiet days Bun gets sleepy and asks you to log something; logging brings the tip card back
     const gap = m.last_day ? Math.round((parseD(t) - parseD(m.last_day)) / 86400000) : 0;
@@ -2959,6 +2967,7 @@
     { const f = MONTH === t.slice(0, 7) ? forecast() : null;
       if (f && !f.wait) { const neg = f.endLeft < 0;
         rows.push(`<div class="ba-row${neg ? " warn" : ""}" data-go-stats="1" style="cursor:pointer"><span class="ba-ic">${neg ? "⚠️" : "🔮"}</span><div class="ba-t">${esc(tr(neg ? "On pace to run" : "On pace to end with about"))} ${neg ? fmt(Math.abs(f.endLeft)) + " " + esc(tr("short")) : fmt(f.endLeft)}<small>${esc(tr("See the month-end forecast"))} ›</small></div></div>`); } }
+    rows.splice(maxRows);
     box.hidden = !rows.length;
     if (rows.length) {
       box.innerHTML = `<b class="ba-h">${esc(tr("Heads up from Bun"))}</b>` + rows.join("");
