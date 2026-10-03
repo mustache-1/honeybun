@@ -1291,7 +1291,7 @@
       });
       { const jr = $("jointRow"); jr.hidden = KIND() !== "couple" || MEMBERS.length < 2;
         const on = !!NEST.joint; $("jointState").textContent = tr(on ? "On" : "Off"); $("jointState").classList.toggle("on", on);
-        jr.onclick = async () => { NEST.joint = NEST.joint ? 0 : 1; render(); try { await api("/api/nest", { method: "PATCH", body: { joint: !!NEST.joint } }); toast(tr(NEST.joint ? "Joint account is on. Everything adds up together." : "Joint account is off.")); } catch (err) { NEST.joint = NEST.joint ? 0 : 1; render(); toast(err.message); } }; }
+        jr.onclick = async () => { NEST.joint = NEST.joint ? 0 : 1; render(); try { await api("/api/nest", { method: "PATCH", body: { joint: !!NEST.joint } }); if (NEST.joint) refresh(); toast(tr(NEST.joint ? "Joint account is on. Everything adds up together." : "Joint account is off.")); } catch (err) { NEST.joint = NEST.joint ? 0 : 1; render(); toast(err.message); } }; }
       { const cr = $("carryRow"), cs = $("carrySet"); cr.hidden = false; cs.innerHTML = "";
         [["ask", "Ask me"], ["always", "Always carry"], ["never", "Start fresh"]].forEach(([id, n]) => {
           const b = document.createElement("button"); b.type = "button"; b.textContent = tr(n);
@@ -1844,7 +1844,7 @@
     } else $("splitHint").textContent = MEMBERS.length === 2 ? "Each of you covers half." : "Everyone covers the same amount.";
 
     // privacy: only for your own, unshared, non-repeating entries
-    $("privWrap").hidden = !(who === ME.id && (!shared || !canSplit) && !rep && !editingRec);
+    $("privWrap").hidden = JOINT() || !(who === ME.id && (!shared || !canSplit) && !rep && !editingRec);
 
     // repeating
     $("repeatField").hidden = editing?.kind === "entry";

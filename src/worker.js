@@ -690,6 +690,7 @@ function readSplit(body, amount) {
 // ---------- carry over: a month's leftover (or shortfall) moves into the next month ----------
 const prevMonth = (ym) => { const [y, m] = ym.split("-").map(Number); return m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, "0")}`; };
 // what the household ended a month with: income minus spending (private entries stay private), plus what came in from the month before
+const isJoint = async (env, nestId) => !!(await env.DB.prepare("SELECT joint FROM nests WHERE id = ?").bind(nestId).first())?.joint;
 async function monthBalance(env, nestId, ym) {
   const r = await env.DB.prepare(
     "SELECT COALESCE(SUM(CASE WHEN type='income' THEN amount_cents ELSE -amount_cents END), 0) AS b, COUNT(*) AS n FROM entries WHERE nest_id = ? AND substr(date, 1, 7) = ? AND private = 0"
@@ -713,7 +714,7 @@ async function readEntry(env, nestId, user, body) {
   const shared = type === "expense" && !!body.shared && ids.length > 1;
   let split = { mode: null, value: null }, shares = null;
   if (shared) { split = readSplit(body, amount); shares = JSON.stringify(computeShares(amount, split.mode, split.value, memberId, ids)); }
-  const priv = !shared && !!body.private && memberId === user.id ? 1 : 0;
+  const priv = !shared && !!body.private && memberId === user.id && !(await isJoint(env, nestId)) ? 1 : 0;
   return {
     type, amount, memberId, shared: shared ? 1 : 0, split, shares, priv,
     category: type === "expense" ? (CATEGORIES.includes(body.category) || (isCustomId(body.category) && (await customCategoryIds(env, nestId)).has(body.category)) ? body.category : "other") : null,
@@ -1012,7 +1013,7 @@ async function handle(request, env, url) {
       if (split.mode === "owed" && split.value > amount) split = { mode: "equal", value: null };
       shares = JSON.stringify(computeShares(amount, split.mode, split.value, ku.id, ids));
     }
-    const priv = !shared && (body.private !== undefined ? !!body.private && body.private !== "false" : !!prev?.private) ? 1 : 0;
+    const priv = !shared && !(await isJoint(env, nestId)) && (body.private !== undefined ? !!body.private && body.private !== "false" : !!prev?.private) ? 1 : 0;
     const u = await env.DB.prepare("SELECT tz FROM users WHERE id = ?").bind(ku.id).first();
     const date = isDate(body.date) ? body.date : localNow(u?.tz).date;
     const e = { type: "expense", amount, memberId: ku.id, shared: shared ? 1 : 0, split, shares, priv, category, label, date };
@@ -1453,6 +1454,8 @@ async function handle(request, env, url) {
       const cur = await env.DB.prepare("SELECT joint, kind FROM nests WHERE id = ?").bind(nestId).first();
       if (on && cur.kind !== "couple") throw new HttpError("Joint account is for couples.");
       await env.DB.prepare("UPDATE nests SET joint = ? WHERE id = ?").bind(on, nestId).run();
+      // one shared pot: anything that was marked private joins it (otherwise it would silently drop out of the totals and the carry-over)
+      if (on) await env.DB.prepare("UPDATE entries SET private = 0 WHERE nest_id = ? AND private = 1").bind(nestId).run();
       // the other person sees it change on their screen within seconds; tell them in their inbox and by push too
       if ((cur.joint ? 1 : 0) !== on) await postToOthers(env, nestId, user.id, "joint", { name: user.name, on: !!on }, "joint:" + crypto.randomUUID());
     }
