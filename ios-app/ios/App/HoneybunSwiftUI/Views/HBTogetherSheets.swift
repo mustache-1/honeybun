@@ -244,6 +244,18 @@ struct HBHouseholdSheet: View {
             membersCard
             inviteCard.id("invite")
             budgetCard
+            Button { store.sheet = .account } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: "lock.shield").font(.system(size: 18, weight: .semibold)).foregroundColor(HB.orange).frame(width: 40, height: 40).background(Circle().fill(HB.orange.opacity(0.14)))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Account & security").font(.system(size: 17, weight: .bold)).foregroundColor(.white)
+                        Text("Passkeys, password, your data, log out").font(.system(size: 13)).foregroundColor(HB.soft)
+                    }
+                    Spacer(); Image(systemName: "chevron.right").font(.system(size: 13, weight: .bold)).foregroundColor(HB.soft)
+                }
+                .padding(14).frame(maxWidth: .infinity).hbCard()
+            }
+            .buttonStyle(.plain).accessibilityIdentifier("hb-household-account")
             if let error = error { Text(error).font(.footnote.weight(.semibold)).foregroundColor(HB.red) }
             Image("HBHouseholdScene").resizable().scaledToFit().frame(maxWidth: .infinity)
                 .mask(LinearGradient(colors: [.clear, .black, .black], startPoint: .top, endPoint: UnitPoint(x: 0.5, y: 0.3)))

@@ -5,7 +5,7 @@ enum HBAPIError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .badURL: return "Bad Honeybun URL."
-        case .notSignedIn: return "You're signed out. Open the classic Honeybun and sign in first."
+        case .notSignedIn: return "Please log in."
         case let .http(_, s): return s
         case let .decoding(s): return "Honeybun sent something this screen didn't expect (\(s))."
         }
@@ -19,7 +19,8 @@ actor HBAPI {
     nonisolated let baseURL = URL(string: "https://honeybun.me")!
     private let decoder = JSONDecoder()
 
-    private func send(_ path: String, method: String, body: [String: Any]?) async throws -> Data {
+    /// `unauth: true` is for the sign-in calls themselves: a 401 there is "wrong password", with the server's own message, not "you are signed out".
+    func send(_ path: String, method: String, body: [String: Any]?, unauth: Bool = false) async throws -> Data {
         guard let url = URL(string: path, relativeTo: baseURL)?.absoluteURL else { throw HBAPIError.badURL }
         var r = URLRequest(url: url)
         r.httpMethod = method
@@ -35,7 +36,7 @@ actor HBAPI {
         }
         let (data, response) = try await URLSession.shared.data(for: r)
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
-        if status == 401 { throw HBAPIError.notSignedIn }
+        if status == 401 && !unauth { throw HBAPIError.notSignedIn }
         guard (200..<300).contains(status) else {
             let msg = (try? JSONSerialization.jsonObject(with: data) as? [String: Any])?["error"] as? String
             throw HBAPIError.http(status, msg ?? "Something went wrong (\(status)).")
@@ -43,7 +44,7 @@ actor HBAPI {
         return data
     }
 
-    private func decode<T: Decodable>(_ data: Data) throws -> T {
+    func decode<T: Decodable>(_ data: Data) throws -> T {
         do { return try decoder.decode(T.self, from: data) }
         catch { throw HBAPIError.decoding(String(describing: error)) }
     }

@@ -65,8 +65,12 @@ struct HBRootView: View {
             // while the native screens sign in and load your account, the same Halloween splash as app launch
             HalloweenLoadingView()
         case .signedOut:
-            HBMessageView(title: "Sign in first", message: "The native screens use your normal Honeybun login. Open the classic Honeybun, sign in, then come back.",
-                          primary: ("Open classic Honeybun", onClose), secondary: ("Try again", { Task { await store.start() } }))
+            // no (or an expired) session: native Welcome / Login / Create account. No Classic needed.
+            HBAuthFlowView(store: store, onClose: onClose)
+        case .needsBudget:
+            HBSetupView(store: store)
+        case .onboarding:
+            HBOnboardingView(store: store)
         case let .failed(msg):
             HBMessageView(title: "Couldn't load Honeybun", message: msg,
                           primary: ("Try again", { Task { await store.start() } }), secondary: ("Open classic Honeybun", onClose))
@@ -102,6 +106,7 @@ struct HBRootView: View {
         case .search: HBSearchSheet(store: store)
         case .editMe: HBEditMeSheet(store: store)
         case .carry: HBCarrySheet(store: store)
+        case .account: HBAccountView(store: store, onClose: onClose)
         }
     }
 }

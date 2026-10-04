@@ -15,6 +15,8 @@ enum HBPreview {
     @MainActor static func store(for screen: String) -> HBAppStore? {
         // Together screens: "together" (partner), "togethersolo", "togetherfamily", "togetherjoint" and their sheets
         let tvariant: String? = {
+            if screen.hasPrefix("auth") || screen.hasPrefix("onboard") { return "solo" }
+            if screen.hasPrefix("account") { return "partner" }
             if screen == "inboxempty" { return "inboxempty" }
             if screen.hasPrefix("inbox") { return "inbox" }
             if screen.hasPrefix("togethersolo") { return "solo" }
@@ -36,6 +38,18 @@ enum HBPreview {
         case "goalform": s.sheet = .goalForm(nil)
         case "goaledit": if let g = snap.goals.first { s.sheet = .goalForm(g.id) }
         case "money": s.selectedTab = .money
+        case let a where a.hasPrefix("auth") && a != "authsetup":
+            s.phase = .signedOut; s.previewAuthScreen = String(a.dropFirst(4))
+        case "authsetup":
+            s.account = HBUser(id: s.myID, name: "Una", email: "una@u.honeybun.invalid", verified: nil, has_email: false, has_password: true, apple: false); s.phase = .needsBudget
+        case let o where o.hasPrefix("onboard"):
+            s.account = HBUser(id: s.myID, name: "Una", email: "una@u.honeybun.invalid", verified: nil, has_email: false, has_password: true, apple: false)
+            s.phase = .onboarding; s.previewAuthScreen = String(o.dropFirst(7))
+        case let a where a.hasPrefix("account"):
+            let kind = String(a.dropFirst(7))     // "", "apple", "email", "delete", "deleteapple"
+            let apple = kind.contains("apple"), email = kind == "email"
+            s.account = HBUser(id: s.myID, name: s.members.first?.name ?? "Sam", email: email ? "sam@example.com" : "sam@u.honeybun.invalid", verified: email ? false : nil, has_email: email, has_password: !apple, apple: apple)
+            s.selectedTab = .together; s.sheet = .account; s.previewAuthScreen = kind
         case "inbox": s.selectedTab = .inbox; s.seedPreviewInbox("mixed")
         case "inboxupdates": s.selectedTab = .inbox; s.seedPreviewInbox("mixed"); s.previewInboxTab = "updates"
         case "inboxshared": s.selectedTab = .inbox; s.seedPreviewInbox("mixed"); s.previewInboxTab = "shared"

@@ -3,7 +3,7 @@ import SwiftUI
 
 enum HBSheet: Identifiable {
     case newEntry(String), editEntry(HBEntry), editRecurring(HBRecurring), newRecurring, upcoming, allTransactions, goalDetail(String), goalForm(String?)
-    case settle(String, String), fairShare, household(Bool), shopping, search, editMe, carry
+    case settle(String, String), fairShare, household(Bool), shopping, search, editMe, carry, account
     var id: String {
         switch self {
         case let .newEntry(t): return "new-" + t
@@ -21,6 +21,7 @@ enum HBSheet: Identifiable {
         case .search: return "search"
         case .editMe: return "edit-me"
         case .carry: return "carry"
+        case .account: return "account"
         }
     }
 }
@@ -34,9 +35,15 @@ enum HBTab: String, CaseIterable { case home = "Home", money = "Money", goals = 
 // goes through the backend and then reloads the snapshot, so Home, Money and Coming Up can never disagree with each other.
 @available(iOS 15.0, *)
 @MainActor final class HBAppStore: ObservableObject {
-    enum Phase: Equatable { case checking, signedOut, ready, failed(String) }
+    /// checking → (signedOut → native Welcome/Login) | needsBudget (new account: start or join one) | onboarding (first-run setup) | ready
+    enum Phase: Equatable { case checking, signedOut, needsBudget, onboarding, ready, failed(String) }
 
     @Published var phase: Phase = .checking
+    @Published var account: HBUser?          // who is signed in (from /api/me): name, email, how they sign in
+    private var onboardingDone = false       // set once the first-run setup was finished or skipped in this session
+    #if DEBUG
+    var previewAuthScreen: String?           // debug screenshots of the sign-in screens
+    #endif
     @Published var snapshot: HBNestSnapshot?
     @Published var month: String = HBDay.monthKey()
     @Published var selectedTab: HBTab = .home
@@ -83,26 +90,68 @@ enum HBTab: String, CaseIterable { case home = "Home", money = "Money", goals = 
 
     // MARK: loading
 
+    /// App launch (and after every sign-in): is there a valid native session? yes → the app; no → native Welcome.
     func start() async {
         if isPreview { return }
         phase = .checking
-        await HBSession.syncFromWebView()
-        await refresh()
+        HBSession.restore()                       // the Keychain copy, if the cookie store was emptied
+        do {
+            let me = try await HBAPI.shared.me()
+            account = me.user
+            await HBSession.mirrorToWebView()     // keeps the Classic fallback signed in too
+            if me.nest_id == nil { phase = .needsBudget; return }
+            await refresh()
+        } catch HBAPIError.notSignedIn {
+            phase = .signedOut
+        } catch {
+            phase = .failed(error.localizedDescription)
+        }
     }
 
     func refresh() async {
         if isPreview { return }
         do {
-            snapshot = try await HBAPI.shared.nest(month: month)
-            phase = .ready
+            let snap = try await HBAPI.shared.nest(month: month)
+            snapshot = snap
+            if phase == .onboarding || (snap.setup_done == false && !onboardingDone) { phase = .onboarding } else { phase = .ready }
             await loadPrevious()
         } catch HBAPIError.notSignedIn {
-            // the web view may have refreshed its cookie since we copied it: try once more before calling it signed out
-            let copied = await HBSession.syncFromWebView()
-            if copied > 0, let again = try? await HBAPI.shared.nest(month: month) { snapshot = again; phase = .ready } else { phase = .signedOut }
+            // the session expired or was ended elsewhere: back to native sign-in
+            resetAfterSignOut()
         } catch {
             if snapshot == nil { phase = .failed(error.localizedDescription) } else { notice = error.localizedDescription }
         }
+    }
+
+    // MARK: signing in and out
+
+    /// Called by the sign-in screens once the backend has set the session cookie.
+    func didAuthenticate() async {
+        await HBSession.didSignIn()
+        await start()
+    }
+    func logout() async {
+        try? await HBAPI.shared.logout()
+        await HBSession.clearEverywhere()
+        resetAfterSignOut()
+    }
+    /// The account was deleted: the server already ended the session.
+    func accountDeleted() async {
+        await HBSession.clearEverywhere()
+        resetAfterSignOut()
+    }
+    func resetAfterSignOut() {
+        snapshot = nil; account = nil; sheet = nil; selectedTab = .home; month = HBDay.monthKey()
+        inboxMessages = []; inboxState = .idle; shopping = []; shopState = .idle; prevSpent = nil; prevDaily = [:]
+        onboardingDone = false
+        phase = .signedOut
+    }
+    /// first-run setup finished (or skipped)
+    func finishOnboarding() async {
+        onboardingDone = true
+        try? await HBAPI.shared.finishSetup()
+        phase = .ready
+        await refresh()
     }
 
     func shiftMonth(_ n: Int) { setMonth(HBDay.shiftMonth(month, by: n)) }

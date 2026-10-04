@@ -1,7 +1,12 @@
 import Foundation
 
 // Shapes of the existing /api/nest and /api/me responses (checked against src/worker.js). Extra fields are ignored.
-struct HBUser: Decodable, Identifiable { let id: String; var name: String; var email: String? }
+struct HBUser: Decodable, Identifiable {
+    let id: String; var name: String; var email: String?
+    var verified: Bool?; var has_email: Bool?; var has_password: Bool?; var apple: Bool?   // how this account signs in (from /api/me)
+}
+struct HBPasskeyInfo: Decodable, Identifiable { let id: String; let name: String; let created_at: Double?; let last_used: Double? }
+struct HBPasskeyList: Decodable { let passkeys: [HBPasskeyInfo] }
 struct HBMeEnvelope: Decodable { let user: HBUser?; let nest_id: String? }
 
 struct HBMember: Decodable, Identifiable {
@@ -89,7 +94,7 @@ struct HBNestSnapshot: Decodable {
     let me: HBUser?; let nest: HBNest; let members: [HBMember]; let entries: [HBEntry]; let recurring: [HBRecurring]
     let logged: [HBLogged]; let goals: [HBGoal]; let shopping_open: Int?; let carry_in: HBCarry?; let inbox: HBInboxCount?; let jar: [HBJarMove]?
     let balances: [String: Int]?; let settlements: [HBSettlement]?
-    let carry_pending: HBCarryPrompt?; let categories: [HBCustomCategory]?
+    let carry_pending: HBCarryPrompt?; let categories: [HBCustomCategory]?; let setup_done: Bool?
 }
 
 enum HBCategory: String, CaseIterable, Identifiable {
