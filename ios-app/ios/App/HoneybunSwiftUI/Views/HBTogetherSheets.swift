@@ -32,8 +32,9 @@ struct HBSheetScaffold<Content: View>: View {
 
 @available(iOS 15.0, *)
 private func hbField(_ placeholder: String, text: Binding<String>, keyboard: UIKeyboardType = .default) -> some View {
-    TextField(placeholder, text: text).keyboardType(keyboard).font(.system(size: 18)).foregroundColor(.white)
+    TextField("", text: text).keyboardType(keyboard).font(.system(size: 18)).foregroundColor(.white)
         .padding(.horizontal, 16).frame(minHeight: 52)
+        .overlay(alignment: .leading) { if text.wrappedValue.isEmpty { Text(placeholder).font(.system(size: 18)).foregroundColor(Color.white.opacity(0.45)).padding(.leading, 16).allowsHitTesting(false) } }
         .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Color.white.opacity(0.05)))
         .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Color.white.opacity(0.12), lineWidth: 1))
 }
@@ -168,7 +169,7 @@ struct HBFairShareSheet: View {
                         ForEach(store.pairs) { p in
                             HStack(spacing: 10) {
                                 HBMemberAvatar(member: p.from, size: 36)
-                                Text("\(who(p.from)) owe\(p.from.id == store.myID ? "" : "s") \(who(p.to).lowercased() == "you" ? "you" : who(p.to))")
+                                Text("\(p.from.id == store.myID ? "You owe" : p.from.name + " owes") \(p.to.id == store.myID ? "you" : p.to.name)")
                                     .font(.system(size: 16, weight: .semibold)).foregroundColor(.white).lineLimit(1).minimumScaleFactor(0.8)
                                 Spacer(minLength: 6)
                                 Text(HBFormat.money(p.amount)).font(.system(size: 16, weight: .bold).monospacedDigit()).foregroundColor(.white)
@@ -595,11 +596,11 @@ struct HBSearchSheet: View {
                 }
                 if store.members.count > 1 {
                     Menu {
-                        Button("Everyone") { who = "" }
+                        Button("Anyone") { who = "" }
                         ForEach(store.members) { m in Button(m.id == store.myID ? "You" : m.name) { who = m.id } }
                     } label: {
                         HStack(spacing: 4) {
-                            Text(who.isEmpty ? "Everyone" : (who == store.myID ? "You" : store.memberName(who))).lineLimit(1)
+                            Text(who.isEmpty ? "Anyone" : (who == store.myID ? "You" : store.memberName(who))).lineLimit(1)
                             Image(systemName: "chevron.down").font(.system(size: 11, weight: .bold))
                         }
                         .font(.system(size: 15, weight: .semibold)).foregroundColor(Color(red: 1, green: 0.92, blue: 0.84)).padding(.horizontal, 12).frame(height: 40)
@@ -627,7 +628,7 @@ struct HBSearchSheet: View {
                 VStack(spacing: 0) {
                     ForEach(Array(rows.prefix(shown).enumerated()), id: \.element.id) { i, e in
                         if i > 0 { Divider().background(HB.line).padding(.leading, 62) }
-                        Button { store.sheet = .editEntry(e) } label: { HBEntryRow(entry: e, who: store.members.count > 1 ? store.memberName(e.member_id) : nil) }
+                        Button { store.sheet = .editEntry(e) } label: { HBEntryRow(entry: e, who: store.members.count > 1 ? (e.member_id == store.myID ? "You" : store.memberName(e.member_id)) : nil) }
                             .buttonStyle(.plain).accessibilityIdentifier("hb-search-row")
                     }
                     if rows.count > shown {

@@ -191,7 +191,7 @@ struct HBTogetherView: View {
                         if i > 0 { Divider().background(HB.line) }
                         HStack(spacing: 10) {
                             HBMemberAvatar(member: p.from, size: 34)
-                            Text("\(name(p.from)) owes \(name(p.to))").font(.system(size: 15, weight: .semibold)).foregroundColor(.white).lineLimit(1).minimumScaleFactor(0.8)
+                            Text(owesLine(p)).font(.system(size: 15, weight: .semibold)).foregroundColor(.white).lineLimit(1).minimumScaleFactor(0.8)
                             Spacer(minLength: 6)
                             Text(HBFormat.money(p.amount)).font(.system(size: 15, weight: .bold).monospacedDigit()).foregroundColor(.white)
                             Button { store.sheet = .settle(p.from.id, p.to.id) } label: {
@@ -221,6 +221,12 @@ struct HBTogetherView: View {
     }
 
     private func name(_ m: HBMember) -> String { m.id == store.myID ? "You" : m.name }
+    /// "You owe Riley" / "Riley owes you" / "Jordan owes Riley"
+    private func owesLine(_ p: HBPair) -> String {
+        let from = p.from.id == store.myID ? "You owe" : "\(p.from.name) owes"
+        return from + " " + (p.to.id == store.myID ? "you" : p.to.name)
+    }
+    private func who(_ id: String) -> String { id == store.myID ? "You" : store.memberName(id) }
 
     private func amountColumn(_ title: String, _ value: Double, _ tint: Color, alignment: HorizontalAlignment = .leading) -> some View {
         VStack(alignment: alignment, spacing: 4) {
@@ -314,9 +320,10 @@ struct HBTogetherView: View {
                 }
             }
             HStack(spacing: 10) {
-                TextField("Add an item…", text: $newItem)
+                TextField("", text: $newItem)
                     .focused($addFocused).submitLabel(.done).onSubmit(addItem)
                     .font(.system(size: 17)).foregroundColor(.white).padding(.horizontal, 16).frame(minHeight: 46)
+                    .overlay(alignment: .leading) { if newItem.isEmpty { Text("Add an item…").font(.system(size: 17)).foregroundColor(Color.white.opacity(0.45)).padding(.leading, 16).allowsHitTesting(false) } }
                     .background(RoundedRectangle(cornerRadius: 23, style: .continuous).fill(Color.white.opacity(0.05)))
                     .overlay(RoundedRectangle(cornerRadius: 23, style: .continuous).stroke(Color.white.opacity(0.12), lineWidth: 1))
                     .accessibilityIdentifier("hb-shop-input")
@@ -354,7 +361,7 @@ struct HBTogetherView: View {
                 HStack(spacing: 12) {
                     if let f = store.member(s.from_id) { HBMemberAvatar(member: f, size: 38) }
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("\(store.memberName(s.from_id)) paid \(store.memberName(s.to_id))").font(.system(size: 16, weight: .semibold)).foregroundColor(.white).lineLimit(1)
+                        Text("\(who(s.from_id)) paid \(s.to_id == store.myID ? "you" : store.memberName(s.to_id))").font(.system(size: 16, weight: .semibold)).foregroundColor(.white).lineLimit(1)
                         Text(HBDay.short(s.date)).font(.system(size: 13)).foregroundColor(HB.soft)
                     }
                     Spacer(minLength: 6)
@@ -390,6 +397,6 @@ struct HBTogetherView: View {
 struct HBTogetherPeek: View {
     var body: some View {
         Image("HBTogetherPeek").resizable().scaledToFit().frame(width: 96)
-            .offset(x: -10, y: 16).allowsHitTesting(false).accessibilityHidden(true)
+            .offset(x: -10, y: 4).allowsHitTesting(false).accessibilityHidden(true)
     }
 }
