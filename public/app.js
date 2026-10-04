@@ -1676,7 +1676,7 @@
   function openGoal(g) { goalOpen = g; $("gdView").hidden = false; $("gdForm").hidden = true; $("gdAmt").value = ""; drawGoalView(); $("goalDlg").showModal(); }
   function drawGoalEmojis() {
     const r = $("gEmojis"); r.innerHTML = "";
-    GOAL_EMOJIS.forEach((e) => { const b = document.createElement("button"); b.type = "button"; b.innerHTML = bud(e); b.setAttribute("aria-pressed", e === goalEmoji ? "true" : "false"); b.onclick = () => { goalEmoji = e; drawGoalEmojis(); }; r.appendChild(b); });
+    GOAL_EMOJIS.forEach((e) => { const b = document.createElement("button"); b.type = "button"; b.textContent = e; b.setAttribute("aria-pressed", e === goalEmoji ? "true" : "false"); b.onclick = () => { goalEmoji = e; drawGoalEmojis(); }; r.appendChild(b); });
   }
   function openGoalForm(g) {
     goalOpen = g || null; $("gdView").hidden = true; $("gdForm").hidden = false;
@@ -2150,7 +2150,7 @@
   let pickE, pickC;
   function drawPick() {
     const ep = $("emojiPick"); ep.innerHTML = "";
-    EMOJIS.forEach((e) => { const b = document.createElement("button"); b.type = "button"; b.textContent = e; b.setAttribute("aria-pressed", e === pickE ? "true" : "false"); b.onclick = () => { pickE = e; drawPick(); }; ep.appendChild(b); });
+    EMOJIS.forEach((e) => { const b = document.createElement("button"); b.type = "button"; b.innerHTML = bud(e); b.setAttribute("aria-pressed", e === pickE ? "true" : "false"); b.onclick = () => { pickE = e; drawPick(); }; ep.appendChild(b); });
     const cp = $("colorPick"); cp.innerHTML = "";
     COLORS.forEach((c) => { const b = document.createElement("button"); b.type = "button"; b.style.background = c; b.setAttribute("aria-label", "Color"); b.setAttribute("aria-pressed", c === pickC ? "true" : "false"); b.onclick = () => { pickC = c; drawPick(); }; cp.appendChild(b); });
   }
