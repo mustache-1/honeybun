@@ -315,3 +315,142 @@ html.hb-hh #hhHome .hq-latest-head{margin-top:20px}
  html.hb-hh #hhHome .hq-pill{max-width:105px}
  html.hb-hh #hhHome .hq-act{font-size:12px}
 }
+
+/* ===== ChatGPT reference geometry pass 2 =====
+   Calibrated against the authoritative Home mockup at a 390pt iPhone viewport.
+   Halloween-only; standard Honeybun is unaffected. */
+@media (max-width:500px){
+  html.hb-hh #hhHome{
+    width:100%;max-width:390px!important;margin:0 auto!important;
+    padding:calc(max(env(safe-area-inset-top,0px),var(--sat,0px)) + 8px) 0 112px!important;
+    --u:1px!important;
+  }
+  html.hb-hh #hhHome .hq-head{height:104px!important;margin:0 22px 0!important}
+  html.hb-hh #hhHome .hq-brand h1{font-size:29px!important;line-height:32px!important;letter-spacing:-.8px!important}
+  html.hb-hh #hhHome .hq-brand p{font-size:13.5px!important;line-height:18px!important;margin-top:5px!important;max-width:205px!important;color:#b8accb!important}
+  html.hb-hh #hhHome .hq-ib.bell{top:1px!important;right:0!important;width:39px!important;height:39px!important}
+  html.hb-hh #hhHome .hq-ib.bell svg{width:20px!important;height:20px!important}
+  html.hb-hh #hhHome .hq-ib.gear{display:none!important}
+
+  html.hb-hh #hhHome .hq-card{
+    height:181px!important;margin:0 20px!important;padding:23px 22px 0!important;border-radius:22px!important;
+    border:1.25px solid rgba(255,171,80,.55)!important;
+    background:radial-gradient(78% 105% at 100% 0%,rgba(255,158,55,.48),transparent 66%),radial-gradient(82% 90% at 0% 100%,rgba(255,165,60,.22),transparent 68%),linear-gradient(150deg,#55301d 0%,#3c2419 51%,#2b1a17 100%)!important;
+    box-shadow:inset 0 1px 0 rgba(255,225,180,.18),0 10px 26px rgba(0,0,0,.46),0 0 20px rgba(255,142,48,.13)!important;
+  }
+  html.hb-hh #hhHome .hq-witch{right:22px!important;top:-90px!important;width:118px!important;max-height:150px!important;object-fit:contain!important;object-position:bottom!important}
+  html.hb-hh #hhHome .hq-lbl{font-size:17px!important;line-height:21px!important;font-weight:700!important}
+  html.hb-hh #hhHome .hq-context{display:none!important}
+  html.hb-hh #hhHome .hq-row{height:60px!important;margin-top:0!important;align-items:center!important}
+  html.hb-hh #hhHome .hq-amt{font-size:43px!important;line-height:1!important;letter-spacing:-1.7px!important;max-width:225px!important}
+  html.hb-hh #hhHome .hq-amt small{font-size:.58em!important}
+  html.hb-hh #hhHome .hq-pill{right:15px!important;top:68px!important;height:31px!important;max-width:115px!important;font-size:11.5px!important;border-radius:99px!important}
+  html.hb-hh #hhHome .hq-pill button{width:19px!important;height:22px!important;font-size:14px!important}
+  html.hb-hh #hhHome .hq-bar{height:13px!important;margin-top:8px!important}
+  html.hb-hh #hhHome .hq-foot{font-size:12.5px!important;line-height:16px!important;margin-top:10px!important}
+
+  html.hb-hh #hhHome .hq-acts{gap:12px!important;margin:13px 20px 0!important}
+  html.hb-hh #hhHome .hq-act{height:52px!important;border-radius:20px!important;padding:0 13px!important;gap:10px!important;font-size:14px!important}
+  html.hb-hh #hhHome .hq-act b{width:31px!important;height:31px!important;font-size:21px!important}
+
+  html.hb-hh #hhHome .hq-h{margin:18px 22px 9px!important}
+  html.hb-hh #hhHome .hq-h h2{font-size:19px!important;line-height:23px!important}
+  html.hb-hh #hhHome .hq-h button{font-size:13px!important}
+  html.hb-hh #hhHome .hq-list{margin:0 20px!important;border-radius:20px!important}
+  html.hb-hh #hhHome .hq-it{height:58px!important;padding-left:13px!important;padding-right:13px!important;gap:11px!important}
+  html.hb-hh #hhHome .hq-it .ct,html.hb-hh #hhHome .hq-it svg.tile{transform:scale(.94)!important}
+  html.hb-hh #hhHome .hq-mid b{font-size:14px!important;line-height:18px!important}
+  html.hb-hh #hhHome .hq-mid small{font-size:12px!important;line-height:15px!important}
+  html.hb-hh #hhHome .hq-amt2{font-size:14px!important}
+  html.hb-hh #hhHome .hq-dw+.hq-dw{margin:0 13px!important}
+
+  html.hb-hh #hhHome .hq-streak{height:84px!important;width:calc(100% - 40px)!important;margin:13px 20px 0!important;padding:0 14px 0 104px!important;border-radius:20px!important}
+  html.hb-hh #hhHome .hq-streak>img{left:9px!important;bottom:0!important;width:92px!important;max-height:101px!important}
+  html.hb-hh #hhHome .hq-flame{width:25px!important;height:32px!important}
+  html.hb-hh #hhHome .hq-st b{font-size:16px!important;line-height:20px!important}
+  html.hb-hh #hhHome .hq-st small{font-size:12px!important;line-height:16px!important}
+
+  /* The authoritative Home composition ends at the streak card. Activity remains
+     reachable through Money/transaction views rather than crowding this viewport. */
+  html.hb-hh #hhHome .hq-latest-head,
+  html.hb-hh #hhHome .hq-latest-list{display:none!important}
+
+  /* Override legacy nav positioning. The previous rule inherited desktop transforms
+     and could leave the five-tab bar clipped on the left in the Capacitor webview. */
+  html.hb-hh nav.bottom:not(.x){
+    position:fixed!important;left:20px!important;right:20px!important;width:auto!important;
+    transform:none!important;margin:0!important;padding:0!important;
+    bottom:calc(max(env(safe-area-inset-bottom,0px),var(--sab,0px)) + 8px)!important;
+    background:transparent!important;border:0!important;box-shadow:none!important;
+    z-index:900!important;
+  }
+  html.hb-hh nav.bottom>.in:not(.hhn){display:none!important}
+  html.hb-hh nav.bottom>.hhn{
+    display:flex!important;width:100%!important;min-width:0!important;max-width:none!important;
+    height:72px!important;margin:0!important;padding:0 4px!important;border-radius:27px!important;
+    background:linear-gradient(180deg,rgba(43,29,52,.97),rgba(22,15,28,.99))!important;
+    border:1px solid rgba(255,255,255,.085)!important;box-shadow:0 12px 30px rgba(0,0,0,.58),inset 0 1px 0 rgba(255,255,255,.05)!important;
+    justify-content:space-between!important;align-items:center!important;overflow:hidden!important;
+  }
+  html.hb-hh nav.bottom .hhn button{min-width:0!important;flex:1 1 20%!important;width:20%!important;height:100%!important;padding:0!important;gap:3px!important;font-size:10px!important}
+  html.hb-hh nav.bottom .hhn button svg{width:22px!important;height:22px!important;flex:none!important}
+}
+
+/* ===== Honeybun Halloween V3 — art-directed reference pass =====
+   Uses original Honeybun Halloween artwork generated for this seasonal build.
+   Scoped to Halloween Home only; standard Honeybun remains unchanged. */
+@media (max-width:500px){
+  html.hb-hh #scr-home{background:#0e0912!important}
+  html.hb-hh #hhHome{
+    position:relative!important;
+    background:
+      linear-gradient(180deg,rgba(14,9,18,.03) 0,rgba(14,9,18,.78) 150px,#0e0912 245px),
+      url('/hh-v3-night-scene.webp') top center/100% 176px no-repeat!important;
+  }
+  html.hb-hh #hhHome:before{
+    content:"";position:absolute;z-index:0;left:0;right:0;top:0;height:210px;pointer-events:none;
+    background:radial-gradient(circle at 78% 24%,rgba(255,151,53,.16),transparent 28%),linear-gradient(180deg,rgba(20,9,27,.16),rgba(14,9,18,.86));
+  }
+  html.hb-hh #hhHome>*{position:relative;z-index:1}
+  html.hb-hh #hhHome .hq-head{height:110px!important;margin:0 22px!important;padding-top:7px!important}
+  html.hb-hh #hhHome .hq-brand h1{color:#ffb35b!important;text-shadow:0 0 16px rgba(255,151,50,.22)!important}
+  html.hb-hh #hhHome .hq-brand p{color:#e0d6ea!important;text-shadow:0 1px 8px rgba(0,0,0,.55)!important}
+  html.hb-hh #hhHome .hq-card{
+    height:186px!important;margin:0 20px!important;padding:24px 22px 0!important;
+    background:radial-gradient(100% 120% at 100% 0%,rgba(255,170,64,.48),transparent 60%),linear-gradient(145deg,rgba(113,58,22,.98),rgba(67,34,22,.98) 58%,rgba(42,24,23,.99))!important;
+    border:1px solid rgba(255,177,78,.78)!important;
+    box-shadow:inset 0 1px 0 rgba(255,232,190,.22),0 12px 30px rgba(0,0,0,.5),0 0 24px rgba(255,139,38,.18)!important;
+  }
+  html.hb-hh #hhHome .hq-card:after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;background:linear-gradient(110deg,rgba(255,255,255,.035),transparent 28%,transparent 72%,rgba(255,176,73,.06))}
+  html.hb-hh #hhHome .hq-witch{right:24px!important;top:-100px!important;width:132px!important;max-height:164px!important;filter:drop-shadow(0 8px 8px rgba(0,0,0,.45)) drop-shadow(0 0 12px rgba(255,143,39,.36))!important}
+  html.hb-hh #hhHome .hq-lbl{font-size:18px!important;color:#fff4e5!important}
+  html.hb-hh #hhHome .hq-amt{font-size:42px!important;color:#fff!important;text-shadow:0 2px 12px rgba(0,0,0,.28)!important}
+  html.hb-hh #hhHome .hq-bar{background:rgba(255,225,197,.22)!important;box-shadow:inset 0 1px 2px rgba(0,0,0,.2)!important}
+  html.hb-hh #hhHome .hq-bar i{background:linear-gradient(90deg,#ffad42,#ffd36a)!important;box-shadow:0 0 10px rgba(255,176,64,.38)!important}
+  html.hb-hh #hhHome .hq-acts{margin-top:12px!important}
+  html.hb-hh #hhHome .hq-act{background:linear-gradient(180deg,rgba(58,34,35,.96),rgba(31,21,30,.98))!important;border-color:rgba(255,148,58,.52)!important;box-shadow:0 7px 18px rgba(0,0,0,.28)!important}
+  html.hb-hh #hhHome .hq-act.inc{background:linear-gradient(180deg,rgba(24,55,45,.94),rgba(18,33,31,.98))!important;border-color:rgba(89,226,155,.43)!important}
+  html.hb-hh #hhHome .hq-list{background:linear-gradient(180deg,rgba(39,28,46,.94),rgba(25,18,30,.98))!important;border:1px solid rgba(171,142,190,.16)!important}
+  html.hb-hh #hhHome .hq-streak{background:radial-gradient(75% 160% at 8% 70%,rgba(255,151,51,.35),transparent 66%),linear-gradient(180deg,rgba(62,38,35,.96),rgba(30,20,31,.99))!important;border-color:rgba(255,151,55,.42)!important}
+  html.hb-hh #hhHome .hq-streak>img{width:98px!important;filter:drop-shadow(0 0 9px rgba(255,142,39,.32))!important}
+  html.hb-hh nav.bottom>.hhn{background:linear-gradient(180deg,rgba(39,27,48,.985),rgba(20,14,25,.995))!important;border:1px solid rgba(173,145,193,.14)!important;box-shadow:0 14px 32px rgba(0,0,0,.62),inset 0 1px 0 rgba(255,255,255,.045)!important}
+}
+
+/* ===== Honeybun Halloween V3 art pass =====
+   Uses the V3 custom art direction as environmental texture while retaining the
+   existing transparent mascot for clean overlap. Halloween-only. */
+@media (max-width:500px){
+  html.hb-hh #scr-home{position:relative;background:#0d0911!important}
+  html.hb-hh #scr-home::before{
+    content:"";position:fixed;z-index:0;left:0;right:0;top:0;height:265px;pointer-events:none;
+    background-image:linear-gradient(180deg,rgba(10,6,14,.12) 0%,rgba(13,9,17,.48) 64%,#0d0911 100%),url('/halloween-v3/scene-strip.webp');
+    background-size:cover;background-position:center 52%;opacity:.48;filter:saturate(.88) brightness(.72)
+  }
+  html.hb-hh #hhHome{position:relative;z-index:1}
+  html.hb-hh #hhHome .hq-head{height:108px!important}
+  html.hb-hh #hhHome .hq-brand h1{text-shadow:0 0 15px rgba(255,153,55,.2)}
+  html.hb-hh #hhHome .hq-card{overflow:visible!important;margin-top:0!important}
+  html.hb-hh #hhHome .hq-witch{right:18px!important;top:-98px!important;width:128px!important;max-height:162px!important;filter:drop-shadow(0 7px 8px rgba(0,0,0,.5)) drop-shadow(0 0 15px rgba(255,143,39,.38))!important}
+  html.hb-hh #hhHome .hq-streak>img{filter:drop-shadow(0 0 12px rgba(255,135,35,.36))!important}
+  html.hb-hh nav.bottom>.hhn{backdrop-filter:blur(18px) saturate(1.1)!important;-webkit-backdrop-filter:blur(18px) saturate(1.1)!important}
+}
