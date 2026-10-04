@@ -38,7 +38,7 @@ struct HBUpcomingRow: View {
             }
             .accessibilityLabel(item.recurring.isIncome ? "Mark received" : "Mark paid")
         }
-        .padding(.horizontal, 14).padding(.vertical, 9)
+        .padding(.horizontal, 14).padding(.vertical, 6)
     }
 }
 
@@ -54,7 +54,7 @@ struct HBHomeView: View {
             let heroH = hero * 0.907
             let overlap: CGFloat = 36                      // how far the hero's honey dips into the card
             ScrollView {
-                VStack(alignment: .leading, spacing: 14) {
+                VStack(alignment: .leading, spacing: 11) {
                     classicLink
                     header(heroH: heroH, overlap: overlap)
                     summaryCard(hero: hero, heroH: heroH, overlap: overlap)
@@ -84,7 +84,7 @@ struct HBHomeView: View {
     private func header(heroH: CGFloat, overlap: CGFloat) -> some View {
         HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: 4) {
-                HBWordmark(size: 36)
+                HBWordmark(size: 34)
                 Text("A happier way to manage\nmoney together.").font(.system(size: 15, weight: .medium)).foregroundColor(Color(red: 0.74, green: 0.69, blue: 0.9))
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -100,17 +100,17 @@ struct HBHomeView: View {
             .zIndex(2)
         }
         // room above the card so the hero's hat rises beside the wordmark instead of off the screen
-        .padding(.bottom, max(0, heroH - overlap - 70))
+        .padding(.bottom, max(0, heroH - overlap - 82))
     }
 
     private func summaryCard(hero: CGFloat, heroH: CGFloat, overlap: CGFloat) -> some View {
         let total = store.income + store.carry
         let ratio = total > 0 ? min(1, store.spent / total) : (store.spent > 0 ? 1 : 0)
-        return VStack(alignment: .leading, spacing: 8) {
+        return VStack(alignment: .leading, spacing: 6) {
             Text(store.isJoint ? "Safe to spend · Joint" : "Safe to spend").font(.system(size: 20, weight: .semibold)).foregroundColor(Color(red: 1, green: 0.96, blue: 0.9))
                 .padding(.trailing, hero * 0.55)
             HStack(alignment: .center) {
-                Text(HBFormat.money(store.left)).font(.system(size: 46, weight: .heavy).monospacedDigit())
+                Text(HBFormat.money(store.left)).font(.system(size: 42, weight: .heavy).monospacedDigit())
                     .minimumScaleFactor(0.5).lineLimit(1).foregroundColor(store.left < 0 ? HB.red : .white)
                     .shadow(color: .black.opacity(0.35), radius: 8, y: 2)
                 Spacer(minLength: 6)
@@ -131,7 +131,7 @@ struct HBHomeView: View {
                 Text("\(Int((ratio * 100).rounded()))%").font(.system(size: 16, weight: .semibold)).foregroundColor(Color(red: 0.98, green: 0.92, blue: 0.84))
             }
         }
-        .padding(18)
+        .padding(16)
         .background(
             RoundedRectangle(cornerRadius: 24, style: .continuous).fill(
                 LinearGradient(colors: [Color(red: 0.43, green: 0.25, blue: 0.12), Color(red: 0.24, green: 0.14, blue: 0.09)], startPoint: .topTrailing, endPoint: .bottomLeading))
@@ -159,7 +159,7 @@ struct HBHomeView: View {
                     .shadow(color: tint.opacity(0.5), radius: 8)
                 Text(title).font(.system(size: 16, weight: .semibold)).foregroundColor(.white).lineLimit(1).minimumScaleFactor(0.8)
             }
-            .frame(maxWidth: .infinity, minHeight: 54)
+            .frame(maxWidth: .infinity, minHeight: 48)
             .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(tint.opacity(0.10)))
             .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(tint.opacity(0.4), lineWidth: 1))
         }
@@ -191,7 +191,7 @@ struct HBHomeView: View {
     private var streakCard: some View {
         let n = store.streak
         return HStack(spacing: 10) {
-            Image("HBStreak").resizable().scaledToFit().frame(width: 84, height: 84).accessibilityHidden(true)
+            Image("HBStreak").resizable().scaledToFit().frame(width: 70, height: 70).accessibilityHidden(true)
             Image(systemName: "flame.fill").font(.system(size: 34)).foregroundStyle(LinearGradient(colors: [Color(red: 1, green: 0.78, blue: 0.3), Color(red: 1, green: 0.38, blue: 0.2)], startPoint: .top, endPoint: .bottom))
                 .shadow(color: Color(red: 1, green: 0.4, blue: 0.1).opacity(0.5), radius: 8)
             VStack(alignment: .leading, spacing: 3) {
@@ -200,7 +200,7 @@ struct HBHomeView: View {
             }
             Spacer(minLength: 0)
         }
-        .padding(.horizontal, 8).padding(.vertical, 6)
+        .padding(.horizontal, 8).padding(.vertical, 4)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(LinearGradient(colors: [Color(red: 0.24, green: 0.15, blue: 0.14), Color(red: 0.13, green: 0.09, blue: 0.14)], startPoint: .leading, endPoint: .trailing)))
         .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).stroke(HB.orange.opacity(0.30), lineWidth: 1))

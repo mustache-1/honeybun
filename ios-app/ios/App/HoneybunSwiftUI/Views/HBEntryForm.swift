@@ -101,7 +101,7 @@ struct HBEntryForm: View {
     var body: some View {
         NavigationView {
             ZStack {
-                HBBackground(glow: false)
+                HBBackground(glow: false, scene: false)
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
                         header
@@ -146,8 +146,8 @@ struct HBEntryForm: View {
             Text(title).font(.system(size: 22, weight: .bold)).foregroundColor(.white).frame(height: 44)
         }
         .overlay(alignment: .topTrailing) {
-            Image("HBFormPeek").resizable().scaledToFit().frame(width: 104)
-                .offset(x: -6, y: 18).allowsHitTesting(false).accessibilityHidden(true)
+            Image("HBFormPeek").resizable().scaledToFit().frame(width: 100, height: 83)
+                .offset(x: -8, y: -12).allowsHitTesting(false).accessibilityHidden(true)
         }
         .zIndex(2)
     }
@@ -175,9 +175,13 @@ struct HBEntryForm: View {
     private var amountCard: some View {
         HStack(spacing: 2) {
             Text("$").font(.system(size: 40, weight: .bold)).foregroundColor(amountText.isEmpty ? Color(red: 0.76, green: 0.70, blue: 0.95) : .white)
-            TextField("0.00", text: $amountText).keyboardType(.decimalPad)
-                .font(.system(size: 40, weight: .bold).monospacedDigit()).foregroundColor(.white).multilineTextAlignment(.leading)
-                .fixedSize(horizontal: true, vertical: false).frame(minWidth: 90)
+            ZStack(alignment: .leading) {
+                if amountText.isEmpty { Text("0.00").font(.system(size: 40, weight: .bold).monospacedDigit()).foregroundColor(Color(red: 0.76, green: 0.70, blue: 0.95)).allowsHitTesting(false) }
+                TextField("", text: $amountText).keyboardType(.decimalPad)
+                    .font(.system(size: 40, weight: .bold).monospacedDigit()).foregroundColor(.white).multilineTextAlignment(.leading)
+                    .accessibilityLabel("Amount")
+            }
+            .fixedSize(horizontal: true, vertical: false).frame(minWidth: 96)
         }
         .frame(maxWidth: .infinity, minHeight: 84)
         .background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(Color.white.opacity(0.04)))

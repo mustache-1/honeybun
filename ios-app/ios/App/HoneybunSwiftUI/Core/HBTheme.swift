@@ -75,14 +75,15 @@ extension Color {
 @available(iOS 15.0, *)
 struct HBBackground: View {
     var glow: Bool = true
+    var scene: Bool = true
     var body: some View {
         GeometryReader { g in
             ZStack(alignment: .top) {
                 LinearGradient(colors: [Color(red: 0.075, green: 0.045, blue: 0.105), Color(red: 0.043, green: 0.030, blue: 0.065)], startPoint: .top, endPoint: .bottom)
-                Image("HBScene").resizable().scaledToFill()
+                if scene { Image("HBScene").resizable().scaledToFill()
                     .frame(width: g.size.width, height: g.size.height * 0.5, alignment: .top).clipped()
                     .opacity(0.20)
-                    .mask(LinearGradient(colors: [.black, .black.opacity(0.4), .clear], startPoint: .top, endPoint: .bottom))
+                    .mask(LinearGradient(colors: [.black, .black.opacity(0.4), .clear], startPoint: .top, endPoint: .bottom)) }
                 if glow {
                     RadialGradient(colors: [Color(red: 1.0, green: 0.5, blue: 0.15).opacity(0.22), .clear], center: UnitPoint(x: 0.82, y: 0.05), startRadius: 0, endRadius: g.size.width * 0.9)
                     RadialGradient(colors: [Color(red: 0.55, green: 0.25, blue: 0.85).opacity(0.14), .clear], center: UnitPoint(x: 0.05, y: 0.0), startRadius: 0, endRadius: g.size.width * 0.8)
@@ -103,7 +104,7 @@ struct HBWordmark: View {
             Text("honeybun").font(.hbWordmark(size))
                 .foregroundStyle(LinearGradient(colors: [Color(red: 1.0, green: 0.89, blue: 0.65), Color(red: 0.98, green: 0.69, blue: 0.29)], startPoint: .top, endPoint: .bottom))
                 .shadow(color: Color(red: 1, green: 0.6, blue: 0.2).opacity(0.3), radius: 8)
-            Image(systemName: "heart.fill").font(.system(size: size * 0.4)).foregroundColor(Color(red: 1.0, green: 0.37, blue: 0.53)).padding(.top, size * 0.06)
+            Image(systemName: "heart.fill").font(.system(size: size * 0.36)).foregroundColor(Color(red: 1.0, green: 0.37, blue: 0.53)).padding(.top, size * 0.16)
         }
         .accessibilityElement(children: .ignore).accessibilityLabel("honeybun")
     }

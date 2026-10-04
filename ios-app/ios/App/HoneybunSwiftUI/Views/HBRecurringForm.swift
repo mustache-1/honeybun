@@ -81,7 +81,7 @@ struct HBRecurringForm: View {
                 }
                 .frame(maxWidth: 560).padding(HB.gutter).frame(maxWidth: .infinity)
             }
-            .background(HBBackground(glow: false))
+            .background(HBBackground(glow: false, scene: false))
             .navigationTitle(editing == nil ? "New bill or payday" : "Edit")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -149,7 +149,7 @@ struct HBUpcomingList: View {
                 }
                 .frame(maxWidth: 560).padding(HB.gutter).frame(maxWidth: .infinity)
             }
-            .background(HBBackground(glow: false))
+            .background(HBBackground(glow: false, scene: false))
             .navigationTitle("Coming up")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Done") { dismiss() } } }

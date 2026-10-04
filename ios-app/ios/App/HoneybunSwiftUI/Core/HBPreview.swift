@@ -14,7 +14,7 @@ enum HBPreview {
     @available(iOS 15.0, *)
     @MainActor static func store(for screen: String) -> HBAppStore? {
         guard let data = HBPreviewData.json.data(using: .utf8), let snap = try? JSONDecoder().decode(HBNestSnapshot.self, from: data) else { return nil }
-        let s = HBAppStore(previewSnapshot: snap, month: HBPreviewData.month, prevSpent: HBPreviewData.previousSpent)
+        let s = HBAppStore(previewSnapshot: snap, month: HBPreviewData.month, prevSpent: HBPreviewData.previousDaily.values.reduce(0, +), prevDaily: HBPreviewData.previousDaily)
         switch screen {
         case "money": s.selectedTab = .money
         case "addexp": s.sheet = .newEntry("expense")

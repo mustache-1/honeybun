@@ -33,12 +33,13 @@ enum HBTab: String, CaseIterable { case home = "Home", money = "Money", goals = 
     @Published var notice: String?
     @Published var sheet: HBSheet?
     @Published var prevSpent: Double?   // last month's spending, for the Money insight card
+    @Published var prevDaily: [Int: Double] = [:]   // last month's spending by day of month, for the chart
 
     init() {}
 
     /// Debug-only screenshots: a ready store with a fixed snapshot and no network (see HBPreview).
-    init(previewSnapshot: HBNestSnapshot, month: String, prevSpent: Double?) {
-        self.snapshot = previewSnapshot; self.month = month; self.prevSpent = prevSpent; self.phase = .ready
+    init(previewSnapshot: HBNestSnapshot, month: String, prevSpent: Double?, prevDaily: [Int: Double]) {
+        self.snapshot = previewSnapshot; self.month = month; self.prevSpent = prevSpent; self.prevDaily = prevDaily; self.phase = .ready
         self.isPreview = true; self.previewMonth = month
     }
     private(set) var isPreview = false
@@ -74,7 +75,13 @@ enum HBTab: String, CaseIterable { case home = "Home", money = "Money", goals = 
     // the month before the one on screen, only to say "spending is N% lower than last month"; if it can't load, the card just says something else
     private func loadPrevious() async {
         let prev = HBDay.shiftMonth(month, by: -1)
-        if let p = try? await HBAPI.shared.nest(month: prev) { prevSpent = p.entries.filter { !$0.isIncome }.reduce(0) { $0 + $1.amount } } else { prevSpent = nil }
+        if let p = try? await HBAPI.shared.nest(month: prev) {
+            let out = p.entries.filter { !$0.isIncome }
+            prevSpent = out.reduce(0) { $0 + $1.amount }
+            var by: [Int: Double] = [:]
+            for e in out { if let d = Int(e.date.suffix(2)) { by[d, default: 0] += e.amount } }
+            prevDaily = by
+        } else { prevSpent = nil; prevDaily = [:] }
     }
 
     /// the last 12 months, newest first, for the month menu

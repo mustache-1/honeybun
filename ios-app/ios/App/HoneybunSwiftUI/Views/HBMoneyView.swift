@@ -1,7 +1,7 @@
 import SwiftUI
 
 // One bar pair (spent / came in) for a few days of the month, drawn from the real entries.
-private struct HBBucket: Identifiable { let id: Int; let spent: Double; let income: Double }
+private struct HBBucket: Identifiable { let id: Int; let spent: Double; let last: Double }
 
 @available(iOS 15.0, *)
 struct HBMoneyView: View {
@@ -14,16 +14,17 @@ struct HBMoneyView: View {
         guard let d = HBDay.parse(store.month + "-01"), let r = HBDay.cal.range(of: .day, in: .month, for: d) else { return 30 }
         return r.count
     }
+    // spending this month vs the same days last month, per couple of days
     private var buckets: [HBBucket] {
         let size = 2
         let count = Int((Double(daysInMonth) / Double(size)).rounded(.up))
-        var spent = [Double](repeating: 0, count: count), income = [Double](repeating: 0, count: count)
-        for e in store.entries {
+        var spent = [Double](repeating: 0, count: count), last = [Double](repeating: 0, count: count)
+        for e in store.entries where !e.isIncome {
             guard let day = Int(e.date.suffix(2)), day >= 1 else { continue }
-            let i = min(count - 1, (day - 1) / size)
-            if e.isIncome { income[i] += e.amount } else { spent[i] += e.amount }
+            spent[min(count - 1, (day - 1) / size)] += e.amount
         }
-        return (0..<count).map { HBBucket(id: $0, spent: spent[$0], income: income[$0]) }
+        for (day, amt) in store.prevDaily where day >= 1 { last[min(count - 1, (day - 1) / size)] += amt }
+        return (0..<count).map { HBBucket(id: $0, spent: spent[$0], last: last[$0]) }
     }
     private var axisLabels: [(String, CGFloat)] {
         let mon = String(HBDay.monthName(store.month).prefix(3))
@@ -36,10 +37,12 @@ struct HBMoneyView: View {
         let sum = totals.reduce(0) { $0 + $1.total }
         guard sum > 0 else { return [] }
         func pct(_ v: Double) -> Int { Int((v / sum * 100).rounded()) }
-        let all = totals.map { CatRow(id: $0.category.rawValue, category: $0.category, total: $0.total, pct: pct($0.total)) }
+        // biggest first, but "Other" always last (like the mockup)
+        let ordered = totals.filter { $0.category != .other } + totals.filter { $0.category == .other }
+        let all = ordered.map { CatRow(id: $0.category.rawValue, category: $0.category, total: $0.total, pct: pct($0.total)) }
         if showAllCategories || all.count <= 5 { return all }
         // top four, then everything else together as "Other" (like the mockup)
-        let head = Array(all.prefix(4)).filter { $0.category != .other }
+        let head = Array(all.filter { $0.category != .other }.prefix(4))
         let headIDs = Set(head.map { $0.id })
         let rest = totals.filter { !headIDs.contains($0.category.rawValue) }.reduce(0) { $0 + $1.total }
         return head + (rest > 0 ? [CatRow(id: "other-rest", category: .other, total: rest, pct: pct(rest))] : [])
@@ -86,13 +89,18 @@ struct HBMoneyView: View {
     // spent (orange) and came in (purple), per couple of days
     private var chart: some View {
         let b = buckets
-        let top = max(1, b.map { max($0.spent, $0.income) }.max() ?? 1)
+        let top = max(1, b.map { max($0.spent, $0.last) }.max() ?? 1)
         return VStack(spacing: 8) {
+            HStack(spacing: 14) {
+                legend("This month", Color(red: 1, green: 0.66, blue: 0.3))
+                legend("Last month", Color(red: 0.62, green: 0.48, blue: 0.9))
+                Spacer(minLength: 0)
+            }
             HStack(alignment: .bottom, spacing: 5) {
                 ForEach(b) { x in
                     HStack(alignment: .bottom, spacing: 2) {
                         bar(x.spent / top, [Color(red: 1, green: 0.66, blue: 0.3), Color(red: 0.96, green: 0.5, blue: 0.22)])
-                        bar(x.income / top, [Color(red: 0.7, green: 0.55, blue: 0.95), Color(red: 0.5, green: 0.36, blue: 0.85)])
+                        bar(x.last / top, [Color(red: 0.7, green: 0.55, blue: 0.95), Color(red: 0.5, green: 0.36, blue: 0.85)])
                     }
                     .frame(maxWidth: .infinity)
                 }
@@ -113,6 +121,9 @@ struct HBMoneyView: View {
         .hbCard()
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Chart of spending and income this month")
+    }
+    private func legend(_ text: String, _ c: Color) -> some View {
+        HStack(spacing: 6) { Circle().fill(c).frame(width: 8, height: 8); Text(text).font(.system(size: 12, weight: .medium)).foregroundColor(HB.soft) }
     }
     private func bar(_ ratio: Double, _ colors: [Color]) -> some View {
         RoundedRectangle(cornerRadius: 5, style: .continuous)
