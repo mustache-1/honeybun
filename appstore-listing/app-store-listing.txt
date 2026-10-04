@@ -1,0 +1,87 @@
+App name (30 max)
+Honeybun: Budget Buddy
+
+Subtitle (30 max)
+Budget together, minus stress
+
+Promotional text (170 max)
+Meet Bun, your budget buddy. See what's left, split costs fairly and never miss a bill. Free, no bank login. Made for you, your partner or your whole family.
+
+Keywords (100 max, comma separated, no spaces)
+budget,couples,shared,expenses,bills,split,family,money,tracker,savings,planner,partner,joint
+
+Copyright
+2026 Rodrigo Avila
+
+Description (4000 max)
+Honeybun is a cute little budget for you, your partner or your whole family. See what's left this month, split costs fairly, never miss a bill, and let Bun the bunny cheer you on.
+
+NO BANK LOGIN. EVER.
+Add what you earn and spend in a couple of taps. Honeybun never asks to connect to your bank.
+
+SEE WHAT'S LEFT
+One clear number for the month: what came in, what you spent and what's still due. Last month's balance carries over (or starts fresh, your choice).
+
+BUDGET TOGETHER
+Invite your partner or family with a link. Split any cost evenly, by percent or by a set amount, and see a running balance so nobody has to keep score. Share a joint account and everything adds up in one pot.
+
+NEVER MISS A BILL
+Add rent, subscriptions and paychecks once and Honeybun remembers. Get a nudge before each bill is due and see what's coming up in the next 30 days.
+
+BUN, YOUR BUDGET BUDDY
+Bun gives you friendly heads-ups when a category is close to its budget, when a subscription price goes up, and where your month is heading. Keep your hop streak going and earn carrots as you log.
+
+PLAN AHEAD
+Hop calendar of your spending, goals in honey jars, a debt payoff plan with a debt-free date, shared shopping lists and a fair-share view of who brought in what.
+
+BUILT FOR YOUR iPHONE
+Face ID lock, home-screen and lock-screen widgets, Siri shortcuts, and your data stays in sync with the web and Windows apps.
+
+PRIVATE BY DESIGN
+No ads and we never sell your data. Download or delete everything any time in Settings.
+
+Available in English, Spanish and Chinese.
+
+Questions? help@honeybun.me
+
+WHAT'S NEW (version 1.0)
+Welcome to Honeybun! Track your money with a partner or your family, split costs fairly and let Bun keep you on track.
+
+URLs
+Support URL:   https://honeybun.me
+Marketing URL: https://honeybun.me
+Privacy Policy URL (required): https://honeybun.me/privacy.html
+Terms of Use (optional, put in the description footer or EULA field): https://honeybun.me/terms.html
+
+CATEGORIES
+Primary: Finance
+Secondary: Lifestyle   (or Productivity)
+
+PRICING AND AVAILABILITY
+Price: Free (Tier 0). All countries/regions you want. No in-app purchases yet.
+
+AGE RATING (questionnaire)
+Answer "None" to every content question. This gives 4+. (Your Terms say users must be 13+; that's fine.)
+
+APP PRIVACY (the "nutrition label")
+Data Collected, all "Linked to the user", none used for tracking:
+- Contact info: Email address (only for accounts that use one), Name
+- Financial info: Other financial info (the income and spending the person types in)
+- User content: Other user content (notes/labels, shopping lists)
+- Identifiers: User ID
+- Diagnostics: none
+Used for: App Functionality only.
+"Do you or your third-party partners use data for tracking?" -> No.
+
+APP REVIEW INFORMATION
+Sign-in required: Yes. Create a demo account in the app first and enter its username and password here.
+(Tip: sign up in the app with username `appreview` and a password, add a few entries, then paste those details.)
+Contact: your name, phone and email.
+Notes for the reviewer:
+"Honeybun is a budgeting app for individuals, couples and families. It does not connect to bank accounts. Sign in with the demo account above. Face ID lock is optional (Settings). Account deletion is in Settings > Delete account. The app loads honeybun.me content inside a native shell with a native tab bar, Face ID lock, widgets and Siri shortcuts."
+
+EXPORT COMPLIANCE
+The app only uses standard HTTPS encryption (already declared in the build), so answer that it uses exempt/standard encryption.
+
+CONTENT RIGHTS
+Select that you own or have rights to the content (the Bun artwork is yours).
