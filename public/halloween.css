@@ -745,3 +745,103 @@ html.hb-hh .hv-fields input,html.hb-hh .hv-fields button{font-size:15px!importan
 html.hb-hh #hhGoals .hv-goals-art{margin-top:auto!important;margin-bottom:84px!important;width:calc(100% + 28px)!important}
 html.hb-hh #hhGoals{min-height:calc(100vh - 20px)}
 html.hb-hh .hv-pumpkin{width:150px!important;margin:10px -4px 0 auto!important}
+
+/* ===== V8.3: entries, fair share, subscriptions, payments, home filter + jars ===== */
+.hv-overlay h3{margin:10px 0 4px;font-size:15px}
+.hv-chev{width:15px;height:15px;color:#cfc8dc;flex:none}
+.hv-search input[type=search]{width:100%;box-sizing:border-box;height:46px;border-radius:14px;border:1px solid rgba(255,255,255,.1);background:#1a1422;color:#fff;padding:0 14px;font:600 15px system-ui,sans-serif;margin-bottom:8px;-webkit-appearance:none}
+.hv-filters{display:flex;gap:8px;flex-wrap:wrap}
+.hv-filters select{flex:1;min-width:0;height:38px;border-radius:12px;border:1px solid rgba(255,255,255,.1);background:#241a2e;color:#fff;padding:0 10px;font:600 13px system-ui,sans-serif;color-scheme:dark}
+.hv-count{font-size:12px;color:#a99dbd}
+.hv-ent{display:flex;align-items:center;border-top:1px solid rgba(255,255,255,.07)}.hv-ent:first-child{border-top:0}
+.hv-entmain{flex:1;min-width:0;display:flex;align-items:center;gap:11px;padding:10px 0;background:none;border:0;color:#fff;text-align:left;font:inherit;cursor:pointer}
+.hv-entmid{flex:1;min-width:0}.hv-entmid b{display:block;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.hv-entmid small{display:block;font-size:11.5px;color:#a99dbd;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hv-entmain strong{font-size:14.5px;font-variant-numeric:tabular-nums;white-space:nowrap}.hv-entmain strong.in{color:#6ee3a0}
+.hv-entdel{width:34px;height:34px;border:0;background:none;color:#8b7ba8;font-size:15px;cursor:pointer;flex:none}
+.hv-more{display:block;width:100%;padding:12px;border:0;border-top:1px solid rgba(255,255,255,.07);background:none;color:#ffb04d;font:700 14px system-ui,sans-serif;cursor:pointer}
+.hv-overlay .hv-people>div[data-out],.hv-overlay .hv-people>.hv-chips2,.hv-overlay .hv-people>.hv-legend{display:block;padding:0;border:0}
+.hv-overlay .hv-people>.hv-legend{display:flex;justify-content:space-between;font-size:12px;color:#c9bcd9;padding:4px 0 8px}
+.hv-overlay [data-out]>div{display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid rgba(255,255,255,.07)}
+.hv-overlay [data-out]>div>span:nth-child(2){flex:1}.hv-overlay [data-out] small,.hv-people small{display:block;color:#a99dbd;font-size:12px}
+.hv-people strong{font-size:15px;font-variant-numeric:tabular-nums;text-align:right}.hv-people strong small{font-weight:500}
+.hv-chips2{display:flex;gap:8px;margin:8px 0}
+.hv-chips2 button{flex:1;height:36px;border-radius:99px;border:1px solid rgba(255,255,255,.1);background:#241a2e;color:#e9dff5;font:700 13px system-ui,sans-serif;cursor:pointer}
+.hv-chips2 button.on{background:#f59a3c;color:#2a1604;border-color:#f59a3c}
+.hv-range{width:100%;accent-color:#ffb04d;margin:6px 0}
+.hv-sbar{display:flex;height:8px;border-radius:99px;overflow:hidden;margin:8px 0}.hv-sbar i{display:block;height:100%}
+.hv-tot{display:flex;justify-content:space-between;margin:8px 0 2px;font-size:14px}
+.hv-note{font-size:12px;color:#a99dbd;margin:6px 0 4px;line-height:1.4}
+.hv-mini{border:1px solid rgba(255,170,80,.55);background:transparent;color:#ffb066;border-radius:99px;font:800 12px system-ui,sans-serif;padding:6px 10px;cursor:pointer;flex:none}
+.hv-subsum{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.hv-subsum>div{background:rgba(255,160,70,.1);border:1px solid rgba(255,170,80,.3);border-radius:16px;padding:12px 8px;text-align:center}.hv-subsum b{display:block;font-size:16px}.hv-subsum small{display:block;font-size:11px;color:#c9bcd9;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hv-overlay .hv-entries .hv-chev{margin-right:6px}
+.hv-overlay>.hv-save{margin-top:14px}
+.hv-subtotal{margin:2px 0 6px;font-size:13px;color:#c9bcd9}.hv-subtotal b{color:#fff}
+.hv-subrow{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid rgba(255,255,255,.07)}.hv-subrow b{flex:1;font-size:14px}.hv-subrow small{color:#a99dbd;font-size:12px}.hv-subrow strong{font-size:14px}
+html.hb-hh .hv-subs{padding:10px 14px}
+.hv-pays>div:not(.hv-cardtitle){display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid rgba(255,255,255,.07)}
+.hv-pays>div>span:nth-child(2){flex:1}.hv-pays b{display:block;font-size:14px}.hv-pays small{display:block;font-size:11.5px;color:#a99dbd}
+.hv-pays button{background:none;border:0;color:#8b7ba8;cursor:pointer;font-size:14px}
+.hv-all{display:flex;align-items:center;gap:12px;width:100%;margin:12px 0;padding:14px;border-radius:20px;border:1px solid rgba(255,255,255,.08);background:linear-gradient(180deg,rgba(44,32,54,.62),rgba(26,19,32,.8));color:#fff;font:inherit;cursor:pointer;text-align:left}
+.hv-all b{flex:1;font-size:15px}.hv-all small{color:#a99dbd;font-size:12px}
+.hv-fairhead{display:flex;align-items:center;gap:8px;background:none;border:0;color:#fff;padding:0;cursor:pointer;font:inherit}
+.hv-delete{display:block;width:100%;margin-top:10px;height:46px;border-radius:16px;border:1px solid rgba(255,111,145,.5);background:transparent;color:#ff8fa3;font:800 15px system-ui,sans-serif;cursor:pointer}
+/* home: whose money + honey jars + joint tag */
+.hq-who{display:flex;gap:8px;margin:12px 17px 0;overflow-x:auto;scrollbar-width:none}
+.hq-who::-webkit-scrollbar{display:none}
+.hq-who button{flex:none;display:flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:99px;border:1px solid rgba(255,255,255,.12);background:#241a2e;color:#d6c8e4;font:700 13px system-ui,sans-serif;cursor:pointer}
+.hq-who button span{width:20px;height:20px;border-radius:50%;overflow:hidden;display:grid;place-items:center}
+.hq-who button[aria-pressed="true"]{background:#f59a3c;border-color:#f59a3c;color:#2a1604}
+.hq-joint{font-style:normal;margin-left:8px;padding:2px 8px;border-radius:99px;background:rgba(255,255,255,.14);font-size:11px;font-weight:800;color:#ffe0b0;vertical-align:1px}
+.hq-jars .hq-jar{display:flex;align-items:center;gap:12px;padding:10px 14px;border-top:1px solid rgba(255,255,255,.07)}.hq-jars .hq-jar:first-child{border-top:0}
+.hq-jar .hv-goalicon{display:block;width:38px;height:38px}.hq-jar .hv-goalicon svg{width:100%;height:100%}
+.hq-jar strong{font-size:14px;color:#d6c8e4}
+.hq-jar i{display:block;height:7px;border-radius:99px;background:rgba(255,255,255,.12);margin-top:6px;overflow:hidden}.hq-jar u{display:block;height:100%;border-radius:99px;text-decoration:none;background:#ffb04d}
+.hq-jar i.g0 u{background:linear-gradient(90deg,#4fe0a0,#8af0c4)}.hq-jar i.g1 u,.hq-jar i.g2 u{background:linear-gradient(90deg,#7a5cf0,#a98bff)}
+.hv-pays{padding:12px 14px!important}.hv-pays .hv-cardtitle{margin-bottom:2px}.hv-pays .hv-empty{margin:6px 0 2px!important;padding:0!important;text-align:left;font-size:13px}
+
+/* ===== V8.4: visual-fidelity pass ===== */
+/* nothing renders through the bottom bar: a solid backdrop under it, and every screen leaves room above it */
+html.hb-hh nav.bottom>.hhn{background:linear-gradient(180deg,#2a1e33,#1a1222)!important}
+html.hb-hh nav.bottom::before{content:"";position:fixed;left:0;right:0;bottom:0;height:calc(96px + env(safe-area-inset-bottom,0px));background:linear-gradient(180deg,rgba(13,9,17,0),#0d0911 38%);z-index:-1;pointer-events:none}
+html.hb-hh[data-scr="home"] nav.bottom::before,html.hb-hh[data-scr="stats"] nav.bottom::before,html.hb-hh[data-scr="plan"] nav.bottom::before,html.hb-hh[data-scr="us"] nav.bottom::before,html.hb-hh[data-scr="inbox"] nav.bottom::before{display:block}
+html.hb-hh #scr-stats:not([hidden]),html.hb-hh #scr-us:not([hidden]),html.hb-hh #scr-inbox:not([hidden]),html.hb-hh #scr-plan:not([hidden]){padding-bottom:calc(128px + env(safe-area-inset-bottom,0px))!important}
+html.hb-hh #hhHome{padding-bottom:calc(128px + env(safe-area-inset-bottom,0px))!important}
+/* goals: the scene is part of the page flow, fully above the bar */
+html.hb-hh #hhGoals .hv-goals-art{margin:auto -14px 0!important;width:calc(100% + 28px)!important;max-width:none!important}
+html.hb-hh #hhGoals{min-height:calc(100vh - 150px)!important}
+/* add forms: Bun leans over the top edge of the segmented control */
+.hv-segwrap{margin-top:46px!important}
+.hv-segwrap .hv-peek{top:auto!important;bottom:calc(100% - 14px)!important;right:22px!important;width:104px!important;height:auto;z-index:4}
+/* settings */
+html.hb-hh #hhSettings{padding-top:calc(max(env(safe-area-inset-top,0px),var(--sat,0px)) + 18px)}
+html.hb-hh #hhSettings .hv-formhead{position:relative;display:flex;align-items:center;justify-content:center;min-height:44px;margin-bottom:8px}
+html.hb-hh #hhSettings .hv-formhead>button{position:absolute;left:0;background:none;border:0;color:#fff;font-size:32px;line-height:1;padding:2px 10px 2px 0;cursor:pointer}
+html.hb-hh #hhSettings .hv-formhead>b{font-size:19px;font-weight:800}
+html.hb-hh .hv-profile{display:flex;align-items:center;gap:16px;margin:6px 4px 18px}
+html.hb-hh .hv-profile img{width:96px;height:96px;object-fit:contain;flex:none;filter:drop-shadow(0 4px 10px rgba(0,0,0,.45))}
+html.hb-hh .hv-profile b{display:block;font-size:22px;font-weight:800;line-height:1.1}
+html.hb-hh .hv-profile small{display:block;margin-top:6px;font-size:13px;color:#c9bcd9;word-break:break-all}
+html.hb-hh .hv-settings{padding:2px 16px!important;margin-bottom:14px}
+html.hb-hh .hv-settings>button{display:flex;align-items:center;gap:14px;width:100%;min-height:58px;background:none;border:0;border-top:1px solid rgba(255,255,255,.07);color:#fff;font:inherit;text-align:left;cursor:pointer;padding:0}
+html.hb-hh .hv-settings>button:first-child{border-top:0}
+html.hb-hh .hv-sico{width:30px;height:30px;display:grid;place-items:center;color:#ffb347;flex:none}
+html.hb-hh .hv-sico svg{width:26px;height:26px}
+html.hb-hh .hv-settings b{flex:1;font-size:16px;font-weight:600}
+html.hb-hh .hv-settings em{font-style:normal;display:flex;align-items:center;gap:8px;color:#bcaed0;font-size:14px}
+html.hb-hh .hv-settings em i{font-style:normal}
+html.hb-hh .hv-settings em .hv-chev{width:16px;height:16px;color:#d8cfe6}
+/* shopping list: checkbox then text, nothing else */
+html.hb-hh .hv-shop{padding:14px 16px 12px!important}
+html.hb-hh .hv-shop .hv-cardtitle{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+html.hb-hh .hv-shop-list{display:flex;flex-direction:column}
+html.hb-hh .hv-shop-list label{display:flex;align-items:center;gap:14px;min-height:38px;margin:0;padding:0;cursor:pointer;position:relative;font-size:15px;color:#fff}
+html.hb-hh .hv-shop-list label input{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none}
+html.hb-hh .hv-shop-list .hv-check{flex:none;width:18px;height:18px;border-radius:5px;border:1.5px solid #8b7ba8;background:transparent;box-sizing:border-box}
+html.hb-hh .hv-shop-list input:checked+.hv-check{background:#ffb04d;border-color:#ffb04d}
+html.hb-hh .hv-shop-name{flex:1;min-width:0;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+html.hb-hh .hv-shop-add{display:flex;align-items:center;justify-content:space-between;width:100%;min-height:42px;margin-top:6px;padding:0;background:none;border:0;color:#9a8cb4;font:inherit;font-size:15px;cursor:pointer}
+html.hb-hh .hv-shop-add b{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:#f59a3c;color:#2a1604;font-size:22px;font-weight:500}
+.hv-segwrap .hv-peek{bottom:calc(100% - 7px)!important;width:96px!important;right:26px!important}
+html.hb-hh .hv-formseg{height:48px!important;padding:3px!important}
+html.hb-hh .hv-formseg button{font-size:15px!important}
