@@ -32,13 +32,22 @@ struct HBLogged: Decodable { let recurring_id: String; let occ_date: String }
 struct HBGoal: Decodable, Identifiable {
     let id: String; let name: String; let emoji: String?; let target_cents: Int; let saved_cents: Int
     var progress: Double { target_cents > 0 ? min(1, Double(saved_cents) / Double(target_cents)) : 0 }
+    var saved: Double { Double(saved_cents) / 100.0 }
+    var target: Double { Double(target_cents) / 100.0 }
+    var isDone: Bool { target_cents > 0 && saved_cents >= target_cents }
+}
+/// one deposit (+) or withdrawal (−) on a savings goal, from /api/nest "jar" (the latest 60)
+struct HBJarMove: Decodable, Identifiable {
+    let id: String; let goal_id: String?; let member_id: String; let amount_cents: Int; let created_at: Double
+    var amount: Double { Double(amount_cents) / 100.0 }
+    var date: Date { Date(timeIntervalSince1970: created_at) }
 }
 struct HBNest: Decodable { let id: String; let name: String; let kind: String?; let joint: Int? }
 struct HBCarry: Decodable { let amount_cents: Int; let accepted: Bool? }
 
 struct HBNestSnapshot: Decodable {
     let me: HBUser?; let nest: HBNest; let members: [HBMember]; let entries: [HBEntry]; let recurring: [HBRecurring]
-    let logged: [HBLogged]; let goals: [HBGoal]; let shopping_open: Int?; let carry_in: HBCarry?; let inbox: HBInbox?
+    let logged: [HBLogged]; let goals: [HBGoal]; let shopping_open: Int?; let carry_in: HBCarry?; let inbox: HBInbox?; let jar: [HBJarMove]?
 }
 
 enum HBCategory: String, CaseIterable, Identifiable {
@@ -117,4 +126,12 @@ struct HBRecurringDraft {
         if shared, let m = splitMode { d["split_mode"] = m; if let v = splitValue { d["split_value"] = v } }
         return d
     }
+}
+
+// What the app sends to POST/PATCH /api/goals (the backend keeps one of its ten goal emoji; the app shows icons, never the emoji).
+struct HBGoalDraft {
+    var name: String = ""
+    var target: Double = 0
+    var emoji: String = HBGoalStyle.emojis[0]
+    var json: [String: Any] { ["name": name, "target": target, "emoji": emoji] }
 }

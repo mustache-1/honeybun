@@ -30,6 +30,12 @@ for (const [cat, rows] of spend) for (const [label, amt, dayN] of rows) await ad
 await call("/api/recurring", "POST", { type: "expense", amount: 15.99, label: "Netflix", freq: "monthly", date: day(5), member_id: me, shared: false, category: "subs" });
 await call("/api/recurring", "POST", { type: "expense", amount: 9.99, label: "Discord Nitro", freq: "monthly", date: day(8), member_id: me, shared: false, category: "subs" });
 await call("/api/recurring", "POST", { type: "expense", amount: 850, label: "Rent", freq: "monthly", date: "2026-11-01", member_id: me, shared: false, category: "home" });
+// savings goals with some history (mockup-style names; fixture only)
+const goalDefs = [["Vacation Fund", 1000, "✈️", [100, 120, 200]], ["New PC Build", 2000, "🎓", [400, 250]], ["Emergency Fund", 1000, "🛟", [300]], ["Wedding Fund", 600, "💍", [350, 250]]];
+for (const [name, target, emoji, adds] of goalDefs) {
+  const id = (await call("/api/goals", "POST", { name, target, emoji })).json.id;
+  for (const amt of adds) await call("/api/jar", "POST", { goal_id: id, amount: amt, direction: "in" });
+}
 const snap = (await call("/api/nest?month=" + MONTH)).json;
 snap.members.forEach((m) => { m.streak = 12; });
 snap.inbox = { unread: 1 };

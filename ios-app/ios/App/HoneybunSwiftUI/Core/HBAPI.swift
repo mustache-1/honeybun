@@ -55,6 +55,12 @@ actor HBAPI {
     func updateEntry(id: String, _ d: HBEntryDraft) async throws { _ = try await send("/api/entries/\(id)", method: "PATCH", body: d.json) }
     func deleteEntry(id: String) async throws { _ = try await send("/api/entries/\(id)", method: "DELETE", body: nil) }
 
+    func addGoal(_ d: HBGoalDraft) async throws { _ = try await send("/api/goals", method: "POST", body: d.json) }
+    func updateGoal(id: String, _ d: HBGoalDraft) async throws { _ = try await send("/api/goals/\(id)", method: "PATCH", body: d.json) }
+    func deleteGoal(id: String) async throws { _ = try await send("/api/goals/\(id)", method: "DELETE", body: nil) }
+    func moveJar(goalID: String, amount: Double, out: Bool) async throws { _ = try await send("/api/jar", method: "POST", body: ["goal_id": goalID, "amount": amount, "direction": out ? "out" : "in"]) }
+    func deleteJarMove(id: String) async throws { _ = try await send("/api/jar/\(id)", method: "DELETE", body: nil) }
+
     func logOccurrence(recurringID: String, date: String) async throws { _ = try await send("/api/recurring/\(recurringID)/log", method: "POST", body: ["occ_date": date]) }
     func updateRecurring(id: String, _ d: HBRecurringDraft) async throws { _ = try await send("/api/recurring/\(id)", method: "PATCH", body: d.json) }
     func addRecurring(_ d: HBRecurringDraft) async throws { _ = try await send("/api/recurring", method: "POST", body: d.json) }

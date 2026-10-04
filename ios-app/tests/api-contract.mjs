@@ -103,4 +103,46 @@ ok("deleted: gone from entries, spent back to 0", !r.json.entries.some((e) => e.
 r = await call("/api/recurring/" + recId, "DELETE");
 ok("DELETE /api/recurring/:id → 200", r.status === 200);
 
+// --- 8. savings goals (native Goals tab)
+r = await call("/api/goals", "POST", { name: "Vacation Fund", target: 1000, emoji: "✈️" });
+ok("POST /api/goals → 201 {id}", r.status === 201 && typeof r.json?.id === "string", JSON.stringify(r));
+const gid = r.json?.id;
+r = await call("/api/goals", "POST", { name: "   ", target: 50, emoji: "🍯" });
+ok("goal with an empty name is rejected (400)", r.status === 400, "got " + r.status);
+r = await call("/api/goals", "POST", { name: "Zero", target: 0, emoji: "🍯" });
+ok("goal with a $0 target is rejected (400)", r.status === 400, "got " + r.status);
+r = await call("/api/goals", "POST", { name: "x".repeat(60), target: 10, emoji: "not-an-emoji" });
+const longId = r.json?.id;
+r = await call("/api/nest?month=" + month);
+const longGoal = r.json.goals.find((g) => g.id === longId);
+ok("name is cut to 30 characters and an unknown emoji falls back to the first", longGoal?.name.length === 30 && longGoal.emoji === "🍯");
+await call("/api/goals/" + longId, "DELETE");
+r = await call("/api/jar", "POST", { goal_id: gid, amount: 120, direction: "in" });
+ok("POST /api/jar in → 200 {ok}", r.status === 200 && r.json?.ok, JSON.stringify(r));
+await call("/api/jar", "POST", { goal_id: gid, amount: 300.5, direction: "in" });
+r = await call("/api/jar", "POST", { goal_id: gid, amount: 20, direction: "out" });
+ok("POST /api/jar out → 200 {ok}", r.status === 200 && r.json?.ok, JSON.stringify(r));
+r = await call("/api/jar", "POST", { goal_id: gid, amount: 99999, direction: "out" });
+ok("taking out more than saved is refused with a message (400)", r.status === 400 && /can't take out more/i.test(r.json?.error || ""), JSON.stringify(r));
+r = await call("/api/nest?month=" + month);
+let g = r.json.goals.find((x) => x.id === gid);
+ok("goal saved = 120 + 300.50 - 20 = 40050 cents; shape has id,name,emoji,target_cents,saved_cents", g?.saved_cents === 40050 && g.target_cents === 100000 && g.emoji === "✈️" && g.name === "Vacation Fund");
+const moves = r.json.jar.filter((j) => j.goal_id === gid);
+ok("jar[] lists the 3 moves with signed cents, member_id, created_at (seconds)", moves.length === 3 && moves.some((m) => m.amount_cents === -2000) && moves.every((m) => m.member_id === mid && typeof m.created_at === "number"));
+const out20 = moves.find((m) => m.amount_cents === -2000);
+r = await call("/api/jar/" + out20.id, "DELETE");
+ok("DELETE /api/jar/:id (undo a move) → 200", r.status === 200 && r.json?.ok);
+r = await call("/api/nest?month=" + month);
+ok("undoing the take-out puts the 20 back (42050)", r.json.goals.find((x) => x.id === gid)?.saved_cents === 42050);
+r = await call("/api/goals/" + gid, "PATCH", { name: "Trip to Japan", target: 2000, emoji: "🏠" });
+ok("PATCH /api/goals/:id → 200", r.status === 200 && r.json?.ok, JSON.stringify(r));
+r = await call("/api/nest?month=" + month);
+g = r.json.goals.find((x) => x.id === gid);
+ok("edit changed name/target/emoji and kept the savings", g?.name === "Trip to Japan" && g.target_cents === 200000 && g.emoji === "🏠" && g.saved_cents === 42050);
+writeFileSync(new URL("./fixtures/nest-goals.json", import.meta.url), JSON.stringify({ today: dd(0), snapshot: r.json }, null, 1));
+r = await call("/api/goals/" + gid, "DELETE");
+ok("DELETE /api/goals/:id → 200", r.status === 200 && r.json?.ok);
+r = await call("/api/nest?month=" + month);
+ok("deleting a goal removes it and its history", !r.json.goals.some((x) => x.id === gid) && !r.json.jar.some((j) => j.goal_id === gid));
+
 console.log(out.join("\n"));

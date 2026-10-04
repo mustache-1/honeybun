@@ -57,6 +57,7 @@ final class HoneybunScrollUITests: XCTestCase {
     func testHomeDragToBottom() { dragToBottom("home") }
     func testMoneyDragToBottom() { dragToBottom("money") }
     // the old arrangement (scroll area running underneath the bar), to prove the measured trailing space fixes it too
+    func testGoalsDragToBottom() { dragToBottom("goals") }
     func testHomeDragToBottomUnderBar() { dragToBottom("home", overlay: true) }
     func testMoneyDragToBottomUnderBar() { dragToBottom("money", overlay: true) }
 }

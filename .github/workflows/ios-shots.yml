@@ -7,7 +7,7 @@ on:
     inputs:
       screens:
         description: "Which native screens to photograph (space separated)"
-        default: "home money addexp addinc editexp upcoming editbill splash"
+        default: "home money goals goaldetail goalform goaledit addexp addinc editexp upcoming editbill splash"
       small:
         description: "Also photograph on a small (home-button) iPhone"
         default: "true"

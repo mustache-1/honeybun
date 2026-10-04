@@ -2,7 +2,7 @@ import Foundation
 import SwiftUI
 
 enum HBSheet: Identifiable {
-    case newEntry(String), editEntry(HBEntry), editRecurring(HBRecurring), newRecurring, upcoming, allTransactions
+    case newEntry(String), editEntry(HBEntry), editRecurring(HBRecurring), newRecurring, upcoming, allTransactions, goalDetail(String), goalForm(String?)
     var id: String {
         switch self {
         case let .newEntry(t): return "new-" + t
@@ -11,6 +11,8 @@ enum HBSheet: Identifiable {
         case .newRecurring: return "new-rec"
         case .upcoming: return "upcoming"
         case .allTransactions: return "all-transactions"
+        case let .goalDetail(id): return "goal-" + id
+        case let .goalForm(id): return "goal-form-" + (id ?? "new")
         }
     }
 }
@@ -103,6 +105,9 @@ enum HBTab: String, CaseIterable { case home = "Home", money = "Money", goals = 
     var spent: Double { entries.filter { !$0.isIncome }.reduce(0) { $0 + $1.amount } }
     var carry: Double { Double(snapshot?.carry_in?.amount_cents ?? 0) / 100.0 }
     var left: Double { income - spent + carry }
+    var goals: [HBGoal] { snapshot?.goals ?? [] }
+    func goal(_ id: String) -> HBGoal? { goals.first { $0.id == id } }
+    func jarMoves(for goalID: String) -> [HBJarMove] { (snapshot?.jar ?? []).filter { $0.goal_id == goalID }.sorted { $0.created_at > $1.created_at } }
     var upcoming: [HBUpcoming] { snapshot.map(HBRecur.upcoming) ?? [] }
     var categoryTotals: [HBCategoryTotal] {
         var by: [HBCategory: Double] = [:]
@@ -146,6 +151,11 @@ enum HBTab: String, CaseIterable { case home = "Home", money = "Money", goals = 
     func updateEntry(id: String, _ d: HBEntryDraft) async throws { try await run { try await HBAPI.shared.updateEntry(id: id, d) } }
     func deleteEntry(id: String) async throws { try await run { try await HBAPI.shared.deleteEntry(id: id) } }
     func markPaid(_ u: HBUpcoming) async throws { try await run { try await HBAPI.shared.logOccurrence(recurringID: u.recurring.id, date: u.dateString) } }
+    func addGoal(_ d: HBGoalDraft) async throws { try await run { try await HBAPI.shared.addGoal(d) } }
+    func updateGoal(id: String, _ d: HBGoalDraft) async throws { try await run { try await HBAPI.shared.updateGoal(id: id, d) } }
+    func deleteGoal(id: String) async throws { try await run { try await HBAPI.shared.deleteGoal(id: id) } }
+    func moveJar(goalID: String, amount: Double, out: Bool) async throws { try await run { try await HBAPI.shared.moveJar(goalID: goalID, amount: amount, out: out) } }
+    func deleteJarMove(id: String) async throws { try await run { try await HBAPI.shared.deleteJarMove(id: id) } }
     func addRecurring(_ d: HBRecurringDraft) async throws { try await run { try await HBAPI.shared.addRecurring(d) } }
     func updateRecurring(id: String, _ d: HBRecurringDraft) async throws { try await run { try await HBAPI.shared.updateRecurring(id: id, d) } }
     func deleteRecurring(id: String) async throws { try await run { try await HBAPI.shared.deleteRecurring(id: id) } }

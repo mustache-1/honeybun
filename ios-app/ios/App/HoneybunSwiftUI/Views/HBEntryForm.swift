@@ -1,12 +1,12 @@
 import SwiftUI
 import UIKit
 
-private func hbParseAmount(_ s: String) -> Double? {
+func hbParseAmount(_ s: String) -> Double? {
     let t = s.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: ",", with: ".").replacingOccurrences(of: "$", with: "")
     guard let v = Double(t), v > 0, v <= 10_000_000 else { return nil }
     return v
 }
-private func hbHideKeyboard() { UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil) }
+func hbHideKeyboard() { UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil) }
 
 @available(iOS 15.0, *)
 struct HBField<Content: View>: View {

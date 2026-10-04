@@ -19,6 +19,10 @@ enum HBPreview {
         case "splash": s.forceLoading = true
         case "homeend": s.previewScrollToEnd = true
         case "moneyend": s.selectedTab = .money; s.previewScrollToEnd = true
+        case "goals": s.selectedTab = .goals
+        case "goaldetail": if let g = snap.goals.first { s.sheet = .goalDetail(g.id) }
+        case "goalform": s.sheet = .goalForm(nil)
+        case "goaledit": if let g = snap.goals.first { s.sheet = .goalForm(g.id) }
         case "money": s.selectedTab = .money
         case "addexp": s.sheet = .newEntry("expense")
         case "addinc": s.sheet = .newEntry("income")

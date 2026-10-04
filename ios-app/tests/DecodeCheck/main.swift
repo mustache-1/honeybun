@@ -67,5 +67,24 @@ if let pd = HBPreviewData.json.data(using: .utf8), let ps = try? JSONDecoder().d
     check("preview fixture has 3 bills and a 12-day streak", ps.recurring.count == 3 && ps.members.first?.streak == 12)
 } else { check("preview fixture decodes", false) }
 #endif
+// ---- Goals (native Goals tab): a real /api/nest response with a goal and its savings history
+if CommandLine.arguments.count > 2, let gdata = FileManager.default.contents(atPath: CommandLine.arguments[2]),
+   let groot = try? JSONSerialization.jsonObject(with: gdata) as? [String: Any], let gsnap = groot["snapshot"],
+   let gsnapData = try? JSONSerialization.data(withJSONObject: gsnap) {
+    do {
+        let gs = try JSONDecoder().decode(HBNestSnapshot.self, from: gsnapData)
+        check("goals: real response decodes (goal + jar history)", gs.goals.count == 1 && (gs.jar ?? []).count == 2)
+        let g = gs.goals[0]
+        check("goals: cents → dollars, progress and completion", g.name == "Trip to Japan" && g.saved == 420.5 && g.target == 2000 && !g.isDone && abs(g.progress - 0.21025) < 0.0001)
+        let moves = (gs.jar ?? []).filter { $0.goal_id == g.id }
+        check("goals: history moves have signed amounts and real dates", moves.count == 2 && moves.allSatisfy { $0.amount > 0 && $0.date.timeIntervalSince1970 > 1_600_000_000 })
+    } catch { print("FAIL goals fixture decode threw: \(error)"); failures += 1 }
+}
+check("goals: icon rules match the website (palm, pc, shield, car, home, heart, gift, cap, paw, coin)",
+      HBGoalKind(name: "Vacation Fund", emoji: "✈️") == .palm && HBGoalKind(name: "New PC Build", emoji: "🍯") == .pc && HBGoalKind(name: "Emergency Fund", emoji: "🛟") == .shield
+      && HBGoalKind(name: "Used car", emoji: nil) == .car && HBGoalKind(name: "Rent deposit", emoji: "🍯") == .home && HBGoalKind(name: "Wedding Fund", emoji: "💍") == .heart
+      && HBGoalKind(name: "Birthday", emoji: nil) == .gift && HBGoalKind(name: "Tuition", emoji: "🎓") == .cap && HBGoalKind(name: "Puppy", emoji: "🐶") == .paw && HBGoalKind(name: "Savings", emoji: "🍯") == .coin)
+check("goals: a goal is done when saved reaches the target", { let d = try! JSONDecoder().decode(HBGoal.self, from: Data(#"{"id":"g","name":"x","emoji":null,"target_cents":60000,"saved_cents":60000}"#.utf8)); return d.isDone && d.progress == 1 }())
+check("goals: draft body carries name, target and one of the backend emoji", { let b = HBGoalDraft(name: "A", target: 5, emoji: HBGoalStyle.emojis[2]).json; return (b["name"] as? String) == "A" && (b["target"] as? Double) == 5 && HBGoalStyle.emojis.contains(b["emoji"] as? String ?? "") }())
 print(failures == 0 ? "ALL PASSED" : "\(failures) FAILED")
 exit(failures == 0 ? 0 : 1)

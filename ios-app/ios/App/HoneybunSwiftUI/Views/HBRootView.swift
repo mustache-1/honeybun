@@ -74,6 +74,7 @@ struct HBRootView: View {
             switch store.selectedTab {
             case .home: HBHomeView(store: store, onClose: onClose)
             case .money: HBMoneyView(store: store)
+            case .goals: HBGoalsView(store: store)
             default:
                 HBMessageView(title: "\(store.selectedTab.rawValue) isn't native yet",
                               message: "This screen is still the classic Honeybun. Nothing is lost: it uses the same account and data.",
@@ -90,6 +91,8 @@ struct HBRootView: View {
         case let .editRecurring(r): HBRecurringForm(store: store, editing: r, base: store.draft(from: r))
         case .upcoming: HBUpcomingList(store: store)
         case .allTransactions: HBTransactionsList(store: store)
+        case let .goalDetail(id): HBGoalDetail(store: store, goalID: id)
+        case let .goalForm(id): HBGoalForm(store: store, goalID: id)
         }
     }
 }

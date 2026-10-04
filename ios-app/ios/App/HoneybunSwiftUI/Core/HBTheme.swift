@@ -72,6 +72,13 @@ extension Font {
 @available(iOS 15.0, *)
 extension Color {
     init(rgb: (Double, Double, Double)) { self.init(red: rgb.0, green: rgb.1, blue: rgb.2) }
+    /// "#rrggbb" (a member's colour from the backend); nil if it isn't one
+    init?(hex: String?) {
+        guard var h = hex?.trimmingCharacters(in: .whitespaces) else { return nil }
+        if h.hasPrefix("#") { h.removeFirst() }
+        guard h.count == 6, let v = UInt32(h, radix: 16) else { return nil }
+        self.init(red: Double((v >> 16) & 255) / 255, green: Double((v >> 8) & 255) / 255, blue: Double(v & 255) / 255)
+    }
 }
 
 // The Halloween night: deep plum, an ember glow behind the hero, and the forest scene fading in from the top. Everything is relative to the
