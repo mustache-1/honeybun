@@ -11,7 +11,7 @@ Keywords (100 max, comma separated, no spaces)
 budget,couples,shared,expenses,bills,split,family,money,tracker,savings,planner,partner,joint
 
 Copyright
-2026 Rodrigo Avila
+2026 Honeybun
 
 Description (4000 max)
 Honeybun is a cute little budget for you, your partner or your whole family. See what's left this month, split costs fairly, never miss a bill, and let Bun the bunny cheer you on.
