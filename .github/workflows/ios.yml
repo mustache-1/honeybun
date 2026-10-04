@@ -32,6 +32,11 @@ jobs:
         run: |
           swiftc -D DEBUG -o /tmp/hbcheck ios/App/HoneybunSwiftUI/Models/HBModels.swift ios/App/HoneybunSwiftUI/Core/HBDates.swift ios/App/HoneybunSwiftUI/Core/HBChartMath.swift ios/App/HoneybunSwiftUI/Core/HBGoalStyle.swift ios/App/HoneybunSwiftUI/Core/HBPreviewData.swift tests/DecodeCheck/main.swift
           /tmp/hbcheck tests/fixtures/nest.json tests/fixtures/nest-goals.json
+      - name: Goals actions through the real API path (create, edit, quick-add, custom, take out, undo, complete, delete)
+        working-directory: ios-app
+        run: |
+          swiftc -D DEBUG -o /tmp/hbgoals ios/App/HoneybunSwiftUI/Models/HBModels.swift ios/App/HoneybunSwiftUI/Core/HBDates.swift ios/App/HoneybunSwiftUI/Core/HBGoalStyle.swift ios/App/HoneybunSwiftUI/Core/HBPreviewData.swift ios/App/HoneybunSwiftUI/Core/HBMockServer.swift ios/App/HoneybunSwiftUI/Core/HBAPI.swift tests/GoalsFlowCheck/main.swift
+          /tmp/hbgoals
       - name: Sync the native project
         run: npx cap sync ios
       - name: Add the widget, Siri and push setup to the Xcode project
