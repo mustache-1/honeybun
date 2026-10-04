@@ -70,8 +70,8 @@ extension HBAPI {
         return HBPasskeyCeremony(challenge: c, rpId: rp)
     }
     func passkeyLogin(_ a: HBPasskeyAssertion) async throws {
-        _ = try await send("/api/passkeys/login", method: "POST", unauth: true, body: ["id": HBBase64URL.encode(a.credentialID), "clientDataJSON": HBBase64URL.encode(a.clientDataJSON),
-                                                                            "authenticatorData": HBBase64URL.encode(a.authenticatorData), "signature": HBBase64URL.encode(a.signature)])
+        _ = try await send("/api/passkeys/login", method: "POST", body: ["id": HBBase64URL.encode(a.credentialID), "clientDataJSON": HBBase64URL.encode(a.clientDataJSON),
+                                                                            "authenticatorData": HBBase64URL.encode(a.authenticatorData), "signature": HBBase64URL.encode(a.signature)], unauth: true)
     }
     func passkeyRegistrationOptions() async throws -> HBPasskeyRegistrationOptions {
         let data = try await send("/api/passkeys/options", method: "POST", body: nil)
