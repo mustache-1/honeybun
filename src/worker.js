@@ -1648,6 +1648,14 @@ async function handle(request, env, url) {
     return json({ ok: true, id: entryId, reward: await award(env, request, user.id, nestId, "entry") }, 201);
   }
   const shopId = path.match(/^\/api\/shopping\/([0-9a-f-]{36})$/);
+  if (shopId && method === "PATCH" && body.label !== undefined && body.done === undefined) {
+    // rename an item (leaves checked/unchecked as it was)
+    const label = cleanText(body.label, 60);
+    if (!label) throw new HttpError("Type what you need.");
+    const r = await env.DB.prepare("UPDATE shopping_items SET label = ? WHERE id = ? AND nest_id = ?").bind(label, shopId[1], nestId).run();
+    if (!r.meta.changes) throw new HttpError("That item is gone.", 404);
+    return json({ ok: true });
+  }
   if (shopId && method === "PATCH") {
     const done = body.done && body.done !== "false" ? 1 : 0;
     const r = await env.DB.prepare("UPDATE shopping_items SET done = ?, done_by = ?, done_at = ? WHERE id = ? AND nest_id = ?").bind(done, done ? user.id : null, done ? now() : null, shopId[1], nestId).run();
