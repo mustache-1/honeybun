@@ -277,6 +277,16 @@
     const rc = rf ? rf[1] : rq && /^[A-Za-z0-9]{4,16}$/.test(rq) ? rq : null;
     if (rc) { store.set("hb-ref", JSON.stringify({ c: rc.toUpperCase(), t: Date.now() })); history.replaceState(null, "", "/" + location.hash); }
   }
+  // The App Store link. Paste the app's address here once it is live (https://apps.apple.com/app/id...) and every
+  // "Download on the App Store" button on the homepage points to it. Until then they scroll to the Download section.
+  const APPSTORE_URL = "";
+  document.querySelectorAll("[data-appstore]").forEach((a) => {
+    if (APPSTORE_URL) { a.href = APPSTORE_URL; a.target = "_blank"; a.rel = "noopener"; }
+    else {
+      a.classList.add("soon");
+      if (a.id === "dlStore") { const n = document.getElementById("dlStoreNote"); if (n) n.textContent = "Coming soon to the App Store · free · no bank login"; }
+    }
+  });
   // "Support me" tips are an Apple in-app purchase, so the button only shows inside the iPhone app (see HBN.info below)
   // a tiny tap on the phone: Android vibrates, iPhone (Safari 18+) ticks through a hidden switch
   const buzz = (() => {

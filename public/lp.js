@@ -70,6 +70,19 @@
     undo: '<path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/>', tap: '<path d="M13 3L5 14h6l-1 7 9-11h-6z"/>', repeat: '<path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>'
   };
   var LOG = [
+    { v: "3.0", date: "2026-10-04", name: "Honeybun 3.0", items: [
+      { t: "Honeybun for iPhone is here", d: "A real iPhone app. It opens straight to your budget with a native tab bar, pull to refresh, swipe back, a Face ID lock, and small taps when you add or delete. The app icon even puts on a witch hat for Halloween.", tags: ["new"], icon: "landing" },
+      { t: "Notifications that make a sound", d: "Your phone now gets a push notification, with a sound, when your partner adds something to your joint account, when a bill is due, and when Bun has news. It asks once when you open the app.", tags: ["new"], icon: "bell" },
+      { t: "Swipe, pull and tap", d: "Swipe a spending row right to edit it or left to delete it, pull down to refresh, and the Add screen opens on the category you used last.", tags: ["new"], icon: "tap" },
+      { t: "Join with a code, made easy", d: "On the start screen the invite code box now comes first. If you already made your own budget, Settings has Join with a code, which moves you into your partner's budget.", tags: ["improved"], icon: "key" },
+      { t: "Joint accounts keep it all in one pot", d: "Entries can't be private on a joint account any more, so your balance, forecast and carry-over always include everything. Your partner hears about it when you add something.", tags: ["improved"], icon: "budget" },
+      { t: "The app updates itself", d: "No more Refresh button. When a new version is out, the iPhone app quietly updates in the background the next time you open it.", tags: ["improved"], icon: "landing" },
+      { t: "A cleaner iPhone app", d: "No scroll bar down the side, no install steps or theme settings you don't need, and your streak, level and gift card now live in Bun's inbox.", tags: ["design"], icon: "landing" },
+      { t: "A smarter forecast", d: "The month-end forecast waits for a week of spending, counts a big one-off purchase once, and shows how it got its number: what is left now, paychecks, bills and everyday spending.", tags: ["improved"], icon: "budget" },
+      { t: "A homepage built around the app", d: "The homepage now leads with the App Store and real screenshots of the app. The Windows app is still there for anyone who has it.", tags: ["design"], icon: "landing" },
+      { t: "Widgets and Siri can sign in", d: "The home-screen widget and Siri shortcuts now share your sign-in with the app, so they can show what is left.", tags: ["fixed"], icon: "bug" },
+      { t: "Plan calendar fixed", d: "On phones the day numbers were drawn above their boxes. They sit where they belong now.", tags: ["fixed"], icon: "bug" }
+    ] },
     { v: "2.0", date: "2026-09-30", name: "Honeybun 2.0", items: [
       { t: "Honeybun goes spooky", d: "A glowing moon, flapping bats, dangling spiders, cobwebs, drifting fog and a little graveyard now light up the homepage and the app, with warm orange buttons and Bun in a witch hat. It's on from Sept 29 through October and switches itself off after.", tags: ["new", "design"], icon: "sun" },
       { t: "Honeybun for Windows", d: "Download Honeybun for Windows and keep it on your taskbar, with the same account as your phone and the web. It shows a red dot when Bun has something new, and Bun can wait in your tray with no window open.", tags: ["new"], icon: "landing" },
