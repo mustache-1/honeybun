@@ -8,7 +8,7 @@ Promotional text (170 max)
 Meet Bun, your budget buddy. See what's left, split costs fairly and never miss a bill. Free, no bank login. Made for you, your partner or your whole family.
 
 Keywords (100 max, comma separated, no spaces)
-budget,couples,shared,expenses,bills,split,family,money,tracker,savings,planner,partner,joint
+couples,shared,expenses,bills,split,family,money,tracker,savings,planner,partner,joint,finance,spending,household,debt
 
 Copyright
 2026 Honeybun
