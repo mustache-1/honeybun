@@ -341,7 +341,6 @@
   // iPhone app: ask which native pieces this build has (older builds don't answer, and keep the website's own bar)
   if (IOS_NATIVE && HBN && HBN.info) {
     HBN.info().then((i) => {
-      if (i && i.demo) { const r = $("demoRow"); r.hidden = false; r.onclick = () => HBN.openNativePreview().catch((e) => toast(e.message || tr("Couldn't open the preview."))); }
       if (i && i.tips) {
         document.querySelectorAll("[data-coffee-wrap]").forEach((w) => (w.hidden = false));
         document.querySelectorAll("[data-support]").forEach((b) => (b.onclick = openSupport));
