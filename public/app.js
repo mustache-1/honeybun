@@ -433,7 +433,7 @@
   function showAuth() {
     $("inviteNotice").hidden = !pendingCode;
     $("refNotice").hidden = !!pendingCode || !pendingRef();
-    $("authBackWrap").hidden = !!pendingCode;
+    $("authBackWrap").hidden = !!pendingCode || IS_DESKTOP_APP || IOS_NATIVE;
     $("authCard").hidden = false; $("forgotCard").hidden = true;
     setAuthMode(authMode);
     show("auth");
@@ -3344,7 +3344,7 @@
     try { await afterAuth(); }
     catch (e) {
       if (e.status === 401) {
-        if (!pendingCode && !store.get("hb-had-account") && !IS_DESKTOP_APP) { show("landing"); return; }
+        if (!pendingCode && !store.get("hb-had-account") && !IS_DESKTOP_APP && !IOS_NATIVE) { show("landing"); return; }
         authMode = pendingCode ? "signup" : store.get("hb-had-account") ? "login" : "signup"; showAuth();
       }
       else { showAuth(); $("authErr").textContent = e.message; }
