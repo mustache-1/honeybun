@@ -87,7 +87,7 @@ struct HBCarry: Decodable { let amount_cents: Int; let accepted: Bool? }
 
 struct HBNestSnapshot: Decodable {
     let me: HBUser?; let nest: HBNest; let members: [HBMember]; let entries: [HBEntry]; let recurring: [HBRecurring]
-    let logged: [HBLogged]; let goals: [HBGoal]; let shopping_open: Int?; let carry_in: HBCarry?; let inbox: HBInbox?; let jar: [HBJarMove]?
+    let logged: [HBLogged]; let goals: [HBGoal]; let shopping_open: Int?; let carry_in: HBCarry?; let inbox: HBInboxCount?; let jar: [HBJarMove]?
     let balances: [String: Int]?; let settlements: [HBSettlement]?
     let carry_pending: HBCarryPrompt?; let categories: [HBCustomCategory]?
 }
@@ -129,7 +129,7 @@ enum HBCategory: String, CaseIterable, Identifiable {
     static func of(_ raw: String?) -> HBCategory { HBCategory(rawValue: raw ?? "") ?? .other }
 }
 
-struct HBInbox: Decodable { let unread: Int? }
+struct HBInboxCount: Decodable { let unread: Int? }   // the badge number inside /api/nest
 
 // What the app sends to POST/PATCH /api/entries. Editing keeps the entry's own split so a save never silently changes how it was shared.
 struct HBEntryDraft {
