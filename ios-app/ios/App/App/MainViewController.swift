@@ -21,6 +21,8 @@ class MainViewController: CAPBridgeViewController, UITabBarDelegate {
         webView?.allowsBackForwardNavigationGestures = true
         buildTabBar()
         buildRefreshControl()
+        webView?.scrollView.bounces = false // signed-out screens (login) stay put like an app, not a web page
+        webView?.scrollView.refreshControl = nil
         tabBar.isHidden = true // the website switches it on once the user is signed in
     }
 
@@ -78,9 +80,12 @@ class MainViewController: CAPBridgeViewController, UITabBarDelegate {
     }
 
     // called from the website (through HoneybunNative.setTab) whenever the screen changes
-    func setTab(_ tab: String?, visible: Bool) {
+    func setTab(_ tab: String?, visible: Bool, app: Bool) {
         tabsWanted = visible
         tabBar.isHidden = !visible
+        // rubber-band scrolling and pull-to-refresh only once you're inside the app
+        webView?.scrollView.bounces = app
+        webView?.scrollView.refreshControl = (app && visible) ? refresher : nil
         if let tab = tab, let idx = tabIDs.firstIndex(of: tab), idx != 2 {
             let item = tabBar.items?.first(where: { $0.tag == idx })
             tabBar.selectedItem = item
@@ -94,11 +99,11 @@ class MainViewController: CAPBridgeViewController, UITabBarDelegate {
 
     // MARK: pull to refresh
 
+    private let refresher = UIRefreshControl()
+
     private func buildRefreshControl() {
-        let rc = UIRefreshControl()
-        rc.tintColor = UIColor(white: 1, alpha: 0.8)
-        rc.addTarget(self, action: #selector(pulled), for: .valueChanged)
-        webView?.scrollView.refreshControl = rc
+        refresher.tintColor = UIColor(white: 1, alpha: 0.8)
+        refresher.addTarget(self, action: #selector(pulled), for: .valueChanged)
     }
 
     @objc private func pulled() {
@@ -115,5 +120,5 @@ final class NativeChrome {
     static let shared = NativeChrome()
     weak var vc: MainViewController?
     var height: Double { Double(vc?.tabsHeight ?? 0) }
-    func set(tab: String?, visible: Bool) { vc?.setTab(tab, visible: visible) }
+    func set(tab: String?, visible: Bool, app: Bool) { vc?.setTab(tab, visible: visible, app: app) }
 }

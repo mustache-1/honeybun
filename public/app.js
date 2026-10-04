@@ -439,7 +439,7 @@
     clearTimeout(tabTimer);
     tabTimer = setTimeout(() => {
       const visible = APP_SCREENS.includes(screen) && screen !== "add" && !document.querySelector("dialog[open]") && $("lockOverlay").hidden;
-      const msg = { tab: TAB_OF[screen] || null, visible }, key = JSON.stringify(msg);
+      const msg = { tab: TAB_OF[screen] || null, visible, app: APP_SCREENS.includes(screen) }, key = JSON.stringify(msg);
       if (key === tabSent) return;
       tabSent = key; HBN.setTab(msg).catch(() => { tabSent = ""; });
     }, 30);

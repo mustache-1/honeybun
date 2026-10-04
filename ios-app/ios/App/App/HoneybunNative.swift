@@ -26,8 +26,9 @@ public class HoneybunNativePlugin: CAPPlugin, CAPBridgedPlugin {
     @objc func setTab(_ call: CAPPluginCall) {
         let tab = call.getString("tab")
         let visible = call.getBool("visible") ?? true
+        let app = call.getBool("app") ?? true
         DispatchQueue.main.async {
-            NativeChrome.shared.set(tab: tab, visible: visible)
+            NativeChrome.shared.set(tab: tab, visible: visible, app: app)
             call.resolve()
         }
     }
