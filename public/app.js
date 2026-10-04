@@ -286,6 +286,8 @@
     return (kind = "tick") => {
       try {
         if (!matchMedia("(pointer: coarse)").matches) return;
+        const H = IOS_NATIVE && window.Capacitor.Plugins && window.Capacitor.Plugins.Haptics;
+        if (H) { if (kind === "ok") H.notification({ type: "SUCCESS" }); else if (kind === "warn") H.notification({ type: "WARNING" }); else H.impact({ style: "LIGHT" }); return; }
         if (navigator.vibrate) { navigator.vibrate(kind === "ok" ? [10, 40, 14] : kind === "warn" ? 28 : 9); return; }
         if (!sw) { sw = document.createElement("label"); sw.setAttribute("aria-hidden", "true"); sw.style.cssText = "position:fixed;left:-99px;top:0;opacity:0;pointer-events:none"; sw.innerHTML = '<input type="checkbox" switch tabindex="-1">'; document.body.appendChild(sw); }
         sw.click();
@@ -368,6 +370,9 @@
     };
   }
   if (IOS_NATIVE) {
+    document.documentElement.classList.add("hb-ios");
+    $("openPasskeys").hidden = true; // passkeys need an extra Apple setup (associated domains) that the app does not have yet
+    document.querySelector('meta[name="viewport"]')?.setAttribute("content", "width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover"); // no accidental pinch-zoom in the app
     const row = $("siriRow");
     row.hidden = false;
     row.onclick = () => toast(tr('Try: "Hey Siri, how much is left in Honeybun?"'));
@@ -455,8 +460,8 @@
     $("authBtn").textContent = tr(signup ? "Create my budget" : "Log in");
     const pk = signup && hasPasskeys();
     $("passkeyCreate").hidden = !pk;
-    $("googleBtn").hidden = !googleOn;
-    $("orRow").hidden = !(pk || googleOn);
+    $("googleBtn").hidden = !googleOn || IOS_NATIVE; // Google blocks in-app browsers, and Apple wants Sign in with Apple next to any other third-party login
+    $("orRow").hidden = !(pk || (googleOn && !IOS_NATIVE));
     $("passkeyWrap").hidden = $("passkeyLogin").hidden = !(m === "login" && hasPasskeys());
     $("authErr").textContent = "";
   }
@@ -1827,6 +1832,11 @@
       [e.date, tr(e.type === "income" ? "Income" : "Expense"), tr(e.type === "income" ? "Income" : catOf(e.category).n), e.label, member(e.member_id).name,
        ((e.type === "income" ? 1 : -1) * e.amount_cents / 100).toFixed(2), e.shared ? "Yes" : "No", e.private ? "Yes" : "No"]));
     const blob = new Blob(["\ufeff" + rows.map((r) => r.map(q).join(",")).join("\r\n")], { type: "text/csv;charset=utf-8" });
+    if (IOS_NATIVE) {
+      // an app can't download files: hand it to the iPhone share sheet (Save to Files, Mail, ...)
+      const f = new File([blob], `honeybun-${YEAR}.csv`, { type: "text/csv" });
+      if (navigator.canShare && navigator.canShare({ files: [f] })) { navigator.share({ files: [f], title: `Honeybun ${YEAR}` }).catch(() => {}); return; }
+    }
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `honeybun-${YEAR}.csv`;
     document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   };
@@ -2077,7 +2087,7 @@
   // ---------- passkeys ----------
   const bufB64u = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
   const b64uBuf = (s) => Uint8Array.from(atob(s.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((s.length + 3) % 4)), (c) => c.charCodeAt(0));
-  function hasPasskeys() { return !!(window.PublicKeyCredential && navigator.credentials && isSecureContext); }
+  function hasPasskeys() { return !IOS_NATIVE && !!(window.PublicKeyCredential && navigator.credentials && isSecureContext); }
   function deviceName() {
     const ua = navigator.userAgent;
     if (/iPhone/.test(ua)) return "iPhone"; if (/iPad/.test(ua)) return "iPad"; if (/Android/.test(ua)) return "Android phone";

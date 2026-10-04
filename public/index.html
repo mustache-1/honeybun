@@ -765,6 +765,10 @@ nav.bottom .plus{width:50px;height:50px;background:var(--ink);color:var(--card);
 .pk-list li button{border:0;background:none;color:var(--soft);font-weight:800;padding:6px}
 .theme-pick{margin-top:8px}
 .filter-more{flex:none;min-height:38px;padding:6px 14px;border-radius:999px;font-size:14px;font-weight:700;border:1px solid var(--line);background:var(--card)}
+html.hb-ios{-webkit-touch-callout:none}
+html.hb-ios input,html.hb-ios textarea{-webkit-touch-callout:default}
+/* iPhone zooms the whole page when a field smaller than 16px gets focus */
+@media (pointer:coarse) and (max-width:899px){.filters select,.filters.more input{font-size:16px}}
 .filter-more[aria-expanded="true"]{border-color:var(--pink);background:var(--pink-t);color:var(--pink-d)}
 .filters.more{display:grid;grid-template-columns:1fr 1fr;gap:6px;overflow:visible}
 .filters.more label{display:flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--card);border-radius:999px;padding:0 6px 0 12px;font-size:12px;font-weight:700;color:var(--soft);min-height:38px}
