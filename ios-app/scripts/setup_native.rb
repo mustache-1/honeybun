@@ -92,6 +92,7 @@ if ENV['HB_UITESTS'] == '1' && !project.targets.any? { |t| t.name == 'HoneybunUI
   ui = project.new_target(:ui_test_bundle, 'HoneybunUITests', :ios, '16.0', nil, :swift)
   ui_group = group_for(main, 'HoneybunUITests')
   add_source(ui, ensure_file(ui_group, 'HoneybunScrollUITests.swift'))
+  add_source(ui, ensure_file(ui_group, 'HoneybunGoalsUITests.swift'))
   ui.add_dependency(app)
   ui.build_configurations.each do |c|
     s = c.build_settings

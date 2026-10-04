@@ -16,15 +16,11 @@ struct HBGoalIcon: View {
 struct HBGoalKindIcon: View {
     let kind: HBGoalKind
     var size: CGFloat = 74
-    private var symbol: String { UIImage(systemName: kind.symbol) != nil ? kind.symbol : "sun.max.fill" }
     var body: some View {
-        Image(systemName: symbol)
-            .font(.system(size: size * 0.44, weight: .semibold))
-            .foregroundColor(Color(rgb: kind.ink))
+        // the illustrated Honeybun goal icons (HBGoalIcon_<kind> in the asset catalog, the same drawings the website uses)
+        Image("HBGoalIcon_\(kind.rawValue)").resizable().scaledToFit()
             .frame(width: size, height: size)
-            .background(Circle().fill(LinearGradient(colors: [Color(rgb: kind.disc), Color(rgb: kind.disc).opacity(0.78)], startPoint: .top, endPoint: .bottom)))
-            .overlay(Circle().stroke(Color.white.opacity(0.5), lineWidth: 1.5))
-            .shadow(color: Color(rgb: kind.ink).opacity(0.35), radius: 10)
+            .shadow(color: Color(rgb: kind.ink).opacity(0.30), radius: 10)
             .accessibilityHidden(true)
     }
 }
@@ -116,6 +112,7 @@ struct HBGoalsView: View {
                         .background(Capsule().fill(filter == key ? HB.orange : Color.clear).shadow(color: filter == key ? HB.orange.opacity(0.45) : .clear, radius: 8))
                 }
                 .accessibilityAddTraits(filter == key ? .isSelected : [])
+                .accessibilityIdentifier("hb-filter-\(key)")
             }
         }
         .padding(4)
@@ -130,7 +127,7 @@ struct HBGoalsView: View {
                     .font(.subheadline).foregroundColor(HB.soft).padding(18).frame(maxWidth: .infinity, alignment: .leading).hbCard()
             }
             ForEach(Array(shown.enumerated()), id: \.element.id) { i, g in
-                Button { store.sheet = .goalDetail(g.id) } label: { row(g, index: i) }.buttonStyle(.plain)
+                Button { store.sheet = .goalDetail(g.id) } label: { row(g, index: i) }.buttonStyle(.plain).accessibilityIdentifier("hb-goal-row")
             }
         }
     }
@@ -167,6 +164,7 @@ struct HBGoalsView: View {
             .background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(Color.white.opacity(0.03)))
             .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).strokeBorder(Color.white.opacity(0.28), style: StrokeStyle(lineWidth: 1.2, dash: [6, 5])))
         }
+        .accessibilityIdentifier("hb-goal-create")
     }
 
     // the supplied "You can do it!" scene, full width at the end of the list
@@ -273,6 +271,7 @@ struct HBGoalDetail: View {
                         .overlay(Capsule().stroke(Color.white.opacity(0.14), lineWidth: 1))
                 }
                 .accessibilityAddTraits(quick == v ? .isSelected : [])
+                .accessibilityIdentifier("hb-quick-\(v)")
             }
         }
     }
@@ -284,6 +283,7 @@ struct HBGoalDetail: View {
             .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Color.white.opacity(0.05)))
             .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Color.white.opacity(0.12), lineWidth: 1))
             .onChange(of: amountText) { v in if quick.map({ String($0) }) != v { quick = nil } }
+            .accessibilityIdentifier("hb-amount")
     }
 
     private var addButton: some View {
@@ -293,6 +293,7 @@ struct HBGoalDetail: View {
                 .background(Capsule().fill(HB.orange)).shadow(color: HB.orange.opacity(0.4), radius: 12, y: 4)
         }
         .disabled(working)
+        .accessibilityIdentifier("hb-add-funds")
     }
 
     private var takeOutButton: some View {
@@ -302,6 +303,7 @@ struct HBGoalDetail: View {
                 .overlay(Capsule().stroke(HB.orange.opacity(0.55), lineWidth: 1))
         }
         .disabled(working)
+        .accessibilityIdentifier("hb-take-out")
     }
 
     private func activity(_ g: HBGoal) -> some View {
@@ -313,6 +315,7 @@ struct HBGoalDetail: View {
                 Button { store.sheet = .goalForm(g.id) } label: {
                     Text("Edit goal").font(.subheadline.weight(.semibold)).foregroundColor(Color(red: 0.72, green: 0.68, blue: 0.9))
                 }
+                .accessibilityIdentifier("hb-edit-goal")
             }
             .padding(.top, 6)
             VStack(spacing: 0) {
@@ -346,6 +349,7 @@ struct HBGoalDetail: View {
                 Image(systemName: "xmark").font(.system(size: 12, weight: .bold)).foregroundColor(HB.soft).frame(width: 30, height: 30)
             }
             .accessibilityLabel("Remove this entry")
+            .accessibilityIdentifier("hb-undo-move")
         }
         .padding(.horizontal, 14).padding(.vertical, 9)
     }
@@ -414,13 +418,13 @@ struct HBGoalForm: View {
                             Text(editing ? "Edit goal" : "New goal").font(.system(size: 22, weight: .bold)).foregroundColor(.white)
                         }
                         HBField(title: "Name") {
-                            TextField("Vacation Fund", text: $name).foregroundColor(.white).padding(14).hbCard()
+                            TextField("Vacation Fund", text: $name).foregroundColor(.white).padding(14).hbCard().accessibilityIdentifier("hb-goal-name")
                                 .onChange(of: name) { v in if v.count > 30 { name = String(v.prefix(30)) } }
                         }
                         HBField(title: "Target") {
                             HStack {
                                 Text("$").font(.title2.weight(.bold)).foregroundColor(HB.soft)
-                                TextField("1000", text: $targetText).keyboardType(.decimalPad).font(.system(size: 30, weight: .heavy).monospacedDigit()).foregroundColor(.white)
+                                TextField("1000", text: $targetText).keyboardType(.decimalPad).font(.system(size: 30, weight: .heavy).monospacedDigit()).foregroundColor(.white).accessibilityIdentifier("hb-goal-target")
                             }.padding(14).hbCard()
                         }
                         HBField(title: "Icon") {
@@ -445,12 +449,13 @@ struct HBGoalForm: View {
                                 .frame(maxWidth: .infinity, minHeight: 56).background(Capsule().fill(HB.orange)).shadow(color: HB.orange.opacity(0.4), radius: 12, y: 4)
                         }
                         .disabled(saving)
+                        .accessibilityIdentifier("hb-goal-save")
                         if editing {
                             Button(role: .destructive) { confirmDelete = true } label: {
                                 Text("Delete goal").font(.system(size: 17, weight: .semibold)).frame(maxWidth: .infinity, minHeight: 50)
                                     .overlay(Capsule().stroke(HB.red.opacity(0.6), lineWidth: 1))
                             }
-                            .foregroundColor(HB.red).disabled(saving)
+                            .foregroundColor(HB.red).disabled(saving).accessibilityIdentifier("hb-goal-delete")
                         }
                     }
                     .frame(maxWidth: 560).padding(.horizontal, HB.gutter).padding(.top, 6).padding(.bottom, 28).frame(maxWidth: .infinity)

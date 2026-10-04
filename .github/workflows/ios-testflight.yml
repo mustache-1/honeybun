@@ -101,7 +101,7 @@ jobs:
           done
           echo "--- artwork inside the compiled asset catalog (Release) ---"
           xcrun assetutil --info "$APP/Assets.car" > "$RUNNER_TEMP/assets.json" 2>/dev/null || true
-          for img in HBSplash HBHero HBFormPeek HBGoalsPeek HBStreak HBMoneyBun HBScene HBFredokaSemiBold; do
+          for img in HBSplash HBHero HBFormPeek HBGoalsPeek HBGoalIcon_palm HBGoalIcon_pc HBGoalIcon_shield HBStreak HBMoneyBun HBScene HBFredokaSemiBold; do
             n=$(grep -c "\"Name\" : \"$img\"" "$RUNNER_TEMP/assets.json" || true)
             echo "$img: $n"
             if [ "${n:-0}" = "0" ]; then echo "::error::$img is missing from the Release asset catalog"; missing=1; fi

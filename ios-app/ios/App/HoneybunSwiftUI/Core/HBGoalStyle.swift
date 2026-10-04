@@ -20,25 +20,12 @@ enum HBGoalKind: String, CaseIterable {
         else { self = .coin }
     }
 
-    var symbol: String {
-        switch self {
-        case .palm: return "beach.umbrella.fill"; case .pc: return "desktopcomputer"; case .shield: return "shield.fill"; case .car: return "car.fill"
-        case .home: return "house.fill"; case .heart: return "heart.fill"; case .gift: return "gift.fill"; case .cap: return "graduationcap.fill"
-        case .paw: return "pawprint.fill"; case .coin: return "dollarsign.circle.fill"
-        }
-    }
-    /// symbol colour (r, g, b) and the pale disc behind it
+    /// the icon's main colour (r, g, b), used for its soft glow
     var ink: (Double, Double, Double) {
         switch self {
         case .palm: return (0.10, 0.62, 0.45); case .pc: return (0.16, 0.34, 0.85); case .shield: return (0.12, 0.30, 0.78); case .car: return (0.92, 0.45, 0.12)
         case .home: return (0.85, 0.55, 0.10); case .heart: return (0.90, 0.25, 0.45); case .gift: return (0.85, 0.28, 0.25); case .cap: return (0.45, 0.30, 0.85)
         case .paw: return (0.70, 0.42, 0.18); case .coin: return (0.85, 0.58, 0.10)
-        }
-    }
-    var disc: (Double, Double, Double) {
-        switch self {
-        case .palm: return (0.78, 0.95, 0.96); case .pc, .shield: return (0.86, 0.86, 0.98); case .car: return (1.0, 0.88, 0.76); case .home: return (1.0, 0.93, 0.72)
-        case .heart: return (1.0, 0.84, 0.90); case .gift: return (1.0, 0.86, 0.82); case .cap: return (0.90, 0.85, 1.0); case .paw: return (0.98, 0.88, 0.76); case .coin: return (1.0, 0.92, 0.70)
         }
     }
 }
