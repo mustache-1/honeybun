@@ -2901,6 +2901,23 @@
   window.addEventListener("load", updBadges);
   $("sideRefer").onclick = () => show("refer");
 
+  // ---------- Halloween Honeybun (experimental preview) ----------
+  // Presentation only: it flips a saved flag and the theme classes, nothing in the account or data changes.
+  (function () {
+    const sw = $("hhSwitch"); if (!sw) return;
+    const on = () => { try { return localStorage.getItem("hb-hh") === "on"; } catch { return false; } };
+    const paint = () => sw.setAttribute("aria-checked", on() ? "true" : "false");
+    sw.onclick = () => {
+      try { if (on()) localStorage.removeItem("hb-hh"); else localStorage.setItem("hb-hh", "on"); } catch {}
+      paint();
+      if (window.hbHalloweenRefresh) window.hbHalloweenRefresh();
+      document.documentElement.classList.toggle("hb-hh", on());
+      buzz && buzz();
+      toast(on() ? "Halloween Honeybun is on 🎃" : "Back to the normal Honeybun");
+    };
+    paint();
+  })();
+
   // ---------- Bun's tip of the day (home) ----------
   // Personal tips come from this month's real numbers; general tips fill in. The tip changes each day,
   // and "Another tip" flips through the rest.
@@ -3349,7 +3366,7 @@
     try {
       await api("/api/account/delete", { method: "POST", body: { password: $("delPw").value } });
       $("delDlg").close();
-      try { Object.keys(localStorage).filter((k) => k.startsWith("hb-") && k !== "hb-device" && k !== "hb-desktop" && k !== "hb-halloween").forEach((k) => localStorage.removeItem(k)); } catch {}
+      try { Object.keys(localStorage).filter((k) => k.startsWith("hb-") && k !== "hb-device" && k !== "hb-desktop" && k !== "hb-halloween" && k !== "hb-hh").forEach((k) => localStorage.removeItem(k)); } catch {}
       ME = null; NEST = null; authMode = "signup"; showAuth(); toast("Your account was deleted. Take care ♡");
     } catch (e) { $("delErr").textContent = e.message; }
   };

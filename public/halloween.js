@@ -114,6 +114,7 @@
   function refresh() {
     var on = typeof window.hbHalloweenActive === "function" && window.hbHalloweenActive();
     root.classList.toggle("hb-halloween", on);
+    root.classList.toggle("hb-hh", !!(window.hbHH && window.hbHH()));
     hats(on); icons(on); winIcon(on);
     if (on) { build(); syncMode(); if (liteWanted()) root.classList.add("hbh-lite"); else setTimeout(probeFrames, 2500); } else { teardown(); root.classList.remove("hbp-app", "hbp-landing", "hbh-lite"); }
     return on;

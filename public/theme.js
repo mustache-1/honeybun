@@ -17,8 +17,11 @@
     var q = /[?&]halloween=([01])/.exec(location.search);
     if (q) { if (q[1] === "1") localStorage.setItem("hb-halloween", "on"); else localStorage.removeItem("hb-halloween"); }
   } catch (e) {}
+  // Halloween Honeybun (experimental preview, Settings > Seasonal / Experimental): a fuller Halloween look. Presentation only.
+  window.hbHH = function () { try { return localStorage.getItem("hb-hh") === "on"; } catch (e) { return false; } };
   window.hbHalloweenActive = function () {
     try {
+      if (window.hbHH()) return true;
       var pref = localStorage.getItem("hb-halloween");
       if (pref === "off") return false;
       var th = localStorage.getItem("hb-theme") || "dark";
@@ -30,4 +33,5 @@
     } catch (e) { return false; }
   };
   if (window.hbHalloweenActive()) document.documentElement.classList.add("hb-halloween");
+  if (window.hbHH()) document.documentElement.classList.add("hb-hh");
 })();

@@ -2196,7 +2196,7 @@ dialog::backdrop{background:var(--backdrop)}
 <div class="app">
 
   <div id="scr-loading" class="loading"><div class="boot">
-    <img src="/icon-192.png" alt="Loading Honeybun">
+    <img src="/icon-192.png" alt="Loading Honeybun"><div class="witchload" aria-hidden="true"></div>
     <div id="bootMsg" hidden><b>Honeybun is getting a fresh update…</b><span>Hang tight, refreshing in a few seconds 🐰</span></div>
     <button class="go" id="bootBtn" hidden>Refresh</button>
   </div></div>
@@ -2876,6 +2876,11 @@ dialog::backdrop{background:var(--backdrop)}
         <div class="setting-row col"><span class="sicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 0 18c1 0 1.5-.8 1.5-1.6 0-1.3 1-2.4 2.3-2.4H18a3 3 0 0 0 3-3A9 9 0 0 0 12 3z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10" cy="7" r="1"/><circle cx="15" cy="7" r="1"/></svg></span><span class="copy"><b>Theme color</b><small>Shared with everyone in your budget</small><span class="swatches" id="swatches"></span></span></div>
         <button class="setting-row" id="rerunSetup"><span class="sicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="15" rx="3"/><path d="M4 10h16M9 3v4M15 3v4"/></svg></span><span class="copy"><b>Paydays &amp; bills</b><small>Run the quick setup again</small></span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></button>
         <button class="setting-row" id="openShortcut"><span class="sicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 3L5 14h6l-1 7 9-11h-6z"/></svg></span><span class="copy"><b>Apple Pay auto-logging</b><small id="shortcutSub">Log every tap-to-pay with an iPhone Shortcut</small></span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></button>
+      </div>
+      <div class="card pad blk" id="hhCard">
+        <div class="title"><h2>Seasonal / Experimental</h2><span>preview</span></div>
+        <div class="setting-row" id="hhRow"><span class="sicon">🎃</span><span class="copy"><b>Halloween Honeybun</b><small>Preview the Halloween Honeybun experience.</small></span><button type="button" class="hh-sw" id="hhSwitch" role="switch" aria-checked="false" aria-label="Halloween Honeybun"></button></div>
+        <p class="hh-note">Seasonal Preview</p>
       </div>
       <div class="card pad blk">
         <div class="title"><h2>Data</h2><span>control</span></div>

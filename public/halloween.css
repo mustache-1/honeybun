@@ -141,3 +141,30 @@ html.hbh-lite nav.bottom,html.hbh-lite html.hbp-app nav.bottom{backdrop-filter:n
 html.hbh-lite .hbh-spider,html.hbh-lite .hbh-spider .thread{animation:none}
 html.hbh-lite .lp-btn.p{animation:none}
 @media (prefers-reduced-motion:reduce){html.hb-halloween .hbh-sky *,html.hb-halloween .hbh-fx *{animation:none!important}}
+
+
+/* ===== Halloween Honeybun (experimental preview). Only active with html.hb-hh; switch it off in Settings and none of this applies. ===== */
+html:root.hb-hh.hb-halloween,html:root.hb-hh.hb-halloween[data-theme],html:root.hb-hh.hb-halloween[data-accent],html:root.hb-hh.hb-halloween[data-theme][data-accent]{
+  --bg:#150A22;--card:#21143A;--panel2:#2A1A49;--panel3:#33205A;--line:#46306E;--ink:#F8F1FF;--soft:#BBA9D8;--muted:#8670A8;
+  --track:#0E0718;--nav:rgba(24,12,40,.94);--page:#0B0612;--backdrop:rgba(6,2,12,.66);
+  --lav-t:#3A2766;--t-lilac:#3A2766;--hero-bd:#4A3377;--hero-bg1:#25163F;--hero-bg2:#341E4F;
+  --lp-nav-bg:rgba(21,10,34,.84);--lp-nav-bd:rgba(70,48,110,.6);
+}
+html.hb-hh.hb-halloween{background:#150A22}
+html.hb-hh.hb-halloween::before{background:radial-gradient(circle at 88% 6%,rgba(255,226,150,.2),transparent 24%),radial-gradient(circle at 10% 90%,rgba(167,139,250,.14),transparent 40%),linear-gradient(170deg,#25123C,#0B0612)}
+/* the witch Bun sits on the cards that greet you */
+html.hb-hh #scr-home .hero,html.hb-hh #scr-us .card.pad:first-of-type,html.hb-hh #scr-inbox .chat-top{position:relative}
+html.hb-hh #scr-home .hero::after,html.hb-hh #scr-us .card.pad:first-of-type::after{content:"";position:absolute;right:10px;bottom:-14px;width:76px;height:76px;border-radius:20px;background:url(/icon-192-halloween.png) center/cover;box-shadow:0 8px 22px rgba(0,0,0,.4);pointer-events:none;opacity:.96}
+html.hb-hh #scr-home .hero-stats{padding-right:0}
+html.hb-hh .card{border-color:var(--line);box-shadow:0 10px 30px rgba(8,2,16,.35)}
+/* witch loading animation (12 frames in one strip) */
+.witchload{display:none}
+html.hb-hh .loading .boot>img{display:none}
+html.hb-hh .loading .witchload{display:block;width:150px;height:245px;border-radius:22px;background:#f6c978 url(/witch-load.webp) 0 0/1800px 245px no-repeat;animation:witchhop 1.15s steps(12) infinite;box-shadow:0 10px 30px rgba(0,0,0,.4)}
+@keyframes witchhop{to{background-position:-1800px 0}}
+@media (prefers-reduced-motion:reduce){html.hb-hh .loading .witchload{animation:none;background-position:-750px 0}}
+/* Settings: the preview switch */
+.hh-sw{position:relative;width:51px;height:31px;border-radius:99px;background:#48404f;border:0;cursor:pointer;flex:none;transition:background .2s;padding:0}
+.hh-sw::after{content:"";position:absolute;left:2px;top:2px;width:27px;height:27px;border-radius:50%;background:#fff;transition:transform .2s;box-shadow:0 2px 4px rgba(0,0,0,.3)}
+.hh-sw[aria-checked="true"]{background:#34c759}.hh-sw[aria-checked="true"]::after{transform:translateX(20px)}
+.hh-note{margin:2px 0 0 52px;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--soft);opacity:.8}
