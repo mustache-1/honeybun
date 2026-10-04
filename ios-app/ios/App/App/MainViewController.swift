@@ -62,7 +62,7 @@ class MainViewController: CAPBridgeViewController, UITabBarDelegate {
             layout.selected.titleTextAttributes = [.foregroundColor: orange]
         }
         tabBar.standardAppearance = ap
-        tabBar.scrollEdgeAppearance = ap
+        if #available(iOS 15.0, *) { tabBar.scrollEdgeAppearance = ap }
         view.addSubview(tabBar)
     }
 
