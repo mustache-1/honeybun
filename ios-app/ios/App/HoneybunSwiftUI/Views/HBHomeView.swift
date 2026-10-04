@@ -233,6 +233,7 @@ struct HBHomeView: View {
                 }
             }
             .hbCard()
+            .accessibilityElement(children: .contain).accessibilityIdentifier("hb-last-card")
         }
     }
 }

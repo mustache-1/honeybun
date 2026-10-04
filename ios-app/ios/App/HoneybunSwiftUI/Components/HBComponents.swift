@@ -89,6 +89,7 @@ struct HBTabBar: View {
             }
         }
         .padding(.horizontal, 6).padding(.vertical, 4)
+        .accessibilityElement(children: .contain).accessibilityIdentifier("hb-tabbar")
         .background(HBProbe(kind: .barTop))
         .background(
             RoundedRectangle(cornerRadius: 30, style: .continuous)

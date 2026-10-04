@@ -39,6 +39,18 @@ final class HoneybunScrollUITests: XCTestCase {
         Thread.sleep(forTimeInterval: 1.5)
         shot("\(tag)_bottom")
         note("\(tag): after drags frame=\(scroll.frame)")
+        // measure the real on-screen frames: last card vs the top of the tab bar
+        let last = app.descendants(matching: .any).matching(identifier: "hb-last-card").firstMatch
+        let bar = app.descendants(matching: .any).matching(identifier: "hb-tabbar").firstMatch
+        if last.exists && bar.exists {
+            let gap = bar.frame.minY - last.frame.maxY
+            note("\(tag): LAST CARD bottom=\(last.frame.maxY) tab bar top=\(bar.frame.minY) GAP=\(gap) (bar pill is ~4pt taller than this frame)")
+            XCTAssertGreaterThanOrEqual(gap, 14, "\(tag): the last card is hidden by the tab bar")
+            XCTAssertLessThanOrEqual(gap, 40, "\(tag): too much empty space under the last card")
+        } else {
+            note("\(tag): could not find last card (\(last.exists)) or tab bar (\(bar.exists))")
+            XCTFail("\(tag): last card or tab bar not found")
+        }
         app.terminate()
     }
 
