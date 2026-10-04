@@ -97,7 +97,7 @@ struct HBTabBar: View {
         .padding(.horizontal, 6).padding(.vertical, 4)
         .background(
             RoundedRectangle(cornerRadius: 30, style: .continuous)
-                .fill(LinearGradient(colors: [Color(red: 0.13, green: 0.095, blue: 0.16).opacity(0.97), Color(red: 0.075, green: 0.052, blue: 0.10).opacity(0.97)], startPoint: .top, endPoint: .bottom))
+                .fill(LinearGradient(colors: [Color(red: 0.13, green: 0.095, blue: 0.16), Color(red: 0.075, green: 0.052, blue: 0.10)], startPoint: .top, endPoint: .bottom))   // fully solid: nothing shows through
         )
         .overlay(RoundedRectangle(cornerRadius: 30, style: .continuous).stroke(Color.white.opacity(0.10), lineWidth: 1))
         .shadow(color: .black.opacity(0.5), radius: 14, y: 6)
