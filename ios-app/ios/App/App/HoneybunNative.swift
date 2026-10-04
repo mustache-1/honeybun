@@ -31,7 +31,7 @@ public class HoneybunNativePlugin: CAPPlugin, CAPBridgedPlugin {
     // lets the website know which native pieces this build of the app has
     @objc func info(_ call: CAPPluginCall) {
         DispatchQueue.main.async {
-            call.resolve(["nativeTabs": true, "nativeRefresh": true, "icons": true, "tabsHeight": NativeChrome.shared.height, "version": 2])
+            call.resolve(["nativeTabs": true, "nativeRefresh": true, "icons": true, "iconsV": 2, "tabsHeight": NativeChrome.shared.height, "version": 2])
         }
     }
 

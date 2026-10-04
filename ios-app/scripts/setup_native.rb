@@ -36,7 +36,7 @@ add_source(app, shared_ref)
 ensure_file(app_group, 'App.entitlements')
 app.build_configurations.each do |c|
   c.build_settings['CODE_SIGN_ENTITLEMENTS'] = 'App/App.entitlements'
-  c.build_settings['ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES'] = 'AppIcon-Halloween' # seasonal icon (switched by the website through HoneybunNative.setIcon)
+  c.build_settings['ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES'] = 'AppIcon-Classic' # the main icon is the seasonal one; the normal bunny is the alternate the website switches to after Halloween (HoneybunNative.setIcon)
 end
 
 # widget extension target

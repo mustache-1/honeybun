@@ -44,3 +44,11 @@ jobs:
             CODE_SIGNING_ALLOWED=NO build > build.log 2>&1 || true
           grep -E "error:|BUILD (SUCCEEDED|FAILED)" build.log | sort -u | head -30
           grep -q "BUILD SUCCEEDED" build.log
+      - name: Show which app icons were built in
+        working-directory: ios-app/ios/App
+        shell: bash
+        run: |
+          APP=$(find ~/Library/Developer/Xcode/DerivedData -path "*Debug-iphonesimulator/App.app" -maxdepth 6 | head -1)
+          echo "app: $APP"
+          plutil -p "$APP/Info.plist" | grep -A12 -E "CFBundleIcons|CFBundleAlternateIcons" | head -40
+          ls "$APP" | grep -i icon || true

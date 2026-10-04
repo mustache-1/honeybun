@@ -329,8 +329,10 @@
       syncTab();
       // seasonal home-screen icon (the same Sept 29 to Oct 31 window as the website's Halloween look)
       if (i.icons) {
-        const d = new Date(), halloween = d.getMonth() === 9 || (d.getMonth() === 8 && d.getDate() >= 29), want = halloween ? "AppIcon-Halloween" : "";
-        if ((store.get("hb-icon") || "") !== want) HBN.setIcon(want ? { name: want } : {}).then(() => store.set("hb-icon", want)).catch(() => {});
+        // newer builds ship Halloween as the main icon and the normal bunny as "AppIcon-Classic"; build 6 had it the other way round
+        const d = new Date(), halloween = d.getMonth() === 9 || (d.getMonth() === 8 && d.getDate() >= 29), v2 = (i.iconsV || 0) >= 2,
+          want = v2 ? (halloween ? "" : "AppIcon-Classic") : (halloween ? "AppIcon-Halloween" : "");
+        if ((store.get(v2 ? "hb-icon2" : "hb-icon") || "") !== want) HBN.setIcon(want ? { name: want } : {}).then(() => store.set(v2 ? "hb-icon2" : "hb-icon", want)).catch(() => {});
       }
     }).catch(() => {});
     window.addEventListener("popstate", () => {
