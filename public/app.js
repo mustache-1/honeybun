@@ -311,10 +311,28 @@
   })();
   // The iPhone app (a native shell around this site) adds a Face ID lock through its BiometricLock plugin.
   const IOS_NATIVE = !!(window.Capacitor && window.Capacitor.getPlatform && window.Capacitor.getPlatform() === "ios");
+  let NTABS = false; // true once the iPhone app confirms it has the native tab bar
   const BIO = IOS_NATIVE && window.Capacitor.Plugins && window.Capacitor.Plugins.BiometricLock;
   const NATIVE_PLUGINS = IOS_NATIVE ? window.Capacitor.Plugins || {} : {};
   const HBN = NATIVE_PLUGINS.HoneybunNative, PUSHP = NATIVE_PLUGINS.PushNotifications;
   let nativeDone = false;
+  // iPhone app: ask which native pieces this build has (older builds don't answer, and keep the website's own bar)
+  if (IOS_NATIVE && HBN && HBN.info) {
+    HBN.info().then((i) => {
+      if (!i || !i.nativeTabs) return;
+      NTABS = true;
+      document.documentElement.classList.add("hb-tabs");
+      document.documentElement.style.setProperty("--tabs-h", (i.tabsHeight || 83) + "px");
+      window.hbNativeGo = (t) => { if (!ME) return; if (t === "add") openAdd(); else { if (screen === "add") editing = null; show(t); } };
+      window.hbNativeRefresh = () => { if (ME && APP_SCREENS.includes(screen)) loadNest().catch(() => {}); };
+      new MutationObserver(syncTab).observe(document.body, { subtree: true, attributes: true, attributeFilter: ["open", "hidden"] });
+      syncTab();
+    }).catch(() => {});
+    window.addEventListener("popstate", () => {
+      if (!NTABS && !IOS_NATIVE) return;
+      if (SUB_SCREENS.includes(screen)) { popping = true; try { if (screen === "add") editing = null; show(lastTab); } finally { popping = false; } }
+    });
+  }
   // give the widget and Siri this phone's own token, and keep push notifications registered
   async function nativeSetup() {
     if (!ME || !(HBN || PUSHP)) return;
@@ -411,8 +429,26 @@
   // ---------- screens ----------
   const APP_SCREENS = ["home", "plan", "add", "stats", "share", "shop", "us", "inbox", "settings", "help", "refer", "updates"];
   const ALL_SCREENS = ["loading", "landing", "auth", "reset", "verify", "setup", "onboard", ...APP_SCREENS];
+  // iPhone app: screens that open "on top" of the tabs get a history entry, so the edge-swipe goes back
+  const SUB_SCREENS = ["add", "inbox", "settings", "refer", "share", "shop", "help", "updates"];
+  const TAB_OF = { home: "home", plan: "plan", stats: "stats", us: "us", share: "us" };
+  let popping = false, lastTab = "home";
+  let tabSent = "", tabTimer = 0;
+  function syncTab() {
+    if (!NTABS || !HBN) return;
+    clearTimeout(tabTimer);
+    tabTimer = setTimeout(() => {
+      const visible = APP_SCREENS.includes(screen) && screen !== "add" && !document.querySelector("dialog[open]") && $("lockOverlay").hidden;
+      const msg = { tab: TAB_OF[screen] || null, visible }, key = JSON.stringify(msg);
+      if (key === tabSent) return;
+      tabSent = key; HBN.setTab(msg).catch(() => { tabSent = ""; });
+    }, 30);
+  }
   function show(s) {
+    if (IOS_NATIVE && !popping && SUB_SCREENS.includes(s) && !(history.state && history.state.hbSub === s)) { try { history.pushState({ hbSub: s }, ""); } catch {} }
+    if (TAB_OF[s] === s) lastTab = s;
     screen = s;
+    if (NTABS) syncTab();
     fitDesktop();
     ALL_SCREENS.forEach((k) => ($("scr-" + k).hidden = k !== s));
     const inApp = APP_SCREENS.includes(s);
@@ -1069,7 +1105,7 @@
     const reset = () => { ind.style.transition = "transform .2s, opacity .2s"; ind.style.opacity = "0"; ind.style.transform = "translate(-50%,-48px)"; ind.classList.remove("spin"); };
     addEventListener("touchstart", (t) => {
       on = false;
-      if (working || window.scrollY > 0 || !ME || !["home", "plan", "stats", "us"].includes(screen) || document.querySelector("dialog[open]")) return;
+      if (NTABS || working || window.scrollY > 0 || !ME || !["home", "plan", "stats", "us"].includes(screen) || document.querySelector("dialog[open]")) return;
       y0 = t.touches[0].clientY; pull = 0; on = true; ind.style.transition = "none";
     }, { passive: true });
     addEventListener("touchmove", (t) => {

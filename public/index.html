@@ -765,6 +765,11 @@ nav.bottom .plus{width:50px;height:50px;background:var(--ink);color:var(--card);
 .pk-list li button{border:0;background:none;color:var(--soft);font-weight:800;padding:6px}
 .theme-pick{margin-top:8px}
 .filter-more{flex:none;min-height:38px;padding:6px 14px;border-radius:999px;font-size:14px;font-weight:700;border:1px solid var(--line);background:var(--card)}
+/* iPhone app with the native tab bar: the website's own bar steps aside */
+html.hb-tabs nav.bottom{display:none!important}
+html.hb-tabs .app{padding-bottom:calc(var(--tabs-h,83px) + 24px)!important}
+html.hb-tabs .toast{bottom:calc(var(--tabs-h,83px) + 10px)!important}
+html.hb-tabs .update-card{bottom:calc(var(--tabs-h,83px) + 10px)!important}
 html.hb-ios{-webkit-touch-callout:none}
 html.hb-ios input,html.hb-ios textarea{-webkit-touch-callout:default}
 /* iPhone zooms the whole page when a field smaller than 16px gets focus */
