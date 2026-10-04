@@ -22,25 +22,29 @@ final class HoneybunScrollUITests: XCTestCase {
         try? (old + text + "\n").write(toFile: path, atomically: true, encoding: .utf8)
     }
 
-    private func dragToBottom(_ screen: String) {
+    private func dragToBottom(_ screen: String, overlay: Bool = false) {
+        let tag = overlay ? "\(screen)overlay" : screen
         let app = XCUIApplication()
-        app.launchArguments = ["-HBPreview", screen]
+        app.launchArguments = ["-HBPreview", screen] + (overlay ? ["-HBOverlayBar"] : [])
         app.launch()
         Thread.sleep(forTimeInterval: 9)
-        shot("\(screen)_top")
+        shot("\(tag)_top")
         let scroll = app.scrollViews.firstMatch
-        note("\(screen): scrollViews=\(app.scrollViews.count) exists=\(scroll.exists) frame=\(scroll.frame) window=\(app.windows.firstMatch.frame)")
+        note("\(tag): scrollViews=\(app.scrollViews.count) exists=\(scroll.exists) frame=\(scroll.frame) window=\(app.windows.firstMatch.frame)")
         for i in 0..<10 {
             if scroll.exists { scroll.swipeUp() } else { app.swipeUp() }
             Thread.sleep(forTimeInterval: 0.6)
-            if i == 1 { shot("\(screen)_mid") }
+            if i == 1 { shot("\(tag)_mid") }
         }
         Thread.sleep(forTimeInterval: 1.5)
-        shot("\(screen)_bottom")
-        note("\(screen): after drags frame=\(scroll.frame)")
+        shot("\(tag)_bottom")
+        note("\(tag): after drags frame=\(scroll.frame)")
         app.terminate()
     }
 
     func testHomeDragToBottom() { dragToBottom("home") }
     func testMoneyDragToBottom() { dragToBottom("money") }
+    // the old arrangement (scroll area running underneath the bar), to prove the measured trailing space fixes it too
+    func testHomeDragToBottomUnderBar() { dragToBottom("home", overlay: true) }
+    func testMoneyDragToBottomUnderBar() { dragToBottom("money", overlay: true) }
 }

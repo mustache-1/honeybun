@@ -6,6 +6,7 @@ private struct HBBucket: Identifiable { let id: Int; let spent: Double; let last
 @available(iOS 15.0, *)
 struct HBMoneyView: View {
     @ObservedObject var store: HBAppStore
+    @ObservedObject private var metrics = HBLayoutMetrics.shared
     @State private var showAllCategories = false
 
     // MARK: derived from the store
@@ -45,6 +46,7 @@ struct HBMoneyView: View {
     var body: some View {
         ScrollViewReader { proxy in
         ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: 14) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Money").font(.system(size: 34, weight: .bold)).foregroundColor(.white)
@@ -63,7 +65,9 @@ struct HBMoneyView: View {
             .frame(maxWidth: 560)
             .padding(.horizontal, HB.gutter).padding(.top, 8)
             .frame(maxWidth: .infinity)
-            Color.clear.frame(height: 1).id("hb-end")
+            // real, measured room under the last card so it can be dragged completely clear of the tab bar (see HBLayoutMetrics)
+            Color.clear.frame(height: max(1, metrics.trailing)).id("hb-end").background(HBProbe(kind: .scrollEnd))
+            }
         }
         .refreshable { await store.refresh() }
         #if DEBUG

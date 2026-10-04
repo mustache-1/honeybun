@@ -15,12 +15,7 @@ struct HBRootView: View {
     var body: some View {
         ZStack {
             HBBackground()
-            // The tab bar is part of the layout, not an overlay: the screen above it ends where the bar begins (with a gap), so no content
-            // is ever hidden under it and the last item always scrolls fully clear. The bar sits in the bottom safe area on every iPhone.
-            VStack(spacing: HB.barGap) {
-                content
-                if store.phase == .ready { HBTabBar(selected: $store.selectedTab) }
-            }
+            rootLayout
         }
         // scrolling content fades out under the status bar / Dynamic Island instead of colliding with the clock
         .overlay(alignment: .top) {
@@ -37,6 +32,31 @@ struct HBRootView: View {
         .fullScreenCover(item: $store.sheet) { sheet in sheetView(sheet) }
         .task { await store.start() }
         .preferredColorScheme(.dark)
+    }
+
+    // The tab bar is part of the layout, not an overlay: the screen above it ends where the bar begins (with a gap). The bar sits in the bottom
+    // safe area on every iPhone. Each scroll view additionally measures its own end against the bar (HBLayoutMetrics), so the last item clears it.
+    @ViewBuilder private var rootLayout: some View {
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("-HBOverlayBar") {
+            // test-only: the old arrangement, with the scroll area running underneath the bar, to prove the measuring fixes it
+            ZStack(alignment: .bottom) {
+                content
+                if store.phase == .ready { HBTabBar(selected: $store.selectedTab) }
+            }
+        } else {
+            stackedLayout
+        }
+        #else
+        stackedLayout
+        #endif
+    }
+
+    private var stackedLayout: some View {
+        VStack(spacing: HB.barGap) {
+            content
+            if store.phase == .ready { HBTabBar(selected: $store.selectedTab) }
+        }
     }
 
     @ViewBuilder private var content: some View {

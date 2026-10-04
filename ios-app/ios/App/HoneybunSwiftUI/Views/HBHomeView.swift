@@ -45,6 +45,7 @@ struct HBUpcomingRow: View {
 @available(iOS 15.0, *)
 struct HBHomeView: View {
     @ObservedObject var store: HBAppStore
+    @ObservedObject private var metrics = HBLayoutMetrics.shared
     let onClose: () -> Void
 
     var body: some View {
@@ -55,6 +56,7 @@ struct HBHomeView: View {
             let overlap: CGFloat = 36                      // how far the hero's honey dips into the card
             ScrollViewReader { proxy in
             ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
                 VStack(alignment: .leading, spacing: 11) {
                     classicLink
                     header(heroH: heroH, overlap: overlap)
@@ -68,7 +70,9 @@ struct HBHomeView: View {
                 .frame(maxWidth: 560)
                 .padding(.horizontal, HB.gutter).padding(.top, 4)
                 .frame(maxWidth: .infinity)
-                Color.clear.frame(height: 1).id("hb-end")
+                // real, measured room under the last card so it can be dragged completely clear of the tab bar (see HBLayoutMetrics)
+                Color.clear.frame(height: max(1, metrics.trailing)).id("hb-end").background(HBProbe(kind: .scrollEnd))
+                }
             }
             .refreshable { await store.refresh() }
             #if DEBUG

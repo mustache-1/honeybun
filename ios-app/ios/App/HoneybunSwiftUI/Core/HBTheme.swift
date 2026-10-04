@@ -14,6 +14,8 @@ enum HB {
     static let gutter: CGFloat = 16
     /// space between the bottom of a screen and the floating tab bar
     static let barGap: CGFloat = 6
+    /// clear space between the last item and the top of the tab bar when a screen is dragged all the way down
+    static let endGap: CGFloat = 22
 }
 
 @available(iOS 15.0, *)

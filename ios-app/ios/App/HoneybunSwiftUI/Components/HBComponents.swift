@@ -89,6 +89,7 @@ struct HBTabBar: View {
             }
         }
         .padding(.horizontal, 6).padding(.vertical, 4)
+        .background(HBProbe(kind: .barTop))
         .background(
             RoundedRectangle(cornerRadius: 30, style: .continuous)
                 .fill(LinearGradient(colors: [Color(red: 0.13, green: 0.095, blue: 0.16), Color(red: 0.075, green: 0.052, blue: 0.10)], startPoint: .top, endPoint: .bottom))   // fully solid: nothing shows through
