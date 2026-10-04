@@ -387,7 +387,7 @@
     if (!pushListening) {
       pushListening = true;
       PUSHP.addListener("registration", async (t) => { try { await api("/api/push/apns", { method: "POST", body: { token: t.value } }); store.set("hb-apns-token", t.value); } catch {} });
-      PUSHP.addListener("registrationError", () => {});
+      PUSHP.addListener("registrationError", (e) => { store.set("hb-apns-err", JSON.stringify(e || {})); toast(tr("Couldn't turn on notifications.") + " " + ((e && (e.error || e.message)) || "")); });
     }
     try {
       let perm = await PUSHP.checkPermissions();
@@ -428,6 +428,15 @@
   if (IOS_NATIVE) {
     document.documentElement.classList.add("hb-ios");
     $("openPasskeys").hidden = true; // passkeys need an extra Apple setup (associated domains) that the app does not have yet
+    { const tr_ = $("pushTestRow"); tr_.hidden = false;
+      tr_.onclick = async () => {
+        try {
+          await registerPush(false); // make sure this phone has asked and registered before testing
+          await new Promise((ok) => setTimeout(ok, 1500));
+          const r = await api("/api/push/test", { method: "POST" });
+          toast(r.message || (r.ok ? "Sent!" : "Something went wrong."));
+        } catch (e) { toast(e.message || tr("Couldn't send a test.")); }
+      }; }
     // the app notifies you by itself, the home screen / website install steps don't apply, What's new lives on the landing page, and the app has one look
     [$("mailBills").closest(".setting-row"), $("themePick").closest(".setting-row"), $("swatches").closest(".setting-row"), $("openGet"), $("sideGet"), $("openUpd"), $("sideUpd")]
       .forEach((el) => { if (el) el.hidden = true; });

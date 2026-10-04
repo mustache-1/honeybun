@@ -1191,6 +1191,27 @@ async function handle(request, env, url) {
     await env.DB.prepare("INSERT OR REPLACE INTO apns_tokens (token, user_id, created_at) VALUES (?, ?, ?)").bind(token.toLowerCase(), user.id, now()).run();
     return json({ ok: true });
   }
+  // "Send me a test notification": tells you in plain words whether a phone is registered and what Apple said
+  if (path === "/api/push/test" && method === "POST") {
+    if (await limited(env, "pushtest:" + user.id, 10, 3600)) throw new HttpError("Too many tests. Try again later.", 429);
+    await recordAttempt(env, "pushtest:" + user.id);
+    if (!env.APNS_KEY || !env.APNS_KEY_ID || !env.APNS_TEAM_ID) return json({ ok: false, step: "server", message: "Push isn't set up on the server yet." });
+    const toks = (await env.DB.prepare("SELECT token FROM apns_tokens WHERE user_id = ?").bind(user.id).all()).results;
+    if (!toks.length) return json({ ok: false, step: "phone", message: "No phone has signed up for notifications yet. Allow notifications for Honeybun in your iPhone Settings, then reopen the app." });
+    const jwt = await apnsToken(env), topic = env.APNS_TOPIC || "me.honeybun.app";
+    const payload = JSON.stringify({ aps: { alert: { title: "Honeybun", body: "Test notification. It works! 🐰" }, sound: "default" }, kind: "test" });
+    const out = [];
+    for (const t of toks) {
+      for (const h of ["api.push.apple.com", "api.sandbox.push.apple.com"]) {
+        const res = await fetch(`https://${h}/3/device/${t.token}`, { method: "POST", headers: { authorization: `bearer ${jwt}`, "apns-topic": topic, "apns-push-type": "alert", "apns-priority": "10" }, body: payload });
+        const why = res.ok ? "" : await res.text().catch(() => "");
+        out.push({ host: h.includes("sandbox") ? "sandbox" : "production", status: res.status, why });
+        if (res.ok) break;
+      }
+    }
+    const sent = out.some((o) => o.status === 200);
+    return json({ ok: sent, step: sent ? "sent" : "apple", message: sent ? "Sent! It should arrive in a few seconds." : "Apple said no: " + out.map((o) => `${o.host} ${o.status} ${o.why}`).join(" | "), tokens: toks.length });
+  }
   if (path === "/api/push/apns" && method === "DELETE") {
     await env.DB.prepare("DELETE FROM apns_tokens WHERE token = ? AND user_id = ?").bind(String(body.token || "").toLowerCase(), user.id).run();
     return json({ ok: true });

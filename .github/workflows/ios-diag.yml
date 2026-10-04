@@ -1,0 +1,115 @@
+# Builds and signs the iPhone app like the TestFlight workflow, but does NOT upload it: it prints the permissions (entitlements) that ended up inside the app.
+# Needs an Apple Developer account and four repository secrets, see ios-app/README.md ("TestFlight").
+name: iPhone app (entitlements check)
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: ios-diag
+  cancel-in-progress: false
+
+jobs:
+  testflight:
+    runs-on: macos-15
+    timeout-minutes: 60
+    env:
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+    defaults:
+      run:
+        working-directory: ios-app
+    steps:
+      - name: Check the Apple secrets are set
+        working-directory: .
+        run: |
+          missing=""
+          for v in APPLE_TEAM_ID ASC_KEY_ID ASC_ISSUER_ID ASC_KEY_P8; do
+            if [ -z "${!v}" ]; then missing="$missing $v"; fi
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::Add these repository secrets first (Settings > Secrets and variables > Actions):$missing. See ios-app/README.md."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Use the newest Xcode (Apple requires the iOS 26 SDK or later for uploads)
+        working-directory: .
+        run: |
+          ls -d /Applications/Xcode_2*.app || true
+          X=$(ls -d /Applications/Xcode_2[6-9]*.app 2>/dev/null | sort -V | tail -1)
+          if [ -z "$X" ]; then echo "::error::Xcode 26 or later isn't on this runner"; exit 1; fi
+          sudo xcode-select -s "$X/Contents/Developer"
+          xcodebuild -version
+
+      - name: Install Capacitor and sync the native project
+        run: |
+          npm install
+          npx cap sync ios
+
+      - name: Add the widget, Siri and push setup to the Xcode project
+        run: ruby scripts/setup_native.rb
+
+      - name: Install pods
+        working-directory: ios-app/ios/App
+        run: pod install
+
+      - name: Save the App Store Connect key
+        run: |
+          mkdir -p "$RUNNER_TEMP/keys"
+          printf '%s' "$ASC_KEY_P8" > "$RUNNER_TEMP/keys/AuthKey_${ASC_KEY_ID}.p8"
+          echo "ASC_KEY_PATH=$RUNNER_TEMP/keys/AuthKey_${ASC_KEY_ID}.p8" >> "$GITHUB_ENV"
+
+      - name: Archive (unsigned; the export step below signs it for the App Store)
+        working-directory: ios-app/ios/App
+        shell: bash
+        run: |
+          set -o pipefail
+          xcodebuild -workspace App.xcworkspace -scheme App -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/Honeybun.xcarchive" \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
+            archive > "$RUNNER_TEMP/archive.log" 2>&1 || true
+          grep -E "error:|ARCHIVE (SUCCEEDED|FAILED)" "$RUNNER_TEMP/archive.log" | head -30
+          grep -q "ARCHIVE SUCCEEDED" "$RUNNER_TEMP/archive.log"
+
+      - name: Export (no upload) and show the permissions inside the app
+        working-directory: ios-app/ios/App
+        shell: bash
+        run: |
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>export</string>
+            <key>teamID</key><string>${APPLE_TEAM_ID}</string>
+            <key>signingStyle</key><string>automatic</string>
+          </dict>
+          </plist>
+          PLIST
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/Honeybun.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
+            -exportPath "$RUNNER_TEMP/export" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$ASC_KEY_PATH" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID" 2>&1 | grep -E "error:|EXPORT" | head
+          cd "$RUNNER_TEMP/export" && ls
+          mkdir -p x && cd x && unzip -q ../App.ipa
+          echo "=== entitlements inside the signed app ==="
+          codesign -d --entitlements :- Payload/App.app 2>/dev/null
+          echo "=== entitlements inside the widget ==="
+          codesign -d --entitlements :- Payload/App.app/PlugIns/HoneybunWidget.appex 2>/dev/null
+          echo "=== provisioning profile entitlements ==="
+          security cms -D -i Payload/App.app/embedded.mobileprovision 2>/dev/null | plutil -extract Entitlements xml1 -o - - 2>/dev/null | head -40
