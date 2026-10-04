@@ -18,7 +18,8 @@ func run() async {
     check("INBOX: 13 messages load, 6 unread, and the badge count from /api/nest says 6", msgs.count == 13 && msgs.filter { $0.isUnread }.count == 6 && s?.inbox?.unread == 6)
     check("INBOX: loading it twice gives the same list (nothing is consumed by reading)", ((try? await api.inbox()) ?? []).count == 13)
     let byTab = Dictionary(grouping: msgs, by: { HBInbox.tab(for: $0.kind) })
-    check("INBOX: tabs split the messages (Bills 6 incl. the carry question and the budget warning, Shared 2, Updates 5)", byTab[.bills]?.count == 5 + 0 || byTab[.bills]?.count == 6 ? (byTab[.shared]?.count == 2 && (byTab[.bills]?.count ?? 0) + (byTab[.shared]?.count ?? 0) + (byTab[.updates]?.count ?? 0) == 13) : false)
+    let nBills = byTab[.bills]?.count ?? 0, nShared = byTab[.shared]?.count ?? 0, nUpdates = byTab[.updates]?.count ?? 0
+    check("INBOX: tabs split the messages (Bills 5 incl. the carry question and the budget warning, Shared 2, Updates 6)", nBills == 5 && nShared == 2 && nUpdates == 6)
     let groups = HBInbox.groups(msgs)
     check("INBOX: grouped newest-first by day, starting with Today", groups.first?.title == "Today" && groups.count >= 3)
     check("INBOX: every message has text and a heading", msgs.allSatisfy { !HBInbox.text($0, today: today, categoryName: { HBCategory.of($0).label }).isEmpty && !HBInbox.heading(for: $0.kind).isEmpty })
@@ -38,7 +39,9 @@ func run() async {
         check("PAID: tapping Paid succeeds", await refused({ try await api.logOccurrence(recurringID: rid, date: occ) }) == nil)
         s = await snap()
         check("PAID: the occurrence is now logged (the card turns into \"Paid ✓\") and a real expense was created", (s?.logged.contains { $0.recurring_id == rid && $0.occ_date == occ } ?? false) && (s?.entries.count ?? 0) == entriesBefore + 1 && s?.entries.first?.recurring_id == rid)
-        check("PAID: tapping it again does not double-log", await refused({ try await api.logOccurrence(recurringID: rid, date: occ) }) == nil && ((await snap())?.entries.count ?? 0) == entriesBefore + 1)
+        let again: String? = await refused({ try await api.logOccurrence(recurringID: rid, date: occ) })
+        let countAfter = (await snap())?.entries.count ?? 0
+        check("PAID: tapping it again does not double-log", again == nil && countAfter == entriesBefore + 1)
     } else { check("PAID: found the Paid action", false) }
     check("PAID: a bill that no longer exists has no button", billLate.flatMap { HBInbox.action(for: $0, recurringExists: { _ in false }, carryPending: false) } == nil)
 
@@ -56,7 +59,9 @@ func run() async {
     s = await snap()
     check("CARRY: the question is gone and carry_in is $124.50 accepted (Home and Money pick this up from the snapshot)", s?.carry_pending == nil && s?.carry_in?.accepted == true && s?.carry_in?.amount_cents == 12450)
     check("CARRY: the Decide button disappears once decided", msgs.first { $0.kind == "carry_ask" }.flatMap { HBInbox.action(for: $0, recurringExists: exists, carryPending: s?.carry_pending != nil) } == nil)
-    check("CARRY: deciding again is harmless", await refused({ try await api.decideCarry(month: HBDay.monthKey(), accept: false, remember: false) }) == nil && (await snap())?.carry_in?.accepted == true)
+    let carryAgain: String? = await refused({ try await api.decideCarry(month: HBDay.monthKey(), accept: false, remember: false) })
+    let carryStill = (await snap())?.carry_in?.accepted
+    check("CARRY: deciding again is harmless", carryAgain == nil && carryStill == true)
 
     // reading
     check("READ: marking read succeeds", await refused({ try await api.markInboxRead() }) == nil)
