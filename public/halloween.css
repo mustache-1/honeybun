@@ -616,3 +616,5 @@ html.hb-hh .hv-save:disabled{opacity:.55}
 html.hb-hh.hh-classic-settings #scr-settings:not([hidden])>*:not(#hhSettings):not([hidden]):not(.hh-classicback){display:block!important}
 html.hb-hh.hh-classic-settings #scr-settings:not([hidden])>#hhSettings{display:none!important}
 html.hb-hh.hh-classic-settings #scr-settings:not([hidden])>.hh-classicback{display:block!important;margin:max(env(safe-area-inset-top,0px),var(--sat,0px)) 0 10px;padding:10px 14px;border-radius:14px;border:1px solid rgba(255,170,80,.5);background:#22142f;color:#ffb04d;font:800 14px system-ui,sans-serif;cursor:pointer}
+html.hb-hh .hv-shop input[type="checkbox"]{appearance:none;-webkit-appearance:none;width:20px!important;height:20px!important;min-width:20px;padding:0;margin:0 10px 0 0;border:1.5px solid #8b7ba8;border-radius:6px;background:transparent;vertical-align:middle;flex:none}
+html.hb-hh .hv-shop input[type="checkbox"]:checked{background:#ffb04d;border-color:#ffb04d}

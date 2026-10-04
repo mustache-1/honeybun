@@ -2750,7 +2750,7 @@
     el.querySelectorAll(".bs-row").forEach((b) => (b.onclick = () => show(b.dataset.go)));
     box.appendChild(el);
   }
-  function chatToEnd() { const c = $("chat"); if (getComputedStyle(c).overflowY === "auto") c.scrollTo({ top: c.scrollHeight, behavior: "smooth" }); else window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" }); }
+  function chatToEnd() { if (document.documentElement.classList.contains("hb-hh")) return; const c = $("chat"); if (getComputedStyle(c).overflowY === "auto") c.scrollTo({ top: c.scrollHeight, behavior: "smooth" }); else window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" }); }
   async function openInbox() {
     show("inbox");
     const box = $("chat");
