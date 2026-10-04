@@ -28,7 +28,10 @@ public class HoneybunNativePlugin: CAPPlugin, CAPBridgedPlugin {
     // and injected into the website as window.__hbHH). Changing it only changes how things look, never any account data.
     @objc func setHalloween(_ call: CAPPluginCall) {
         HalloweenPref.enabled = call.getBool("on") ?? false
-        call.resolve()
+        DispatchQueue.main.async {
+            NativeChrome.shared.vc?.applyHalloweenChrome()
+            call.resolve()
+        }
     }
 
     // the website calls this once it has its first real screen, so the native loading screen can fade out right away

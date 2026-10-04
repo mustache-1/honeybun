@@ -52,6 +52,14 @@ class MainViewController: CAPBridgeViewController, UITabBarDelegate {
         DispatchQueue.main.asyncAfter(deadline: .now() + 15) { [weak self] in self?.hideSplash() }
     }
 
+    /// Called when the Settings switch changes, so the tab bar restyles without relaunching.
+    func applyHalloweenChrome() {
+        let ap = tabAppearance()
+        tabBar.standardAppearance = ap
+        if #available(iOS 15.0, *) { tabBar.scrollEdgeAppearance = ap }
+        view.setNeedsLayout()
+    }
+
     func hideSplash() {
         guard let host = splash else { return }
         splash = nil
@@ -65,7 +73,20 @@ class MainViewController: CAPBridgeViewController, UITabBarDelegate {
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
         let h = tabsHeight
-        tabBar.frame = CGRect(x: 0, y: view.bounds.height - h, width: view.bounds.width, height: h)
+        if HalloweenPref.enabled {
+            // Halloween Honeybun: a floating, rounded bar with a honey outline
+            let inset: CGFloat = 10, lift: CGFloat = 4
+            tabBar.frame = CGRect(x: inset, y: view.bounds.height - h - lift, width: view.bounds.width - inset * 2, height: h)
+            tabBar.layer.cornerRadius = 24
+            tabBar.layer.cornerCurve = .continuous
+            tabBar.layer.masksToBounds = true
+            tabBar.layer.borderWidth = 1
+            tabBar.layer.borderColor = UIColor(red: 1.0, green: 0.67, blue: 0.31, alpha: 0.35).cgColor
+        } else {
+            tabBar.frame = CGRect(x: 0, y: view.bounds.height - h, width: view.bounds.width, height: h)
+            tabBar.layer.cornerRadius = 0
+            tabBar.layer.borderWidth = 0
+        }
         view.bringSubviewToFront(tabBar)
         if let sv = splash?.view { view.bringSubviewToFront(sv) }
     }
@@ -91,9 +112,18 @@ class MainViewController: CAPBridgeViewController, UITabBarDelegate {
         tabBar.overrideUserInterfaceStyle = .dark // dark glass, readable labels, to match the app
         tabBar.tintColor = orange
         tabBar.unselectedItemTintColor = muted
+        let ap = tabAppearance()
+        tabBar.standardAppearance = ap
+        if #available(iOS 15.0, *) { tabBar.scrollEdgeAppearance = ap }
+        view.addSubview(tabBar)
+    }
+
+    private func tabAppearance() -> UITabBarAppearance {
+        let orange = UIColor(red: 0.96, green: 0.60, blue: 0.29, alpha: 1)
+        let muted = UIColor(white: 1, alpha: 0.55)
         let ap = UITabBarAppearance()
         ap.configureWithDefaultBackground()
-        ap.backgroundColor = UIColor(red: 0.082, green: 0.059, blue: 0.106, alpha: 0.94)
+        ap.backgroundColor = HalloweenPref.enabled ? UIColor(red: 0.094, green: 0.047, blue: 0.149, alpha: 0.94) : UIColor(red: 0.082, green: 0.059, blue: 0.106, alpha: 0.94)
         ap.shadowColor = UIColor(white: 1, alpha: 0.08)
         for layout in [ap.stackedLayoutAppearance, ap.inlineLayoutAppearance, ap.compactInlineLayoutAppearance] {
             layout.normal.iconColor = muted
@@ -101,9 +131,7 @@ class MainViewController: CAPBridgeViewController, UITabBarDelegate {
             layout.selected.iconColor = orange
             layout.selected.titleTextAttributes = [.foregroundColor: orange]
         }
-        tabBar.standardAppearance = ap
-        if #available(iOS 15.0, *) { tabBar.scrollEdgeAppearance = ap }
-        view.addSubview(tabBar)
+        return ap
     }
 
     func tabBar(_ tabBar: UITabBar, didSelect item: UITabBarItem) {

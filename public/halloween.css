@@ -168,61 +168,76 @@ html.hb-hh .loading .witchload{display:block;width:150px;height:245px;border-rad
 .hh-sw[aria-checked="true"]{background:#34c759}.hh-sw[aria-checked="true"]::after{transform:translateX(20px)}
 .hh-note{margin:2px 0 0 52px;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--soft);opacity:.8}
 
-/* ===== Halloween Honeybun: HOME layout. A real re-layout of the home screen (same data, same buttons), not a recolor. ===== */
+/* ===== Halloween Honeybun: HOME. A separate layout (#hhHome) built from the same data; the normal home underneath is simply not shown in this mode. ===== */
 .hh-only{display:none}
 html.hb-hh[data-scr="home"] #topBar{display:none}
-html.hb-hh #scr-home:not([hidden]){display:flex;flex-direction:column;gap:12px;padding-top:max(8px,env(safe-area-inset-top))}
-html.hb-hh #scr-home .home-grid,html.hb-hh #scr-home .home-main,html.hb-hh #scr-home .side-col{display:contents}
-html.hb-hh #scr-home>*,html.hb-hh #scr-home .home-main>*,html.hb-hh #scr-home .side-col>*{order:6;margin:0}
-html.hb-hh #scr-home .hh-head{order:1}
-html.hb-hh #scr-home .hero{order:2}
-html.hb-hh #scr-home .hh-actions{order:3}
-html.hb-hh #scr-home .verify-banner,html.hb-hh #scr-home .burrow-pill,html.hb-hh #scr-home .ref-card,html.hb-hh #scr-home .bun-alerts,html.hb-hh #scr-home .bun-mood{order:4}
-html.hb-hh #scr-home #dueCard{order:5}
-html.hb-hh #scr-home .hh-streak{order:7}
-html.hb-hh #scr-home #homeJars{order:8}
-html.hb-hh #scr-home #homeBud{order:9}
-html.hb-hh #scr-home .couple{order:10}
-html.hb-hh #scr-home .filter-note{order:11}
-html.hb-hh #scr-home .section-h{order:12}
-html.hb-hh #scr-home .panel{order:13}
-/* header: wordmark, tagline, bell + settings, and the witch Bun */
-html.hb-hh .hh-head{display:block;position:relative;min-height:138px;padding-right:118px}
-.hh-brand b{display:block;font:800 30px/1 ui-rounded,"SF Pro Rounded",system-ui,sans-serif;letter-spacing:-.02em;color:var(--pink-2)}
-.hh-brand b span{color:#ff6f91;font-size:.6em;margin-left:4px;vertical-align:.25em}
-.hh-brand small{display:block;margin-top:6px;font-size:13px;font-weight:700;color:var(--soft);line-height:1.3;max-width:210px}
-.hh-brand small:first-of-type{margin-top:8px;color:var(--ink);font-size:15px}
-.hh-icons{position:absolute;right:0;top:-2px;display:flex;gap:6px;z-index:2}
-.hh-ib{position:relative;width:44px;height:44px;border-radius:15px;border:1px solid var(--line);background:rgba(255,255,255,.07);color:var(--ink);display:grid;place-items:center;padding:0;cursor:pointer}
-.hh-ib svg{width:21px;height:21px}
-.hh-ib i{position:absolute;top:9px;right:10px;width:9px;height:9px;border-radius:50%;background:#ff6f91;box-shadow:0 0 0 2px var(--bg)}
-.hh-witch{position:absolute;right:2px;top:54px;width:96px;height:96px;border-radius:26px;object-fit:cover;box-shadow:0 10px 26px rgba(0,0,0,.45),0 0 0 1px rgba(255,170,80,.4),0 0 28px rgba(255,150,50,.25);z-index:1}
-/* the big card: what's left this month */
-html.hb-hh #scr-home .hero{border-radius:26px;padding:18px 16px 16px;border:1px solid rgba(255,170,80,.45);background:linear-gradient(155deg,rgba(255,154,60,.22),rgba(120,70,200,.16) 70%),var(--card);box-shadow:0 12px 34px rgba(8,2,16,.5),0 0 30px rgba(255,150,50,.12);margin-top:18px}
-html.hb-hh #scr-home .hero .ears{display:none}
-html.hb-hh #scr-home .left-amt{font-size:clamp(40px,12vw,52px);font-weight:900;letter-spacing:-.03em}
-html.hb-hh #scr-home .meter{height:10px;border-radius:99px;background:rgba(255,255,255,.12)}
-html.hb-hh #scr-home .meter i{background:linear-gradient(90deg,#f28c38,#ffc46b);box-shadow:0 0 14px rgba(255,170,80,.5)}
-html.hb-hh #scr-home .hero-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}
-html.hb-hh #scr-home .hero-stats>div{background:rgba(10,4,20,.45);border:1px solid var(--line);border-radius:14px;padding:9px 10px}
-html.hb-hh #scr-home .hero-stats .desk-only{display:none}
+/* the theme's own scenery (webs, bats, spiders, fog, graveyard) is switched off here; the layout, mascot and palette carry the mood */
+html.hb-hh .hbh-sky,html.hb-hh .hbh-fx{display:none!important}
+html.hb-hh.hb-halloween::before{background:radial-gradient(120% 60% at 85% 0%,rgba(255,150,60,.16),transparent 60%),radial-gradient(90% 50% at 0% 100%,rgba(130,80,220,.14),transparent 60%),linear-gradient(180deg,#1a0d2a,#0c0612)}
+html.hb-hh #scr-home:not([hidden]){display:block;padding:max(6px,env(safe-area-inset-top)) 0 0}
+html.hb-hh #scr-home>*:not(#hhHome){display:none!important}
+html.hb-hh #hhHome{display:flex;flex-direction:column;gap:12px;padding-bottom:6px}
+.hhh-hero{position:relative;padding-right:112px;min-height:78px}
+html.hb-hh #hhHome{overflow-x:clip}
+.hhh-brand{margin:0;font:800 29px/1 ui-rounded,"SF Pro Rounded",system-ui,sans-serif;letter-spacing:-.02em;color:#ffb066;text-shadow:0 0 18px rgba(255,150,60,.35)}
+.hhh-brand i{font-style:normal;color:#ff6f91;font-size:.55em;vertical-align:.3em;margin-left:3px}
+.hhh-tag{margin:6px 0 0;font-size:12.5px;line-height:1.35;font-weight:700;color:var(--soft);max-width:190px}
+.hhh-icons{display:flex;gap:8px;margin-top:10px}
+.hhh-ib{position:relative;width:38px;height:38px;border-radius:13px;border:1px solid var(--line);background:rgba(255,255,255,.06);color:var(--ink);display:grid;place-items:center;padding:0;cursor:pointer}
+.hhh-ib svg{width:19px;height:19px}
+.hhh-ib i{position:absolute;top:7px;right:8px;width:8px;height:8px;border-radius:50%;background:#ff6f91;box-shadow:0 0 0 2px #1a0d2a}
+.hhh-witch{position:absolute;right:-14px;bottom:-34px;width:112px;height:auto;z-index:2;filter:drop-shadow(0 8px 14px rgba(0,0,0,.5));pointer-events:none}
+/* the money card */
+.hhh-card{position:relative;border-radius:22px;padding:14px 14px 12px;border:1px solid rgba(255,170,80,.5);background:linear-gradient(160deg,rgba(255,160,70,.2),rgba(255,255,255,.03) 55%),#1f1230;box-shadow:0 10px 30px rgba(6,2,12,.55),0 0 26px rgba(255,150,50,.10)}
+.hhh-lbl{font-size:13px;font-weight:800;color:#f4dcc0;margin:0 0 2px}
+.hhh-row{display:flex;align-items:flex-end;justify-content:space-between;gap:8px}
+.hhh-amt{font:900 clamp(34px,10.5vw,42px)/1 ui-rounded,"SF Pro Rounded",system-ui,sans-serif;letter-spacing:-.03em;color:#fff7ee;font-variant-numeric:tabular-nums}
+.hhh-amt small{font-size:.5em;color:#d8c4ae;letter-spacing:0}
+.hhh-amt.neg{color:#ff9a9a}
+.hhh-month{display:inline-flex;align-items:center;gap:2px;border-radius:99px;background:rgba(255,255,255,.1);padding:2px;margin-bottom:3px;flex:none}
+.hhh-month b{font-size:12.5px;font-weight:800;padding:0 6px;color:var(--ink)}
+.hhh-month button{width:26px;height:26px;border:0;border-radius:50%;background:transparent;color:var(--soft);font-size:16px;line-height:1;padding:0;cursor:pointer}
+.hhh-bar{height:9px;border-radius:99px;background:rgba(255,255,255,.12);overflow:hidden;margin:11px 0 8px}
+.hhh-bar i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#f28c38,#ffc46b);box-shadow:0 0 12px rgba(255,170,80,.55);transition:width .5s ease}
+.hhh-bar.over i{background:linear-gradient(90deg,#ff7a7a,#ffb08a)}
+.hhh-foot{display:flex;justify-content:space-between;gap:8px;font-size:12.5px;font-weight:800;color:#e9d6c0}
+.hhh-foot span:last-child{color:#ffb066}
+.hhh-sub{margin-top:6px;font-size:11.5px;font-weight:700;color:var(--soft)}
+.hhh-sub b{color:var(--ink)}
 /* quick actions */
-html.hb-hh .hh-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.hh-act{display:flex;align-items:center;justify-content:center;gap:8px;min-height:54px;border-radius:18px;border:1px solid rgba(255,170,80,.5);background:rgba(242,140,56,.1);color:var(--ink);font:800 15px system-ui,sans-serif;cursor:pointer;padding:0 10px}
-.hh-act span{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;background:var(--pink);color:#1b1108;font-size:18px;line-height:1}
-.hh-act.inc{border-color:rgba(155,221,126,.5);background:rgba(155,221,126,.08)}
-.hh-act.inc span{background:var(--c-green)}
-/* coming up */
-html.hb-hh #scr-home #dueCard{border-radius:22px;border:1px solid var(--line);background:var(--card);padding:6px 14px 10px;box-shadow:0 8px 24px rgba(8,2,16,.35)}
-html.hb-hh #scr-home .due-h h2{font-size:17px;font-weight:900}
-html.hb-hh #scr-home .due-row .mini{border:1px solid rgba(255,170,80,.5);background:transparent;color:var(--pink-2)}
+.hhh-acts{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.hhh-act{display:flex;align-items:center;justify-content:center;gap:8px;min-height:46px;border-radius:16px;border:1px solid rgba(255,170,80,.55);background:#22142f;color:var(--ink);font:800 14px system-ui,sans-serif;padding:0 8px;cursor:pointer}
+.hhh-act b{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:#f28c38;color:#1b1108;font-size:17px;line-height:1}
+.hhh-act.inc{border-color:rgba(130,220,150,.55)}.hhh-act.inc b{background:#6fd68c}
+/* sections */
+.hhh-h{display:flex;justify-content:space-between;align-items:center;margin:2px 2px -4px}
+.hhh-h h2{margin:0;font-size:17px;font-weight:900;color:var(--ink)}
+.hhh-h button{border:0;background:transparent;color:var(--soft);font:800 12.5px system-ui,sans-serif;padding:6px 2px;cursor:pointer}
+.hhh-list{border-radius:20px;border:1px solid var(--line);background:#1f1230;padding:2px 12px;box-shadow:0 8px 22px rgba(6,2,12,.4)}
+.hhh-it{display:flex;align-items:center;gap:11px;padding:10px 0;border-top:1px solid rgba(255,255,255,.07);width:100%;text-align:left;background:transparent;border-left:0;border-right:0;border-bottom:0;color:var(--ink);cursor:pointer;font:inherit}
+.hhh-it:first-child{border-top:0}
+.hhh-it .ct,.hhh-it svg.tile{flex:none}
+.hhh-mid{flex:1;min-width:0}
+.hhh-mid b{display:block;font-size:14.5px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hhh-mid small{display:block;margin-top:1px;font-size:11.5px;font-weight:700;color:var(--soft)}
+.hhh-mid small.late{color:#ff9a9a}
+.hhh-amt2{font-size:14.5px;font-weight:900;font-variant-numeric:tabular-nums;white-space:nowrap}
+.hhh-amt2.in{color:#7fe09b}
+.hhh-paid{border:1px solid rgba(255,170,80,.55);background:transparent;color:#ffb066;border-radius:99px;font:800 11.5px system-ui,sans-serif;padding:5px 10px;cursor:pointer;flex:none}
+.hhh-empty{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 0;font-size:13px;font-weight:700;color:var(--soft)}
+.hhh-empty button{border:1px solid rgba(255,170,80,.55);background:transparent;color:#ffb066;border-radius:99px;font:800 12px system-ui,sans-serif;padding:6px 12px;cursor:pointer}
 /* streak */
-html.hb-hh .hh-streak{display:none;align-items:center;gap:12px;width:100%;text-align:left;border-radius:22px;border:1px solid rgba(255,170,80,.4);background:linear-gradient(120deg,rgba(255,154,60,.16),rgba(255,255,255,.04));color:var(--ink);padding:12px 14px;cursor:pointer}
-html.hb-hh .hh-streak:not(:empty){display:flex}
-.hh-streak img{width:52px;height:52px;border-radius:16px;object-fit:cover;flex:none}
-.hh-flame{font-size:26px;flex:none}
-.hh-st{flex:1;min-width:0}.hh-st b{display:block;font-size:16px;font-weight:900;color:var(--pink-2)}.hh-st small{display:block;margin-top:2px;font-size:12.5px;font-weight:700;color:var(--soft)}
-.hh-streak svg{width:20px;height:20px;flex:none;color:var(--soft)}
-html.hb-hh #scr-home .panel{border-radius:22px;border:1px solid var(--line);background:var(--card);padding:4px 12px}
-html.hb-hh #scr-home .section-h{margin:4px 2px 0}
-@media (prefers-reduced-motion:no-preference){html.hb-hh .hh-witch{animation:hhfloat 4.5s ease-in-out infinite}@keyframes hhfloat{50%{transform:translateY(-4px)}}}
+.hhh-streak{display:flex;align-items:center;gap:12px;width:100%;text-align:left;border-radius:20px;border:1px solid rgba(255,170,80,.4);background:linear-gradient(120deg,rgba(255,150,60,.16),rgba(255,255,255,.03)),#1f1230;color:var(--ink);padding:10px 14px 10px 10px;cursor:pointer;font:inherit}
+.hhh-streak img{width:54px;height:54px;object-fit:contain;flex:none;filter:drop-shadow(0 4px 8px rgba(0,0,0,.45))}
+.hhh-st{flex:1;min-width:0}
+.hhh-st b{display:block;font-size:16px;font-weight:900;color:#ffb066}
+.hhh-st small{display:block;margin-top:2px;font-size:12px;font-weight:700;color:var(--soft)}
+.hhh-streak>span:last-child{font-size:26px;flex:none}
+.hhh-verify{display:flex;align-items:center;justify-content:space-between;gap:8px;border-radius:14px;background:rgba(255,200,90,.12);border:1px solid rgba(255,200,90,.35);padding:8px 12px;font-size:12.5px;font-weight:800;color:#ffe2a8}
+.hhh-verify button{border:0;background:#ffb066;color:#1b1108;border-radius:99px;font:800 12px system-ui,sans-serif;padding:6px 12px;cursor:pointer}
+@media (max-width:350px){.hhh-brand{font-size:25px}.hhh-hero{padding-right:92px}.hhh-witch{width:92px;bottom:-26px}}
+@media (prefers-reduced-motion:no-preference){.hhh-witch{animation:hhfloat 4.5s ease-in-out infinite}@keyframes hhfloat{50%{transform:translateY(-4px)}}}
+/* bottom navigation (website and Windows app; the iPhone app styles its own native bar the same way) */
+html.hb-hh nav.bottom{border-top:1px solid rgba(255,170,80,.3);border-radius:22px 22px 0 0;background:rgba(24,12,38,.92)!important;box-shadow:0 -8px 24px rgba(0,0,0,.4)}
+html.hb-hh nav.bottom button[aria-current="page"]{color:#ffb066;text-shadow:0 0 12px rgba(255,150,60,.55)}
+html.hb-hh nav.bottom .plus{background:#f28c38;color:#1b1108;box-shadow:0 0 18px rgba(255,150,60,.45)}

@@ -1238,17 +1238,70 @@
     return out;
   }
 
-  // Halloween Honeybun home: the extra header, quick actions and streak card are filled from the same data as the normal home. Nothing here writes anything.
-  function drawHHHome() {
-    if (!(window.hbHH && window.hbHH()) || !$("hhHead")) return;
-    const m = meMember(), st = streakOf(m), done = loggedToday(), li = levelInfo((m && m.xp) || 0);
-    $("hhBell").onclick = openInbox; $("hhGear").onclick = () => show("settings");
-    $("hhBellDot").hidden = !INBOX.unread;
-    $("hhAddExp").onclick = () => openAdd(); $("hhAddInc").onclick = () => openAdd({ type: "income" });
-    $("hhHi").textContent = (m && m.name) ? tr("Hi") + " " + m.name : tr("Hi");
-    const box = $("hhStreak");
-    box.innerHTML = `<img src="${(window.hbHalloweenActive && window.hbHalloweenActive()) ? "/icon-192-halloween.png" : "/icon-192.png"}" alt=""><span class="hh-flame" aria-hidden="true">🔥</span><span class="hh-st"><b>${st === 1 ? esc(tr("1 day")) : st + " " + esc(tr("days"))} ${esc(tr("hop streak"))}</b><small>${esc(done ? tr("Keep it going!") : tr("Log today to hop"))} · ${esc(tr("Level"))} ${li.l}</small></span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>`;
-    box.onclick = () => show("stats");
+  // Halloween Honeybun home. A dedicated layout (#hhHome) that reads the very same state as the normal home (month totals, upcoming bills,
+  // entries, streak, unread count) and calls the very same actions (openAdd, logOcc, openEditEntry, show, openInbox). It writes nothing by itself.
+  function drawHHHome(c) {
+    const root = $("hhHome");
+    if (!root || !(window.hbHH && window.hbHH())) return;
+    const m = meMember() || {}, st = streakOf(m), done = loggedToday(), li = levelInfo(m.xp || 0);
+    const cur = MONTH === today().slice(0, 7), ratio = c.inc > 0 ? c.out / c.inc : c.out > 0 ? 2 : 0;
+    const pct = Math.round(Math.min(100, ratio * 100)), [w, cents] = fmt(c.left).split(".");
+    const lbl = c.filter ? member(c.filter).name + "'s balance" : tr({ solo: "Left for me", couple: "Left for us", family: "Left for our family" }[KIND()] || "Left");
+    const mon = new Date(+MONTH.slice(0, 4), +MONTH.slice(5) - 1, 1).toLocaleDateString(LOCALE, { month: "long" });
+    // coming up: bills first (overdue ones lead), then the next paydays
+    const up = cur && RECUR.length ? upcoming() : { bills: [], pays: [] };
+    const items = up.bills.slice(0, 3).map((b) => ({ b })).concat(up.pays.slice(0, 1).map((p) => ({ p }))).slice(0, 3);
+    const dueRow = ({ b, p }, i) => {
+      const r = (b || p).r, d = (b || p).d, tile = b ? catTile((CATS.find((x) => x.id === r.category) || CATS[4]).id, 38) : incTile(38);
+      return `<div class="hhh-it" data-due="${i}"><span>${tile}</span><span class="hhh-mid"><b>${esc(r.label)}</b><small class="${b && b.late ? "late" : ""}">${b && b.late ? esc(tr("Overdue, was due ")) : p ? esc(tr("Payday")) + " " : esc(tr("Due ")) }${esc(shortDay(d))}</small></span><span class="hhh-amt2 ${p ? "in" : ""}">${p ? "+" : ""}${fmt(r.amount_cents / 100)}</span><button type="button" class="hhh-paid">${esc(p ? tr("Got it") : tr("Paid"))}</button></div>`;
+    };
+    // recent activity
+    const recent = (c.view || []).filter((e) => !e.pending).slice(0, 4);
+    const actRow = (e) => {
+      const who = MEMBERS.length > 1 ? member(e.member_id).name + " · " : "", tile = e.type === "income" ? incTile(38) : catTile(e.category, 38);
+      return `<button type="button" class="hhh-it" data-e="${esc(e.id)}"><span>${tile}</span><span class="hhh-mid"><b>${esc(e.label)}</b><small>${esc(who)}${esc(shortDay(parseD(e.date)))}</small></span><span class="hhh-amt2 ${e.type === "income" ? "in" : ""}">${e.type === "income" ? "+" : "−"}${fmt(e.amount).replace("−", "")}</span></button>`;
+    };
+    const unverified = ME && !ME.verified && ME.has_email !== false && !(+(store.get("hb-verify-hide") || 0) > Date.now());
+    root.innerHTML = `
+      ${unverified ? `<div class="hhh-verify"><span>${esc(tr("Please confirm your email"))}</span><button type="button" id="hhResend">${esc(tr("Resend"))}</button></div>` : ""}
+      <div class="hhh-hero">
+        <h1 class="hhh-brand">honeybun<i aria-hidden="true">♥</i></h1>
+        <p class="hhh-tag">${esc(tr("A happier way to manage money together."))}</p>
+        <div class="hhh-icons">
+          <button type="button" class="hhh-ib" id="hhBell" aria-label="${esc(tr("Messages from Bun"))}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 8 3 8H3s3-1 3-8M10 20a2 2 0 0 0 4 0"/></svg>${INBOX.unread ? "<i></i>" : ""}</button>
+          <button type="button" class="hhh-ib" id="hhGear" aria-label="${esc(tr("Settings"))}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
+        </div>
+        <img class="hhh-witch" src="/hh-witch.png" alt="" width="112" height="183">
+      </div>
+      <section class="hhh-card" aria-label="${esc(tr("This month's money"))}">
+        <p class="hhh-lbl">${esc(lbl)}</p>
+        <div class="hhh-row">
+          <div class="hhh-amt ${c.left < 0 ? "neg" : ""}">${esc(w)}${cents ? `<small>.${esc(cents)}</small>` : ""}</div>
+          <div class="hhh-month"><button type="button" id="hhPrev" aria-label="${esc(tr("Previous month"))}">‹</button><b>${esc(mon)}</b><button type="button" id="hhNext" aria-label="${esc(tr("Next month"))}">›</button></div>
+        </div>
+        <div class="hhh-bar ${ratio > 1 ? "over" : ""}" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"><i style="width:${pct}%"></i></div>
+        <div class="hhh-foot"><span>${fmt(c.out)} ${esc(tr("of"))} ${fmt(c.inc)} ${esc(tr("spent"))}</span><span>${pct}%</span></div>
+        <div class="hhh-sub">${esc(tr("Came in"))} <b>${fmt(c.inc)}</b> · ${esc(tr("Bills due"))} <b>${esc($("billsDue").textContent)}</b></div>
+      </section>
+      <div class="hhh-acts">
+        <button type="button" class="hhh-act" id="hhAddExp"><b aria-hidden="true">+</b>${esc(tr("Add expense"))}</button>
+        <button type="button" class="hhh-act inc" id="hhAddInc"><b aria-hidden="true">+</b>${esc(tr("Add income"))}</button>
+      </div>
+      <div class="hhh-h"><h2>${esc(tr("Coming up"))}</h2><button type="button" id="hhPlan">${esc(tr("See all"))} ›</button></div>
+      <div class="hhh-list">${items.length ? items.map(dueRow).join("") : `<div class="hhh-empty"><span>${esc(RECUR.length ? tr("Nothing due soon") + " ♡" : tr("Add rent, bills and paydays once."))}</span><button type="button" id="hhAddBill">${esc(tr("Add"))}</button></div>`}</div>
+      <button type="button" class="hhh-streak" id="hhStreak"><img src="/hh-witch.png" alt=""><span class="hhh-st"><b>${st === 1 ? esc(tr("1 day")) : st + " " + esc(tr("days"))} ${esc(tr("hop streak"))}</b><small>${esc(done ? tr("Keep it going!") : tr("Log today to hop"))} · ${esc(tr("Level"))} ${li.l}</small></span><span aria-hidden="true">🔥</span></button>
+      <div class="hhh-h"><h2>${esc(tr("Latest"))}</h2><button type="button" id="hhAll">${esc(tr("See all"))} ›</button></div>
+      <div class="hhh-list">${recent.length ? recent.map(actRow).join("") : `<div class="hhh-empty"><span>${esc(tr("Nothing yet. Tap + to add something."))}</span></div>`}</div>`;
+    const q = (id) => root.querySelector("#" + id);
+    q("hhBell").onclick = openInbox; q("hhGear").onclick = () => show("settings");
+    q("hhPrev").onclick = () => $("heroPrev").click(); q("hhNext").onclick = () => $("heroNext").click();
+    q("hhAddExp").onclick = () => openAdd(); q("hhAddInc").onclick = () => openAdd({ type: "income" });
+    q("hhPlan").onclick = () => show("plan"); q("hhAll").onclick = () => $("seeAll").onclick();
+    q("hhStreak").onclick = () => show("stats");
+    if (q("hhAddBill")) q("hhAddBill").onclick = () => openAdd({ repeat: "monthly" });
+    if (q("hhResend")) q("hhResend").onclick = () => $("resendVerify").click();
+    root.querySelectorAll("[data-due]").forEach((el) => { const { b, p } = items[+el.dataset.due], x = b || p; el.querySelector(".hhh-paid").onclick = (ev) => logOcc(x.r, x.d, ev.currentTarget); });
+    root.querySelectorAll("[data-e]").forEach((el) => { el.onclick = () => { const e = ENTRIES.find((x) => x.id === el.dataset.e); if (e) openEditEntry(e); }; });
   }
   function renderDue(left) {
     const box = $("dueCard");
@@ -1365,7 +1418,7 @@
       renderTip(false);
       $("bunNote").hidden = false;
       renderBunExtras();
-      drawHHHome();
+      drawHHHome({ left, inc, out, view, filter });
       maybeAskCarry();
       $("verifyBanner").hidden = !!ME.verified || ME.has_email === false || +(store.get("hb-verify-hide") || 0) > Date.now();
       const isThisMonth = MONTH === today().slice(0, 7);
