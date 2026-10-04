@@ -363,7 +363,7 @@
       NTABS = true;
       document.documentElement.classList.add("hb-tabs");
       document.documentElement.style.setProperty("--tabs-h", (i.tabsHeight || 83) + "px");
-      window.hbNativeGo = (t) => { if (!ME) return; if (t === "add") openAdd(); else { if (screen === "add") editing = null; show(t); } };
+      window.hbNativeGo = (t) => hbGoTab(t);
       window.hbNativeRefresh = () => { if (ME && APP_SCREENS.includes(screen)) loadNest().catch(() => {}); };
       new MutationObserver(syncTab).observe(document.body, { subtree: true, attributes: true, attributeFilter: ["open", "hidden"] });
       syncTab();
@@ -496,9 +496,21 @@
   const ALL_SCREENS = ["loading", "landing", "auth", "reset", "verify", "setup", "onboard", ...APP_SCREENS];
   // iPhone app: screens that open "on top" of the tabs get a history entry, so the edge-swipe goes back
   const SUB_SCREENS = ["add", "inbox", "settings", "refer", "share", "shop", "help", "updates"];
-  const TAB_OF = { home: "home", plan: "plan", stats: "stats", us: "us", share: "us" };
+  const TAB_OF = { home: "home", plan: "plan", stats: "stats", us: "us", share: "us", inbox: "inbox" };
   let popping = false, lastTab = "home", splashSent = false;
   let tabSent = "", tabTimer = 0;
+  // one place that knows what each tab does (used by the native tab bar and by the website's own bottom bar)
+  function hbGoTab(t) {
+    if (!ME) return;
+    if (t === "add") openAdd();
+    else if (t === "inbox") openInbox();
+    else { if (screen === "add") editing = null; show(t); }
+  }
+  document.querySelectorAll("#hhNav [data-hgo]").forEach((b) => (b.onclick = () => hbGoTab(b.dataset.hgo)));
+  function syncHHNav() {
+    const cur = TAB_OF[screen] || "";
+    document.querySelectorAll("#hhNav [data-hgo]").forEach((b) => { const on = b.dataset.hgo === cur || (cur === "" && false); if (on) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current"); });
+  }
   function syncTab() {
     if (!NTABS || !HBN) return;
     clearTimeout(tabTimer);
@@ -514,6 +526,7 @@
     if (TAB_OF[s] === s) lastTab = s;
     screen = s;
     document.documentElement.setAttribute("data-scr", s);
+    syncHHNav();
     if (s !== "loading" && IOS_NATIVE && HBN && HBN.splashDone && !splashSent) { splashSent = true; HBN.splashDone().catch(() => {}); }
     if (NTABS) syncTab();
     fitDesktop();
@@ -1248,50 +1261,46 @@
     const pct = Math.round(Math.min(100, ratio * 100)), [w, cents] = fmt(c.left).split(".");
     const lbl = c.filter ? member(c.filter).name + "'s balance" : tr({ solo: "Left for me", couple: "Left for us", family: "Left for our family" }[KIND()] || "Left");
     const mon = new Date(+MONTH.slice(0, 4), +MONTH.slice(5) - 1, 1).toLocaleDateString(LOCALE, { month: "long" });
-    // coming up: bills first (overdue ones lead), then the next paydays
     const up = cur && RECUR.length ? upcoming() : { bills: [], pays: [] };
     const items = up.bills.slice(0, 3).map((b) => ({ b })).concat(up.pays.slice(0, 1).map((p) => ({ p }))).slice(0, 3);
-    const chev = '<svg class="hhh-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>';
+    const chev = '<svg class="hq-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>';
     const dueRow = ({ b, p }, i) => {
-      const r = (b || p).r, d = (b || p).d, tile = b ? catTile((CATS.find((x) => x.id === r.category) || CATS[4]).id, 36) : incTile(36);
-      return `<div class="hhh-dw" data-due="${i}"><button type="button" class="hhh-it" aria-expanded="false"><span>${tile}</span><span class="hhh-mid"><b>${esc(r.label)}</b><small class="${b && b.late ? "late" : ""}">${b && b.late ? esc(tr("Overdue, was due ")) : p ? esc(tr("Payday")) + " " : ""}${esc(shortDay(d))}</small></span><span class="hhh-amt2 ${p ? "in" : ""}">${p ? "+" : ""}${fmt(r.amount_cents / 100)}</span>${chev}</button><div class="hhh-pay" hidden><button type="button" class="hhh-paid">${esc(p ? tr("Mark as received") : tr("Mark as paid"))}</button></div></div>`;
+      const r = (b || p).r, d = (b || p).d, tile = b ? catTile((CATS.find((x) => x.id === r.category) || CATS[4]).id, 34) : incTile(34);
+      return `<div class="hq-dw" data-due="${i}"><button type="button" class="hq-it" aria-expanded="false"><span>${tile}</span><span class="hq-mid"><b>${esc(r.label)}</b><small class="${b && b.late ? "late" : ""}">${b && b.late ? esc(tr("Overdue, was due ")) : p ? esc(tr("Payday")) + " " : ""}${esc(shortDay(d))}</small></span><span class="hq-amt2 ${p ? "in" : ""}">${p ? "+" : ""}${fmt(r.amount_cents / 100)}</span>${chev}</button><div class="hq-pay" hidden><button type="button" class="hq-paid">${esc(p ? tr("Mark as received") : tr("Mark as paid"))}</button></div></div>`;
     };
-    // recent activity
     const recent = (c.view || []).filter((e) => !e.pending).slice(0, 4);
     const actRow = (e) => {
-      const who = MEMBERS.length > 1 ? member(e.member_id).name + " · " : "", tile = e.type === "income" ? incTile(36) : catTile(e.category, 36);
-      return `<button type="button" class="hhh-it" data-e="${esc(e.id)}"><span>${tile}</span><span class="hhh-mid"><b>${esc(e.label)}</b><small>${esc(who)}${esc(shortDay(parseD(e.date)))}</small></span><span class="hhh-amt2 ${e.type === "income" ? "in" : ""}">${e.type === "income" ? "+" : "−"}${fmt(e.amount).replace("−", "")}</span>${chev}</button>`;
+      const who = MEMBERS.length > 1 ? member(e.member_id).name + " · " : "", tile = e.type === "income" ? incTile(34) : catTile(e.category, 34);
+      return `<div class="hq-dw"><button type="button" class="hq-it" data-e="${esc(e.id)}"><span>${tile}</span><span class="hq-mid"><b>${esc(e.label)}</b><small>${esc(who)}${esc(shortDay(parseD(e.date)))}</small></span><span class="hq-amt2 ${e.type === "income" ? "in" : ""}">${e.type === "income" ? "+" : "−"}${fmt(e.amount).replace("−", "")}</span>${chev}</button></div>`;
     };
     const unverified = ME && !ME.verified && ME.has_email !== false && !(+(store.get("hb-verify-hide") || 0) > Date.now());
+    const flame = '<svg class="hq-flame" viewBox="0 0 30 38" aria-hidden="true"><defs><linearGradient id="hqf" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffb347"/><stop offset="1" stop-color="#ff5a3c"/></linearGradient></defs><path d="M15 1c1 7 9 10 9 21a9 9 0 0 1-18 0c0-4 2-6 3-8 1 3 2 4 4 4-1-6 0-12 2-17z" fill="url(#hqf)"/><path d="M15 20c1 3 4 4 4 8a4 4 0 0 1-8 0c0-3 3-4 4-8z" fill="#ffe3a0"/></svg>';
     root.innerHTML = `
-      ${unverified ? `<div class="hhh-verify"><span>${esc(tr("Please confirm your email"))}</span><button type="button" id="hhResend">${esc(tr("Resend"))}</button></div>` : ""}
-      <div class="hhh-hero">
-        <h1 class="hhh-brand">honeybun<i aria-hidden="true">♥</i></h1>
-        <p class="hhh-tag">${esc(tr("A happier way to manage money together."))}</p>
-        <div class="hhh-icons">
-          <button type="button" class="hhh-ib" id="hhBell" aria-label="${esc(tr("Messages from Bun"))}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 8 3 8H3s3-1 3-8M10 20a2 2 0 0 0 4 0"/></svg>${INBOX.unread ? "<i></i>" : ""}</button>
-          <button type="button" class="hhh-ib" id="hhGear" aria-label="${esc(tr("Settings"))}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
+      ${unverified ? `<div class="hq-verify"><span>${esc(tr("Please confirm your email"))}</span><button type="button" id="hhResend">${esc(tr("Resend"))}</button></div>` : ""}
+      <header class="hq-head">
+        <div class="hq-brand"><h1>honeybun<i aria-hidden="true">♥</i></h1><p>${esc(tr("A happier way to manage money together."))}</p></div>
+        <button type="button" class="hq-ib bell" id="hhBell" aria-label="${esc(tr("Messages from Bun"))}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 8 3 8H3s3-1 3-8M10 20a2 2 0 0 0 4 0"/></svg>${INBOX.unread ? "<i></i>" : ""}</button>
+        <button type="button" class="hq-ib gear" id="hhGear" aria-label="${esc(tr("Settings"))}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
+      </header>
+      <section class="hq-card" aria-label="${esc(tr("This month's money"))}">
+        <img class="hq-witch" src="/hh-witch-top.png" alt="">
+        <p class="hq-lbl">${esc(lbl)}</p>
+        <div class="hq-row">
+          <div class="hq-amt ${c.left < 0 ? "neg" : ""}">${esc(w)}${cents ? `<small>.${esc(cents)}</small>` : ""}</div>
+          <div class="hq-pill"><button type="button" id="hhPrev" aria-label="${esc(tr("Previous month"))}">‹</button><b>${esc(mon)}</b><button type="button" id="hhNext" aria-label="${esc(tr("Next month"))}">›</button></div>
         </div>
-        <img class="hhh-witch" src="/hh-witch.png" alt="" width="96" height="157">
-      </div>
-      <section class="hhh-card" aria-label="${esc(tr("This month's money"))}">
-        <p class="hhh-lbl">${esc(lbl)}</p>
-        <div class="hhh-row">
-          <div class="hhh-amt ${c.left < 0 ? "neg" : ""}">${esc(w)}${cents ? `<small>.${esc(cents)}</small>` : ""}</div>
-          <div class="hhh-month"><button type="button" id="hhPrev" aria-label="${esc(tr("Previous month"))}">‹</button><b>${esc(mon)}</b><button type="button" id="hhNext" aria-label="${esc(tr("Next month"))}">›</button></div>
-        </div>
-        <div class="hhh-bar ${ratio > 1 ? "over" : ""}" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"><i style="width:${pct}%"></i></div>
-        <div class="hhh-foot"><span>${fmt(c.out)} ${esc(tr("of"))} ${fmt(c.inc)} ${esc(tr("spent"))}</span><span>${pct}%</span></div>
+        <div class="hq-bar ${ratio > 1 ? "over" : ""}" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"><i style="width:${pct}%"></i></div>
+        <div class="hq-foot"><span>${fmt(c.out)} ${esc(tr("of"))} ${fmt(c.inc)} ${esc(tr("spent"))}</span><span>${pct}%</span></div>
       </section>
-      <div class="hhh-acts">
-        <button type="button" class="hhh-act" id="hhAddExp"><b aria-hidden="true">+</b>${esc(tr("Add expense"))}</button>
-        <button type="button" class="hhh-act inc" id="hhAddInc"><b aria-hidden="true">+</b>${esc(tr("Add income"))}</button>
+      <div class="hq-acts">
+        <button type="button" class="hq-act" id="hhAddExp"><b aria-hidden="true">+</b>${esc(tr("Add expense"))}</button>
+        <button type="button" class="hq-act inc" id="hhAddInc"><b aria-hidden="true">+</b>${esc(tr("Add income"))}</button>
       </div>
-      <div class="hhh-h"><h2>${esc(tr("Coming up"))}</h2><button type="button" id="hhPlan">${esc(tr("See all"))} ›</button></div>
-      <div class="hhh-list">${items.length ? items.map(dueRow).join("") : `<div class="hhh-empty"><span>${esc(RECUR.length ? tr("Nothing due soon") + " ♡" : tr("Add rent, bills and paydays once."))}</span><button type="button" id="hhAddBill">${esc(tr("Add"))}</button></div>`}</div>
-      <button type="button" class="hhh-streak" id="hhStreak"><img src="/hh-witch.png" alt=""><span class="hhh-st"><b>${st === 1 ? esc(tr("1 day")) : st + " " + esc(tr("days"))} ${esc(tr("hop streak"))}<em aria-hidden="true">🔥</em></b><small>${esc(done ? tr("Keep it going!") : tr("Log today to hop"))} · ${esc(tr("Level"))} ${li.l}</small></span>${chev}</button>
-      <div class="hhh-h"><h2>${esc(tr("Latest"))}</h2><button type="button" id="hhAll">${esc(tr("See all"))} ›</button></div>
-      <div class="hhh-list">${recent.length ? recent.map(actRow).join("") : `<div class="hhh-empty"><span>${esc(tr("Nothing yet. Tap + to add something."))}</span></div>`}</div>`;
+      <div class="hq-h"><h2>${esc(tr("Coming up"))}</h2><button type="button" id="hhPlan">${esc(tr("See all"))} ›</button></div>
+      <div class="hq-list">${items.length ? items.map(dueRow).join("") : `<div class="hq-empty"><span>${esc(RECUR.length ? tr("Nothing due soon") + " ♡" : tr("Add rent, bills and paydays once."))}</span><button type="button" id="hhAddBill">${esc(tr("Add"))}</button></div>`}</div>
+      <button type="button" class="hq-streak" id="hhStreak"><img src="/hh-witch-top.png" alt="">${flame}<span class="hq-st"><b>${st === 1 ? esc(tr("1 day")) : st + " " + esc(tr("days"))} ${esc(tr("hop streak"))}</b><small>${esc(done ? tr("Keep it going!") : tr("Log today to hop"))} · ${esc(tr("Level"))} ${li.l}</small></span>${chev}</button>
+      <div class="hq-h"><h2>${esc(tr("Latest"))}</h2><button type="button" id="hhAll">${esc(tr("See all"))} ›</button></div>
+      <div class="hq-list">${recent.length ? recent.map(actRow).join("") : `<div class="hq-empty"><span>${esc(tr("Nothing yet. Tap + to add something."))}</span></div>`}</div>`;
     const q = (id) => root.querySelector("#" + id);
     q("hhBell").onclick = openInbox; q("hhGear").onclick = () => show("settings");
     q("hhPrev").onclick = () => $("heroPrev").click(); q("hhNext").onclick = () => $("heroNext").click();
@@ -1301,9 +1310,9 @@
     if (q("hhAddBill")) q("hhAddBill").onclick = () => openAdd({ repeat: "monthly" });
     if (q("hhResend")) q("hhResend").onclick = () => $("resendVerify").click();
     root.querySelectorAll("[data-due]").forEach((el) => {
-      const { b, p } = items[+el.dataset.due], x = b || p, row = el.querySelector(".hhh-it"), pay = el.querySelector(".hhh-pay");
-      row.onclick = () => { pay.hidden = !pay.hidden; row.setAttribute("aria-expanded", pay.hidden ? "false" : "true"); el.classList.toggle("open", !pay.hidden); };
-      el.querySelector(".hhh-paid").onclick = (ev) => logOcc(x.r, x.d, ev.currentTarget);
+      const { b, p } = items[+el.dataset.due], x = b || p, row = el.querySelector(".hq-it"), pay = el.querySelector(".hq-pay");
+      row.onclick = () => { pay.hidden = !pay.hidden; row.setAttribute("aria-expanded", pay.hidden ? "false" : "true"); };
+      el.querySelector(".hq-paid").onclick = (ev) => logOcc(x.r, x.d, ev.currentTarget);
     });
     root.querySelectorAll("[data-e]").forEach((el) => { el.onclick = () => { const e = ENTRIES.find((x) => x.id === el.dataset.e); if (e) openEditEntry(e); }; });
   }
