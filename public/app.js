@@ -1251,15 +1251,16 @@
     // coming up: bills first (overdue ones lead), then the next paydays
     const up = cur && RECUR.length ? upcoming() : { bills: [], pays: [] };
     const items = up.bills.slice(0, 3).map((b) => ({ b })).concat(up.pays.slice(0, 1).map((p) => ({ p }))).slice(0, 3);
+    const chev = '<svg class="hhh-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>';
     const dueRow = ({ b, p }, i) => {
-      const r = (b || p).r, d = (b || p).d, tile = b ? catTile((CATS.find((x) => x.id === r.category) || CATS[4]).id, 38) : incTile(38);
-      return `<div class="hhh-it" data-due="${i}"><span>${tile}</span><span class="hhh-mid"><b>${esc(r.label)}</b><small class="${b && b.late ? "late" : ""}">${b && b.late ? esc(tr("Overdue, was due ")) : p ? esc(tr("Payday")) + " " : esc(tr("Due ")) }${esc(shortDay(d))}</small></span><span class="hhh-amt2 ${p ? "in" : ""}">${p ? "+" : ""}${fmt(r.amount_cents / 100)}</span><button type="button" class="hhh-paid">${esc(p ? tr("Got it") : tr("Paid"))}</button></div>`;
+      const r = (b || p).r, d = (b || p).d, tile = b ? catTile((CATS.find((x) => x.id === r.category) || CATS[4]).id, 36) : incTile(36);
+      return `<div class="hhh-dw" data-due="${i}"><button type="button" class="hhh-it" aria-expanded="false"><span>${tile}</span><span class="hhh-mid"><b>${esc(r.label)}</b><small class="${b && b.late ? "late" : ""}">${b && b.late ? esc(tr("Overdue, was due ")) : p ? esc(tr("Payday")) + " " : ""}${esc(shortDay(d))}</small></span><span class="hhh-amt2 ${p ? "in" : ""}">${p ? "+" : ""}${fmt(r.amount_cents / 100)}</span>${chev}</button><div class="hhh-pay" hidden><button type="button" class="hhh-paid">${esc(p ? tr("Mark as received") : tr("Mark as paid"))}</button></div></div>`;
     };
     // recent activity
     const recent = (c.view || []).filter((e) => !e.pending).slice(0, 4);
     const actRow = (e) => {
-      const who = MEMBERS.length > 1 ? member(e.member_id).name + " · " : "", tile = e.type === "income" ? incTile(38) : catTile(e.category, 38);
-      return `<button type="button" class="hhh-it" data-e="${esc(e.id)}"><span>${tile}</span><span class="hhh-mid"><b>${esc(e.label)}</b><small>${esc(who)}${esc(shortDay(parseD(e.date)))}</small></span><span class="hhh-amt2 ${e.type === "income" ? "in" : ""}">${e.type === "income" ? "+" : "−"}${fmt(e.amount).replace("−", "")}</span></button>`;
+      const who = MEMBERS.length > 1 ? member(e.member_id).name + " · " : "", tile = e.type === "income" ? incTile(36) : catTile(e.category, 36);
+      return `<button type="button" class="hhh-it" data-e="${esc(e.id)}"><span>${tile}</span><span class="hhh-mid"><b>${esc(e.label)}</b><small>${esc(who)}${esc(shortDay(parseD(e.date)))}</small></span><span class="hhh-amt2 ${e.type === "income" ? "in" : ""}">${e.type === "income" ? "+" : "−"}${fmt(e.amount).replace("−", "")}</span>${chev}</button>`;
     };
     const unverified = ME && !ME.verified && ME.has_email !== false && !(+(store.get("hb-verify-hide") || 0) > Date.now());
     root.innerHTML = `
@@ -1271,7 +1272,7 @@
           <button type="button" class="hhh-ib" id="hhBell" aria-label="${esc(tr("Messages from Bun"))}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 8 3 8H3s3-1 3-8M10 20a2 2 0 0 0 4 0"/></svg>${INBOX.unread ? "<i></i>" : ""}</button>
           <button type="button" class="hhh-ib" id="hhGear" aria-label="${esc(tr("Settings"))}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
         </div>
-        <img class="hhh-witch" src="/hh-witch.png" alt="" width="112" height="183">
+        <img class="hhh-witch" src="/hh-witch.png" alt="" width="96" height="157">
       </div>
       <section class="hhh-card" aria-label="${esc(tr("This month's money"))}">
         <p class="hhh-lbl">${esc(lbl)}</p>
@@ -1281,7 +1282,6 @@
         </div>
         <div class="hhh-bar ${ratio > 1 ? "over" : ""}" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"><i style="width:${pct}%"></i></div>
         <div class="hhh-foot"><span>${fmt(c.out)} ${esc(tr("of"))} ${fmt(c.inc)} ${esc(tr("spent"))}</span><span>${pct}%</span></div>
-        <div class="hhh-sub">${esc(tr("Came in"))} <b>${fmt(c.inc)}</b> · ${esc(tr("Bills due"))} <b>${esc($("billsDue").textContent)}</b></div>
       </section>
       <div class="hhh-acts">
         <button type="button" class="hhh-act" id="hhAddExp"><b aria-hidden="true">+</b>${esc(tr("Add expense"))}</button>
@@ -1289,7 +1289,7 @@
       </div>
       <div class="hhh-h"><h2>${esc(tr("Coming up"))}</h2><button type="button" id="hhPlan">${esc(tr("See all"))} ›</button></div>
       <div class="hhh-list">${items.length ? items.map(dueRow).join("") : `<div class="hhh-empty"><span>${esc(RECUR.length ? tr("Nothing due soon") + " ♡" : tr("Add rent, bills and paydays once."))}</span><button type="button" id="hhAddBill">${esc(tr("Add"))}</button></div>`}</div>
-      <button type="button" class="hhh-streak" id="hhStreak"><img src="/hh-witch.png" alt=""><span class="hhh-st"><b>${st === 1 ? esc(tr("1 day")) : st + " " + esc(tr("days"))} ${esc(tr("hop streak"))}</b><small>${esc(done ? tr("Keep it going!") : tr("Log today to hop"))} · ${esc(tr("Level"))} ${li.l}</small></span><span aria-hidden="true">🔥</span></button>
+      <button type="button" class="hhh-streak" id="hhStreak"><img src="/hh-witch.png" alt=""><span class="hhh-st"><b>${st === 1 ? esc(tr("1 day")) : st + " " + esc(tr("days"))} ${esc(tr("hop streak"))}<em aria-hidden="true">🔥</em></b><small>${esc(done ? tr("Keep it going!") : tr("Log today to hop"))} · ${esc(tr("Level"))} ${li.l}</small></span>${chev}</button>
       <div class="hhh-h"><h2>${esc(tr("Latest"))}</h2><button type="button" id="hhAll">${esc(tr("See all"))} ›</button></div>
       <div class="hhh-list">${recent.length ? recent.map(actRow).join("") : `<div class="hhh-empty"><span>${esc(tr("Nothing yet. Tap + to add something."))}</span></div>`}</div>`;
     const q = (id) => root.querySelector("#" + id);
@@ -1300,7 +1300,11 @@
     q("hhStreak").onclick = () => show("stats");
     if (q("hhAddBill")) q("hhAddBill").onclick = () => openAdd({ repeat: "monthly" });
     if (q("hhResend")) q("hhResend").onclick = () => $("resendVerify").click();
-    root.querySelectorAll("[data-due]").forEach((el) => { const { b, p } = items[+el.dataset.due], x = b || p; el.querySelector(".hhh-paid").onclick = (ev) => logOcc(x.r, x.d, ev.currentTarget); });
+    root.querySelectorAll("[data-due]").forEach((el) => {
+      const { b, p } = items[+el.dataset.due], x = b || p, row = el.querySelector(".hhh-it"), pay = el.querySelector(".hhh-pay");
+      row.onclick = () => { pay.hidden = !pay.hidden; row.setAttribute("aria-expanded", pay.hidden ? "false" : "true"); el.classList.toggle("open", !pay.hidden); };
+      el.querySelector(".hhh-paid").onclick = (ev) => logOcc(x.r, x.d, ev.currentTarget);
+    });
     root.querySelectorAll("[data-e]").forEach((el) => { el.onclick = () => { const e = ENTRIES.find((x) => x.id === el.dataset.e); if (e) openEditEntry(e); }; });
   }
   function renderDue(left) {

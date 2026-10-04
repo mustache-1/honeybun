@@ -145,12 +145,12 @@ html.hbh-lite .lp-btn.p{animation:none}
 
 /* ===== Halloween Honeybun (experimental preview). Only active with html.hb-hh; switch it off in Settings and none of this applies. ===== */
 html:root.hb-hh.hb-halloween,html:root.hb-hh.hb-halloween[data-theme],html:root.hb-hh.hb-halloween[data-accent],html:root.hb-hh.hb-halloween[data-theme][data-accent]{
-  --bg:#150A22;--card:#21143A;--panel2:#2A1A49;--panel3:#33205A;--line:#46306E;--ink:#F8F1FF;--soft:#BBA9D8;--muted:#8670A8;
+  --bg:#0e0a12;--card:#1a151f;--panel2:#221c29;--panel3:#2a2332;--line:#33293d;--ink:#F8F1FF;--soft:#BBA9D8;--muted:#8670A8;
   --track:#0E0718;--nav:rgba(24,12,40,.94);--page:#0B0612;--backdrop:rgba(6,2,12,.66);
   --lav-t:#3A2766;--t-lilac:#3A2766;--hero-bd:#4A3377;--hero-bg1:#25163F;--hero-bg2:#341E4F;
   --lp-nav-bg:rgba(21,10,34,.84);--lp-nav-bd:rgba(70,48,110,.6);
 }
-html.hb-hh.hb-halloween{background:#150A22}
+html.hb-hh.hb-halloween{background:#0e0a12}
 html.hb-hh.hb-halloween::before{background:radial-gradient(circle at 88% 6%,rgba(255,226,150,.2),transparent 24%),radial-gradient(circle at 10% 90%,rgba(167,139,250,.14),transparent 40%),linear-gradient(170deg,#25123C,#0B0612)}
 /* the witch Bun sits on the cards that greet you */
 html.hb-hh #scr-us .card.pad:first-of-type,html.hb-hh #scr-inbox .chat-top{position:relative}
@@ -173,22 +173,22 @@ html.hb-hh .loading .witchload{display:block;width:150px;height:245px;border-rad
 html.hb-hh[data-scr="home"] #topBar{display:none}
 /* the theme's own scenery (webs, bats, spiders, fog, graveyard) is switched off here; the layout, mascot and palette carry the mood */
 html.hb-hh .hbh-sky,html.hb-hh .hbh-fx{display:none!important}
-html.hb-hh.hb-halloween::before{background:radial-gradient(120% 60% at 85% 0%,rgba(255,150,60,.16),transparent 60%),radial-gradient(90% 50% at 0% 100%,rgba(130,80,220,.14),transparent 60%),linear-gradient(180deg,#1a0d2a,#0c0612)}
+html.hb-hh.hb-halloween::before{background:radial-gradient(110% 45% at 90% 0%,rgba(255,150,60,.10),transparent 60%),linear-gradient(180deg,#14101a,#0c090f)}
 html.hb-hh #scr-home:not([hidden]){display:block;padding:max(6px,env(safe-area-inset-top)) 0 0}
 html.hb-hh #scr-home>*:not(#hhHome){display:none!important}
 html.hb-hh #hhHome{display:flex;flex-direction:column;gap:12px;padding-bottom:6px}
-.hhh-hero{position:relative;padding-right:112px;min-height:78px}
+.hhh-hero{position:relative;padding-right:110px;min-height:118px}
 html.hb-hh #hhHome{overflow-x:clip}
-.hhh-brand{margin:0;font:800 29px/1 ui-rounded,"SF Pro Rounded",system-ui,sans-serif;letter-spacing:-.02em;color:#ffb066;text-shadow:0 0 18px rgba(255,150,60,.35)}
+.hhh-brand{margin:0;font:800 25px/1 ui-rounded,"SF Pro Rounded",system-ui,sans-serif;letter-spacing:-.02em;color:#ffb066;text-shadow:0 0 18px rgba(255,150,60,.35)}
 .hhh-brand i{font-style:normal;color:#ff6f91;font-size:.55em;vertical-align:.3em;margin-left:3px}
-.hhh-tag{margin:6px 0 0;font-size:12.5px;line-height:1.35;font-weight:700;color:var(--soft);max-width:190px}
-.hhh-icons{display:flex;gap:8px;margin-top:10px}
-.hhh-ib{position:relative;width:38px;height:38px;border-radius:13px;border:1px solid var(--line);background:rgba(255,255,255,.06);color:var(--ink);display:grid;place-items:center;padding:0;cursor:pointer}
-.hhh-ib svg{width:19px;height:19px}
-.hhh-ib i{position:absolute;top:7px;right:8px;width:8px;height:8px;border-radius:50%;background:#ff6f91;box-shadow:0 0 0 2px #1a0d2a}
-.hhh-witch{position:absolute;right:-14px;bottom:-34px;width:112px;height:auto;z-index:2;filter:drop-shadow(0 8px 14px rgba(0,0,0,.5));pointer-events:none}
+.hhh-tag{margin:5px 0 0;font-size:12px;line-height:1.35;font-weight:700;color:var(--soft);max-width:170px}
+.hhh-icons{display:flex;gap:8px;margin-top:9px}
+.hhh-ib{position:relative;width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:rgba(255,255,255,.06);color:var(--ink);display:grid;place-items:center;padding:0;cursor:pointer}
+.hhh-ib svg{width:17px;height:17px}
+.hhh-ib i{position:absolute;top:5px;right:6px;width:8px;height:8px;border-radius:50%;background:#ff6f91;box-shadow:0 0 0 2px #1a0d2a}
+.hhh-witch{position:absolute;right:-8px;bottom:-30px;width:96px;height:auto;z-index:0;filter:drop-shadow(0 8px 14px rgba(0,0,0,.5));pointer-events:none}
 /* the money card */
-.hhh-card{position:relative;border-radius:22px;padding:14px 14px 12px;border:1px solid rgba(255,170,80,.5);background:linear-gradient(160deg,rgba(255,160,70,.2),rgba(255,255,255,.03) 55%),#1f1230;box-shadow:0 10px 30px rgba(6,2,12,.55),0 0 26px rgba(255,150,50,.10)}
+.hhh-card{position:relative;z-index:1;border-radius:22px;padding:14px 14px 12px;border:1px solid rgba(255,170,80,.5);background:linear-gradient(165deg,rgba(255,150,60,.30),rgba(255,150,60,.06) 60%),#1d1510;box-shadow:0 10px 30px rgba(6,2,12,.55),0 0 26px rgba(255,150,50,.10)}
 .hhh-lbl{font-size:13px;font-weight:800;color:#f4dcc0;margin:0 0 2px}
 .hhh-row{display:flex;align-items:flex-end;justify-content:space-between;gap:8px}
 .hhh-amt{font:900 clamp(34px,10.5vw,42px)/1 ui-rounded,"SF Pro Rounded",system-ui,sans-serif;letter-spacing:-.03em;color:#fff7ee;font-variant-numeric:tabular-nums}
@@ -213,7 +213,7 @@ html.hb-hh #hhHome{overflow-x:clip}
 .hhh-h{display:flex;justify-content:space-between;align-items:center;margin:2px 2px -4px}
 .hhh-h h2{margin:0;font-size:17px;font-weight:900;color:var(--ink)}
 .hhh-h button{border:0;background:transparent;color:var(--soft);font:800 12.5px system-ui,sans-serif;padding:6px 2px;cursor:pointer}
-.hhh-list{border-radius:20px;border:1px solid var(--line);background:#1f1230;padding:2px 12px;box-shadow:0 8px 22px rgba(6,2,12,.4)}
+.hhh-list{border-radius:20px;border:1px solid var(--line);background:#18131d;padding:2px 12px;box-shadow:0 8px 22px rgba(6,2,12,.4)}
 .hhh-it{display:flex;align-items:center;gap:11px;padding:10px 0;border-top:1px solid rgba(255,255,255,.07);width:100%;text-align:left;background:transparent;border-left:0;border-right:0;border-bottom:0;color:var(--ink);cursor:pointer;font:inherit}
 .hhh-it:first-child{border-top:0}
 .hhh-it .ct,.hhh-it svg.tile{flex:none}
@@ -227,7 +227,7 @@ html.hb-hh #hhHome{overflow-x:clip}
 .hhh-empty{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 0;font-size:13px;font-weight:700;color:var(--soft)}
 .hhh-empty button{border:1px solid rgba(255,170,80,.55);background:transparent;color:#ffb066;border-radius:99px;font:800 12px system-ui,sans-serif;padding:6px 12px;cursor:pointer}
 /* streak */
-.hhh-streak{display:flex;align-items:center;gap:12px;width:100%;text-align:left;border-radius:20px;border:1px solid rgba(255,170,80,.4);background:linear-gradient(120deg,rgba(255,150,60,.16),rgba(255,255,255,.03)),#1f1230;color:var(--ink);padding:10px 14px 10px 10px;cursor:pointer;font:inherit}
+.hhh-streak{display:flex;align-items:center;gap:12px;width:100%;text-align:left;border-radius:20px;border:1px solid rgba(255,170,80,.4);background:linear-gradient(120deg,rgba(255,150,60,.16),rgba(255,255,255,.03)),#18131d;color:var(--ink);padding:10px 14px 10px 10px;cursor:pointer;font:inherit}
 .hhh-streak img{width:54px;height:54px;object-fit:contain;flex:none;filter:drop-shadow(0 4px 8px rgba(0,0,0,.45))}
 .hhh-st{flex:1;min-width:0}
 .hhh-st b{display:block;font-size:16px;font-weight:900;color:#ffb066}
@@ -241,3 +241,11 @@ html.hb-hh #hhHome{overflow-x:clip}
 html.hb-hh nav.bottom{border-top:1px solid rgba(255,170,80,.3);border-radius:22px 22px 0 0;background:rgba(24,12,38,.92)!important;box-shadow:0 -8px 24px rgba(0,0,0,.4)}
 html.hb-hh nav.bottom button[aria-current="page"]{color:#ffb066;text-shadow:0 0 12px rgba(255,150,60,.55)}
 html.hb-hh nav.bottom .plus{background:#f28c38;color:#1b1108;box-shadow:0 0 18px rgba(255,150,60,.45)}
+
+.hhh-chev{width:16px;height:16px;flex:none;color:var(--soft)}
+.hhh-dw.open{background:rgba(255,170,80,.05)}
+.hhh-pay{padding:0 0 10px 47px}
+.hhh-pay .hhh-paid{width:100%;border:0;background:#f28c38;color:#1b1108;font:800 13.5px system-ui,sans-serif;border-radius:12px;padding:10px;cursor:pointer}
+.hhh-dw+.hhh-dw{border-top:1px solid rgba(255,255,255,.07)}
+.hhh-dw .hhh-it{border-top:0}
+.hhh-st b em{font-style:normal;margin-left:6px;font-size:.95em}
