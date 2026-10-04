@@ -1,0 +1,38 @@
+# Draws the SwiftUI preview of Honeybun's Home screen on a Mac and saves the picture to the `swiftui-preview` branch.
+name: SwiftUI preview
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "ios-native-preview/**"
+      - ".github/workflows/swiftui-preview.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  preview:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Draw the screen
+        working-directory: ios-native-preview
+        shell: bash
+        run: |
+          swift build -c release 2>&1 | grep -E "error:|warning: unre|Compiling|Build" | tail -30
+          mkdir -p ../preview-out
+          swift run -c release Preview ../preview-out/home.png
+      - name: Save the picture to the swiftui-preview branch
+        shell: bash
+        run: |
+          git config user.name "preview-bot"
+          git config user.email "preview-bot@users.noreply.github.com"
+          git checkout --orphan swiftui-preview
+          git rm -rf . >/dev/null 2>&1 || true
+          git add -f preview-out/home.png 2>/dev/null || true
+          cp -f preview-out/home.png home.png 2>/dev/null || true
+          git add -f home.png
+          git commit -m "SwiftUI preview of Home"
+          git push -f origin swiftui-preview
