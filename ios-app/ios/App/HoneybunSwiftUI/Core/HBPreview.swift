@@ -13,7 +13,16 @@ enum HBPreview {
 
     @available(iOS 15.0, *)
     @MainActor static func store(for screen: String) -> HBAppStore? {
-        guard let data = HBPreviewData.json.data(using: .utf8), let snap = try? JSONDecoder().decode(HBNestSnapshot.self, from: data) else { return nil }
+        // Together screens: "together" (partner), "togethersolo", "togetherfamily", "togetherjoint" and their sheets
+        let tvariant: String? = {
+            if screen.hasPrefix("togethersolo") { return "solo" }
+            if screen.hasPrefix("togetherfamily") { return "family" }
+            if screen.hasPrefix("togetherjoint") { return "joint" }
+            if screen.hasPrefix("together") || screen == "household" || screen == "householdinvite" || screen == "settle" || screen == "fairshare" || screen == "shopping" || screen == "search" || screen == "editme" || screen == "settlefamily" { return screen == "settlefamily" ? "family" : "partner" }
+            return nil
+        }()
+        let source: Data? = tvariant.flatMap { try? JSONSerialization.data(withJSONObject: HBPreviewVariants.make($0)) } ?? HBPreviewData.json.data(using: .utf8)
+        guard let data = source, let snap = try? JSONDecoder().decode(HBNestSnapshot.self, from: data) else { return nil }
         let s = HBAppStore(previewSnapshot: snap, month: HBPreviewData.month, prevSpent: HBPreviewData.previousDaily.values.reduce(0, +), prevDaily: HBPreviewData.previousDaily)
         switch screen {
         case "splash": s.forceLoading = true
@@ -25,6 +34,16 @@ enum HBPreview {
         case "goalform": s.sheet = .goalForm(nil)
         case "goaledit": if let g = snap.goals.first { s.sheet = .goalForm(g.id) }
         case "money": s.selectedTab = .money
+        case "together", "togethersolo", "togetherfamily", "togetherjoint": s.selectedTab = .together; s.seedPreviewShopping()
+        case "togetherend", "togethersoloend", "togetherfamilyend", "togetherjointend": s.selectedTab = .together; s.previewScrollToEnd = true; s.seedPreviewShopping()
+        case "household": s.selectedTab = .together; s.sheet = .household(false)
+        case "householdinvite": s.selectedTab = .together; s.sheet = .household(true)
+        case "editme": s.selectedTab = .together; s.sheet = .editMe
+        case "fairshare": s.selectedTab = .together; s.sheet = .fairShare
+        case "shopping": s.selectedTab = .together; s.seedPreviewShopping(); s.sheet = .shopping
+        case "search": s.selectedTab = .together; s.sheet = .search
+        case "settle": if let p = s.pairs.first { s.selectedTab = .together; s.sheet = .settle(p.from.id, p.to.id) }
+        case "settlefamily": if let p = s.pairs.first { s.selectedTab = .together; s.sheet = .settle(p.from.id, p.to.id) }
         case "addexp": s.sheet = .newEntry("expense")
         case "addinc": s.sheet = .newEntry("income")
         case "upcoming": s.sheet = .upcoming

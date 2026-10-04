@@ -61,6 +61,31 @@ actor HBAPI {
     func moveJar(goalID: String, amount: Double, out: Bool) async throws { _ = try await send("/api/jar", method: "POST", body: ["goal_id": goalID, "amount": amount, "direction": out ? "out" : "in"]) }
     func deleteJarMove(id: String) async throws { _ = try await send("/api/jar/\(id)", method: "DELETE", body: nil) }
 
+    // Together: shared shopping list, paying each other back, the household
+    func shopping() async throws -> [HBShopItem] { let e: HBShopEnvelope = try decode(try await send("/api/shopping", method: "GET", body: nil)); return e.items }
+    func addShopItem(_ label: String) async throws { _ = try await send("/api/shopping", method: "POST", body: ["label": label]) }
+    func setShopDone(id: String, done: Bool) async throws { _ = try await send("/api/shopping/\(id)", method: "PATCH", body: ["done": done]) }
+    func renameShopItem(id: String, label: String) async throws { _ = try await send("/api/shopping/\(id)", method: "PATCH", body: ["label": label]) }
+    func deleteShopItem(id: String) async throws { _ = try await send("/api/shopping/\(id)", method: "DELETE", body: nil) }
+    func clearShopDone() async throws { _ = try await send("/api/shopping/clear", method: "POST", body: nil) }
+    func shopCheckout(amount: Double, date: String) async throws { _ = try await send("/api/shopping/checkout", method: "POST", body: ["amount": amount, "date": date]) }
+    func settle(from: String, to: String, amount: Double, date: String) async throws {
+        _ = try await send("/api/settlements", method: "POST", body: ["from_id": from, "to_id": to, "amount": amount, "date": date])
+    }
+    func deleteSettlement(id: String) async throws { _ = try await send("/api/settlements/\(id)", method: "DELETE", body: nil) }
+    func patchNest(_ body: [String: Any]) async throws { _ = try await send("/api/nest", method: "PATCH", body: body) }
+    func newInviteCode() async throws -> String {
+        let data = try await send("/api/nest/invite", method: "POST", body: nil)
+        return ((try? JSONSerialization.jsonObject(with: data)) as? [String: Any])?["invite_code"] as? String ?? ""
+    }
+    func updateMe(name: String, emoji: String, color: String) async throws { _ = try await send("/api/me", method: "PATCH", body: ["name": name, "emoji": emoji, "color": color]) }
+    func search(q: String, type: String, member: String) async throws -> [HBEntry] {
+        var c = URLComponents(); c.path = "/api/search"
+        c.queryItems = [URLQueryItem(name: "q", value: q), URLQueryItem(name: "type", value: type), URLQueryItem(name: "member", value: member)]
+        let env: HBSearchEnvelope = try decode(try await send(c.string ?? "/api/search", method: "GET", body: nil))
+        return env.entries
+    }
+
     func logOccurrence(recurringID: String, date: String) async throws { _ = try await send("/api/recurring/\(recurringID)/log", method: "POST", body: ["occ_date": date]) }
     func updateRecurring(id: String, _ d: HBRecurringDraft) async throws { _ = try await send("/api/recurring/\(id)", method: "PATCH", body: d.json) }
     func addRecurring(_ d: HBRecurringDraft) async throws { _ = try await send("/api/recurring", method: "POST", body: d.json) }

@@ -75,6 +75,7 @@ struct HBRootView: View {
             case .home: HBHomeView(store: store, onClose: onClose)
             case .money: HBMoneyView(store: store)
             case .goals: HBGoalsView(store: store)
+            case .together: HBTogetherView(store: store)
             default:
                 HBMessageView(title: "\(store.selectedTab.rawValue) isn't native yet",
                               message: "This screen is still the classic Honeybun. Nothing is lost: it uses the same account and data.",
@@ -93,6 +94,12 @@ struct HBRootView: View {
         case .allTransactions: HBTransactionsList(store: store)
         case let .goalDetail(id): HBGoalDetail(store: store, goalID: id)
         case let .goalForm(id): HBGoalForm(store: store, goalID: id)
+        case let .settle(f, t): HBSettleSheet(store: store, fromID: f, toID: t)
+        case .fairShare: HBFairShareSheet(store: store)
+        case let .household(invite): HBHouseholdSheet(store: store, focusInvite: invite)
+        case .shopping: HBShoppingSheet(store: store)
+        case .search: HBSearchSheet(store: store)
+        case .editMe: HBEditMeSheet(store: store)
         }
     }
 }

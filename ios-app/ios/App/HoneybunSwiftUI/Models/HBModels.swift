@@ -42,12 +42,24 @@ struct HBJarMove: Decodable, Identifiable {
     var amount: Double { Double(amount_cents) / 100.0 }
     var date: Date { Date(timeIntervalSince1970: created_at) }
 }
-struct HBNest: Decodable { let id: String; let name: String; let kind: String?; let joint: Int? }
+struct HBNest: Decodable { let id: String; let name: String; let kind: String?; let joint: Int?; let invite_code: String?; let accent: String? }
+/// one "X paid Y back" from /api/nest "settlements" (the latest 10)
+struct HBSettlement: Decodable, Identifiable {
+    let id: String; let from_id: String; let to_id: String; let amount_cents: Int; let date: String
+    var amount: Double { Double(amount_cents) / 100.0 }
+}
+/// one line of the shared shopping list, from GET /api/shopping
+struct HBShopItem: Decodable, Identifiable {
+    let id: String; var label: String; let added_by: String?; var done: Bool; let done_by: String?
+}
+struct HBShopEnvelope: Decodable { let items: [HBShopItem] }
+struct HBSearchEnvelope: Decodable { let entries: [HBEntry] }
 struct HBCarry: Decodable { let amount_cents: Int; let accepted: Bool? }
 
 struct HBNestSnapshot: Decodable {
     let me: HBUser?; let nest: HBNest; let members: [HBMember]; let entries: [HBEntry]; let recurring: [HBRecurring]
     let logged: [HBLogged]; let goals: [HBGoal]; let shopping_open: Int?; let carry_in: HBCarry?; let inbox: HBInbox?; let jar: [HBJarMove]?
+    let balances: [String: Int]?; let settlements: [HBSettlement]?
 }
 
 enum HBCategory: String, CaseIterable, Identifiable {

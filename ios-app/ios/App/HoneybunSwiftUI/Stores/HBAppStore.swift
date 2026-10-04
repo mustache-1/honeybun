@@ -3,6 +3,7 @@ import SwiftUI
 
 enum HBSheet: Identifiable {
     case newEntry(String), editEntry(HBEntry), editRecurring(HBRecurring), newRecurring, upcoming, allTransactions, goalDetail(String), goalForm(String?)
+    case settle(String, String), fairShare, household(Bool), shopping, search, editMe
     var id: String {
         switch self {
         case let .newEntry(t): return "new-" + t
@@ -13,6 +14,12 @@ enum HBSheet: Identifiable {
         case .allTransactions: return "all-transactions"
         case let .goalDetail(id): return "goal-" + id
         case let .goalForm(id): return "goal-form-" + (id ?? "new")
+        case let .settle(f, t): return "settle-" + f + "-" + t
+        case .fairShare: return "fair-share"
+        case let .household(invite): return invite ? "household-invite" : "household"
+        case .shopping: return "shopping"
+        case .search: return "search"
+        case .editMe: return "edit-me"
         }
     }
 }
@@ -36,6 +43,9 @@ enum HBTab: String, CaseIterable { case home = "Home", money = "Money", goals = 
     @Published var notice: String?
     var previewScrollToEnd = false   // debug screenshots: open scrolled all the way down
     @Published var sheet: HBSheet?
+    @Published var shopping: [HBShopItem] = []
+    enum ShopState: Equatable { case idle, loading, loaded, failed(String) }
+    @Published var shopState: ShopState = .idle
     @Published var prevSpent: Double?   // last month's spending, for the Money insight card
     @Published var prevDaily: [Int: Double] = [:]   // last month's spending by day of month, for the chart
 
@@ -47,6 +57,14 @@ enum HBTab: String, CaseIterable { case home = "Home", money = "Money", goals = 
         self.isPreview = true; self.previewMonth = month
     }
     private(set) var isPreview = false
+    #if DEBUG
+    /// debug screenshots only: a sample shopping list, since previews have no network
+    func seedPreviewShopping() {
+        guard let data = try? JSONSerialization.data(withJSONObject: ["items": HBPreviewVariants.shopping]),
+              let env = try? JSONDecoder().decode(HBShopEnvelope.self, from: data) else { return }
+        shopping = env.items; shopState = .loaded
+    }
+    #endif
     /// debug screenshots only: keep showing the loading splash
     var forceLoading = false { didSet { if forceLoading { phase = .checking } } }
     private var previewMonth: String?
@@ -120,6 +138,20 @@ enum HBTab: String, CaseIterable { case home = "Home", money = "Money", goals = 
     }
     func memberName(_ id: String) -> String { members.first { $0.id == id }?.name ?? "" }
 
+    // MARK: Together (derived from the same snapshot)
+
+    var nest: HBNest? { snapshot?.nest }
+    var kind: String { snapshot?.nest.kind ?? "couple" }
+    var situation: HBSituation { HBTogether.situation(memberCount: members.count) }
+    var jointActive: Bool { HBTogether.isJoint(kind: snapshot?.nest.kind, joint: snapshot?.nest.joint, memberCount: members.count) }
+    var inviteCode: String { snapshot?.nest.invite_code ?? "" }
+    var settlements: [HBSettlement] { snapshot?.settlements ?? [] }
+    var pairs: [HBPair] { jointActive ? [] : HBTogether.pairs(members: members, balances: snapshot?.balances ?? [:]) }
+    var iOwe: Double { pairs.filter { $0.from.id == myID }.reduce(0) { $0 + $1.amount } }
+    var owedToMe: Double { pairs.filter { $0.to.id == myID }.reduce(0) { $0 + $1.amount } }
+    var partner: HBMember? { members.first { $0.id != myID } }
+    func member(_ id: String) -> HBMember? { members.first { $0.id == id } }
+
     func newEntryDraft(type: String) -> HBEntryDraft {
         // a month other than this one gets that month's first day, so the new entry shows up where you are looking
         let date = month == HBDay.monthKey() ? HBDay.todayString : month + "-01"
@@ -159,4 +191,41 @@ enum HBTab: String, CaseIterable { case home = "Home", money = "Money", goals = 
     func addRecurring(_ d: HBRecurringDraft) async throws { try await run { try await HBAPI.shared.addRecurring(d) } }
     func updateRecurring(id: String, _ d: HBRecurringDraft) async throws { try await run { try await HBAPI.shared.updateRecurring(id: id, d) } }
     func deleteRecurring(id: String) async throws { try await run { try await HBAPI.shared.deleteRecurring(id: id) } }
+
+    // MARK: Together actions (backend first, then reload)
+
+    func loadShopping() async {
+        if isPreview { return }
+        if shopState == .idle { shopState = .loading }
+        do { shopping = try await HBAPI.shared.shopping(); shopState = .loaded }
+        catch { if shopState != .loaded { shopState = .failed(error.localizedDescription) } else { notice = error.localizedDescription } }
+    }
+    private func shopRun(_ work: () async throws -> Void) async throws {
+        busy = true; defer { busy = false }
+        try await work()
+        await loadShopping()
+    }
+    func addShopItem(_ label: String) async throws { try await shopRun { try await HBAPI.shared.addShopItem(label) } }
+    func setShopDone(_ item: HBShopItem, done: Bool) async throws {
+        if let i = shopping.firstIndex(where: { $0.id == item.id }) { shopping[i].done = done }   // the tick shows at once, the backend confirms
+        do { try await shopRun { try await HBAPI.shared.setShopDone(id: item.id, done: done) } } catch { await loadShopping(); throw error }
+    }
+    func renameShopItem(_ item: HBShopItem, to label: String) async throws { try await shopRun { try await HBAPI.shared.renameShopItem(id: item.id, label: label) } }
+    func deleteShopItem(_ item: HBShopItem) async throws {
+        shopping.removeAll { $0.id == item.id }
+        do { try await shopRun { try await HBAPI.shared.deleteShopItem(id: item.id) } } catch { await loadShopping(); throw error }
+    }
+    func clearShopDone() async throws { try await shopRun { try await HBAPI.shared.clearShopDone() } }
+    func shopCheckout(amount: Double) async throws {
+        try await run { try await HBAPI.shared.shopCheckout(amount: amount, date: HBDay.todayString) }
+        await loadShopping()
+    }
+    func settle(from: String, to: String, amount: Double) async throws { try await run { try await HBAPI.shared.settle(from: from, to: to, amount: amount, date: HBDay.todayString) } }
+    func deleteSettlement(id: String) async throws { try await run { try await HBAPI.shared.deleteSettlement(id: id) } }
+    func setJoint(_ on: Bool) async throws { try await run { try await HBAPI.shared.patchNest(["joint": on]) } }
+    func setKind(_ kind: String) async throws { try await run { try await HBAPI.shared.patchNest(["kind": kind]) } }
+    func renameNest(_ name: String) async throws { try await run { try await HBAPI.shared.patchNest(["name": name]) } }
+    func newInviteCode() async throws { try await run { _ = try await HBAPI.shared.newInviteCode() } }
+    func updateMe(name: String, emoji: String, color: String) async throws { try await run { try await HBAPI.shared.updateMe(name: name, emoji: emoji, color: color) } }
+    func search(q: String, type: String, member: String) async throws -> [HBEntry] { try await HBAPI.shared.search(q: q, type: type, member: member) }
 }
