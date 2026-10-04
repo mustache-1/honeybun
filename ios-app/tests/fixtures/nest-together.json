@@ -1,5 +1,7 @@
 {
  "today": "2026-10-04",
+ "me": "62ebf1d2-a85a-43db-9967-95920760dfc9",
+ "other": "ee782cd8-f5dd-486f-a21e-07b0ad750658",
  "snapshot": {
   "me": {
    "id": "62ebf1d2-a85a-43db-9967-95920760dfc9",
@@ -9,7 +11,7 @@
   "nest": {
    "id": "c16c1bf1-bc57-4668-932a-6f1db6880899",
    "name": "Us",
-   "invite_code": "CRMEC4SS",
+   "invite_code": "JFLTBWAY",
    "accent": "blush",
    "kind": "couple",
    "rollover": 0,
@@ -22,16 +24,63 @@
     "name": "Contract Test",
     "emoji": "🐰",
     "color": "#FFD6E5",
-    "xp": 120,
+    "xp": 160,
     "streak": 1,
     "best_streak": 1,
     "last_day": "2026-10-04",
     "week_key": "2026-09-28",
-    "week_xp": 120,
-    "logs": 2
+    "week_xp": 160,
+    "logs": 4
+   },
+   {
+    "id": "ee782cd8-f5dd-486f-a21e-07b0ad750658",
+    "name": "Second Person",
+    "emoji": "🐻",
+    "color": "#FFF0C2",
+    "xp": 0,
+    "streak": 0,
+    "best_streak": 0,
+    "last_day": null,
+    "week_key": null,
+    "week_xp": 0,
+    "logs": 0
    }
   ],
   "entries": [
+   {
+    "id": "9914f1b5-37fd-4547-bc64-8710c5636525",
+    "member_id": "62ebf1d2-a85a-43db-9967-95920760dfc9",
+    "type": "expense",
+    "amount_cents": 10000,
+    "label": "Shared dinner",
+    "category": "food",
+    "shared": 1,
+    "split_mode": "equal",
+    "split_value": null,
+    "shares": "{\"62ebf1d2-a85a-43db-9967-95920760dfc9\":5000,\"ee782cd8-f5dd-486f-a21e-07b0ad750658\":5000}",
+    "private": 0,
+    "date": "2026-10-04",
+    "recurring_id": null,
+    "occ_date": null,
+    "created_at": 1791148851
+   },
+   {
+    "id": "f4335462-8e32-45ca-aaf4-1f717dc689f5",
+    "member_id": "62ebf1d2-a85a-43db-9967-95920760dfc9",
+    "type": "expense",
+    "amount_cents": 2340,
+    "label": "Groceries",
+    "category": "groc",
+    "shared": 0,
+    "split_mode": null,
+    "split_value": null,
+    "shares": null,
+    "private": 0,
+    "date": "2026-10-04",
+    "recurring_id": null,
+    "occ_date": null,
+    "created_at": 1791148851
+   },
    {
     "id": "d4af129d-ba17-49f0-97f3-2bcf96a2850d",
     "member_id": "62ebf1d2-a85a-43db-9967-95920760dfc9",
@@ -73,9 +122,19 @@
   "carry_pending": null,
   "carry_prev": null,
   "balances": {
-   "62ebf1d2-a85a-43db-9967-95920760dfc9": 0
+   "62ebf1d2-a85a-43db-9967-95920760dfc9": 3000,
+   "ee782cd8-f5dd-486f-a21e-07b0ad750658": -3000
   },
-  "settlements": [],
+  "settlements": [
+   {
+    "id": "7d6885f2-3254-4d42-b5aa-5fec77aa4d38",
+    "from_id": "ee782cd8-f5dd-486f-a21e-07b0ad750658",
+    "to_id": "62ebf1d2-a85a-43db-9967-95920760dfc9",
+    "amount_cents": 2000,
+    "date": "2026-10-04",
+    "created_at": 1791148851
+   }
+  ],
   "recurring": [
    {
     "id": "1b3c2357-4385-43ed-b135-2ee051358fdf",
@@ -114,22 +173,7 @@
     "occ_date": "2026-10-09"
    }
   ],
-  "jar": [
-   {
-    "id": "cf634975-245b-45b0-9700-ebd2158d8aaa",
-    "goal_id": "4a27167f-c52e-48c5-9afd-22c84dbbea1e",
-    "member_id": "62ebf1d2-a85a-43db-9967-95920760dfc9",
-    "amount_cents": 12000,
-    "created_at": 1791148850
-   },
-   {
-    "id": "85102675-8738-4594-b760-5db8622ce056",
-    "goal_id": "4a27167f-c52e-48c5-9afd-22c84dbbea1e",
-    "member_id": "62ebf1d2-a85a-43db-9967-95920760dfc9",
-    "amount_cents": 30050,
-    "created_at": 1791148850
-   }
-  ],
+  "jar": [],
   "goals": [
    {
     "id": "85f173c5-76d7-40c1-8391-86d032746c7d",
@@ -137,24 +181,38 @@
     "emoji": "✈️",
     "target_cents": 300000,
     "saved_cents": 0
-   },
-   {
-    "id": "4a27167f-c52e-48c5-9afd-22c84dbbea1e",
-    "name": "Trip to Japan",
-    "emoji": "🏠",
-    "target_cents": 200000,
-    "saved_cents": 42050
    }
   ],
   "budgets": [],
   "debts": [],
   "debt_payments": [],
   "setup_done": true,
-  "repeats": [],
+  "repeats": [
+   {
+    "label": "Shared dinner",
+    "category": "food",
+    "amount_cents": 10000,
+    "shared": 1,
+    "split_mode": "equal",
+    "split_value": null,
+    "private": 0,
+    "count": 1
+   },
+   {
+    "label": "Groceries",
+    "category": "groc",
+    "amount_cents": 2340,
+    "shared": 0,
+    "split_mode": null,
+    "split_value": null,
+    "private": 0,
+    "count": 1
+   }
+  ],
   "carry": {},
   "inbox": {
-   "unread": 2,
-   "latest": "f8101149-3ebc-4747-b6c3-35e31513c391|bill_soon|{\"rid\":\"c80b4227-d060-41b3-ab0e-97d6665350ef\",\"occ\":\"2026-10-07\",\"label\":\"Phone bill\",\"amount\":4234}"
+   "unread": 4,
+   "latest": "359f6213-7779-4803-854e-b47b196e78d1|level|{\"level\":3}"
   }
  }
 }

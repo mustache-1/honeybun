@@ -145,4 +145,116 @@ ok("DELETE /api/goals/:id → 200", r.status === 200 && r.json?.ok);
 r = await call("/api/nest?month=" + month);
 ok("deleting a goal removes it and its history", !r.json.goals.some((x) => x.id === gid) && !r.json.jar.some((j) => j.goal_id === gid));
 
+
+// --- 9. Together tab: household, shared shopping list, fair share balances, paying each other back
+const cookieA = cookie;
+r = await call("/api/nest?month=" + month);
+const nestA = r.json;
+ok("solo budget: nest has invite_code + kind, one member, balances for me = 0, settlements []",
+  typeof nestA.nest.invite_code === "string" && nestA.nest.invite_code.length >= 6 && nestA.nest.kind === "couple" && nestA.members.length === 1 && nestA.balances?.[mid] === 0 && Array.isArray(nestA.settlements) && nestA.settlements.length === 0);
+
+// shared shopping list (works on your own)
+r = await call("/api/shopping", "POST", { label: "Oat milk" });
+ok("POST /api/shopping → 201 {id}", r.status === 201 && typeof r.json?.id === "string", JSON.stringify(r));
+const shopA = r.json?.id;
+r = await call("/api/shopping", "POST", { label: "   " });
+ok("blank shopping item rejected (400)", r.status === 400, "got " + r.status);
+await call("/api/shopping", "POST", { label: "Eggs" });
+r = await call("/api/shopping");
+ok("GET /api/shopping → {items:[{id,label,added_by,done,done_by}]}", r.status === 200 && Array.isArray(r.json?.items) && r.json.items.length === 2 && r.json.items.every((i) => has(i, "id", "string") && has(i, "label", "string") && typeof i.done === "boolean") && r.json.items.some((i) => i.added_by === mid));
+r = await call("/api/shopping/" + shopA, "PATCH", { done: true });
+ok("tick off an item → 200", r.status === 200 && r.json?.ok);
+r = await call("/api/shopping");
+ok("ticked item is done with done_by = me, and sorts below the open ones", r.json.items.find((i) => i.id === shopA)?.done === true && r.json.items.find((i) => i.id === shopA)?.done_by === mid && r.json.items[r.json.items.length - 1].id === shopA);
+r = await call("/api/shopping/" + shopA, "PATCH", { label: "Oat milk (barista)" });
+ok("rename an item keeps it ticked", r.status === 200 && (await call("/api/shopping")).json.items.find((i) => i.id === shopA)?.label === "Oat milk (barista)" && (await call("/api/shopping")).json.items.find((i) => i.id === shopA)?.done === true);
+r = await call("/api/shopping/checkout", "POST", { amount: 23.4, date: dd(0) });
+ok("Done shopping: logs groceries + clears ticked items (201)", r.status === 201 && r.json?.ok, JSON.stringify(r));
+r = await call("/api/nest?month=" + month);
+ok("checkout made a 2340-cent groceries expense", r.json.entries.some((e) => e.category === "groc" && e.amount_cents === 2340 && e.type === "expense"));
+r = await call("/api/shopping");
+ok("ticked items were cleared, the open one stayed", r.json.items.length === 1 && r.json.items[0].label === "Eggs");
+const eggs = r.json.items[0].id;
+r = await call("/api/shopping/" + eggs, "DELETE");
+ok("delete an item → 200", r.status === 200 && (await call("/api/shopping")).json.items.length === 0);
+await call("/api/shopping", "POST", { label: "A" }); await call("/api/shopping", "POST", { label: "B" });
+const ls = (await call("/api/shopping")).json.items;
+await call("/api/shopping/" + ls[0].id, "PATCH", { done: true });
+r = await call("/api/shopping/clear", "POST");
+ok("clear checked items → only open ones remain", r.status === 200 && (await call("/api/shopping")).json.items.length === 1);
+await call("/api/shopping/" + (await call("/api/shopping")).json.items[0].id, "DELETE");
+
+// invite code: regenerate
+const oldCode = nestA.nest.invite_code;
+r = await call("/api/nest/invite", "POST");
+ok("POST /api/nest/invite → new invite_code", r.status === 200 && typeof r.json?.invite_code === "string" && r.json.invite_code !== oldCode, JSON.stringify(r));
+const code = r.json.invite_code;
+
+// a second person signs up and joins with the code
+cookie = "";
+const u2 = "ct" + ((Date.now() + 7) % 1e7);
+r = await call("/api/signup", "POST", { name: "Second Person", username: u2, password: "Passw0rd!xyzzy" });
+const cookieB = cookie;
+r = await call("/api/nests/join", "POST", { code: oldCode });
+ok("the OLD invite code no longer works (404)", r.status === 404, "got " + r.status);
+r = await call("/api/nests/join", "POST", { code: code.toLowerCase() });
+ok("join with the new code (any case) → 200 {nest_id}", r.status === 200 && r.json?.ok && typeof r.json.nest_id === "string", JSON.stringify(r));
+const meB = (await call("/api/me")).json.user;
+cookie = cookieA;
+r = await call("/api/nest?month=" + month);
+const duo = r.json;
+const mB = duo.members.find((m) => m.id === meB.id), mA = duo.members.find((m) => m.id === mid);
+ok("household now has 2 members with different buddy + colour", duo.members.length === 2 && mA && mB && mA.emoji !== mB.emoji && mA.color !== mB.color && has(mB, "name", "string"));
+ok("with two people: balances has both ids at 0", duo.balances[mid] === 0 && duo.balances[meB.id] === 0);
+
+// a shared expense splits equally → the balance shows who owes whom
+r = await call("/api/entries", "POST", { type: "expense", amount: 100, label: "Shared dinner", date: dd(0), member_id: mid, shared: true, private: false, category: "food" });
+ok("shared expense accepted", r.status === 201, JSON.stringify(r));
+r = await call("/api/nest?month=" + month);
+ok("fair share: I am owed 5000 cents, they owe 5000", r.json.balances[mid] === 5000 && r.json.balances[meB.id] === -5000, JSON.stringify(r.json.balances));
+r = await call("/api/settlements", "POST", { from_id: mid, to_id: mid, amount: 5, date: dd(0) });
+ok("settling with yourself is refused (400)", r.status === 400, "got " + r.status);
+r = await call("/api/settlements", "POST", { from_id: meB.id, to_id: mid, amount: 0, date: dd(0) });
+ok("settling $0 is refused (400)", r.status === 400, "got " + r.status);
+r = await call("/api/settlements", "POST", { from_id: meB.id, to_id: mid, amount: 20, date: dd(0) });
+ok("POST /api/settlements (they paid me $20) → 201", r.status === 201 && r.json?.ok, JSON.stringify(r));
+r = await call("/api/nest?month=" + month);
+const st = r.json.settlements[0];
+ok("settlement listed {id,from_id,to_id,amount_cents,date} and the balance dropped to 3000 / −3000",
+  r.json.settlements.length === 1 && st.from_id === meB.id && st.to_id === mid && st.amount_cents === 2000 && st.date === dd(0) && r.json.balances[mid] === 3000 && r.json.balances[meB.id] === -3000);
+writeFileSync(new URL("./fixtures/nest-together.json", import.meta.url), JSON.stringify({ today: dd(0), me: mid, other: meB.id, snapshot: r.json }, null, 1));
+r = await call("/api/settlements/" + st.id, "DELETE");
+ok("DELETE /api/settlements/:id → 200 and the balance goes back to 5000", r.status === 200 && (await call("/api/nest?month=" + month)).json.balances[mid] === 5000);
+
+// joint account + budget type + name
+r = await call("/api/nest", "PATCH", { joint: true });
+ok("joint account on (couple, 2 people) → nest.joint = 1", r.status === 200 && (await call("/api/nest?month=" + month)).json.nest.joint === 1);
+r = await call("/api/nest", "PATCH", { kind: "family" });
+r = await call("/api/nest", "PATCH", { joint: true });
+ok("joint account is refused for a family budget (400)", r.status === 400 && /couples/i.test(r.json?.error || ""), JSON.stringify(r));
+r = await call("/api/nest", "PATCH", { kind: "couple" });
+r = await call("/api/nest", "PATCH", { joint: false });
+ok("joint account off → nest.joint = 0", r.status === 200 && (await call("/api/nest?month=" + month)).json.nest.joint === 0);
+r = await call("/api/nest", "PATCH", { kind: "nonsense" });
+ok("unknown budget type refused (400)", r.status === 400, "got " + r.status);
+r = await call("/api/nest", "PATCH", { name: "Our Hive" });
+ok("rename the budget", r.status === 200 && (await call("/api/nest?month=" + month)).json.nest.name === "Our Hive");
+
+// edit yourself
+r = await call("/api/me", "PATCH", { name: "Renamed", emoji: "🐻", color: "#E4EDFF" });
+ok("PATCH /api/me name+buddy+colour → 200", r.status === 200 && r.json?.ok, JSON.stringify(r));
+r = await call("/api/nest?month=" + month);
+const mA2 = r.json.members.find((m) => m.id === mid);
+ok("members[] shows the new name, buddy and colour", mA2?.name === "Renamed" && mA2.emoji === "🐻" && mA2.color === "#E4EDFF");
+r = await call("/api/me", "PATCH", { emoji: "🤖" });
+ok("a buddy that doesn't exist is refused (400)", r.status === 400, "got " + r.status);
+r = await call("/api/me", "PATCH", { name: "   " });
+ok("an empty name is refused (400)", r.status === 400, "got " + r.status);
+
+// search everything
+r = await call("/api/search?" + new URLSearchParams({ q: "dinner", type: "expense", member: "" }));
+ok("GET /api/search → {entries:[...]} with the shared dinner", r.status === 200 && Array.isArray(r.json?.entries) && r.json.entries.some((e) => e.label === "Shared dinner" && e.shared === 1));
+r = await call("/api/search?" + new URLSearchParams({ q: "zzzz-nothing", type: "", member: "" }));
+ok("search with no match → empty list", r.status === 200 && r.json.entries.length === 0);
+
 console.log(out.join("\n"));

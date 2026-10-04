@@ -18,7 +18,9 @@ final class HBMockServer: URLProtocol {
 
     static func install(seed: String) {
         lock.lock(); defer { lock.unlock() }
-        var s = (try? JSONSerialization.jsonObject(with: Data(HBPreviewData.json.utf8))) as? [String: Any] ?? [:]
+        let together = ["solo", "partner", "family", "joint"].contains(seed)
+        var s = together ? HBPreviewVariants.make(seed) : ((try? JSONSerialization.jsonObject(with: Data(HBPreviewData.json.utf8))) as? [String: Any] ?? [:])
+        s["shopping"] = HBPreviewVariants.shopping
         var goals = s["goals"] as? [[String: Any]] ?? []
         var jar = s["jar"] as? [[String: Any]] ?? []
         func goal(_ name: String, _ emoji: String, _ target: Int, _ saved: Int) -> [String: Any] {
@@ -66,7 +68,9 @@ final class HBMockServer: URLProtocol {
         if method != "GET" && (origin != "https://honeybun.me" || !type.contains("application/json")) {
             status = 403; obj = ["error": "Blocked: not from Honeybun."]
         } else {
-            (status, obj) = Self.handle(method, url.path, body)
+            var query: [String: String] = [:]
+            for item in URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? [] { query[item.name] = item.value ?? "" }
+            (status, obj) = Self.handle(method, url.path, body, query)
         }
         let data = (try? JSONSerialization.data(withJSONObject: obj)) ?? Data("{}".utf8)
         let resp = HTTPURLResponse(url: url, statusCode: status, httpVersion: "HTTP/1.1", headerFields: ["Content-Type": "application/json"])!
@@ -75,13 +79,138 @@ final class HBMockServer: URLProtocol {
         client?.urlProtocolDidFinishLoading(self)
     }
 
+    // Together: household, shared shopping list, settling up, joint account, edit yourself, search. Mirrors src/worker.js.
+    // (called with the lock already held)
+    private static func intDict(_ v: Any?) -> [String: Int] { (v as? [String: Any])?.compactMapValues { ($0 as? NSNumber)?.intValue } ?? [:] }
+
+    private static func handleTogether(_ method: String, _ path: String, _ body: [String: Any], _ query: [String: String]) -> (Int, Any)? {
+        var nest = state["nest"] as? [String: Any] ?? [:]
+        var members = state["members"] as? [[String: Any]] ?? []
+        var entries = state["entries"] as? [[String: Any]] ?? []
+        var settlements = state["settlements"] as? [[String: Any]] ?? []
+        var balances = intDict(state["balances"])
+        var shopping = state["shopping"] as? [[String: Any]] ?? []
+        defer { state["nest"] = nest; state["members"] = members; state["entries"] = entries; state["settlements"] = settlements; state["balances"] = balances; state["shopping"] = shopping }
+        let meID = ((state["me"] as? [String: Any])?["id"] as? String) ?? ""
+        let last = path.split(separator: "/").last.map(String.init) ?? ""
+        func clean(_ v: Any?, _ max: Int) -> String { String(((v as? String) ?? "").trimmingCharacters(in: .whitespaces).prefix(max)) }
+        func newID() -> String { UUID().uuidString.lowercased() }
+
+        if path == "/api/nest" && method == "PATCH" {
+            if body["name"] != nil { nest["name"] = clean(body["name"], 24) }
+            if body["kind"] != nil {
+                let k = body["kind"] as? String ?? ""
+                if !["solo", "couple", "family"].contains(k) { return (400, ["error": "Unknown budget type."]) }
+                nest["kind"] = k
+            }
+            if let j = body["joint"] {
+                let on = (j as? Bool) ?? ((j as? NSNumber)?.boolValue ?? false)
+                if on && (nest["kind"] as? String) != "couple" { return (400, ["error": "Joint account is for couples."]) }
+                nest["joint"] = on ? 1 : 0
+            }
+            return (200, ["ok": true])
+        }
+        if path == "/api/nest/invite" && method == "POST" {
+            let code = String(UUID().uuidString.replacingOccurrences(of: "-", with: "").uppercased().prefix(8))
+            nest["invite_code"] = code
+            return (200, ["ok": true, "invite_code": code])
+        }
+        if path == "/api/me" && method == "PATCH" {
+            if body["name"] != nil {
+                let n = clean(body["name"], 24)
+                if n.isEmpty { return (400, ["error": "Enter a name."]) }
+                if let i = members.firstIndex(where: { ($0["id"] as? String) == meID }) { members[i]["name"] = n }
+                var me = state["me"] as? [String: Any] ?? [:]; me["name"] = n; state["me"] = me
+            }
+            if let e = body["emoji"] as? String {
+                if !HBTogether.emojis.contains(e) { return (400, ["error": "Pick one of the buddies."]) }
+                if let i = members.firstIndex(where: { ($0["id"] as? String) == meID }) { members[i]["emoji"] = e }
+            }
+            if let c = body["color"] as? String {
+                if !HBTogether.colors.contains(c) { return (400, ["error": "Pick one of the colors."]) }
+                if let i = members.firstIndex(where: { ($0["id"] as? String) == meID }) { members[i]["color"] = c }
+            }
+            return (200, ["ok": true])
+        }
+
+        if path == "/api/shopping" && method == "GET" { return (200, ["items": shopping]) }
+        if path == "/api/shopping" && method == "POST" {
+            let label = clean(body["label"], 60)
+            if label.isEmpty { return (400, ["error": "Type what you need."]) }
+            if shopping.count >= 100 { return (400, ["error": "The list is full. Clear the checked items first."]) }
+            let id = newID()
+            shopping.insert(["id": id, "label": label, "added_by": meID, "done": false, "done_by": NSNull()], at: shopping.firstIndex(where: { ($0["done"] as? Bool) == true }) ?? shopping.count)
+            return (201, ["ok": true, "id": id])
+        }
+        if path == "/api/shopping/clear" && method == "POST" { shopping.removeAll { ($0["done"] as? Bool) == true }; return (200, ["ok": true]) }
+        if path == "/api/shopping/checkout" && method == "POST" {
+            guard let amount = cents(body["amount"]) else { return (400, ["error": "Enter an amount more than $0."]) }
+            let shared = members.count > 1 && (nest["joint"] as? Int ?? 0) == 0
+            entries.insert(["id": newID(), "member_id": meID, "type": "expense", "amount_cents": amount, "label": "Groceries", "category": "groc", "shared": shared ? 1 : 0,
+                            "split_mode": "equal", "split_value": NSNull(), "shares": NSNull(), "private": 0, "date": (body["date"] as? String) ?? "2026-10-04",
+                            "recurring_id": NSNull(), "occ_date": NSNull(), "created_at": clock], at: 0)
+            if shared {   // equal split: I paid it all, everyone owes their share
+                let each = amount / members.count
+                for m in members { let id = m["id"] as? String ?? ""; balances[id, default: 0] += (id == meID ? amount - each : -each) }
+            }
+            shopping.removeAll { ($0["done"] as? Bool) == true }
+            return (201, ["ok": true])
+        }
+        if path.hasPrefix("/api/shopping/") {
+            guard let i = shopping.firstIndex(where: { ($0["id"] as? String) == last }) else { return method == "DELETE" ? (200, ["ok": true]) : (404, ["error": "That item is gone."]) }
+            if method == "DELETE" { shopping.remove(at: i); return (200, ["ok": true]) }
+            if method == "PATCH" {
+                if body["label"] != nil && body["done"] == nil {
+                    let label = clean(body["label"], 60)
+                    if label.isEmpty { return (400, ["error": "Type what you need."]) }
+                    shopping[i]["label"] = label
+                } else {
+                    let done = (body["done"] as? Bool) ?? ((body["done"] as? NSNumber)?.boolValue ?? false)
+                    shopping[i]["done"] = done; shopping[i]["done_by"] = done ? meID : NSNull()
+                    let item = shopping.remove(at: i)   // ticked items sink to the bottom, like the website
+                    if done { shopping.append(item) } else { shopping.insert(item, at: shopping.firstIndex(where: { ($0["done"] as? Bool) == true }) ?? shopping.count) }
+                }
+                return (200, ["ok": true])
+            }
+        }
+
+        if path == "/api/settlements" && method == "POST" {
+            let ids = members.compactMap { $0["id"] as? String }
+            let from = body["from_id"] as? String ?? "", to = body["to_id"] as? String ?? ""
+            if !ids.contains(from) || !ids.contains(to) || from == to { return (400, ["error": "Pick who paid who."]) }
+            guard let c = cents(body["amount"]) else { return (400, ["error": "Enter an amount more than $0."]) }
+            clock += 1
+            settlements.insert(["id": newID(), "from_id": from, "to_id": to, "amount_cents": c, "date": (body["date"] as? String) ?? "2026-10-04", "created_at": clock], at: 0)
+            balances[from, default: 0] += c; balances[to, default: 0] -= c
+            return (201, ["ok": true])
+        }
+        if path.hasPrefix("/api/settlements/") && method == "DELETE" {
+            if let i = settlements.firstIndex(where: { ($0["id"] as? String) == last }) {
+                let c = settlements[i]["amount_cents"] as? Int ?? 0
+                balances[settlements[i]["from_id"] as? String ?? "", default: 0] -= c; balances[settlements[i]["to_id"] as? String ?? "", default: 0] += c
+                settlements.remove(at: i)
+            }
+            return (200, ["ok": true])
+        }
+
+        if path == "/api/search" && method == "GET" {
+            let q = (query["q"] ?? "").lowercased(), type = query["type"] ?? "", who = query["member"] ?? ""
+            let hits = entries.filter { e in
+                (q.isEmpty || ((e["label"] as? String) ?? "").lowercased().contains(q)) && (type.isEmpty || (e["type"] as? String) == type) && (who.isEmpty || (e["member_id"] as? String) == who)
+            }
+            return (200, ["entries": hits])
+        }
+        return nil
+    }
+
     private static func cents(_ v: Any?) -> Int? {
         guard let d = (v as? NSNumber)?.doubleValue, d > 0, d <= 100_000_000 else { return nil }
         return Int((d * 100).rounded())
     }
 
-    private static func handle(_ method: String, _ path: String, _ body: [String: Any]) -> (Int, Any) {
+    private static func handle(_ method: String, _ path: String, _ body: [String: Any], _ query: [String: String]) -> (Int, Any) {
         lock.lock(); defer { lock.unlock() }
+        if let r = handleTogether(method, path, body, query) { return r }
         var goals = state["goals"] as? [[String: Any]] ?? []
         var jar = state["jar"] as? [[String: Any]] ?? []
         defer { state["goals"] = goals; state["jar"] = jar }

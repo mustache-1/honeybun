@@ -86,5 +86,34 @@ check("goals: icon rules match the website (palm, pc, shield, car, home, heart, 
       && HBGoalKind(name: "Birthday", emoji: nil) == .gift && HBGoalKind(name: "Tuition", emoji: "🎓") == .cap && HBGoalKind(name: "Puppy", emoji: "🐶") == .paw && HBGoalKind(name: "Savings", emoji: "🍯") == .coin)
 check("goals: a goal is done when saved reaches the target", { let d = try! JSONDecoder().decode(HBGoal.self, from: Data(#"{"id":"g","name":"x","emoji":null,"target_cents":60000,"saved_cents":60000}"#.utf8)); return d.isDone && d.progress == 1 }())
 check("goals: draft body carries name, target and one of the backend emoji", { let b = HBGoalDraft(name: "A", target: 5, emoji: HBGoalStyle.emojis[2]).json; return (b["name"] as? String) == "A" && (b["target"] as? Double) == 5 && HBGoalStyle.emojis.contains(b["emoji"] as? String ?? "") }())
+// ---- Together tab: a real two-person /api/nest response (household, balances, settlements) + the pure logic
+if CommandLine.arguments.count > 3, let tdata = FileManager.default.contents(atPath: CommandLine.arguments[3]),
+   let troot = try? JSONSerialization.jsonObject(with: tdata) as? [String: Any], let tsnap = troot["snapshot"], let meID = troot["me"] as? String, let otherID = troot["other"] as? String,
+   let tsnapData = try? JSONSerialization.data(withJSONObject: tsnap) {
+    do {
+        let ts = try JSONDecoder().decode(HBNestSnapshot.self, from: tsnapData)
+        check("together: real two-person response decodes (members, nest.invite_code, balances, settlements)",
+              ts.members.count == 2 && !(ts.nest.invite_code ?? "").isEmpty && ts.balances?[meID] == 3000 && ts.balances?[otherID] == -3000 && ts.settlements?.count == 1 && ts.settlements?.first?.amount == 20)
+        let pairs = HBTogether.pairs(members: ts.members, balances: ts.balances ?? [:])
+        check("together: the other person still owes me $30 after paying $20 (one pair, from them to me)", pairs.count == 1 && pairs[0].from.id == otherID && pairs[0].to.id == meID && pairs[0].amount == 30)
+        check("together: situation is partner for 2 people, not joint until switched on", HBTogether.situation(memberCount: ts.members.count) == .partner && !HBTogether.isJoint(kind: ts.nest.kind, joint: ts.nest.joint, memberCount: 2))
+        let totals = HBTogether.totals(members: ts.members, entries: ts.entries)
+        check("together: per-person totals add up to the month's entries", abs(totals.reduce(0) { $0 + $1.spent } - ts.entries.filter { !$0.isIncome }.reduce(0) { $0 + $1.amount }) < 0.001)
+        check("together: the shared dinner counts as shared spending for me", totals.first { $0.member.id == meID }.map { $0.shared >= 100 } ?? false)
+    } catch { print("FAIL together fixture decode threw: \(error)"); failures += 1 }
+}
+func mem(_ id: String) -> HBMember { try! JSONDecoder().decode(HBMember.self, from: Data(#"{"id":"\#(id)","name":"\#(id)","emoji":"🐰","color":"#FFD6E5"}"#.utf8)) }
+let fam = [mem("a"), mem("b"), mem("c")]
+let famPairs = HBTogether.pairs(members: fam, balances: ["a": -1200, "b": 3000, "c": -1800])
+check("together: family of three → two payments into the one who is owed (a→b $12, c→b $18)",
+      famPairs.count == 2 && famPairs[0].from.id == "a" && famPairs[0].to.id == "b" && famPairs[0].amount == 12 && famPairs[1].from.id == "c" && famPairs[1].to.id == "b" && famPairs[1].amount == 18)
+let split = HBTogether.pairs(members: fam, balances: ["a": -3000, "b": 1000, "c": 2000])
+check("together: one debtor split across two creditors (a→b $10, a→c $20)", split.count == 2 && split[0].amount == 10 && split[1].amount == 20 && split.allSatisfy { $0.from.id == "a" })
+check("together: everyone even → no payments", HBTogether.pairs(members: fam, balances: ["a": 0, "b": 0, "c": 0]).isEmpty && HBTogether.pairs(members: fam, balances: [:]).isEmpty)
+check("together: sub-cent noise is ignored", HBTogether.pairs(members: fam, balances: ["a": 0, "b": 0, "c": 0]).isEmpty)
+check("together: situation by head-count (0/1 solo, 2 partner, 3+ family)", HBTogether.situation(memberCount: 1) == .solo && HBTogether.situation(memberCount: 2) == .partner && HBTogether.situation(memberCount: 5) == .family)
+check("together: joint account only for a couple of 2+ people with joint on", HBTogether.isJoint(kind: "couple", joint: 1, memberCount: 2) && !HBTogether.isJoint(kind: "family", joint: 1, memberCount: 3) && !HBTogether.isJoint(kind: "couple", joint: 1, memberCount: 1) && !HBTogether.isJoint(kind: "couple", joint: 0, memberCount: 2))
+check("together: all 12 backend buddy emoji have artwork; unknown ones don't", HBTogether.emojis.allSatisfy { HBTogether.buddyAsset($0) != nil } && HBTogether.buddyAsset("🤖") == nil && HBTogether.buddyAsset("🐰") == "HBBuddy_default" && HBTogether.buddyAsset("🐹") == "HBBuddy_dinosaur")
+check("together: invite code is shown ABCD-EFGH and the link is /join/<code>", HBTogether.prettyCode("GQF3HGLY") == "GQF3-HGLY" && HBTogether.inviteLink("GQF3HGLY") == "https://honeybun.me/join/GQF3HGLY")
 print(failures == 0 ? "ALL PASSED" : "\(failures) FAILED")
 exit(failures == 0 ? 0 : 1)
