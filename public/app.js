@@ -407,7 +407,10 @@
     } catch { $("lockMsg").textContent = tr("Couldn't unlock. Try again."); }
     unlocking = false;
   }
-  function lockNow() { if (!BIO || !lockOn() || !ME) return; $("lockOverlay").hidden = false; $("lockMsg").textContent = tr("Use Face ID to open your budget."); tryUnlock(); }
+  function lockNow() {
+    if (!BIO || !lockOn() || !ME) return;
+    try { if (Date.now() - (+sessionStorage.getItem("hb-silent-reload") || 0) < 20000) return; } catch {} // an automatic refresh shouldn't ask for Face ID again
+    $("lockOverlay").hidden = false; $("lockMsg").textContent = tr("Use Face ID to open your budget."); tryUnlock(); }
   if (PUSHP) {
     const row = $("pushRow");
     row.hidden = false;
@@ -3434,6 +3437,12 @@
     if (!v) return;
     if (!APP_VERSION) { APP_VERSION = v; return; }
     if (v !== APP_VERSION) {
+      if (IOS_NATIVE) {
+        // the iPhone app updates itself in the background: refresh quietly, but never while you're in the middle of something
+        const busyNow = document.querySelector("dialog[open]") || (screen === "add" && ($("amt").value || $("lbl").value)) || ["onboard", "setup"].includes(screen);
+        if (!busyNow) { try { sessionStorage.setItem("hb-silent-reload", String(Date.now())); } catch {} location.reload(); }
+        return; // still busy: check again at the next tick
+      }
       // nothing important on screen? just refresh. Otherwise ask nicely.
       if (["loading", "auth", "verify"].includes(screen) && !document.querySelector("dialog[open]")) { location.reload(); return; }
       updateShown = true;
@@ -3442,7 +3451,7 @@
   }
   $("updateNow").onclick = () => location.reload();
   $("updateLater").onclick = () => { $("updateCard").hidden = true; setTimeout(() => { updateShown = false; }, 15 * 60 * 1000); };
-  setTimeout(checkForUpdate, 1500);
+  setTimeout(checkForUpdate, IOS_NATIVE ? 300 : 1500);
   setInterval(checkForUpdate, 30 * 1000); // every 30 seconds
   document.addEventListener("visibilitychange", () => { if (!document.hidden) checkForUpdate(); });
   window.addEventListener("focus", checkForUpdate);
