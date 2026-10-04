@@ -337,7 +337,7 @@ html.hb-hh,html.hb-hh body{background:#0d0911!important}
 .hv-cheer b{display:block;font-size:clamp(16px,4.8vw,18px);font-weight:800;color:#ffd47c}.hv-cheer p{margin:4px 0 0;font-size:13.5px;color:#d6c8e4}
 
 /* ---------------- GOALS ---------------- */
-#hhGoals{display:flex!important;flex-direction:column;min-height:calc(100dvh - var(--hh-t) - var(--hh-padb) - 14px)}
+html.hb-hh #hhGoals{display:flex!important;flex-direction:column;min-height:calc(100dvh - var(--hh-t) - var(--hh-padb) - 14px)}
 .hv-goals{display:flex;flex-direction:column;gap:10px}
 .hv-goal{display:flex;align-items:center;gap:12px;width:100%;padding:12px;border-radius:20px;border:1px solid rgba(255,255,255,.08);background:var(--hh-card);color:#fff;font:inherit;text-align:left;cursor:pointer;box-shadow:0 8px 22px rgba(0,0,0,.4)}
 .hv-goal .hv-goalicon{display:block;width:clamp(46px,14vw,56px);height:clamp(46px,14vw,56px);flex:none}
