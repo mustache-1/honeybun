@@ -97,6 +97,8 @@ jobs:
             run_to 240 xcrun simctl bootstatus "$udid" -b || log "bootstatus gave up"
             xcrun simctl status_bar "$udid" override --time 9:41 --batteryState charged --batteryLevel 100 --wifiBars 3 --cellularBars 4 || true
             run_to 120 xcrun simctl install "$udid" "$APP" || log "install failed"
+            # a throwaway first launch: the first start after an install is slow and sometimes fails to come up
+            xcrun simctl launch "$udid" me.honeybun.app -HBPreview home > /dev/null 2>&1 || true; sleep 10; xcrun simctl terminate "$udid" me.honeybun.app || true
             for screen in ${{ github.event.inputs.screens || 'home money addexp addinc editexp upcoming editbill splash' }}; do
               run_to 60 xcrun simctl launch --terminate-running-process "$udid" me.honeybun.app -HBPreview "$screen" > /dev/null || log "launch $screen failed"
               sleep 6

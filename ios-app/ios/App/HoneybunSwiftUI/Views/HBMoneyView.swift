@@ -58,9 +58,8 @@ struct HBMoneyView: View {
                 }
                 chart
                 categories
-                insight
                 if let n = store.notice { Text(n).font(.footnote).foregroundColor(HB.red).onTapGesture { store.notice = nil } }
-                transactions
+                insight
             }
             .frame(maxWidth: 560)
             .padding(.horizontal, HB.gutter).padding(.top, 8)
@@ -180,31 +179,5 @@ struct HBMoneyView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(LinearGradient(colors: [Color(red: 0.24, green: 0.15, blue: 0.14), Color(red: 0.13, green: 0.09, blue: 0.14)], startPoint: .leading, endPoint: .trailing)))
         .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).stroke(HB.orange.opacity(0.28), lineWidth: 1))
-    }
-
-    private var transactions: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HBSectionHeader(title: "Transactions")
-            if store.entries.isEmpty {
-                Text("Nothing yet this month.").font(.subheadline).foregroundColor(HB.soft).padding(16).frame(maxWidth: .infinity, alignment: .leading).hbCard()
-            }
-            ForEach(store.dayGroups) { group in
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(HBDay.short(group.date)).font(.footnote.weight(.semibold)).foregroundColor(HB.soft).padding(.leading, 4)
-                    VStack(spacing: 0) {
-                        ForEach(Array(group.items.enumerated()), id: \.element.id) { i, e in
-                            if i > 0 { Divider().background(HB.line).padding(.leading, 62) }
-                            Button { store.sheet = .editEntry(e) } label: { HBEntryRow(entry: e, who: store.members.count > 1 ? store.memberName(e.member_id) : nil) }
-                                .buttonStyle(.plain)
-                                .contextMenu {
-                                    Button { store.sheet = .editEntry(e) } label: { Label("Edit", systemImage: "pencil") }
-                                    Button(role: .destructive) { Task { do { try await store.deleteEntry(id: e.id) } catch { store.notice = error.localizedDescription } } } label: { Label("Delete", systemImage: "trash") }
-                                }
-                        }
-                    }
-                    .hbCard()
-                }
-            }
-        }
     }
 }

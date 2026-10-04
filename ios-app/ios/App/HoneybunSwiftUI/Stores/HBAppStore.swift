@@ -2,7 +2,7 @@ import Foundation
 import SwiftUI
 
 enum HBSheet: Identifiable {
-    case newEntry(String), editEntry(HBEntry), editRecurring(HBRecurring), newRecurring, upcoming
+    case newEntry(String), editEntry(HBEntry), editRecurring(HBRecurring), newRecurring, upcoming, allTransactions
     var id: String {
         switch self {
         case let .newEntry(t): return "new-" + t
@@ -10,6 +10,7 @@ enum HBSheet: Identifiable {
         case let .editRecurring(r): return "rec-" + r.id
         case .newRecurring: return "new-rec"
         case .upcoming: return "upcoming"
+        case .allTransactions: return "all-transactions"
         }
     }
 }

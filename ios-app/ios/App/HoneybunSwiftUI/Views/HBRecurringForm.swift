@@ -158,3 +158,47 @@ struct HBUpcomingList: View {
         .preferredColorScheme(.dark)
     }
 }
+
+// Every transaction of the month on screen, grouped by day; tap one to edit or delete it. Opened from "See all" next to Latest.
+@available(iOS 15.0, *)
+struct HBTransactionsList: View {
+    @ObservedObject var store: HBAppStore
+    @Environment(\.dismiss) private var dismiss
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 12) {
+                    HBMonthMenu(store: store)
+                    if store.entries.isEmpty {
+                        Text("Nothing yet this month.").font(.subheadline).foregroundColor(HB.soft).padding(16).frame(maxWidth: .infinity, alignment: .leading).hbCard()
+                    }
+                    ForEach(store.dayGroups) { group in
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(HBDay.short(group.date)).font(.footnote.weight(.semibold)).foregroundColor(HB.soft).padding(.leading, 4)
+                            VStack(spacing: 0) {
+                                ForEach(Array(group.items.enumerated()), id: \.element.id) { i, e in
+                                    if i > 0 { Divider().background(HB.line).padding(.leading, 62) }
+                                    Button { store.sheet = .editEntry(e) } label: { HBEntryRow(entry: e, who: store.members.count > 1 ? store.memberName(e.member_id) : nil) }
+                                        .buttonStyle(.plain)
+                                        .contextMenu {
+                                            Button { store.sheet = .editEntry(e) } label: { Label("Edit", systemImage: "pencil") }
+                                            Button(role: .destructive) { Task { do { try await store.deleteEntry(id: e.id) } catch { store.notice = error.localizedDescription } } } label: { Label("Delete", systemImage: "trash") }
+                                        }
+                                }
+                            }
+                            .hbCard()
+                        }
+                    }
+                    if let n = store.notice { Text(n).font(.footnote).foregroundColor(HB.red).onTapGesture { store.notice = nil } }
+                }
+                .frame(maxWidth: 560).padding(HB.gutter).padding(.bottom, 24).frame(maxWidth: .infinity)
+            }
+            .background(HBBackground(glow: false, scene: false))
+            .navigationTitle("All transactions")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Done") { dismiss() } } }
+        }
+        .navigationViewStyle(.stack)
+        .preferredColorScheme(.dark)
+    }
+}

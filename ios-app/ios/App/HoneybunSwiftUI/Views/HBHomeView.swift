@@ -217,7 +217,7 @@ struct HBHomeView: View {
     private var latest: some View {
         let recent = Array(store.entries.prefix(4))
         return VStack(alignment: .leading, spacing: 8) {
-            HBSectionHeader(title: "Latest", action: "See all") { store.selectedTab = .money }
+            HBSectionHeader(title: "Latest", action: "See all") { store.sheet = .allTransactions }
             VStack(spacing: 0) {
                 if recent.isEmpty {
                     Text("Nothing yet this month. Add your first expense or income.").font(.subheadline).foregroundColor(HB.soft).padding(16)

@@ -23,6 +23,13 @@ struct HBRootView: View {
             if store.phase == .ready { HBTabBar(selected: $store.selectedTab) }
         }
         .onPreferenceChange(HBTabBarHeightKey.self) { tabH = $0 }
+        // scrolling content fades out under the status bar / Dynamic Island instead of colliding with the clock
+        .overlay(alignment: .top) {
+            if store.phase == .ready {
+                LinearGradient(colors: [Color(red: 0.06, green: 0.04, blue: 0.09).opacity(0.94), Color(red: 0.06, green: 0.04, blue: 0.09).opacity(0)], startPoint: .top, endPoint: .bottom)
+                    .frame(height: 34).ignoresSafeArea(edges: .top).allowsHitTesting(false)
+            }
+        }
         .fullScreenCover(item: $store.sheet) { sheet in sheetView(sheet) }
         .task { await store.start() }
         .preferredColorScheme(.dark)
@@ -59,6 +66,7 @@ struct HBRootView: View {
         case .newRecurring: HBRecurringForm(store: store, editing: nil, base: HBRecurringDraft(date: HBDay.todayString, memberID: store.myID))
         case let .editRecurring(r): HBRecurringForm(store: store, editing: r, base: store.draft(from: r))
         case .upcoming: HBUpcomingList(store: store)
+        case .allTransactions: HBTransactionsList(store: store)
         }
     }
 }
