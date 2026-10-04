@@ -1298,7 +1298,7 @@
       </div>
       <div class="hq-h"><h2>${esc(tr("Coming up"))}</h2><button type="button" id="hhPlan">${esc(tr("See all"))} ›</button></div>
       <div class="hq-list">${items.length ? items.map(dueRow).join("") : `<div class="hq-empty"><span>${esc(RECUR.length ? tr("Nothing due soon") + " ♡" : tr("Add rent, bills and paydays once."))}</span><button type="button" id="hhAddBill">${esc(tr("Add"))}</button></div>`}</div>
-      <button type="button" class="hq-streak" id="hhStreak"><img src="/hh-streak-v6.png?v=9" alt="">${flame}<span class="hq-st"><b>${st === 1 ? esc(tr("1 day")) : st + " " + esc(tr("days"))} ${esc(tr("hop streak"))}</b><small>${esc(done ? tr("Keep it going!") : tr("Log today to hop"))} · ${esc(tr("Level"))} ${li.l}</small></span>${chev}</button>
+      <button type="button" class="hq-streak" id="hhStreak"><img src="/hh-streak-portrait.png?v=1" alt="">${flame}<span class="hq-st"><b>${st === 1 ? esc(tr("1 day")) : st + " " + esc(tr("days"))} ${esc(tr("hop streak"))}</b><small>${esc(done ? tr("Keep it going!") : tr("Log today to hop"))} · ${esc(tr("Level"))} ${li.l}</small></span>${chev}</button>
       <div class="hq-h hq-latest-head"><h2>${esc(tr("Latest"))}</h2><button type="button" id="hhAll">${esc(tr("See all"))} ›</button></div>
       <div class="hq-list hq-latest-list">${recent.length ? recent.map(actRow).join("") : `<div class="hq-empty"><span>${esc(tr("Nothing yet. Tap + to add something."))}</span></div>`}</div>`;
     const q = (id) => root.querySelector("#" + id);

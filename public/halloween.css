@@ -588,3 +588,11 @@ html.hb-hh.hb-halloween::before{background:radial-gradient(60% 24% at 88% 6%,rgb
 html.hb-hh #scr-home:not([hidden]){margin-top:0!important;padding-top:0!important}
 html.hb-hh #hhHome .hq-bar{height:15px!important;margin-top:16px!important}
 html.hb-hh #hhHome .hq-foot{margin-top:15px!important}
+/* streak portrait: large circular artwork on the left, naturally cropped by the card */
+html.hb-hh #hhHome .hq-streak{overflow:hidden!important;padding-left:122px!important}
+html.hb-hh #hhHome .hq-streak>img{left:2px!important;bottom:-18px!important;top:auto!important;height:116px!important;width:auto!important;max-width:none!important;filter:none!important;object-fit:contain!important}
+/* Halloween tab icons: soft rounded, lavender, honey when active */
+html.hb-hh nav.bottom .hhn button{color:#b6a8dc!important}
+html.hb-hh nav.bottom .hhn button svg{width:27px!important;height:27px!important}
+html.hb-hh nav.bottom .hhn button[aria-current="page"]{color:#ffb347!important;filter:drop-shadow(0 0 9px rgba(255,160,50,.6))!important}
+html.hb-hh #hhHome .hq-streak{padding-left:134px!important}
