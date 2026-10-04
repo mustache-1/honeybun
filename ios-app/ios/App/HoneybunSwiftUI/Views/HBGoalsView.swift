@@ -46,6 +46,7 @@ struct HBGoalBar: View {
     }
 }
 
+@available(iOS 15.0, *)
 private func hbGoalColor(index: Int, done: Bool) -> Color {
     if done { return HB.orange }
     return index % 3 == 0 ? Color(red: 0.42, green: 0.90, blue: 0.62) : Color(red: 0.62, green: 0.50, blue: 0.98)
