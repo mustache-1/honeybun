@@ -139,8 +139,8 @@ struct HBEntryForm: View {
             Text(title).font(.system(size: 22, weight: .bold)).foregroundColor(.white).frame(height: 44)
         }
         .overlay(alignment: .topTrailing) {
-            Image("HBGoalsPeek").resizable().scaledToFit().frame(width: 118, height: 83)
-                .offset(x: -8, y: -12).allowsHitTesting(false).accessibilityHidden(true)
+            HBPeekBun(width: 118, height: 83)
+                .offset(x: -8, y: -12)
         }
         .zIndex(2)
     }

@@ -260,7 +260,7 @@ struct HBGoalDetail: View {
         .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).stroke(HB.orange.opacity(0.35), lineWidth: 1))
         .overlay(alignment: .topTrailing) {
             // the supplied form-peek-bun.png (381x267, purple witch hat), peeking over the top-right edge of the card
-            Image("HBGoalsPeek").resizable().scaledToFit().frame(width: 124, height: 87).offset(x: -8, y: -73).allowsHitTesting(false).accessibilityHidden(true)
+            HBPeekBun(width: 124, height: 87).offset(x: -8, y: -73)
         }
         .padding(.top, 60)
     }

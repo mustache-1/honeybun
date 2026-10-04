@@ -144,3 +144,25 @@ struct HBMonthMenu: View {
         .accessibilityLabel("Month: \(store.monthTitle(store.month))")
     }
 }
+
+// The peeking witch bunny (form-peek-bun.png) with the soft red-orange halo behind it that the mockup shows, spilling a little onto the card edge.
+// The artwork itself is untouched; the glow is only drawn behind it.
+@available(iOS 15.0, *)
+struct HBPeekBun: View {
+    var width: CGFloat
+    var height: CGFloat
+    var body: some View {
+        ZStack {
+            Ellipse()
+                .fill(RadialGradient(colors: [Color(red: 1.0, green: 0.28, blue: 0.10).opacity(0.46), Color(red: 0.85, green: 0.20, blue: 0.10).opacity(0.20), .clear],
+                                     center: .center, startRadius: 4, endRadius: width * 0.78))
+                .frame(width: width * 1.7, height: height * 1.9)
+                .offset(y: height * 0.12)
+                .blur(radius: 6)
+            Image("HBGoalsPeek").resizable().scaledToFit().frame(width: width, height: height)
+        }
+        .frame(width: width, height: height)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+}
