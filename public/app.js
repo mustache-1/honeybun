@@ -320,6 +320,7 @@
   if (IOS_NATIVE && HBN && HBN.info) {
     HBN.info().then((i) => {
       if (!i || !i.nativeTabs) return;
+      if (window.innerWidth >= 900) return; // iPad: the website's own sidebar layout is used, no phone-style tab bar
       NTABS = true;
       document.documentElement.classList.add("hb-tabs");
       document.documentElement.style.setProperty("--tabs-h", (i.tabsHeight || 83) + "px");
