@@ -11,6 +11,22 @@ import UIKit
     @Published private(set) var trailing: CGFloat = 0
     private var viewportEnd: CGFloat?    // bottom of the area the last item can reach (window y), after the safe-area inset
     private var barTop: CGFloat?         // top edge of the tab bar (window y)
+    weak var scrollView: UIScrollView?   // the screen's scroll view, for the hidden diagnostic below
+
+    /// Hidden diagnostic (long-press "Classic" on Home): the numbers behind the scroll layout, for bug reports.
+    var summary: String {
+        func f(_ v: CGFloat?) -> String { v.map { String(format: "%.1f", Double($0)) } ?? "n/a" }
+        var lines = ["viewport end y: \(f(viewportEnd))", "tab bar top y: \(f(barTop))", "trailing space added: \(f(trailing))"]
+        if let sv = scrollView {
+            let fr = sv.superview?.convert(sv.frame, to: nil) ?? .zero
+            lines.append("scroll view frame: y \(f(fr.minY)) to \(f(fr.maxY))")
+            lines.append("content height: \(f(sv.contentSize.height))")
+            lines.append("offset y: \(f(sv.contentOffset.y)), max y: \(f(sv.contentSize.height - sv.bounds.height + sv.adjustedContentInset.bottom))")
+            lines.append("insets top/bottom: \(f(sv.adjustedContentInset.top)) / \(f(sv.adjustedContentInset.bottom))")
+        }
+        lines.append("screen height: \(f(UIScreen.main.bounds.height)), safe bottom: \(f(HBSafeArea.bottom))")
+        return lines.joined(separator: "\n")
+    }
 
     func setViewportEnd(_ v: CGFloat) { if viewportEnd == nil || abs((viewportEnd ?? 0) - v) > 0.5 { viewportEnd = v; recompute() } }
     func setBarTop(_ v: CGFloat) { if barTop == nil || abs((barTop ?? 0) - v) > 0.5 { barTop = v; recompute() } }
@@ -47,6 +63,7 @@ final class HBProbeView: UIView {
             var v: UIView? = superview
             while let cur = v {
                 if let sv = cur as? UIScrollView {
+                    HBLayoutMetrics.shared.scrollView = sv
                     let frame = sv.superview?.convert(sv.frame, to: nil) ?? .zero
                     HBLayoutMetrics.shared.setViewportEnd(frame.maxY - sv.adjustedContentInset.bottom)
                     return

@@ -46,6 +46,7 @@ struct HBUpcomingRow: View {
 struct HBHomeView: View {
     @ObservedObject var store: HBAppStore
     @ObservedObject private var metrics = HBLayoutMetrics.shared
+    @State private var showDiagnostic = false
     let onClose: () -> Void
 
     var body: some View {
@@ -89,6 +90,8 @@ struct HBHomeView: View {
                 .font(.system(size: 13, weight: .semibold)).foregroundColor(HB.orange.opacity(0.9))
         }
         .accessibilityLabel("Open classic Honeybun")
+        .simultaneousGesture(LongPressGesture(minimumDuration: 0.8).onEnded { _ in showDiagnostic = true })
+        .alert("Layout details", isPresented: $showDiagnostic) { Button("OK", role: .cancel) {} } message: { Text(metrics.summary) }
     }
 
     private func header(heroH: CGFloat, overlap: CGFloat) -> some View {

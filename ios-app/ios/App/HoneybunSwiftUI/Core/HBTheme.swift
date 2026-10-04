@@ -120,4 +120,8 @@ enum HBSafeArea {
         let windows = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.flatMap { $0.windows }
         return (windows.first { $0.isKeyWindow } ?? windows.first)?.safeAreaInsets.top ?? 47
     }
+    static var bottom: CGFloat {
+        let windows = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.flatMap { $0.windows }
+        return (windows.first { $0.isKeyWindow } ?? windows.first)?.safeAreaInsets.bottom ?? 0
+    }
 }
