@@ -596,3 +596,64 @@ html.hb-hh nav.bottom .hhn button{color:#b6a8dc!important}
 html.hb-hh nav.bottom .hhn button svg{width:27px!important;height:27px!important}
 html.hb-hh nav.bottom .hhn button[aria-current="page"]{color:#ffb347!important;filter:drop-shadow(0 0 9px rgba(255,160,50,.6))!important}
 html.hb-hh #hhHome .hq-streak{padding-left:134px!important}
+
+/* ===== V7 full-app Halloween UI pass ===== */
+html.hb-hh #scr-plan .pagehead h1{font-size:0} html.hb-hh #scr-plan .pagehead h1:after{content:"Goals";font-size:28px}
+html.hb-hh #scr-plan .pagehead p{font-size:0} html.hb-hh #scr-plan .pagehead p:after{content:"Small steps. Big things together.";font-size:13px}
+html.hb-hh #scr-stats .pagehead h1{font-size:0} html.hb-hh #scr-stats .pagehead h1:after{content:"Money";font-size:28px}
+html.hb-hh #scr-stats .pagehead p{font-size:0} html.hb-hh #scr-stats .pagehead p:after{content:"Track, plan, and grow together.";font-size:13px}
+html.hb-hh #scr-us .pagehead p{font-size:0} html.hb-hh #scr-us .pagehead p:after{content:"Same goals. Happier habits.";font-size:13px}
+html.hb-hh #scr-inbox .chat-who b{font-size:0} html.hb-hh #scr-inbox .chat-who b:after{content:"Bun Inbox";font-size:20px}
+html.hb-hh #scr-inbox .chat-who small{font-size:0} html.hb-hh #scr-inbox .chat-who small:after{content:"Bills, updates, and helpful tips.";font-size:12px}
+
+html.hb-hh #scr-plan,html.hb-hh #scr-stats,html.hb-hh #scr-us,html.hb-hh #scr-share,html.hb-hh #scr-shop,html.hb-hh #scr-settings,html.hb-hh #scr-inbox,html.hb-hh #scr-add{
+  font-family:"Nunito",-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif!important;color:#fff!important;
+  background:radial-gradient(circle at 88% 4%,rgba(119,57,135,.16),transparent 24%),linear-gradient(180deg,#100916,#0b0710 70%)!important;
+}
+html.hb-hh .pagehead h1{font-family:"Nunito",system-ui,sans-serif!important;font-weight:900!important;letter-spacing:-.5px!important;color:#fff!important}
+html.hb-hh .pagehead p{color:#a99bb8!important;font-weight:600!important}
+html.hb-hh .card,html.hb-hh .panel,html.hb-hh .field,html.hb-hh .search-box,html.hb-hh .chat,html.hb-hh .shop-add{
+  background:linear-gradient(180deg,rgba(45,31,52,.94),rgba(28,19,34,.96))!important;border-color:rgba(255,255,255,.08)!important;box-shadow:0 12px 28px rgba(0,0,0,.28)!important
+}
+html.hb-hh .card,html.hb-hh .panel{border-radius:20px!important}
+html.hb-hh .linkbtn{color:#c1a5d8!important}
+html.hb-hh .go,html.hb-hh .pinkbtn{background:linear-gradient(180deg,#ffc06b,#f49a45)!important;color:#2a1606!important;border:0!important;box-shadow:0 7px 18px rgba(244,154,69,.25)!important;font-weight:900!important}
+html.hb-hh .softbtn,html.hb-hh .dash-add{background:#24192b!important;border-color:#6d4350!important;color:#f5eaf4!important}
+html.hb-hh input,html.hb-hh select,html.hb-hh textarea{background:#17101d!important;color:#fff!important;border-color:#44334e!important}
+html.hb-hh .tabs{background:#281c30!important;border:1px solid rgba(255,255,255,.07)!important}
+html.hb-hh .tabs button[aria-selected="true"],html.hb-hh .plan-tabs button[aria-selected="true"],html.hb-hh .st-tog button[aria-selected="true"]{background:linear-gradient(180deg,#ffc16c,#f6a047)!important;color:#2a1606!important;box-shadow:0 0 18px rgba(246,160,71,.25)!important}
+html.hb-hh .setting-row,html.hb-hh .sh-link{border-color:rgba(255,255,255,.07)!important}
+html.hb-hh .setting-row .sicon,html.hb-hh .sh-link>svg{color:#ffb25d!important}
+html.hb-hh .setting-row .copy small,html.hb-hh .sh-link small,html.hb-hh .hint,html.hb-hh .sub{color:#a99bb8!important}
+
+/* illustrated accents reuse the production transparent art, never baked UI screenshots */
+html.hb-hh #scr-plan:before,html.hb-hh #scr-stats:before,html.hb-hh #scr-us:before,html.hb-hh #scr-settings:before,html.hb-hh #scr-add:before{
+ content:"";position:absolute;pointer-events:none;background:url('/hh-streak-v6.png') center/contain no-repeat;filter:drop-shadow(0 8px 12px rgba(0,0,0,.4));opacity:.96;z-index:0
+}
+html.hb-hh #scr-plan:before{width:118px;height:100px;right:8px;top:54px}
+html.hb-hh #scr-stats:before{width:105px;height:90px;right:8px;top:58px}
+html.hb-hh #scr-us:before{width:112px;height:96px;right:8px;top:54px}
+html.hb-hh #scr-settings:before{width:92px;height:80px;right:12px;top:58px}
+html.hb-hh #scr-add:before{width:86px;height:74px;right:14px;top:46px}
+html.hb-hh #scr-plan>*,html.hb-hh #scr-stats>*,html.hb-hh #scr-us>*,html.hb-hh #scr-settings>*,html.hb-hh #scr-add>*{position:relative;z-index:1}
+
+@media(max-width:899px){
+ html.hb-hh #scr-plan,html.hb-hh #scr-stats,html.hb-hh #scr-us,html.hb-hh #scr-share,html.hb-hh #scr-shop,html.hb-hh #scr-settings,html.hb-hh #scr-inbox,html.hb-hh #scr-add{padding-bottom:118px!important;min-height:100dvh!important}
+ html.hb-hh .pagehead{padding-top:10px!important;margin-bottom:14px!important;min-height:72px}
+ html.hb-hh .pagehead h1{font-size:26px!important;line-height:1.05!important;margin-bottom:4px!important}
+ html.hb-hh .pagehead p{font-size:12px!important}
+ html.hb-hh #scr-plan .pagehead h1:after,html.hb-hh #scr-stats .pagehead h1:after{font-size:26px!important}
+ html.hb-hh #scr-plan .grid2,html.hb-hh #scr-us .grid2,html.hb-hh #scr-settings .grid2{gap:12px!important}
+ html.hb-hh #scr-plan .blk,html.hb-hh #scr-us .blk,html.hb-hh #scr-settings .blk{margin-bottom:4px!important}
+ html.hb-hh #scr-add .add-bun{display:none!important}
+ html.hb-hh #scr-add .tabs{margin-top:64px!important;border-radius:16px!important;padding:3px!important}
+ html.hb-hh #scr-add .bigamt{font-weight:900!important;color:#fff!important}
+ html.hb-hh #scr-add .field{border-radius:17px!important;padding:13px!important}
+ html.hb-hh #scr-inbox .chat-head{background:transparent!important;border:0!important;padding-top:12px!important}
+ html.hb-hh #scr-inbox .chat-av img{content:url('/hh-streak-v6.png');object-fit:contain!important}
+ html.hb-hh #scr-inbox .quick-replies button{background:#291c31!important;color:#f6eaf5!important;border-color:#51385d!important}
+ html.hb-hh #scr-settings .setting-row{min-height:58px!important}
+ html.hb-hh nav.bottom>.hhn{background:linear-gradient(180deg,rgba(47,32,56,.98),rgba(28,19,34,.98))!important;border:1px solid rgba(255,255,255,.09)!important;box-shadow:0 12px 30px rgba(0,0,0,.45)!important}
+ html.hb-hh nav.bottom .hhn button{color:#aa9abc!important}
+ html.hb-hh nav.bottom .hhn button[aria-current="page"]{color:#ffb25d!important}
+}
