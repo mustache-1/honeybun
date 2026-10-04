@@ -37,9 +37,10 @@ enum HBPreview {
         case "goaledit": if let g = snap.goals.first { s.sheet = .goalForm(g.id) }
         case "money": s.selectedTab = .money
         case "inbox": s.selectedTab = .inbox; s.seedPreviewInbox("mixed")
-        case "inboxupdates": s.selectedTab = .inbox; s.seedPreviewInbox("mixed")
+        case "inboxupdates": s.selectedTab = .inbox; s.seedPreviewInbox("mixed"); s.previewInboxTab = "updates"
+        case "inboxshared": s.selectedTab = .inbox; s.seedPreviewInbox("mixed"); s.previewInboxTab = "shared"
         case "inboxempty": s.selectedTab = .inbox; s.seedPreviewInbox("empty")
-        case "inboxend": s.selectedTab = .inbox; s.seedPreviewInbox("long"); s.previewScrollToEnd = true
+        case "inboxend": s.selectedTab = .inbox; s.seedPreviewInbox("long"); s.previewScrollToEnd = true; s.previewInboxTab = "updates"
         case "inboxcarry": s.selectedTab = .inbox; s.seedPreviewInbox("mixed"); s.sheet = .carry
         case "together", "togethersolo", "togetherfamily", "togetherjoint": s.selectedTab = .together; s.seedPreviewShopping()
         case "togetherend", "togethersoloend", "togetherfamilyend", "togetherjointend": s.selectedTab = .together; s.previewScrollToEnd = true; s.seedPreviewShopping()

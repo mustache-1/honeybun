@@ -62,6 +62,7 @@ enum HBTab: String, CaseIterable { case home = "Home", money = "Money", goals = 
     }
     private(set) var isPreview = false
     #if DEBUG
+    var previewInboxTab: String?
     /// debug screenshots only: a sample inbox ("mixed", "long" or "empty")
     func seedPreviewInbox(_ kind: String) {
         guard let snap = snapshot else { return }

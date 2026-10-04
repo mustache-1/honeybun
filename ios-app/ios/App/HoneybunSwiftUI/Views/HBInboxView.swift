@@ -36,6 +36,7 @@ struct HBInboxView: View {
             await store.markInboxRead()
         }
         #if DEBUG
+        .onAppear { if let t = store.previewInboxTab, let v = HBInboxTab.allCases.first(where: { $0.rawValue.lowercased() == t }) { tab = v } }
         .onAppear { if store.previewScrollToEnd { DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { proxy.scrollTo("hb-end", anchor: .bottom) } } }
         #endif
         }
