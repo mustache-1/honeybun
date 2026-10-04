@@ -5,7 +5,6 @@ import SwiftUI
 struct HBRootView: View {
     @StateObject private var store: HBAppStore
     let onClose: () -> Void
-    @State private var tabH: CGFloat = 80   // measured height of the floating tab bar
 
     init(store: HBAppStore? = nil, onClose: @escaping () -> Void) {
         HBFonts.register()
@@ -16,13 +15,13 @@ struct HBRootView: View {
     var body: some View {
         ZStack {
             HBBackground()
-            content
+            // The tab bar is part of the layout, not an overlay: the screen above it ends where the bar begins (with a gap), so no content
+            // is ever hidden under it and the last item always scrolls fully clear. The bar sits in the bottom safe area on every iPhone.
+            VStack(spacing: HB.barGap) {
+                content
+                if store.phase == .ready { HBTabBar(selected: $store.selectedTab) }
+            }
         }
-        // the tab bar is a persistent overlay in the bottom safe area; screens get its measured height as their bottom inset (below)
-        .overlay(alignment: .bottom) {
-            if store.phase == .ready { HBTabBar(selected: $store.selectedTab) }
-        }
-        .onPreferenceChange(HBTabBarHeightKey.self) { tabH = $0 }
         // scrolling content fades out under the status bar / Dynamic Island instead of colliding with the clock
         .overlay(alignment: .top) {
             if store.phase == .ready {
@@ -51,13 +50,12 @@ struct HBRootView: View {
                           primary: ("Try again", { Task { await store.start() } }), secondary: ("Open classic Honeybun", onClose))
         case .ready:
             switch store.selectedTab {
-            case .home: HBHomeView(store: store, bottomInset: tabH + 16, onClose: onClose)
-            case .money: HBMoneyView(store: store, bottomInset: tabH + 16)
+            case .home: HBHomeView(store: store, onClose: onClose)
+            case .money: HBMoneyView(store: store)
             default:
                 HBMessageView(title: "\(store.selectedTab.rawValue) isn't native yet",
                               message: "This screen is still the classic Honeybun. Nothing is lost: it uses the same account and data.",
                               primary: ("Open classic Honeybun", onClose))
-                    .padding(.bottom, tabH)
             }
         }
     }

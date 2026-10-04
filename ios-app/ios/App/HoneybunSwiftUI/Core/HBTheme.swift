@@ -12,6 +12,8 @@ enum HB {
     static let soft = Color.white.opacity(0.62)
     static let line = Color.white.opacity(0.09)
     static let gutter: CGFloat = 16
+    /// space between the bottom of a screen and the floating tab bar
+    static let barGap: CGFloat = 18
 }
 
 @available(iOS 15.0, *)

@@ -6,7 +6,6 @@ private struct HBBucket: Identifiable { let id: Int; let spent: Double; let last
 @available(iOS 15.0, *)
 struct HBMoneyView: View {
     @ObservedObject var store: HBAppStore
-    var bottomInset: CGFloat = 96   // room under the last item for the floating tab bar
     @State private var showAllCategories = false
 
     // MARK: derived from the store
@@ -64,7 +63,7 @@ struct HBMoneyView: View {
             .frame(maxWidth: 560)
             .padding(.horizontal, HB.gutter).padding(.top, 8)
             .frame(maxWidth: .infinity)
-            Color.clear.frame(height: bottomInset).id("hb-end")   // the last card scrolls completely above the tab bar
+            Color.clear.frame(height: 1).id("hb-end")
         }
         .refreshable { await store.refresh() }
         #if DEBUG

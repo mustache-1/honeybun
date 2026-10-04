@@ -57,12 +57,6 @@ struct HBEntryRow: View {
     }
 }
 
-// The tab bar reports its own height so every scrolling screen can leave exactly that much room under its last item.
-struct HBTabBarHeightKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = max(value, nextValue()) }
-}
-
 // The Honeybun bottom bar: a rounded floating bar with the selected tab glowing orange. It sits in the safe area, so it clears the home indicator
 // on every iPhone and the content scrolls behind/above it.
 @available(iOS 15.0, *)
@@ -102,7 +96,6 @@ struct HBTabBar: View {
         .overlay(RoundedRectangle(cornerRadius: 30, style: .continuous).stroke(Color.white.opacity(0.10), lineWidth: 1))
         .shadow(color: .black.opacity(0.5), radius: 14, y: 6)
         .padding(.horizontal, 12).padding(.top, 6).padding(.bottom, 4)
-        .background(GeometryReader { g in Color.clear.preference(key: HBTabBarHeightKey.self, value: g.size.height) })
     }
 }
 

@@ -45,7 +45,6 @@ struct HBUpcomingRow: View {
 @available(iOS 15.0, *)
 struct HBHomeView: View {
     @ObservedObject var store: HBAppStore
-    var bottomInset: CGFloat = 96   // room under the last item for the floating tab bar
     let onClose: () -> Void
 
     var body: some View {
@@ -69,7 +68,7 @@ struct HBHomeView: View {
                 .frame(maxWidth: 560)
                 .padding(.horizontal, HB.gutter).padding(.top, 4)
                 .frame(maxWidth: .infinity)
-                Color.clear.frame(height: bottomInset).id("hb-end")   // the last card scrolls completely above the tab bar
+                Color.clear.frame(height: 1).id("hb-end")
             }
             .refreshable { await store.refresh() }
             #if DEBUG
