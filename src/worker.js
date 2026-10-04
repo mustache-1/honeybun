@@ -73,7 +73,7 @@ const TABLES = [
 const NEW_COLUMNS = {
   users: [["recovery_hash", "TEXT"], ["email_verified", "INTEGER NOT NULL DEFAULT 0"], ["tz", "TEXT"], ["lang", "TEXT NOT NULL DEFAULT 'en'"],
     ["mail_bills", "INTEGER NOT NULL DEFAULT 1"], ["mail_streak", "INTEGER NOT NULL DEFAULT 1"], ["mail_weekly", "INTEGER NOT NULL DEFAULT 1"],
-    ["last_bill_mail", "TEXT"], ["last_streak_mail", "TEXT"], ["last_week_mail", "TEXT"], ["unsub_token", "TEXT"], ["last_bill_push", "TEXT"], ["last_streak_push", "TEXT"], ["last_tip_push", "TEXT"], ["ref_code", "TEXT"], ["referred_by", "TEXT"]],
+    ["last_bill_mail", "TEXT"], ["last_streak_mail", "TEXT"], ["last_week_mail", "TEXT"], ["unsub_token", "TEXT"], ["last_bill_push", "TEXT"], ["last_streak_push", "TEXT"], ["last_tip_push", "TEXT"], ["ref_code", "TEXT"], ["referred_by", "TEXT"], ["apple_sub", "TEXT"], ["pw_known", "INTEGER NOT NULL DEFAULT 1"]],
   entries: [["split_mode", "TEXT"], ["split_value", "INTEGER"], ["shares", "TEXT"], ["private", "INTEGER NOT NULL DEFAULT 0"], ["recurring_id", "TEXT"], ["occ_date", "TEXT"]],
   members: [["setup_done", "INTEGER NOT NULL DEFAULT 1"], ["xp", "INTEGER NOT NULL DEFAULT 0"], ["streak", "INTEGER NOT NULL DEFAULT 0"],
     ["best_streak", "INTEGER NOT NULL DEFAULT 0"], ["last_day", "TEXT"], ["day_xp", "INTEGER NOT NULL DEFAULT 0"],
@@ -107,6 +107,7 @@ async function migrate(env) {
     env.DB.prepare("UPDATE jar_moves SET goal_id = (SELECT g.id FROM goals g WHERE g.nest_id = jar_moves.nest_id ORDER BY g.created_at LIMIT 1) WHERE goal_id IS NULL"),
     env.DB.prepare("UPDATE nests SET goals_migrated = 1 WHERE goals_migrated = 0"),
     env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_ref ON users(ref_code)"),
+    env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_apple ON users(apple_sub)"),
   ]);
 }
 
@@ -778,6 +779,48 @@ async function budgetCarry(env, nestId, userId, month) {
   return carry;
 }
 
+// ---------- Sign in with Apple ----------
+const APPLE_ISS = "https://appleid.apple.com";
+let appleKeysCache = null, appleKeysAt = 0;
+const sha256hex = async (text) => Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", enc.encode(text)))).map((b) => b.toString(16).padStart(2, "0")).join("");
+async function appleKeys(env, force) {
+  if (env.APPLE_TEST_JWKS) return JSON.parse(env.APPLE_TEST_JWKS).keys; // tests only: never set in production
+  if (!force && appleKeysCache && Date.now() - appleKeysAt < 3600_000) return appleKeysCache;
+  const res = await fetch(env.APPLE_JWKS_URL || (APPLE_ISS + "/auth/keys"));
+  if (!res.ok) throw new HttpError("Apple sign-in is unavailable right now. Try again.", 503);
+  appleKeysCache = (await res.json()).keys || []; appleKeysAt = Date.now();
+  return appleKeysCache;
+}
+async function verifyAppleToken(env, token, rawNonce) {
+  const parts = token.split(".");
+  if (parts.length !== 3) throw new HttpError("Apple sign-in failed. Try again.", 401);
+  const header = JSON.parse(new TextDecoder().decode(fromB64u(parts[0]))), claims = JSON.parse(new TextDecoder().decode(fromB64u(parts[1])));
+  if (header.alg !== "RS256") throw new HttpError("Apple sign-in failed. Try again.", 401);
+  let jwk = (await appleKeys(env, false)).find((k) => k.kid === header.kid);
+  if (!jwk) jwk = (await appleKeys(env, true)).find((k) => k.kid === header.kid); // Apple rotated its keys
+  if (!jwk) throw new HttpError("Apple sign-in failed. Try again.", 401);
+  const key = await crypto.subtle.importKey("jwk", { kty: jwk.kty, n: jwk.n, e: jwk.e, alg: "RS256", ext: true }, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["verify"]);
+  const good = await crypto.subtle.verify("RSASSA-PKCS1-v1_5", key, fromB64u(parts[2]), enc.encode(parts[0] + "." + parts[1]));
+  const audOk = Array.isArray(claims.aud) ? claims.aud.includes(env.APPLE_CLIENT_ID) : claims.aud === env.APPLE_CLIENT_ID;
+  if (!good || claims.iss !== APPLE_ISS || !audOk || !claims.sub || Number(claims.exp) < now() || Number(claims.iat) > now() + 300
+      || !claims.nonce || claims.nonce !== (await sha256hex(rawNonce)))
+    throw new HttpError("Apple sign-in failed. Try again.", 401);
+  return claims;
+}
+// revoke the Sign in with Apple link when an account is deleted (needs the Apple key: APPLE_TEAM_ID, APPLE_KEY_ID, APPLE_PRIVATE_KEY)
+async function revokeApple(env, authorizationCode) {
+  if (!env.APPLE_TEAM_ID || !env.APPLE_KEY_ID || !env.APPLE_PRIVATE_KEY || !env.APPLE_CLIENT_ID) return;
+  const pem = String(env.APPLE_PRIVATE_KEY).replace(/-----[A-Z ]+-----/g, "").replace(/\\n|\s/g, "");
+  const key = await crypto.subtle.importKey("pkcs8", Uint8Array.from(atob(pem), (c) => c.charCodeAt(0)), { name: "ECDSA", namedCurve: "P-256" }, false, ["sign"]);
+  const head = b64u(enc.encode(JSON.stringify({ alg: "ES256", kid: env.APPLE_KEY_ID }))), iat = now();
+  const body = b64u(enc.encode(JSON.stringify({ iss: env.APPLE_TEAM_ID, iat, exp: iat + 300, aud: APPLE_ISS, sub: env.APPLE_CLIENT_ID })));
+  const secret = head + "." + body + "." + b64u(await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, key, enc.encode(head + "." + body)));
+  const form = (o) => new URLSearchParams(o).toString(), hdr = { "content-type": "application/x-www-form-urlencoded" };
+  const tok = await (await fetch(APPLE_ISS + "/auth/token", { method: "POST", headers: hdr, body: form({ client_id: env.APPLE_CLIENT_ID, client_secret: secret, code: authorizationCode, grant_type: "authorization_code" }) })).json();
+  const t = tok.refresh_token || tok.access_token;
+  if (t) await fetch(APPLE_ISS + "/auth/revoke", { method: "POST", headers: hdr, body: form({ client_id: env.APPLE_CLIENT_ID, client_secret: secret, token: t, token_type_hint: tok.refresh_token ? "refresh_token" : "access_token" }) });
+}
+
 // ---------- passkeys (WebAuthn, no library) ----------
 const derToRaw = (der) => { // ECDSA DER signature -> raw r||s (64 bytes)
   const b = new Uint8Array(der); let i = 2; const out = new Uint8Array(64);
@@ -877,7 +920,7 @@ async function handle(request, env, url) {
       throw new HttpError(username ? "That username is taken. Try another one." : "An account with that email already exists. Log in instead.", 409);
     const id = crypto.randomUUID(), lang = LANGS.includes(body.lang) ? body.lang : "en";
     const code = username ? newRecoveryCode() : null;
-    await env.DB.prepare("INSERT INTO users (id, email, name, pw, lang, created_at, recovery_hash) VALUES (?, ?, ?, ?, ?, ?, ?)").bind(id, email, name, await hashPassword(password), lang, now(), code ? await sha256(recoveryKey(code)) : null).run();
+    await env.DB.prepare("INSERT INTO users (id, email, name, pw, lang, created_at, recovery_hash, pw_known) VALUES (?, ?, ?, ?, ?, ?, ?, ?)").bind(id, email, name, await hashPassword(password), lang, now(), code ? await sha256(recoveryKey(code)) : null, body.passkey ? 0 : 1).run();
     try { if (body.ref) await recordReferral(env, request, { id, name }, body.ref); await rememberDevices(env, request, id); } catch (e) { console.error("referral failed", e.message); }
     if (!username) { try { await sendVerify(env, { id, email, name, lang }, appUrl); } catch (e) { console.error("verify email failed", e.message); } }
     return json({ ok: true, ...(code ? { recovery_code: code } : {}) }, 201, { "set-cookie": await createSession(env, id) });
@@ -1050,7 +1093,7 @@ async function handle(request, env, url) {
     return json({ month: ym, name: nest?.name || "Honeybun", kind: nest?.kind || "couple", income: (sum.income || 0) / 100, spent: (sum.expense || 0) / 100, left: ((sum.income || 0) - (sum.expense || 0)) / 100, next });
   }
 
-  if (path === "/api/auth/config" && method === "GET") return json({ google: env.GOOGLE_CLIENT_ID || null });
+  if (path === "/api/auth/config" && method === "GET") return json({ apple: !!env.APPLE_CLIENT_ID });
 
   // Forgot your password and you have no email? The recovery code from sign-up sets a new one (and gives you a fresh code).
   if (path === "/api/password/recover" && method === "POST") {
@@ -1070,29 +1113,35 @@ async function handle(request, env, url) {
     return json({ ok: true, recovery_code: code }, 200, { "set-cookie": await createSession(env, u.id) });
   }
 
-  // Sign in with Google: the page hands us Google's signed ID token and we check it with Google.
-  if (path === "/api/auth/google" && method === "POST") {
-    if (!env.GOOGLE_CLIENT_ID) throw new HttpError("Google sign-in isn't set up yet.", 503);
-    if (await limited(env, "google:" + ip, 30, 3600)) throw new HttpError("Too many tries. Try again in an hour.", 429);
-    await recordAttempt(env, "google:" + ip);
-    const credential = String(body.credential || "");
-    if (credential.length < 100 || credential.length > 4000) throw new HttpError("Google sign-in failed. Try again.", 400);
-    const res = await fetch((env.GOOGLE_TOKENINFO_URL || "https://oauth2.googleapis.com/tokeninfo") + "?id_token=" + encodeURIComponent(credential));
-    const info = res.ok ? await res.json().catch(() => null) : null;
-    if (!info || info.aud !== env.GOOGLE_CLIENT_ID || !["accounts.google.com", "https://accounts.google.com"].includes(info.iss)
-        || String(info.email_verified) !== "true" || !info.email || Number(info.exp) < now())
-      throw new HttpError("Google sign-in failed. Try again.", 401);
-    const email = String(info.email).toLowerCase();
-    let user = await env.DB.prepare("SELECT id FROM users WHERE email = ?").bind(email).first();
-    if (user) {
-      await env.DB.prepare("UPDATE users SET email_verified = 1 WHERE id = ?").bind(user.id).run(); // Google already confirmed this address
-    } else {
-      const id = crypto.randomUUID(), lang = LANGS.includes(body.lang) ? body.lang : "en", name = cleanText(info.given_name || info.name || email.split("@")[0], 24) || "Friend";
-      await env.DB.prepare("INSERT INTO users (id, email, name, pw, lang, created_at, email_verified) VALUES (?, ?, ?, ?, ?, ?, 1)").bind(id, email, name, await hashPassword(randomToken()), lang, now()).run();
-      try { if (body.ref) await recordReferral(env, request, { id, name }, body.ref); await rememberDevices(env, request, id); } catch (e) { console.error("referral failed", e.message); }
-      user = { id };
+  // Sign in with Apple (the iPhone app): the app hands us Apple's signed identity token plus the secret it hashed into the request's nonce.
+  // We verify Apple's signature, audience, expiry and nonce ourselves, then start the very same __Host-hb session as every other login.
+  if (path === "/api/auth/apple" && method === "POST") {
+    if (!env.APPLE_CLIENT_ID) throw new HttpError("Apple sign-in isn't set up yet.", 503);
+    if (await limited(env, "apple:" + ip, 30, 3600)) throw new HttpError("Too many tries. Try again in an hour.", 429);
+    await recordAttempt(env, "apple:" + ip);
+    const token = String(body.identity_token || ""), nonce = String(body.nonce || "");
+    if (token.length < 100 || token.length > 4000 || nonce.length < 8 || nonce.length > 200) throw new HttpError("Apple sign-in failed. Try again.", 400);
+    let claims;
+    try { claims = await verifyAppleToken(env, token, nonce); }
+    catch (e) { if (e instanceof HttpError) throw e; throw new HttpError("Apple sign-in failed. Try again.", 401); }
+    const claimed = String(claims.email || "").toLowerCase();
+    // only a real, Apple-verified address that is not a private relay counts as "their email"
+    const realEmail = isEmail(claimed) && String(claims.email_verified) === "true" && String(claims.is_private_email) !== "true" && !claimed.endsWith("@privaterelay.appleid.com") ? claimed : "";
+    let user = await env.DB.prepare("SELECT id FROM users WHERE apple_sub = ?").bind(claims.sub).first(), created = false;
+    if (!user && realEmail) {
+      const existing = await env.DB.prepare("SELECT id FROM users WHERE email = ? AND apple_sub IS NULL").bind(realEmail).first();
+      if (existing) { await env.DB.prepare("UPDATE users SET apple_sub = ?, email_verified = 1 WHERE id = ?").bind(claims.sub, existing.id).run(); user = existing; } // Apple confirmed this address
     }
-    return json({ ok: true }, 200, { "set-cookie": await createSession(env, user.id) });
+    if (!user) {
+      const id = crypto.randomUUID(), lang = LANGS.includes(body.lang) ? body.lang : "en";
+      const name = cleanText(body.name, 24) || cleanText(realEmail.split("@")[0], 24) || "Friend";
+      const email = realEmail || `a_${(await sha256(claims.sub)).replace(/[^a-z0-9]/gi, "").toLowerCase().slice(0, 16)}@${USERNAME_DOMAIN}`;
+      await env.DB.prepare("INSERT INTO users (id, email, name, pw, lang, created_at, email_verified, apple_sub, pw_known) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)")
+        .bind(id, email, name, await hashPassword(randomToken()), lang, now(), realEmail ? 1 : 0, claims.sub).run();
+      try { if (body.ref) await recordReferral(env, request, { id, name }, body.ref); await rememberDevices(env, request, id); } catch (e) { console.error("referral failed", e.message); }
+      user = { id }; created = true;
+    }
+    return json({ ok: true, created }, created ? 201 : 200, { "set-cookie": await createSession(env, user.id) });
   }
 
   // ===== signed in =====
@@ -1118,9 +1167,9 @@ async function handle(request, env, url) {
     try { await rememberDevices(env, request, user.id); } catch (e) { console.error("device", e.message); }
     let ref = null; try { ref = await referralSummary(env, user.id); } catch (e) { console.error("ref summary", e.message); }
     const m = await membership(env, user.id);
-    const u = await env.DB.prepare("SELECT email_verified, tz, lang, mail_bills, mail_streak, mail_weekly FROM users WHERE id = ?").bind(user.id).first();
+    const u = await env.DB.prepare("SELECT email_verified, tz, lang, mail_bills, mail_streak, mail_weekly, apple_sub, pw_known FROM users WHERE id = ?").bind(user.id).first();
     const k = await env.DB.prepare("SELECT created_at, last_used, uses FROM api_keys WHERE user_id = ?").bind(user.id).first();
-    return json({ user: { ...me, verified: !!u.email_verified, has_email: hasRealEmail(user.email), tz: u.tz, lang: u.lang, mail: { bills: !!u.mail_bills, streak: !!u.mail_streak, weekly: !!u.mail_weekly },
+    return json({ user: { ...me, verified: !!u.email_verified, has_email: hasRealEmail(user.email), apple: !!u.apple_sub, has_password: u.pw_known !== 0, tz: u.tz, lang: u.lang, mail: { bills: !!u.mail_bills, streak: !!u.mail_streak, weekly: !!u.mail_weekly },
       shortcut: k ? { created_at: k.created_at, last_used: k.last_used, uses: k.uses } : null, ref }, nest_id: m ? m.nest_id : null });
   }
 
@@ -1330,8 +1379,15 @@ async function handle(request, env, url) {
 
   if (path === "/api/account/delete" && method === "POST") {
     if (await limited(env, "delete:" + user.id, 5, 900)) throw new HttpError("Too many tries. Wait 15 minutes.", 429);
-    const row = await env.DB.prepare("SELECT pw FROM users WHERE id = ?").bind(user.id).first();
-    if (!(await verifyPassword(String(body.password ?? ""), row.pw))) { await recordAttempt(env, "delete:" + user.id); throw new HttpError("That password is wrong."); }
+    const row = await env.DB.prepare("SELECT pw, pw_known, apple_sub FROM users WHERE id = ?").bind(user.id).first();
+    if (row.pw_known === 0) {
+      // no password to type (Sign in with Apple / passkey): confirm in words, and only right after a fresh login
+      if (body.confirm !== "DELETE") throw new HttpError("Type DELETE to confirm.");
+      const sess = await env.DB.prepare("SELECT expires_at FROM sessions WHERE token_hash = ?").bind(user.session).first();
+      if (!sess || now() - (sess.expires_at - SESSION_DAYS * 86400) > 600) throw new HttpError("For your safety, log in again, then delete your account right away.", 403);
+    } else if (!(await verifyPassword(String(body.password ?? ""), row.pw))) { await recordAttempt(env, "delete:" + user.id); throw new HttpError("That password is wrong."); }
+    // Apple wants the Sign in with Apple link revoked when the account goes away (only possible when the Apple key is configured)
+    if (row.apple_sub && body.apple_authorization_code) { try { await revokeApple(env, String(body.apple_authorization_code)); } catch (e) { console.error("apple revoke failed", e.message); } }
     const m = await membership(env, user.id);
     const stmts = [];
     if (m) {
@@ -1982,6 +2038,11 @@ export default {
     if (url.pathname === "/download/windows/version") return windowsVersion();
     if (url.pathname === "/download/windows" || url.pathname === "/download/windows/") return downloadWindows(request);
     if (url.pathname === "/manifest.webmanifest") return seasonalManifest(request, env);
+    // lets the iPhone app use honeybun.me passkeys (webcredentials); needs APPLE_TEAM_ID in the site's variables
+    if (url.pathname === "/.well-known/apple-app-site-association") {
+      if (!env.APPLE_TEAM_ID) return new Response("Not found", { status: 404 });
+      return new Response(JSON.stringify({ webcredentials: { apps: [env.APPLE_TEAM_ID + ".me.honeybun.app"] } }), { headers: { "content-type": "application/json", "cache-control": "public, max-age=3600" } });
+    }
     if (!url.pathname.startsWith("/api/")) return env.ASSETS.fetch(request);
 
     // CSRF protection: changes must come from our own site, as JSON

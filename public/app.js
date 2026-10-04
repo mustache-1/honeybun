@@ -564,7 +564,7 @@
     setAuthMode(authMode);
     show("auth");
   }
-  let idMode = "user", googleOn = false; // sign-up asks for a username or an email
+  let idMode = "user"; // sign-up asks for a username or an email
   function setAuthMode(m) {
     authMode = m;
     const signup = m === "signup", useEmail = signup && idMode === "email";
@@ -581,8 +581,7 @@
     $("authBtn").textContent = tr(signup ? "Create my budget" : "Log in");
     const pk = signup && hasPasskeys();
     $("passkeyCreate").hidden = !pk;
-    $("googleBtn").hidden = !googleOn || IOS_NATIVE; // Google blocks in-app browsers, and Apple wants Sign in with Apple next to any other third-party login
-    $("orRow").hidden = !(pk || (googleOn && !IOS_NATIVE));
+    $("orRow").hidden = !pk;
     $("passkeyWrap").hidden = $("passkeyLogin").hidden = !(m === "login" && hasPasskeys());
     $("authErr").textContent = "";
   }
@@ -656,25 +655,6 @@
     } finally { busy($("passkeyCreate"), false); }
   };
 
-  // Sign in with Google (only when the site has a Google client id set)
-  async function setupGoogle() {
-    try {
-      const cfg = await api("/api/auth/config");
-      if (!cfg.google) return;
-      await new Promise((ok, no) => { const sc = document.createElement("script"); sc.src = "https://accounts.google.com/gsi/client"; sc.async = true; sc.onload = ok; sc.onerror = no; document.head.appendChild(sc); });
-      google.accounts.id.initialize({
-        client_id: cfg.google, ux_mode: "popup",
-        callback: async (resp) => {
-          $("authErr").textContent = tr("Signing you in…");
-          try { await api("/api/auth/google", { method: "POST", body: { credential: resp.credential, lang: LANG, ...(pendingRef() ? { ref: pendingRef() } : {}) } }); store.set("hb-ref", ""); await afterAuth(); $("authErr").textContent = ""; }
-          catch (e) { $("authErr").textContent = e.message || tr("Google sign-in failed. Try again."); }
-        },
-      });
-      google.accounts.id.renderButton($("googleBtn"), { theme: "filled_black", size: "large", text: "continue_with", shape: "pill", width: Math.min(340, Math.max(220, ($("authCard").clientWidth || 340) - 36)), logo_alignment: "center" });
-      googleOn = true; setAuthMode(authMode);
-    } catch {}
-  }
-  setupGoogle();
 
   // forgot your password without an email: use the recovery code
   const linkRecover = () => { $("authCard").hidden = true; $("forgotCard").hidden = true; $("recoverCard").hidden = false; $("rcErr").textContent = ""; $("rcUser").value = $("aUser").value.includes("@") ? "" : $("aUser").value; $("rcUser").focus(); };
@@ -749,7 +729,6 @@
     show("home"); bunnyHop(); runQuick();
   }
   async function logout() {
-    try { if (window.google && google.accounts) google.accounts.id.disableAutoSelect(); } catch {}
     if (HBN || PUSHP) {
       const t = store.get("hb-apns-token");
       try { if (t) await api("/api/push/apns", { method: "DELETE", body: { token: t } }); } catch {}

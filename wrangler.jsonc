@@ -9,12 +9,12 @@
     "directory": "./public",
     "binding": "ASSETS",
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/api/*", "/download/*", "/manifest.webmanifest"]
+    "run_worker_first": ["/api/*", "/download/*", "/manifest.webmanifest", "/.well-known/apple-app-site-association"]
   },
 
   "vars": {
     "APP_URL": "https://honeybun.me",
-    "GOOGLE_CLIENT_ID": "328968237536-ivpj9vsjm8mt9uqp1v6ukjoj3i0eun5e.apps.googleusercontent.com",
+    "APPLE_CLIENT_ID": "me.honeybun.app",
     "MAIL_FROM": "Honeybun <hello@honeybun.me>",
     "VAPID_PUBLIC_KEY": "BHjyvkWiHefn7q62ZHG6qfqggldq33oUfD7fB41sesTXIP0Dx8CIiMXkM0Lb8fIFut2UgwE034FQQhP_0X02d8c"
   },

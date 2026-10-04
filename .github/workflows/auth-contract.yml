@@ -1,0 +1,27 @@
+# Runs the authentication contract tests against the real Honeybun worker (wrangler dev, local database). No secrets needed.
+name: Auth contract tests
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "src/worker.js"
+      - "ios-app/tests/auth-contract.mjs"
+      - ".github/workflows/auth-contract.yml"
+
+jobs:
+  auth:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npm run db:init:local
+      - name: Run the tests
+        run: |
+          node ios-app/tests/auth-contract.mjs | tee /tmp/auth.txt
+          ! grep -q '^FAIL' /tmp/auth.txt
