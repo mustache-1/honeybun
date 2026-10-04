@@ -61,7 +61,7 @@ jobs:
             n=$(grep -c "$sym" "$RUNNER_TEMP/bin.strings" || true); echo "$sym: $n"
             [ "${n:-0}" = "0" ] && { echo "::error::$sym is missing from the Release binary"; bad=1; }
           done
-          for lit in "__Host-hb" "key type Honeybun doesn't support"; do
+          for lit in "me.honeybun.session" "key type Honeybun doesn't support"; do
             n=$(grep -c -F "$lit" "$RUNNER_TEMP/bin.strings" || true); echo "text [$lit]: $n"
             [ "${n:-0}" = "0" ] && { echo "::error::session/passkey code ($lit) is missing from the Release binary"; bad=1; }
           done
