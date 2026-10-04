@@ -33,7 +33,6 @@ struct HBRootView: View {
                 .ignoresSafeArea(edges: .top).allowsHitTesting(false)
             }
         }
-        }
         .fullScreenCover(item: $store.sheet) { sheet in sheetView(sheet) }
         .task { await store.start() }
         .preferredColorScheme(.dark)
