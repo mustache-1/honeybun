@@ -4,6 +4,11 @@ name: iPhone app (native scroll test)
 
 on:
   workflow_dispatch:
+    inputs:
+      only:
+        description: "Optional: run just one test, e.g. HoneybunGoalsUITests/testGoalsFlow"
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -62,7 +67,8 @@ jobs:
           xcrun simctl status_bar "$UDID" override --time 9:41 --batteryState charged --batteryLevel 100 --wifiBars 3 --cellularBars 4 || true
           rm -rf /tmp/hbshots; mkdir -p /tmp/hbshots
           set +e
-          xcodebuild test -workspace App.xcworkspace -scheme HoneybunUITests -configuration Debug \
+          ONLY=""; [ -n "${{ inputs.only }}" ] && ONLY="-only-testing:HoneybunUITests/${{ inputs.only }}"
+          xcodebuild test -workspace App.xcworkspace -scheme HoneybunUITests -configuration Debug $ONLY \
             -destination "platform=iOS Simulator,id=$UDID" -derivedDataPath "$RUNNER_TEMP/ddui" \
             CODE_SIGN_IDENTITY="-" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=YES > "$RUNNER_TEMP/uitest.log" 2>&1
           log "xcodebuild exit $?"
