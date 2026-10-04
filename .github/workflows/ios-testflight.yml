@@ -94,12 +94,13 @@ jobs:
           done
           echo "--- compiled into the Release binary ---"
           BIN="$APP/App"
-          for sym in openNativeApp HBRootView HBHomeView HBMoneyView HBEntryForm HBRecurringForm HBUpcomingList HBAppStore HBSession HBLauncher; do
-            n=$(strings -a "$BIN" | grep -c "$sym" || true)
+          strings -a "$BIN" > "$RUNNER_TEMP/bin.strings"
+          for sym in openNativeApp HBRootView HBHomeView HBMoneyView HBEntryForm HBRecurringForm HBUpcomingList HBAppStore HBAPI; do
+            n=$(grep -c "$sym" "$RUNNER_TEMP/bin.strings" || true)
             echo "$sym: $n"
           done
-          if ! strings -a "$BIN" | grep -q "openNativeApp"; then echo "::error::openNativeApp bridge method is not in the Release binary"; missing=1; fi
-          if ! strings -a "$BIN" | grep -q "HBRootView"; then echo "::error::HBRootView is not in the Release binary"; missing=1; fi
+          if ! grep -q "openNativeApp" "$RUNNER_TEMP/bin.strings"; then echo "::error::openNativeApp bridge method is not in the Release binary"; missing=1; fi
+          if ! grep -q "HBRootView" "$RUNNER_TEMP/bin.strings"; then echo "::error::HBRootView is not in the Release binary"; missing=1; fi
           exit $missing
 
       - name: Put the app's permissions (push, App Group) into the archive before Apple signs it
