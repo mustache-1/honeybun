@@ -73,7 +73,7 @@ const TABLES = [
 const NEW_COLUMNS = {
   users: [["recovery_hash", "TEXT"], ["email_verified", "INTEGER NOT NULL DEFAULT 0"], ["tz", "TEXT"], ["lang", "TEXT NOT NULL DEFAULT 'en'"],
     ["mail_bills", "INTEGER NOT NULL DEFAULT 1"], ["mail_streak", "INTEGER NOT NULL DEFAULT 1"], ["mail_weekly", "INTEGER NOT NULL DEFAULT 1"],
-    ["last_bill_mail", "TEXT"], ["last_streak_mail", "TEXT"], ["last_week_mail", "TEXT"], ["unsub_token", "TEXT"], ["last_bill_push", "TEXT"], ["last_streak_push", "TEXT"], ["ref_code", "TEXT"], ["referred_by", "TEXT"]],
+    ["last_bill_mail", "TEXT"], ["last_streak_mail", "TEXT"], ["last_week_mail", "TEXT"], ["unsub_token", "TEXT"], ["last_bill_push", "TEXT"], ["last_streak_push", "TEXT"], ["last_tip_push", "TEXT"], ["ref_code", "TEXT"], ["referred_by", "TEXT"]],
   entries: [["split_mode", "TEXT"], ["split_value", "INTEGER"], ["shares", "TEXT"], ["private", "INTEGER NOT NULL DEFAULT 0"], ["recurring_id", "TEXT"], ["occ_date", "TEXT"]],
   members: [["setup_done", "INTEGER NOT NULL DEFAULT 1"], ["xp", "INTEGER NOT NULL DEFAULT 0"], ["streak", "INTEGER NOT NULL DEFAULT 0"],
     ["best_streak", "INTEGER NOT NULL DEFAULT 0"], ["last_day", "TEXT"], ["day_xp", "INTEGER NOT NULL DEFAULT 0"],
@@ -133,19 +133,19 @@ const PUSH_TEXT = {
         carry_auto: (d) => `New month! ${d.neg ? "-" : ""}${money(d.amount)} from ${d.from} was carried over for you.`,
         joint: (d) => d.on ? `${d.name} turned on Joint account. Everything adds up together now.` : `${d.name} turned off Joint account.`,
         bills: (d) => d.n === 1 ? `${d.label} (${money(d.amount)}) is due ${d.when}.` : `${d.n} bills are due in the next 3 days.`,
-        streak: (d) => `Log one thing today to keep your ${d.streak}-day hop streak 🐾`, other: () => "Bun has something for you 🐰" },
+        streak: (d) => `Log one thing today to keep your ${d.streak}-day hop streak 🐾`, tip: (d) => d.text, other: () => "Bun has something for you 🐰" },
   es: { joint_entry: (d) => `${d.name} agregó ${d.label} (${money(d.amount)}).`, shared_expense: (d) => `${d.name} agregó ${money(d.amount)} de ${d.label}, dividido contigo.`, joined: (d) => `${d.name} se unió a tu presupuesto 🎉`,
         carry_ask: (d) => `¡Nuevo mes! ${d.from} terminó en ${d.neg ? "-" : ""}${money(d.amount)}. Abre Honeybun para trasladarlo o empezar de cero.`,
         carry_done: (d) => d.accepted ? `${d.name} trasladó ${d.neg ? "-" : ""}${money(d.amount)} del mes pasado.` : `${d.name} empezó este mes de cero.`,
         joint: (d) => d.on ? `${d.name} activó la cuenta conjunta. Ahora todo se suma junto.` : `${d.name} desactivó la cuenta conjunta.`,
         bills: (d) => d.n === 1 ? `${d.label} (${money(d.amount)}) vence ${d.when}.` : `${d.n} facturas vencen en los próximos 3 días.`,
-        streak: (d) => `Registra algo hoy para mantener tu racha de ${d.streak} días 🐾`, other: () => "Bun tiene algo para ti 🐰" },
+        streak: (d) => `Registra algo hoy para mantener tu racha de ${d.streak} días 🐾`, tip: (d) => d.text, other: () => "Bun tiene algo para ti 🐰" },
   zh: { joint_entry: (d) => `${d.name} 添加了 ${d.label}（${money(d.amount)}）。`, shared_expense: (d) => `${d.name} 记了一笔 ${money(d.amount)}（${d.label}），和你分摊。`, joined: (d) => `${d.name} 加入了你的预算 🎉`,
         carry_ask: (d) => `新的一个月！${d.from} 结余 ${d.neg ? "-" : ""}${money(d.amount)}。打开 Honeybun 选择结转或重新开始。`,
         carry_done: (d) => d.accepted ? `${d.name} 把上月的 ${d.neg ? "-" : ""}${money(d.amount)} 结转到了本月。` : `${d.name} 选择本月重新开始。`,
         joint: (d) => d.on ? `${d.name} 开启了共同账户，所有金额合并计算。` : `${d.name} 关闭了共同账户。`,
         bills: (d) => d.n === 1 ? `${d.label}（${money(d.amount)}）${d.when}到期。` : `未来 3 天有 ${d.n} 笔账单到期。`,
-        streak: (d) => `今天记一笔，保持你 ${d.streak} 天的连续记录 🐾`, other: () => "Bun 有话对你说 🐰" },
+        streak: (d) => `今天记一笔，保持你 ${d.streak} 天的连续记录 🐾`, tip: (d) => d.text, other: () => "Bun 有话对你说 🐰" },
 };
 const pushText = (kind, data, lang) => { const T = PUSH_TEXT[lang] || PUSH_TEXT.en; return { kind, body: (T[kind] || T.other)(data || {}) }; };
 
@@ -2019,7 +2019,7 @@ export default {
 // Bills due (9am) and streak nudges (7pm) as push notifications, for anyone with a subscribed device
 async function pushReminders(env) {
   const people = (await env.DB.prepare(
-    `SELECT DISTINCT u.id, u.name, u.tz, u.lang, u.last_bill_push, u.last_streak_push, m.nest_id, m.streak, m.last_day
+    `SELECT DISTINCT u.id, u.name, u.tz, u.lang, u.last_bill_push, u.last_streak_push, u.last_tip_push, m.nest_id, m.streak, m.last_day
      FROM users u JOIN members m ON m.user_id = u.id WHERE u.id IN (SELECT user_id FROM push_subs UNION SELECT user_id FROM apns_tokens)`
   ).all()).results;
   const cache = {};
@@ -2039,8 +2039,41 @@ async function pushReminders(env) {
         await sendPush(env, p.id, pushText("streak", { streak: p.streak }, p.lang));
         await env.DB.prepare("UPDATE users SET last_streak_push = ? WHERE id = ?").bind(L.date, p.id).run();
       }
+      if (L.hour === 12 && p.last_tip_push !== L.date && (!p.last_tip_push || pDay(L.date) - pDay(p.last_tip_push) >= 3 * dayMs)) {
+        const text = await bunTip(env, p, L);
+        await sendPush(env, p.id, pushText("tip", { text }, p.lang));
+        await env.DB.prepare("UPDATE users SET last_tip_push = ? WHERE id = ?").bind(L.date, p.id).run();
+      }
     } catch (e) { console.error("push reminder failed", p.id, e.message); }
   }
+}
+
+// Bun's tip, sent as a push (every third day at noon). It's personal when this month's numbers give us something, otherwise a general habit tip.
+const GENERAL_TIPS = [
+  ["Try a no-spend day this week. Paw prints on your hop calendar mark each one 🐾", "Intenta un día sin gastos esta semana. Las huellas en tu calendario marcan cada uno 🐾", "这周试试零花费的一天吧。蹦跳日历上的爪印会标记每一天 🐾"],
+  ["Wait a day before buying anything over $50. If you still want it tomorrow, go for it 🐰", "Espera un día antes de comprar algo de más de $50. Si mañana aún lo quieres, adelante 🐰", "超过 $50 的东西先等一天再买。明天还想要，就买吧 🐰"],
+  ["Set a budget for your biggest category. I'll give you a heads-up at 80% 🥕", "Pon un presupuesto a tu categoría más grande. Te aviso al llegar al 80% 🥕", "给花得最多的类别设个预算。到 80% 时我会提醒你 🥕"],
+  ["Give your savings goal a fun name. People save more for a \"Beach trip\" than for \"Savings\" 🍯", "Ponle un nombre divertido a tu meta. Se ahorra más para un \"Viaje a la playa\" que para \"Ahorros\" 🍯", "给储蓄目标起个有趣的名字。人们为“海边旅行”存的钱比为“储蓄”多 🍯"],
+  ["Planning meals on Sunday is one of the easiest ways to spend less on food 🥕", "Planear las comidas el domingo es una de las formas más fáciles de gastar menos en comida 🥕", "周日提前规划一周饮食，是减少餐饮开销最简单的方法之一 🥕"],
+  ["Add your bills once in Plan, and I'll remind you before each one is due 🐰", "Agrega tus facturas una vez en Plan y te recordaré antes de cada vencimiento 🐰", "在计划里添加一次账单，每次到期前我都会提醒你 🐰"],
+  ["Check Together once a week, so nobody's surprised by who owes who 💞", "Revisa Juntos una vez por semana para que nadie se sorprenda con quién le debe a quién 💞", "每周看一次“一起”，谁欠谁就不会有惊喜了 💞"],
+  ["Paying yourself first works: move a little into a honey jar right after payday 🍯", "Págate primero: pasa un poco a un frasco de miel justo después del día de pago 🍯", "先存后花很有效：发薪后马上往蜂蜜罐里存一点 🍯"],
+  ["Small daily treats add up. $5 a day is about $150 a month ☕", "Los pequeños gustos diarios suman. $5 al día son unos $150 al mes ☕", "每天的小犒劳会积少成多。每天 $5 大约就是每月 $150 ☕"],
+];
+async function bunTip(env, p, L) {
+  const li = { en: 0, es: 1, zh: 2 }[PUSH_TEXT[p.lang] ? p.lang : "en"];
+  try {
+    const first = L.date.slice(0, 8) + "01";
+    const r = await env.DB.prepare("SELECT COUNT(*) n, COALESCE(SUM(amount_cents),0) s FROM entries WHERE nest_id = ? AND type = 'expense' AND category = 'food' AND date >= ? AND date <= ? AND (member_id = ? OR shared = 1)").bind(p.nest_id, first, L.date, p.id).first();
+    if (r && r.n >= 4) {
+      const save = Math.round(r.s / r.n * 2);
+      return [`You've logged eating out ${r.n} times this month (${money(r.s)}). Skipping two could save about ${money(save)} 🐰`,
+        `Has registrado comida fuera ${r.n} veces este mes (${money(r.s)}). Saltarte dos podría ahorrarte unos ${money(save)} 🐰`,
+        `这个月你记了 ${r.n} 次外出就餐（${money(r.s)}）。少吃两次大约能省 ${money(save)} 🐰`][li];
+    }
+  } catch (e) { console.error("bun tip", e.message); }
+  const day = Math.floor(pDay(L.date) / dayMs);
+  return GENERAL_TIPS[day % GENERAL_TIPS.length][li];
 }
 async function nestBillsDue(env, cache, nestId, from, to) {
   if (!cache[nestId]) {

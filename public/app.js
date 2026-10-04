@@ -2954,6 +2954,7 @@
   }
   function renderTip(step) {
     const box = $("bunTip"); if (!box) return;
+    box.hidden = true; return; // tips now arrive as push notifications
     const tips = personalTips().concat(GENERAL_TIPS.map((x) => R(x[0], x[1], x[2])));
     const key = today() + "|" + tips.length;
     if (tipIdx === null || key !== tipKey) {
