@@ -31,6 +31,18 @@ widget_group = group_for(main, 'HoneybunWidget')
 
 # app target: native plugin, Siri shortcuts, shared code, entitlements
 %w[BiometricLock.swift MainViewController.swift HoneybunNative.swift HoneybunIntents.swift NativeDemo.swift HalloweenSplash.swift].each { |n| add_source(app, ensure_file(app_group, n)) }
+# native SwiftUI Honeybun (beta): every .swift file under HoneybunSwiftUI/ goes into the app target, keeping its folders
+swiftui_dir = File.join(root, 'HoneybunSwiftUI')
+if Dir.exist?(swiftui_dir)
+  sg_root = group_for(main, 'HoneybunSwiftUI')
+  Dir.glob(File.join(swiftui_dir, '**', '*.swift')).sort.each do |path|
+    rel = path.sub(swiftui_dir + '/', '')
+    parts = rel.split('/')
+    g = sg_root
+    parts[0..-2].each { |d| g = g[d] || g.new_group(d, d) }
+    add_source(app, ensure_file(g, parts.last))
+  end
+end
 shared_ref = ensure_file(shared_group, 'HoneybunShared.swift')
 add_source(app, shared_ref)
 ensure_file(app_group, 'App.entitlements')

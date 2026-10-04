@@ -20,6 +20,7 @@ public class HoneybunNativePlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "getTips", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "buyTip", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "openNativePreview", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "openNativeApp", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "setHalloween", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "splashDone", returnType: CAPPluginReturnPromise)
     ]
@@ -50,6 +51,19 @@ public class HoneybunNativePlugin: CAPPlugin, CAPBridgedPlugin {
             let host = UIHostingController(rootView: DemoRoot(onClose: { [weak vc] in vc?.dismiss(animated: true, completion: nil) }))
             host.modalPresentationStyle = .fullScreen
             vc.present(host, animated: true, completion: nil)
+            call.resolve()
+        }
+    }
+
+    // opens the real native SwiftUI Honeybun (beta). It uses this app's own login session and the live backend; the web app stays underneath.
+    @objc func openNativeApp(_ call: CAPPluginCall) {
+        guard #available(iOS 15.0, *) else { call.reject("The native app needs iOS 15 or newer."); return }
+        DispatchQueue.main.async {
+            guard let vc = NativeChrome.shared.vc else { call.reject("Not ready yet."); return }
+            HBLauncher.present(from: vc) { [weak vc] in
+                // back in the classic app: reload its data so it shows whatever was changed natively
+                (vc as? CAPBridgeViewController)?.bridge?.webView?.evaluateJavaScript("window.hbNativeRefresh && window.hbNativeRefresh()", completionHandler: nil)
+            }
             call.resolve()
         }
     }
@@ -115,7 +129,7 @@ public class HoneybunNativePlugin: CAPPlugin, CAPBridgedPlugin {
     // lets the website know which native pieces this build of the app has
     @objc func info(_ call: CAPPluginCall) {
         DispatchQueue.main.async {
-            call.resolve(["nativeTabs": true, "nativeRefresh": true, "icons": true, "iconsV": 2, "tips": true, "demo": true, "halloween": true, "tabsHeight": NativeChrome.shared.height, "version": 2])
+            call.resolve(["nativeTabs": true, "nativeRefresh": true, "icons": true, "iconsV": 2, "tips": true, "demo": true, "nativeBeta": true, "halloween": true, "tabsHeight": NativeChrome.shared.height, "version": 2])
         }
     }
 

@@ -27,6 +27,11 @@ jobs:
           node-version: 20
       - name: Install Capacitor
         run: npm install
+      - name: Native SwiftUI check (models + Coming Up logic against a real /api/nest response)
+        working-directory: ios-app
+        run: |
+          swiftc -o /tmp/hbcheck ios/App/HoneybunSwiftUI/Models/HBModels.swift ios/App/HoneybunSwiftUI/Core/HBDates.swift tests/DecodeCheck/main.swift
+          /tmp/hbcheck tests/fixtures/nest.json
       - name: Sync the native project
         run: npx cap sync ios
       - name: Add the widget, Siri and push setup to the Xcode project
