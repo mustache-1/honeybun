@@ -34,7 +34,10 @@ widget_group = group_for(main, 'HoneybunWidget')
 shared_ref = ensure_file(shared_group, 'HoneybunShared.swift')
 add_source(app, shared_ref)
 ensure_file(app_group, 'App.entitlements')
-app.build_configurations.each { |c| c.build_settings['CODE_SIGN_ENTITLEMENTS'] = 'App/App.entitlements' }
+app.build_configurations.each do |c|
+  c.build_settings['CODE_SIGN_ENTITLEMENTS'] = 'App/App.entitlements'
+  c.build_settings['ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES'] = 'AppIcon-Halloween' # seasonal icon (switched by the website through HoneybunNative.setIcon)
+end
 
 # widget extension target
 widget = project.targets.find { |t| t.name == 'HoneybunWidget' }

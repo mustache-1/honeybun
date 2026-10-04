@@ -1,3 +1,4 @@
+import UIKit
 import Capacitor
 import WidgetKit
 
@@ -12,13 +13,25 @@ public class HoneybunNativePlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "clear", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "refreshWidgets", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "info", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "setTab", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "setTab", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setIcon", returnType: CAPPluginReturnPromise)
     ]
+
+    // seasonal home-screen icon: pass the alternate icon's name, or nothing to go back to the normal one
+    @objc func setIcon(_ call: CAPPluginCall) {
+        let name = call.getString("name")
+        DispatchQueue.main.async {
+            guard UIApplication.shared.supportsAlternateIcons, UIApplication.shared.alternateIconName != name else { call.resolve(); return }
+            UIApplication.shared.setAlternateIconName(name) { error in
+                if let error = error { call.reject(error.localizedDescription) } else { call.resolve() }
+            }
+        }
+    }
 
     // lets the website know which native pieces this build of the app has
     @objc func info(_ call: CAPPluginCall) {
         DispatchQueue.main.async {
-            call.resolve(["nativeTabs": true, "nativeRefresh": true, "tabsHeight": NativeChrome.shared.height, "version": 2])
+            call.resolve(["nativeTabs": true, "nativeRefresh": true, "icons": true, "tabsHeight": NativeChrome.shared.height, "version": 2])
         }
     }
 

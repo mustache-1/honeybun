@@ -327,6 +327,11 @@
       window.hbNativeRefresh = () => { if (ME && APP_SCREENS.includes(screen)) loadNest().catch(() => {}); };
       new MutationObserver(syncTab).observe(document.body, { subtree: true, attributes: true, attributeFilter: ["open", "hidden"] });
       syncTab();
+      // seasonal home-screen icon (the same Sept 29 to Oct 31 window as the website's Halloween look)
+      if (i.icons) {
+        const d = new Date(), halloween = d.getMonth() === 9 || (d.getMonth() === 8 && d.getDate() >= 29), want = halloween ? "AppIcon-Halloween" : "";
+        if ((store.get("hb-icon") || "") !== want) HBN.setIcon(want ? { name: want } : {}).then(() => store.set("hb-icon", want)).catch(() => {});
+      }
     }).catch(() => {});
     window.addEventListener("popstate", () => {
       if (!NTABS && !IOS_NATIVE) return;
@@ -438,7 +443,7 @@
     if (!NTABS || !HBN) return;
     clearTimeout(tabTimer);
     tabTimer = setTimeout(() => {
-      const visible = APP_SCREENS.includes(screen) && screen !== "add" && !document.querySelector("dialog[open]") && $("lockOverlay").hidden;
+      const visible = APP_SCREENS.includes(screen) && !document.querySelector("dialog[open]") && $("lockOverlay").hidden;
       const msg = { tab: TAB_OF[screen] || null, visible, app: APP_SCREENS.includes(screen) }, key = JSON.stringify(msg);
       if (key === tabSent) return;
       tabSent = key; HBN.setTab(msg).catch(() => { tabSent = ""; });

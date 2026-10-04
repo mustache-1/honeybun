@@ -51,6 +51,7 @@ class MainViewController: CAPBridgeViewController, UITabBarDelegate {
             return item
         }
         tabBar.delegate = self
+        tabBar.overrideUserInterfaceStyle = .dark // dark glass, readable labels, to match the app
         tabBar.tintColor = orange
         tabBar.unselectedItemTintColor = muted
         let ap = UITabBarAppearance()
