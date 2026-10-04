@@ -1451,7 +1451,7 @@ dialog::backdrop{background:var(--backdrop)}
 .lp-rw-rules{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:18px 20px;margin-bottom:22px}
 .lp-rw-rules h3{margin:0 0 8px;font-size:16px}
 .lp-rw-rules ul{margin:0;padding-left:18px;color:var(--soft);font-size:14px;line-height:1.7}
-.coffee{display:inline-flex;align-items:center;gap:8px;margin:10px auto 0;padding:9px 16px;border-radius:999px;background:#FFDD00;color:#1d1a21!important;font-weight:800;font-size:13px;text-decoration:none!important;box-shadow:0 2px 0 rgba(0,0,0,.15)}
+.coffee{display:inline-flex;align-items:center;gap:8px;margin:10px auto 0;padding:9px 16px;border-radius:999px;border:0;cursor:pointer;font-family:inherit;background:linear-gradient(135deg,#FFC46B,#F59A4A);color:#2a1b0c!important;font-weight:800;font-size:13px;text-decoration:none!important;box-shadow:0 2px 0 rgba(0,0,0,.15)}
 .coffee:hover{filter:brightness(.96)}
 .coffee-wrap{text-align:center;margin:4px 0 8px}
 .lp-updates{padding-block:40px 60px}
@@ -2412,7 +2412,7 @@ dialog::backdrop{background:var(--backdrop)}
           <div class="lang-row" data-lang-picker></div>
           <p><a href="/privacy.html">Privacy Policy</a> · <a href="/terms.html">Terms</a> · <a href="mailto:help@honeybun.me">help@honeybun.me</a></p>
           <p>Developed by Rodrigo · © 2026 Honeybun</p>
-          <p class="coffee-wrap" data-coffee-wrap hidden><a class="coffee" data-coffee target="_blank" rel="noopener">☕ Buy me a coffee</a></p>
+          <p class="coffee-wrap" data-coffee-wrap hidden><button type="button" class="coffee" data-support>💛 Support me</button></p>
         </footer>
       </div>
     </section>
@@ -2476,7 +2476,7 @@ dialog::backdrop{background:var(--backdrop)}
     <div class="lang-row" data-lang-picker></div>
     <p class="legal">By continuing you agree to the <a href="/terms.html">Terms</a> and <a href="/privacy.html">Privacy Policy</a>.</p>
     <p class="legal credit">Developed by Rodrigo · Questions? <a href="mailto:help@honeybun.me">help@honeybun.me</a></p>
-    <p class="coffee-wrap" data-coffee-wrap hidden><a class="coffee" data-coffee target="_blank" rel="noopener">☕ Buy me a coffee</a></p>
+    <p class="coffee-wrap" data-coffee-wrap hidden><button type="button" class="coffee" data-support>💛 Support me</button></p>
   </main>
 
   <!-- NEW PASSWORD -->
@@ -2865,7 +2865,7 @@ dialog::backdrop{background:var(--backdrop)}
     </div>
     <p class="center" style="font-size:.8rem;color:var(--soft);margin-top:14px" id="signedAs"></p>
     <p class="legal credit">Developed by Rodrigo · Questions? <a href="mailto:help@honeybun.me">help@honeybun.me</a></p>
-    <p class="coffee-wrap" data-coffee-wrap hidden><a class="coffee" data-coffee target="_blank" rel="noopener">☕ Buy me a coffee</a></p>
+    <p class="coffee-wrap" data-coffee-wrap hidden><button type="button" class="coffee" data-support>💛 Support me</button></p>
   </main>
 
   <!-- HELP -->
@@ -2956,6 +2956,14 @@ dialog::backdrop{background:var(--backdrop)}
   <label class="rc-ack"><input type="checkbox" id="rcAck"> I saved it</label>
   <button class="go" id="rcDone" type="button" disabled>Continue</button>
 </dialog>
+<dialog id="supportDlg" class="get-dlg" aria-labelledby="supportTitle">
+  <h2 id="supportTitle">Support Honeybun 💛</h2>
+  <p class="get-sub">Honeybun is free and made by one person. A tip helps keep it going. Thank you!</p>
+  <div id="supportTips" style="display:grid;gap:8px;margin:10px 0"></div>
+  <p class="center" style="margin:6px 0 0"><button class="linkbtn" id="supportClose" type="button">Not now</button></p>
+  <p class="err" id="supportErr" role="alert"></p>
+</dialog>
+
 <dialog id="carryDlg" class="get-dlg" aria-labelledby="carryTitle">
   <h2 id="carryTitle">New month!</h2>
   <p class="get-sub" id="carrySub"></p>

@@ -277,9 +277,7 @@
     const rc = rf ? rf[1] : rq && /^[A-Za-z0-9]{4,16}$/.test(rq) ? rq : null;
     if (rc) { store.set("hb-ref", JSON.stringify({ c: rc.toUpperCase(), t: Date.now() })); history.replaceState(null, "", "/" + location.hash); }
   }
-  // "Buy me a coffee" support link: paste the page address here and the buttons appear
-  const COFFEE_URL = "https://buymeacoffee.com/honeybunapp";
-  if (COFFEE_URL) document.querySelectorAll("[data-coffee]").forEach((a) => { a.href = COFFEE_URL; a.closest("[data-coffee-wrap]").hidden = false; });
+  // "Support me" tips are an Apple in-app purchase, so the button only shows inside the iPhone app (see HBN.info below)
   // a tiny tap on the phone: Android vibrates, iPhone (Safari 18+) ticks through a hidden switch
   const buzz = (() => {
     let sw;
@@ -316,9 +314,37 @@
   const NATIVE_PLUGINS = IOS_NATIVE ? window.Capacitor.Plugins || {} : {};
   const HBN = NATIVE_PLUGINS.HoneybunNative, PUSHP = NATIVE_PLUGINS.PushNotifications;
   let nativeDone = false;
+  // tip jar (Apple in-app purchase through the app's StoreKit)
+  async function openSupport() {
+    const box = $("supportTips"), err = $("supportErr"); err.textContent = ""; box.innerHTML = "";
+    $("supportDlg").showModal();
+    $("supportClose").onclick = () => $("supportDlg").close();
+    try {
+      const r = await HBN.getTips();
+      if (!r.tips || !r.tips.length) { err.textContent = tr("Tips aren't available right now. Please try again later."); return; }
+      r.tips.forEach((t) => {
+        const b = document.createElement("button"); b.type = "button"; b.className = "softbtn"; b.style.width = "100%";
+        b.innerHTML = `<b>${esc(t.name)}</b> · ${esc(t.price)}`;
+        b.onclick = async () => {
+          b.disabled = true; err.textContent = "";
+          try {
+            const res = await HBN.buyTip({ id: t.id });
+            if (res.status === "thanks") { $("supportDlg").close(); toast(tr("Thank you so much! 💛")); buzz("ok"); }
+            else if (res.status === "pending") { $("supportDlg").close(); toast(tr("Your tip is waiting for approval. Thank you!")); }
+          } catch (e) { err.textContent = e.message || tr("Couldn't complete the tip."); }
+          b.disabled = false;
+        };
+        box.appendChild(b);
+      });
+    } catch (e) { err.textContent = e.message || tr("Tips aren't available right now. Please try again later."); }
+  }
   // iPhone app: ask which native pieces this build has (older builds don't answer, and keep the website's own bar)
   if (IOS_NATIVE && HBN && HBN.info) {
     HBN.info().then((i) => {
+      if (i && i.tips) {
+        document.querySelectorAll("[data-coffee-wrap]").forEach((w) => (w.hidden = false));
+        document.querySelectorAll("[data-support]").forEach((b) => (b.onclick = openSupport));
+      }
       if (!i || !i.nativeTabs) return;
       if (window.innerWidth >= 900) return; // iPad: the website's own sidebar layout is used, no phone-style tab bar
       NTABS = true;
