@@ -2151,8 +2151,6 @@
   function drawPick() {
     const ep = $("emojiPick"); ep.innerHTML = "";
     EMOJIS.forEach((e) => { const b = document.createElement("button"); b.type = "button"; b.innerHTML = bud(e); b.setAttribute("aria-pressed", e === pickE ? "true" : "false"); b.onclick = () => { pickE = e; drawPick(); }; ep.appendChild(b); });
-    const cp = $("colorPick"); cp.innerHTML = "";
-    COLORS.forEach((c) => { const b = document.createElement("button"); b.type = "button"; b.style.background = c; b.setAttribute("aria-label", "Color"); b.setAttribute("aria-pressed", c === pickC ? "true" : "false"); b.onclick = () => { pickC = c; drawPick(); }; cp.appendChild(b); });
   }
   function openMe() {
     const m = meMember(); if (!m) return;
