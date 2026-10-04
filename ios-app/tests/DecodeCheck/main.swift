@@ -138,8 +138,8 @@ if CommandLine.arguments.count > 4, let idata = FileManager.default.contents(atP
         check("inbox: read messages (read_at set) are not unread", env.messages.allSatisfy { !$0.isUnread })
     } catch { print("FAIL inbox fixture decode threw: \(error)"); failures += 1 }
 }
-func msg(_ kind: String, _ data: String, read: Bool = false) -> HBInboxMessage {
-    try! JSONDecoder().decode(HBInboxMessage.self, from: Data(("{\"id\":\"x\",\"kind\":\"" + kind + "\",\"data\":" + data + ",\"created_at\":1791100000,\"read_at\":" + (read ? "1791100100" : "null") + "}").utf8))
+func msg(_ kind: String, _ data: String, read: Bool = false, at: Double = 1791100000) -> HBInboxMessage {
+    try! JSONDecoder().decode(HBInboxMessage.self, from: Data(("{\"id\":\"x\",\"kind\":\"" + kind + "\",\"data\":" + data + ",\"created_at\":" + String(at) + ",\"read_at\":" + (read ? "1791100100" : "null") + "}").utf8))
 }
 let tday = "2026-10-04"
 func txt(_ m: HBInboxMessage) -> String { HBInbox.text(m, today: tday, categoryName: { HBCategory.of($0).label }) }
@@ -178,8 +178,8 @@ check("inbox: buttons route to the right native screen (or Classic only when the
       && HBInbox.action(for: msg("ref_intro", "{}"), recurringExists: ex, carryPending: false) == .classic("Get my link")
       && HBInbox.action(for: msg("debt_done", "{}"), recurringExists: ex, carryPending: false) == .classic("See Plan")
       && HBInbox.action(for: msg("welcome", "{}"), recurringExists: ex, carryPending: false) == nil)
-let now = Date(timeIntervalSince1970: 1791200000)
-let grp = HBInbox.groups([msg("welcome", "{}"), msg("week", "{}")], now: now.addingTimeInterval(86400))
+let nowTs = Date().timeIntervalSince1970
+let grp = HBInbox.groups([msg("welcome", "{}", at: nowTs - 86400), msg("week", "{}", at: nowTs - 86401)], now: Date())
 check("inbox: grouped newest first by day (Yesterday for a message 1 day old)", grp.count == 1 && grp[0].title == "Yesterday" && grp[0].items.count == 2)
 check("inbox: unread vs read", msg("welcome", "{}").isUnread && !msg("welcome", "{}", read: true).isUnread)
 check("inbox: dayDiff", HBInbox.dayDiff("2026-10-07", today: "2026-10-04") == 3 && HBInbox.dayDiff("2026-10-02", today: "2026-10-04") == -2 && HBInbox.dayDiff("2026-10-04", today: "2026-10-04") == 0)
