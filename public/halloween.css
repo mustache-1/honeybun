@@ -585,6 +585,6 @@ html.hb-hh #hhHome .hq-streak>img{left:-2px!important;bottom:-6px!important;heig
 html.hb-hh #hhHome .hq-streak{width:calc(100% - 34px)!important;box-sizing:border-box}
 html.hb-hh,html.hb-hh body{background:#0d0911!important}
 html.hb-hh.hb-halloween::before{background:radial-gradient(60% 24% at 88% 6%,rgba(255,140,40,.10),transparent 70%),#0d0911!important}
-html.hb-hh #scr-home:not([hidden]){margin-top:0!important;padding-top:14px!important}
+html.hb-hh #scr-home:not([hidden]){margin-top:0!important;padding-top:0!important}
 html.hb-hh #hhHome .hq-bar{height:15px!important;margin-top:16px!important}
 html.hb-hh #hhHome .hq-foot{margin-top:15px!important}
