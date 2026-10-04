@@ -81,6 +81,27 @@ jobs:
           grep -E "error:|ARCHIVE (SUCCEEDED|FAILED)" "$RUNNER_TEMP/archive.log" | head -30
           grep -q "ARCHIVE SUCCEEDED" "$RUNNER_TEMP/archive.log"
 
+      - name: Confirm the native SwiftUI foundation is inside the Release archive (stops the upload if not)
+        working-directory: ios-app/ios/App
+        shell: bash
+        run: |
+          APP="$RUNNER_TEMP/Honeybun.xcarchive/Products/Applications/App.app"
+          missing=0
+          echo "--- HoneybunSwiftUI files in the Xcode project (App target) ---"
+          for f in $(cd HoneybunSwiftUI && find . -name '*.swift' | sed 's|^\./||' | sort); do
+            b=$(basename "$f")
+            if grep -q "$b in Sources" App.xcodeproj/project.pbxproj; then echo "ok   $f"; else echo "MISSING $f"; missing=1; fi
+          done
+          echo "--- compiled into the Release binary ---"
+          BIN="$APP/App"
+          for sym in openNativeApp HBRootView HBHomeView HBMoneyView HBEntryForm HBRecurringForm HBUpcomingList HBAppStore HBSession HBLauncher; do
+            n=$(strings -a "$BIN" | grep -c "$sym" || true)
+            echo "$sym: $n"
+          done
+          if ! strings -a "$BIN" | grep -q "openNativeApp"; then echo "::error::openNativeApp bridge method is not in the Release binary"; missing=1; fi
+          if ! strings -a "$BIN" | grep -q "HBRootView"; then echo "::error::HBRootView is not in the Release binary"; missing=1; fi
+          exit $missing
+
       - name: Put the app's permissions (push, App Group) into the archive before Apple signs it
         working-directory: ios-app/ios/App
         shell: bash
