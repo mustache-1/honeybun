@@ -56,7 +56,7 @@ struct HBRecurringForm: View {
                                     Button { category = c.rawValue } label: {
                                         VStack(spacing: 5) {
                                             Image(systemName: c.symbol).font(.system(size: 18, weight: .semibold))
-                                            Text(c.name).font(.caption.weight(.semibold)).lineLimit(1).minimumScaleFactor(0.8)
+                                            Text(c.label).font(.caption.weight(.semibold)).lineLimit(1).minimumScaleFactor(0.8)
                                         }
                                         .frame(maxWidth: .infinity, minHeight: 58)
                                         .foregroundColor(category == c.rawValue ? Color.black.opacity(0.85) : .white)
@@ -81,7 +81,7 @@ struct HBRecurringForm: View {
                 }
                 .frame(maxWidth: 560).padding(HB.gutter).frame(maxWidth: .infinity)
             }
-            .background(HB.bg.ignoresSafeArea())
+            .background(HBBackground(glow: false))
             .navigationTitle(editing == nil ? "New bill or payday" : "Edit")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -149,7 +149,7 @@ struct HBUpcomingList: View {
                 }
                 .frame(maxWidth: 560).padding(HB.gutter).frame(maxWidth: .infinity)
             }
-            .background(HB.bg.ignoresSafeArea())
+            .background(HBBackground(glow: false))
             .navigationTitle("Coming up")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Done") { dismiss() } } }
