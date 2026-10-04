@@ -57,9 +57,13 @@ jobs:
           bad=0
           strings -a "$APP/App" > "$RUNNER_TEMP/bin.strings"
           echo "--- code that must be in the Release binary ---"
-          for sym in HBAuthFlowView HBAuthModel HBAccountView HBSetupView HBOnboardingView HBPasskeyService HBPasskeyKit HBSession HBAppleButton openNativeApp HBRootView; do
+          for sym in HBAuthFlowView HBAuthModel HBAccountView HBSetupView HBOnboardingView HBPasskeyService HBAppleButton openNativeApp HBRootView; do
             n=$(grep -c "$sym" "$RUNNER_TEMP/bin.strings" || true); echo "$sym: $n"
             [ "${n:-0}" = "0" ] && { echo "::error::$sym is missing from the Release binary"; bad=1; }
+          done
+          for lit in "__Host-hb" "key type Honeybun doesn't support"; do
+            n=$(grep -c -F "$lit" "$RUNNER_TEMP/bin.strings" || true); echo "text [$lit]: $n"
+            [ "${n:-0}" = "0" ] && { echo "::error::session/passkey code ($lit) is missing from the Release binary"; bad=1; }
           done
           echo "--- debug-only code that must NOT be in the Release binary ---"
           for sym in HBMockServer HBPreviewData HBPreviewVariants "mock.sub"; do
