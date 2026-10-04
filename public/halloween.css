@@ -183,6 +183,10 @@ html.hb-hh{
   --hh-padb:calc(var(--hh-navh) + var(--hh-navb) + 18px);
   --hh-orange:#ffb04d;--hh-card:linear-gradient(180deg,rgba(46,33,56,.62),rgba(27,20,33,.82));
 }
+/* the page root already pads by the top safe area (index.html :root); Halloween screens add it themselves, so don't count it twice */
+html.hb-hh{padding-top:0!important}
+/* iPhone app: the native tab bar floats over the web view, so screens leave room for its real height */
+html.hb-hh.hb-tabs{--hh-navh:var(--tabs-h,83px);--hh-navb:0px}
 html.hb-hh .hbh-sky,html.hb-hh .hbh-fx{display:none!important}
 html.hb-hh.hb-halloween::before{background:radial-gradient(60% 30% at 88% 10%,rgba(255,140,40,.14),transparent 70%),#0d0911!important}
 html.hb-hh,html.hb-hh body{background:#0d0911!important}
@@ -255,7 +259,7 @@ html.hb-hh,html.hb-hh body{background:#0d0911!important}
 .hq-ib i{position:absolute;top:8px;right:9px;width:9px;height:9px;border-radius:50%;background:#ff5f86;box-shadow:0 0 0 2px #221a28}
 .hq-card{position:relative;z-index:1;margin:calc(var(--hq-wh)*.52) 0 0;padding:clamp(16px,4.8vw,22px);border-radius:22px;border:1.5px solid rgba(255,172,84,.55);background:radial-gradient(75% 95% at 96% 0%,rgba(255,150,50,.5),rgba(255,150,50,0) 70%),radial-gradient(80% 90% at 6% 105%,rgba(255,170,70,.28),rgba(255,170,70,0) 65%),linear-gradient(180deg,#53301a,#341e12);box-shadow:inset 0 1px 0 rgba(255,225,170,.25),0 10px 28px rgba(0,0,0,.55),0 0 30px rgba(255,140,40,.24)}
 .hq-witch{position:absolute;right:clamp(8px,4vw,20px);top:calc(var(--hq-wh)*-.6);width:var(--hq-ww);height:auto;z-index:4;pointer-events:none;filter:drop-shadow(0 6px 8px rgba(0,0,0,.5)) drop-shadow(0 0 12px rgba(255,140,40,.3))}
-.hq-lbl{margin:0;display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:clamp(15px,4.4vw,17px);font-weight:700;color:#fff4e4}
+.hq-lbl{max-width:calc(100% - var(--hq-ww)*.78);margin:0;display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:clamp(15px,4.4vw,17px);font-weight:700;color:#fff4e4}
 .hq-context{display:none}
 .hq-joint{font-style:normal;padding:2px 9px;border-radius:99px;background:rgba(255,255,255,.14);font-size:11px;font-weight:800;color:#ffe0b0}
 .hq-row{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px 12px;margin-top:6px}
