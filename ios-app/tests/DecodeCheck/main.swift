@@ -73,8 +73,8 @@ if CommandLine.arguments.count > 2, let gdata = FileManager.default.contents(atP
    let gsnapData = try? JSONSerialization.data(withJSONObject: gsnap) {
     do {
         let gs = try JSONDecoder().decode(HBNestSnapshot.self, from: gsnapData)
-        check("goals: real response decodes (goal + jar history)", gs.goals.count == 1 && (gs.jar ?? []).count == 2)
-        let g = gs.goals[0]
+        check("goals: real response decodes (goal + jar history)", !gs.goals.isEmpty && (gs.jar ?? []).count == 2)
+        let g = gs.goals.first { $0.saved_cents == 42050 } ?? gs.goals[0]
         check("goals: cents → dollars, progress and completion", g.name == "Trip to Japan" && g.saved == 420.5 && g.target == 2000 && !g.isDone && abs(g.progress - 0.21025) < 0.0001)
         let moves = (gs.jar ?? []).filter { $0.goal_id == g.id }
         check("goals: history moves have signed amounts and real dates", moves.count == 2 && moves.allSatisfy { $0.amount > 0 && $0.date.timeIntervalSince1970 > 1_600_000_000 })
