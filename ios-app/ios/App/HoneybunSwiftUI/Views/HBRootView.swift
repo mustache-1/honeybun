@@ -26,9 +26,13 @@ struct HBRootView: View {
         // scrolling content fades out under the status bar / Dynamic Island instead of colliding with the clock
         .overlay(alignment: .top) {
             if store.phase == .ready {
-                LinearGradient(colors: [Color(red: 0.06, green: 0.04, blue: 0.09).opacity(0.94), Color(red: 0.06, green: 0.04, blue: 0.09).opacity(0)], startPoint: .top, endPoint: .bottom)
-                    .frame(height: 34).ignoresSafeArea(edges: .top).allowsHitTesting(false)
+                GeometryReader { g in
+                    LinearGradient(colors: [Color(red: 0.06, green: 0.04, blue: 0.09).opacity(0.96), Color(red: 0.06, green: 0.04, blue: 0.09).opacity(0.96), Color(red: 0.06, green: 0.04, blue: 0.09).opacity(0)], startPoint: .top, endPoint: .bottom)
+                        .frame(height: g.safeAreaInsets.top + 16)
+                }
+                .ignoresSafeArea(edges: .top).allowsHitTesting(false)
             }
+        }
         }
         .fullScreenCover(item: $store.sheet) { sheet in sheetView(sheet) }
         .task { await store.start() }
