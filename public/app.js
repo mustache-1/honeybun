@@ -63,6 +63,9 @@
   const NEEDS = ["home", "groc", "bills", "car", "pets", "debt"];
   const WANTS = ["food", "date", "fun", "subs", "other"];
   const EMOJIS = ["🐰", "🐻", "🐱", "🐶", "🦊", "🐼", "🐨", "🐸", "🐧", "🦄", "🐥", "🐹"];
+  // the buddy picture for each saved buddy (older accounts keep the emoji they picked, it just shows as Bun in a honey pot)
+  const BUDDY = { "🐰": "default", "🐻": "happy", "🐱": "sleepy", "🐶": "cool", "🦊": "devil", "🐼": "angel", "🐨": "witch", "🐸": "ghost", "🐧": "nerd", "🦄": "cowboy", "🐥": "frog", "🐹": "dinosaur" };
+  const bud = (e) => BUDDY[e] ? `<img class="bud" src="/buddies/${BUDDY[e]}.png" alt="" draggable="false">` : esc(e);
   const COLORS = ["#FFD6E5", "#FFF0C2", "#DDF5E9", "#E4EDFF", "#EADFFF", "#FFE1CC"];
   const GOAL_EMOJIS = ["🍯", "✈️", "🏠", "💍", "🚗", "🎓", "🐶", "🎄", "🛟", "🎁"];
   const THEMES = [
@@ -952,7 +955,7 @@
         <div class="emojis" id="obEmojis"></div>`;
       const mine = meMember(), g = $("obEmojis");
       EMOJIS.forEach((e) => {
-        const b = document.createElement("button"); b.type = "button"; b.textContent = e;
+        const b = document.createElement("button"); b.type = "button"; b.innerHTML = bud(e);
         b.setAttribute("aria-pressed", mine && mine.emoji === e ? "true" : "false");
         b.onclick = async () => { if (mine) mine.emoji = e; drawOb(); try { await api("/api/me", { method: "PATCH", body: { emoji: e } }); } catch (err) { $("obErr").textContent = err.message; } };
         g.appendChild(b);
@@ -983,7 +986,7 @@
       $("obPayFreq").onchange = (e) => (p.freq = e.target.value);
       $("obPayDate").onchange = (e) => (p.date = e.target.value);
       if ($("obPayWho")) MEMBERS.forEach((m) => {
-        const b = document.createElement("button"); b.type = "button"; b.innerHTML = `<i style="background:${esc(m.color)}">${esc(m.emoji)}</i>${esc(m.name)}`;
+        const b = document.createElement("button"); b.type = "button"; b.innerHTML = `<i style="background:${esc(m.color)}">${bud(m.emoji)}</i>${esc(m.name)}`;
         b.setAttribute("aria-pressed", m.id === p.who ? "true" : "false"); b.onclick = () => { p.who = m.id; drawOb(); }; $("obPayWho").appendChild(b);
       });
       pays.forEach((r) => $("obPays").appendChild(recurRow(r)));
@@ -1207,7 +1210,7 @@
     const li = document.createElement("li"); li.className = "clickable";
     li.innerHTML = `<div class="ic">${isIn ? incTile(38) : catTile(c.id, 38)}</div>
       <div class="mid"><div class="t">${esc(e.label)}${e.private ? ' <span class="lock" title="Only you can see this">🔒</span>' : ""}</div>
-      <div class="s">${esc(m.emoji)} ${esc(m.name)}, ${shortDay(parseD(e.date))}${isIn ? "" : ", " + esc(splitText(e))}</div></div>
+      <div class="s">${bud(m.emoji)} ${esc(m.name)}, ${shortDay(parseD(e.date))}${isIn ? "" : ", " + esc(splitText(e))}</div></div>
       <div class="amt ${isIn ? "in" : ""}">${isIn ? "+" : "−"}${fmt(e.amount)}</div>
       <button class="del" aria-label="Delete ${esc(e.label)}">✕</button>`;
     li.onclick = () => { if (li.dataset.swiped) return; openEditEntry(e); };
@@ -1295,7 +1298,7 @@
     $("hi").textContent = NEST.name || (MEMBERS.length === 2 ? `${names[0]} & ${names[1]}` : MEMBERS.length === 1 ? names[0] : "Our family");
     const hr = new Date().getHours();
     $("greet").textContent = hr < 12 ? "Good morning" : hr < 18 ? "Good afternoon" : "Good evening";
-    $("hdrAvs").innerHTML = MEMBERS.slice(0, 3).map((m) => `<span class="av" style="background:${esc(m.color)}">${esc(m.emoji)}</span>`).join("");
+    $("hdrAvs").innerHTML = MEMBERS.slice(0, 3).map((m) => `<span class="av" style="background:${esc(m.color)}">${bud(m.emoji)}</span>`).join("");
     { const couple = KIND() === "couple"; $("navShare").hidden = !couple; $("usShareBtn").hidden = !couple || MEMBERS.length < 2; $("shBack").onclick = () => show("us"); $("usShareBtn").onclick = () => show("share"); 
       if (!couple && screen === "share") { show("home"); return; } }
     $("usLabel").textContent = KIND() === "solo" && MEMBERS.length < 2 ? "Me" : "Together";
@@ -1368,7 +1371,7 @@
         const ji = all.filter((e) => e.type === "income").reduce((a, e) => a + e.amount, 0), jo = all.filter((e) => e.type === "expense").reduce((a, e) => a + e.amount, 0);
         const b = document.createElement("div"); b.className = "pal joint";
         b.setAttribute("aria-label", `Joint account: came in ${fmt(ji)}, spent ${fmt(jo)}.`);
-        b.innerHTML = `<span class="faces">${MEMBERS.slice(0, 3).map((m) => `<span class="face" style="background:${esc(m.color)}">${esc(m.emoji)}</span>`).join("")}</span><span class="nm">${esc(tr("Joint account"))}</span><span class="st">${esc(MEMBERS.map((m) => m.name).join(" & "))}<br>+${fmt(ji)} / −${fmt(jo).replace("−", "")}</span>`;
+        b.innerHTML = `<span class="faces">${MEMBERS.slice(0, 3).map((m) => `<span class="face" style="background:${esc(m.color)}">${bud(m.emoji)}</span>`).join("")}</span><span class="nm">${esc(tr("Joint account"))}</span><span class="st">${esc(MEMBERS.map((m) => m.name).join(" & "))}<br>+${fmt(ji)} / −${fmt(jo).replace("−", "")}</span>`;
         cp.appendChild(b);
       } else
       MEMBERS.forEach((m, i) => {
@@ -1377,7 +1380,7 @@
         const mo = all.filter((e) => e.member_id === m.id && e.type === "expense").reduce((s, e) => s + e.amount, 0);
         const b = document.createElement("button"); b.className = "pal"; b.setAttribute("aria-pressed", filter === m.id ? "true" : "false");
         b.setAttribute("aria-label", `${m.name}: earned ${fmt(mi)}, paid ${fmt(mo)}. Tap to see only theirs.`);
-        b.innerHTML = `<span class="face" style="background:${esc(m.color)}">${esc(m.emoji)}</span><span class="nm">${esc(m.name)}</span><span class="st">Lv ${levelFor(m.xp || 0)} · 🐾 ${streakOf(m)}<br>+${fmt(mi)} / −${fmt(mo).replace("−", "")}</span>`;
+        b.innerHTML = `<span class="face" style="background:${esc(m.color)}">${bud(m.emoji)}</span><span class="nm">${esc(m.name)}</span><span class="st">Lv ${levelFor(m.xp || 0)} · 🐾 ${streakOf(m)}<br>+${fmt(mi)} / −${fmt(mo).replace("−", "")}</span>`;
         b.onclick = () => { filter = filter === m.id ? null : m.id; render(); };
         cp.appendChild(b);
       });
@@ -1427,7 +1430,7 @@
         st.querySelector(".settle-btn").onclick = () => openSettle(p0);
         ps.slice(1).forEach((p) => {
           const d = document.createElement("div"); d.className = "owe";
-          d.innerHTML = `<span class="f">${esc(p.from.emoji)}</span><span>${esc(p.from.name)} owes ${esc(p.to.name)}</span><span class="amt">${fmt(p.amount)}</span><button class="mini inc">Mark paid</button>`;
+          d.innerHTML = `<span class="f">${bud(p.from.emoji)}</span><span>${esc(p.from.name)} owes ${esc(p.to.name)}</span><span class="amt">${fmt(p.amount)}</span><button class="mini inc">Mark paid</button>`;
           d.querySelector("button").onclick = () => openSettle(p);
           st.appendChild(d);
         });
@@ -1436,7 +1439,7 @@
       MEMBERS.forEach((m) => {
         const spent = all.filter((e) => e.member_id === m.id && e.type === "expense").reduce((a, e) => a + e.amount, 0);
         const r = document.createElement("div"); r.className = "member";
-        r.innerHTML = `<span class="face" style="background:${esc(m.color)}">${esc(m.emoji)}</span><span class="meta"><b>${esc(m.name)}</b><small>${JOINT() ? `${esc(tr("added"))} ${fmt(all.filter((e) => e.member_id === m.id && e.type === "income").reduce((a, e) => a + e.amount, 0))} · ${esc(tr("spent"))} ${fmt(spent)}` : `${fmt(spent)} spent this month`}</small></span>${m.id === ME.id ? '<span class="tagb">you</span>' : ""}`;
+        r.innerHTML = `<span class="face" style="background:${esc(m.color)}">${bud(m.emoji)}</span><span class="meta"><b>${esc(m.name)}</b><small>${JOINT() ? `${esc(tr("added"))} ${fmt(all.filter((e) => e.member_id === m.id && e.type === "income").reduce((a, e) => a + e.amount, 0))} · ${esc(tr("spent"))} ${fmt(spent)}` : `${fmt(spent)} spent this month`}</small></span>${m.id === ME.id ? '<span class="tagb">you</span>' : ""}`;
         um.appendChild(r);
       });
       const sh = $("settleHist"); sh.innerHTML = "";
@@ -1495,7 +1498,7 @@
       const mm = $("members"); mm.innerHTML = "";
       MEMBERS.forEach((m) => {
         const r = document.createElement("div"); r.className = "mem";
-        r.innerHTML = `<span class="face" style="background:${esc(m.color)}">${esc(m.emoji)}</span><span class="nm">${esc(m.name)}${m.id === ME.id ? " (you)" : ""}</span>`;
+        r.innerHTML = `<span class="face" style="background:${esc(m.color)}">${bud(m.emoji)}</span><span class="nm">${esc(m.name)}${m.id === ME.id ? " (you)" : ""}</span>`;
         if (m.id === ME.id) { const b = document.createElement("button"); b.className = "small"; b.textContent = "Edit"; b.onclick = openMe; r.appendChild(b); }
         mm.appendChild(r);
       });
@@ -1673,7 +1676,7 @@
   function openGoal(g) { goalOpen = g; $("gdView").hidden = false; $("gdForm").hidden = true; $("gdAmt").value = ""; drawGoalView(); $("goalDlg").showModal(); }
   function drawGoalEmojis() {
     const r = $("gEmojis"); r.innerHTML = "";
-    GOAL_EMOJIS.forEach((e) => { const b = document.createElement("button"); b.type = "button"; b.textContent = e; b.setAttribute("aria-pressed", e === goalEmoji ? "true" : "false"); b.onclick = () => { goalEmoji = e; drawGoalEmojis(); }; r.appendChild(b); });
+    GOAL_EMOJIS.forEach((e) => { const b = document.createElement("button"); b.type = "button"; b.innerHTML = bud(e); b.setAttribute("aria-pressed", e === goalEmoji ? "true" : "false"); b.onclick = () => { goalEmoji = e; drawGoalEmojis(); }; r.appendChild(b); });
   }
   function openGoalForm(g) {
     goalOpen = g || null; $("gdView").hidden = true; $("gdForm").hidden = false;
@@ -1815,7 +1818,7 @@
   let payOpen = null, payWho = null;
   function drawPayWho() {
     const w = $("pdWho"); w.innerHTML = "";
-    MEMBERS.forEach((m) => { const b = document.createElement("button"); b.type = "button"; b.innerHTML = `<i style="background:${esc(m.color)}">${esc(m.emoji)}</i>${esc(m.name)}`; b.setAttribute("aria-pressed", m.id === payWho ? "true" : "false"); b.onclick = () => { payWho = m.id; drawPayWho(); }; w.appendChild(b); });
+    MEMBERS.forEach((m) => { const b = document.createElement("button"); b.type = "button"; b.innerHTML = `<i style="background:${esc(m.color)}">${bud(m.emoji)}</i>${esc(m.name)}`; b.setAttribute("aria-pressed", m.id === payWho ? "true" : "false"); b.onclick = () => { payWho = m.id; drawPayWho(); }; w.appendChild(b); });
   }
   function openPay(d) {
     payOpen = d; payWho = ME.id;
@@ -2013,7 +2016,7 @@
     if (!MEMBERS.some((m) => m.id === who)) who = ME.id;
     MEMBERS.forEach((m) => {
       const b = document.createElement("button"); b.type = "button";
-      b.innerHTML = `<i style="background:${esc(m.color)}">${esc(m.emoji)}</i>${esc(m.name)}`;
+      b.innerHTML = `<i style="background:${esc(m.color)}">${bud(m.emoji)}</i>${esc(m.name)}`;
       b.setAttribute("aria-pressed", m.id === who ? "true" : "false"); b.onclick = () => { who = m.id; renderForm(); }; w.appendChild(b);
     });
     $("catField").hidden = isInc;
@@ -2365,7 +2368,7 @@
     }
     const [A, B] = ppl.map(shareStats);
     const inc = A.inc + B.inc, out = A.out + B.out, S = A.sh + B.sh;
-    const row = (x, v, sub) => `<div class="sh-row"><span class="av" style="background:${esc(x.m.color)}">${esc(x.m.emoji)}</span><span class="nm">${esc(x.m.name)}${x.m.id === ME?.id ? `<small>${esc(tr("You"))}</small>` : ""}</span><span class="amt">${fmt(v)}<small>${sub}</small></span></div>`;
+    const row = (x, v, sub) => `<div class="sh-row"><span class="av" style="background:${esc(x.m.color)}">${bud(x.m.emoji)}</span><span class="nm">${esc(x.m.name)}${x.m.id === ME?.id ? `<small>${esc(tr("You"))}</small>` : ""}</span><span class="amt">${fmt(v)}<small>${sub}</small></span></div>`;
     box.innerHTML =
       `<div class="sh-col"><section class="card pad sh-card"><h2>${esc(tr("Brought in"))}</h2><p class="sh-sub">${esc(monthName(MONTH, true))}</p>` +
         row(A, A.inc, pctOf(A.inc, inc) + "%") + row(B, B.inc, pctOf(B.inc, inc) + "%") + shareBar(A.m, B.m, A.inc, B.inc) +
@@ -2394,8 +2397,8 @@
       `<div class="sh-chips">${chip("even", "50 / 50")}${chip("income", "By income")}${chip("now", "As it is now")}</div>` +
       `<input class="sh-slider" id="shSlider" type="range" min="0" max="100" step="1" value="${pct}" aria-label="${esc(A.m.name)}">` +
       `<div class="sh-legend"><span>${esc(A.m.name)} ${pct}%</span><span>${esc(B.m.name)} ${100 - pct}%</span></div>` +
-      `<div class="sh-row"><span class="av" style="background:${esc(A.m.color)}">${esc(A.m.emoji)}</span><span class="nm">${esc(A.m.name)}<small>${esc(tr("pays"))} ${fmt(payA)}</small></span><span class="amt">${fmt(leftA)}<small>${esc(tr("left over"))}</small></span></div>` +
-      `<div class="sh-row"><span class="av" style="background:${esc(B.m.color)}">${esc(B.m.emoji)}</span><span class="nm">${esc(B.m.name)}<small>${esc(tr("pays"))} ${fmt(payB)}</small></span><span class="amt">${fmt(leftB)}<small>${esc(tr("left over"))}</small></span></div>` +
+      `<div class="sh-row"><span class="av" style="background:${esc(A.m.color)}">${bud(A.m.emoji)}</span><span class="nm">${esc(A.m.name)}<small>${esc(tr("pays"))} ${fmt(payA)}</small></span><span class="amt">${fmt(leftA)}<small>${esc(tr("left over"))}</small></span></div>` +
+      `<div class="sh-row"><span class="av" style="background:${esc(B.m.color)}">${bud(B.m.emoji)}</span><span class="nm">${esc(B.m.name)}<small>${esc(tr("pays"))} ${fmt(payB)}</small></span><span class="amt">${fmt(leftB)}<small>${esc(tr("left over"))}</small></span></div>` +
       (inc > 0 ? `<p class="sh-tip">${esc(A.m.name)} ${esc(tr("brings in"))} ${incPct}%, ${esc(B.m.name)} ${100 - incPct}%. ${esc(tr("Splitting shared costs the same way is one fair option, 50/50 is another. Slide to try your own."))}</p>` : `<p class="sh-tip">${esc(tr("Add some income to see what a fair split looks like."))}</p>`);
     el.querySelectorAll("[data-sm]").forEach((b) => (b.onclick = () => { shareMode = b.dataset.sm; sharePct = null; drawShareBrain(A, B, inc, S); }));
     $("shSlider").oninput = (ev) => { sharePct = +ev.target.value; const t = ev.target; drawShareBrain(A, B, inc, S); $("shSlider").focus(); };
@@ -3020,7 +3023,7 @@
     box.innerHTML = SHOP.length ? "" : `<div class="shop-empty">${esc(tr("Nothing on the list yet. Add what you need above."))}</div>`;
     SHOP.forEach((it) => {
       const m = member(it.added_by), r = document.createElement("div"); r.className = "shop-item" + (it.done ? " done" : "");
-      r.innerHTML = `<button class="bx" type="button" aria-label="${esc(it.label)}" aria-pressed="${it.done}">${it.done ? "✓" : ""}</button><span class="t">${esc(it.label)}</span>${MEMBERS.length > 1 ? `<span class="who" style="background:${esc(m.color)}" title="${esc(m.name)}">${esc(m.emoji)}</span>` : ""}<button class="x" type="button" aria-label="${esc(tr("Remove"))}">×</button>`;
+      r.innerHTML = `<button class="bx" type="button" aria-label="${esc(it.label)}" aria-pressed="${it.done}">${it.done ? "✓" : ""}</button><span class="t">${esc(it.label)}</span>${MEMBERS.length > 1 ? `<span class="who" style="background:${esc(m.color)}" title="${esc(m.name)}">${bud(m.emoji)}</span>` : ""}<button class="x" type="button" aria-label="${esc(tr("Remove"))}">×</button>`;
       r.querySelector(".bx").onclick = async () => { it.done = !it.done; drawShop(); try { await api("/api/shopping/" + it.id, { method: "PATCH", body: { done: it.done } }); } catch (e) { toast(e.message); } loadShop(); };
       r.querySelector(".x").onclick = async () => { SHOP = SHOP.filter((x) => x.id !== it.id); drawShop(); try { await api("/api/shopping/" + it.id, { method: "DELETE" }); } catch (e) { toast(e.message); } loadShop(); };
       box.appendChild(r);

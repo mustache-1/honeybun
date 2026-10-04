@@ -79,6 +79,7 @@
       { t: "The app updates itself", d: "No more Refresh button. When a new version is out, the iPhone app quietly updates in the background the next time you open it.", tags: ["improved"], icon: "landing" },
       { t: "A cleaner iPhone app", d: "No scroll bar down the side, no install steps or theme settings you don't need, and your streak, level and gift card now live in Bun's inbox.", tags: ["design"], icon: "landing" },
       { t: "A smarter forecast", d: "The month-end forecast waits for a week of spending, counts a big one-off purchase once, and shows how it got its number: what is left now, paychecks, bills and everyday spending.", tags: ["improved"], icon: "budget" },
+      { t: "New buddies", d: "Pick from 12 new buddies: Bun in a honey pot as a cowboy, witch, ghost, angel, devil, frog, dinosaur and more. Your current buddy turns into its new look automatically.", tags: ["new", "design"], icon: "sun" },
       { t: "A new Honeybun icon", d: "Bun is now peeking out of a honey pot, on the website, the iPhone app and the Windows app. During Halloween, Bun wears a witch hat in a spooky cauldron.", tags: ["new", "design"], icon: "sun" },
       { t: "A homepage built around the app", d: "The homepage now leads with the App Store and real screenshots of the app. The Windows app is still there for anyone who has it.", tags: ["design"], icon: "landing" },
       { t: "Widgets and Siri can sign in", d: "The home-screen widget and Siri shortcuts now share your sign-in with the app, so they can show what is left.", tags: ["fixed"], icon: "bug" },
