@@ -250,3 +250,68 @@ html.hb-hh #hhHome{display:block;container-type:inline-size;max-width:430px;marg
   html.hb-hh nav.bottom .hhn button svg{width:min(26px,6.7vw);height:min(26px,6.7vw)}
   html.hb-hh nav.bottom .hhn button[aria-current="page"]{color:#ffb35c;filter:drop-shadow(0 0 10px rgba(255,150,50,.55))}
 }
+
+/* ===== 2026 TestFlight reference-match pass: Halloween Home =====
+   Presentation-only. Standard Honeybun remains untouched. */
+html.hb-hh[data-scr="home"] #scr-home{background:
+  radial-gradient(85% 38% at 82% 0%,rgba(111,55,159,.22),transparent 70%),
+  radial-gradient(80% 30% at 12% 82%,rgba(103,56,142,.12),transparent 75%),
+  linear-gradient(180deg,#100817 0%,#0b0710 52%,#0c0811 100%)}
+html.hb-hh #hhHome{max-width:410px;padding-top:calc(max(env(safe-area-inset-top,0px),var(--sat,0px)) + 10px);padding-bottom:132px;overflow:visible}
+html.hb-hh #hhHome .hq-head{height:78px;margin:0 18px 8px}
+html.hb-hh #hhHome .hq-brand h1{font-size:27px;line-height:31px;letter-spacing:-.7px}
+html.hb-hh #hhHome .hq-brand p{font-size:12.5px;line-height:16px;margin-top:2px;max-width:210px;color:#a99abf}
+html.hb-hh #hhHome .hq-ib.bell{top:0;right:0;width:37px;height:37px}
+html.hb-hh #hhHome .hq-ib.gear{display:none}
+
+html.hb-hh #hhHome .hq-card{height:166px;margin:0 14px;padding:18px 19px 0;border-radius:20px;border-color:rgba(255,176,83,.58);background:
+ radial-gradient(100% 140% at 100% -15%,rgba(255,170,73,.58),transparent 55%),
+ radial-gradient(90% 100% at -5% 105%,rgba(255,177,77,.22),transparent 64%),
+ linear-gradient(145deg,#51301d 0%,#3b2318 48%,#2b1b17 100%);box-shadow:inset 0 1px 0 rgba(255,230,190,.2),0 12px 28px rgba(0,0,0,.46),0 0 22px rgba(255,141,50,.16)}
+html.hb-hh #hhHome .hq-witch{right:18px;top:-105px;width:132px;max-height:172px;object-fit:contain;object-position:top;filter:drop-shadow(0 7px 8px rgba(0,0,0,.46)) drop-shadow(0 0 12px rgba(255,145,48,.24))}
+html.hb-hh #hhHome .hq-lbl{font-size:15px;line-height:19px;color:#ffe7c6}
+html.hb-hh #hhHome .hq-context{position:absolute;left:19px;top:39px;margin:0;font-size:10.5px;font-weight:600;color:rgba(255,232,203,.58);letter-spacing:.01em}
+html.hb-hh #hhHome .hq-row{height:54px;margin-top:8px}
+html.hb-hh #hhHome .hq-amt{font-size:40px;letter-spacing:-1.5px;max-width:225px;white-space:nowrap}
+html.hb-hh #hhHome .hq-pill{position:absolute;right:15px;top:62px;height:29px;max-width:120px;margin:0;font-size:11.5px;overflow:hidden;white-space:nowrap}
+html.hb-hh #hhHome .hq-pill b{overflow:hidden;text-overflow:ellipsis;padding:0 2px}
+html.hb-hh #hhHome .hq-pill button{width:20px;height:20px;font-size:15px}
+html.hb-hh #hhHome .hq-bar{height:12px;margin-top:6px;background:rgba(255,232,203,.14)}
+html.hb-hh #hhHome .hq-foot{font-size:11.5px;margin-top:9px;color:#f5ddc3}
+
+html.hb-hh #hhHome .hq-acts{gap:10px;margin:11px 14px 0}
+html.hb-hh #hhHome .hq-act{height:46px;border-radius:16px;padding:0 11px;gap:8px;font-size:13px;white-space:nowrap}
+html.hb-hh #hhHome .hq-act b{width:28px;height:28px;font-size:19px}
+html.hb-hh #hhHome .hq-h{margin:15px 17px 8px}
+html.hb-hh #hhHome .hq-h h2{font-size:17px;line-height:21px}
+html.hb-hh #hhHome .hq-h button{font-size:12.5px;color:#9e91b5}
+html.hb-hh #hhHome .hq-list{margin:0 14px;border-radius:18px;background:linear-gradient(180deg,rgba(45,32,54,.78),rgba(26,19,32,.92));box-shadow:0 8px 20px rgba(0,0,0,.33),inset 0 1px 0 rgba(255,255,255,.025)}
+html.hb-hh #hhHome .hq-it{height:51px;padding-left:12px;padding-right:12px;gap:10px}
+html.hb-hh #hhHome .hq-it .ct,html.hb-hh #hhHome .hq-it svg.tile{transform:scale(.9)}
+html.hb-hh #hhHome .hq-mid b{font-size:13.5px;line-height:17px}
+html.hb-hh #hhHome .hq-mid small{font-size:11.5px;line-height:15px}
+html.hb-hh #hhHome .hq-amt2{font-size:13.5px}
+html.hb-hh #hhHome .hq-chev{width:13px;height:13px;color:#9f93ae}
+html.hb-hh #hhHome .hq-dw+.hq-dw{margin:0 12px}
+
+html.hb-hh #hhHome .hq-streak{height:78px;width:calc(100% - 28px);margin:11px 14px 0;padding:0 13px 0 103px;border-radius:18px;background:radial-gradient(75% 150% at 12% 65%,rgba(255,151,51,.28),transparent 70%),linear-gradient(180deg,rgba(57,36,34,.88),rgba(29,20,30,.94));box-shadow:0 8px 20px rgba(0,0,0,.34)}
+html.hb-hh #hhHome .hq-streak>img{left:8px;bottom:0;width:91px;max-height:96px;object-fit:contain;object-position:bottom}
+html.hb-hh #hhHome .hq-flame{width:24px;height:31px}
+html.hb-hh #hhHome .hq-st b{font-size:15.5px;line-height:19px}
+html.hb-hh #hhHome .hq-st small{font-size:11.5px;line-height:15px}
+/* Keep activity available below the fold without letting it dominate the reference viewport. */
+html.hb-hh #hhHome .hq-latest-head{margin-top:20px}
+
+@media (max-width:899px){
+ html.hb-hh nav.bottom:not(.x){left:calc(max(0px,(100vw - 410px)/2) + 10px);right:calc(max(0px,(100vw - 410px)/2) + 10px);bottom:calc(max(env(safe-area-inset-bottom,0px),var(--sab,0px)) + 7px)}
+ html.hb-hh nav.bottom>.hhn{height:70px;border-radius:28px;padding:0 5px;background:linear-gradient(180deg,rgba(43,29,52,.96),rgba(22,15,28,.98));border-color:rgba(255,255,255,.08);box-shadow:0 12px 30px rgba(0,0,0,.58),inset 0 1px 0 rgba(255,255,255,.055)}
+ html.hb-hh nav.bottom .hhn button{gap:3px;font-size:10px;color:#9588aa}
+ html.hb-hh nav.bottom .hhn button svg{width:22px;height:22px}
+ html.hb-hh nav.bottom .hhn button[aria-current="page"]{color:#ffae55;filter:drop-shadow(0 0 8px rgba(255,150,50,.45))}
+}
+@media (max-width:360px){
+ html.hb-hh #hhHome .hq-witch{width:116px;right:13px;top:-92px}
+ html.hb-hh #hhHome .hq-amt{font-size:35px}
+ html.hb-hh #hhHome .hq-pill{max-width:105px}
+ html.hb-hh #hhHome .hq-act{font-size:12px}
+}

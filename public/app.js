@@ -1284,7 +1284,7 @@
       </header>
       <section class="hq-card" aria-label="${esc(tr("This month's money"))}">
         <img class="hq-witch" src="/hh-witch-top.png" alt="">
-        <p class="hq-lbl">${esc(lbl)}</p>
+        <p class="hq-lbl">${esc(tr("Safe to spend"))}</p><p class="hq-context">${esc(lbl)}</p>
         <div class="hq-row">
           <div class="hq-amt ${c.left < 0 ? "neg" : ""}">${esc(w)}${cents ? `<small>.${esc(cents)}</small>` : ""}</div>
           <div class="hq-pill"><button type="button" id="hhPrev" aria-label="${esc(tr("Previous month"))}">‹</button><b>${esc(mon)}</b><button type="button" id="hhNext" aria-label="${esc(tr("Next month"))}">›</button></div>
@@ -1299,8 +1299,8 @@
       <div class="hq-h"><h2>${esc(tr("Coming up"))}</h2><button type="button" id="hhPlan">${esc(tr("See all"))} ›</button></div>
       <div class="hq-list">${items.length ? items.map(dueRow).join("") : `<div class="hq-empty"><span>${esc(RECUR.length ? tr("Nothing due soon") + " ♡" : tr("Add rent, bills and paydays once."))}</span><button type="button" id="hhAddBill">${esc(tr("Add"))}</button></div>`}</div>
       <button type="button" class="hq-streak" id="hhStreak"><img src="/hh-witch-top.png" alt="">${flame}<span class="hq-st"><b>${st === 1 ? esc(tr("1 day")) : st + " " + esc(tr("days"))} ${esc(tr("hop streak"))}</b><small>${esc(done ? tr("Keep it going!") : tr("Log today to hop"))} · ${esc(tr("Level"))} ${li.l}</small></span>${chev}</button>
-      <div class="hq-h"><h2>${esc(tr("Latest"))}</h2><button type="button" id="hhAll">${esc(tr("See all"))} ›</button></div>
-      <div class="hq-list">${recent.length ? recent.map(actRow).join("") : `<div class="hq-empty"><span>${esc(tr("Nothing yet. Tap + to add something."))}</span></div>`}</div>`;
+      <div class="hq-h hq-latest-head"><h2>${esc(tr("Latest"))}</h2><button type="button" id="hhAll">${esc(tr("See all"))} ›</button></div>
+      <div class="hq-list hq-latest-list">${recent.length ? recent.map(actRow).join("") : `<div class="hq-empty"><span>${esc(tr("Nothing yet. Tap + to add something."))}</span></div>`}</div>`;
     const q = (id) => root.querySelector("#" + id);
     q("hhBell").onclick = openInbox; q("hhGear").onclick = () => show("settings");
     q("hhPrev").onclick = () => $("heroPrev").click(); q("hhNext").onclick = () => $("heroNext").click();
