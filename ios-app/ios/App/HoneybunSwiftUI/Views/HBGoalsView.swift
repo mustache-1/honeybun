@@ -65,6 +65,7 @@ struct HBGoalsView: View {
     }
 
     var body: some View {
+        ScrollViewReader { proxy in
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 VStack(alignment: .leading, spacing: 14) {
@@ -78,10 +79,14 @@ struct HBGoalsView: View {
                 .padding(.horizontal, HB.gutter).padding(.top, 8)
                 .frame(maxWidth: .infinity)
                 scene
-                Color.clear.frame(height: max(1, metrics.trailing)).background(HBProbe(kind: .scrollEnd))
+                Color.clear.frame(height: max(1, metrics.trailing)).id("hb-end").background(HBProbe(kind: .scrollEnd))
             }
         }
         .refreshable { await store.refresh() }
+        #if DEBUG
+        .onAppear { if store.previewScrollToEnd { DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { proxy.scrollTo("hb-end", anchor: .bottom) } } }
+        #endif
+        }
     }
 
     private var header: some View {
