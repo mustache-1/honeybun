@@ -256,10 +256,10 @@ struct HBGoalDetail: View {
         .background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(LinearGradient(colors: [Color(red: 0.25, green: 0.16, blue: 0.14), Color(red: 0.13, green: 0.09, blue: 0.14)], startPoint: .topTrailing, endPoint: .bottomLeading)))
         .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).stroke(HB.orange.opacity(0.35), lineWidth: 1))
         .overlay(alignment: .topTrailing) {
-            // the same witch bunny as on Add Expense / Add Income (form-peek-bun.png), peeking over the top edge of the card
-            Image("HBFormPeek").resizable().scaledToFit().frame(width: 104, height: 86).offset(x: -10, y: -72).allowsHitTesting(false).accessibilityHidden(true)
+            // the supplied form-peek-bun.png (381x267, purple witch hat), peeking over the top-right edge of the card
+            Image("HBGoalsPeek").resizable().scaledToFit().frame(width: 124, height: 87).offset(x: -8, y: -73).allowsHitTesting(false).accessibilityHidden(true)
         }
-        .padding(.top, 58)
+        .padding(.top, 60)
     }
 
     private var quickAmounts: some View {
