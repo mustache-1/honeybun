@@ -3,18 +3,24 @@ import SwiftUI
 // Native Honeybun shell. Screens that aren't native yet say so and hand you back to the classic (web) app, which stays fully working.
 @available(iOS 15.0, *)
 struct HBRootView: View {
-    @StateObject private var store = HBAppStore()
+    @StateObject private var store: HBAppStore
     let onClose: () -> Void
+
+    init(store: HBAppStore? = nil, onClose: @escaping () -> Void) {
+        HBFonts.register()
+        _store = StateObject(wrappedValue: store ?? HBAppStore())
+        self.onClose = onClose
+    }
 
     var body: some View {
         ZStack {
-            HB.bg.ignoresSafeArea()
+            HBBackground()
             content
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             if store.phase == .ready { HBTabBar(selected: $store.selectedTab) }
         }
-        .sheet(item: $store.sheet) { sheet in sheetView(sheet) }
+        .fullScreenCover(item: $store.sheet) { sheet in sheetView(sheet) }
         .task { await store.start() }
         .preferredColorScheme(.dark)
     }

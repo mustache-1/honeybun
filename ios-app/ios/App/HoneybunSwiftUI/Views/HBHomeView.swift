@@ -1,23 +1,28 @@
 import SwiftUI
 
+private let hbPrettyDate: DateFormatter = {
+    let f = DateFormatter(); f.dateFormat = "MMM d, yyyy"; return f
+}()
+
 @available(iOS 15.0, *)
 struct HBUpcomingRow: View {
     @ObservedObject var store: HBAppStore
     let item: HBUpcoming
     @State private var working = false
     var body: some View {
-        HStack(spacing: 8) {
+        let cat = HBCategory.of(item.recurring.category)
+        HStack(spacing: 6) {
             Button { store.sheet = .editRecurring(item.recurring) } label: {
                 HStack(spacing: 12) {
-                    if item.recurring.isIncome { HBTile(symbol: "dollarsign.circle.fill", tint: HB.green) } else { HBTile(symbol: HBCategory.of(item.recurring.category).symbol) }
+                    if item.recurring.isIncome { HBCircleIcon(symbol: "arrow.down", tint: HB.green, size: 40) } else { HBCircleIcon(symbol: cat.symbol, tint: Color(rgb: cat.rgb), size: 40) }
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(item.recurring.label).font(.body.weight(.semibold)).foregroundColor(.white).lineLimit(1)
-                        Text((item.late ? "Late · " : "") + HBDay.short(item.dateString)).font(.footnote).foregroundColor(item.late ? HB.red : HB.soft)
+                        Text(item.recurring.label).font(.system(size: 17, weight: .semibold)).foregroundColor(.white).lineLimit(1)
+                        Text((item.late ? "Late · " : "") + hbPrettyDate.string(from: item.date)).font(.system(size: 14)).foregroundColor(item.late ? HB.red : HB.soft)
                     }
                     Spacer(minLength: 8)
-                    Text(HBFormat.money(item.recurring.amount)).font(.body.weight(.semibold).monospacedDigit())
+                    Text(HBFormat.money(item.recurring.amount)).font(.system(size: 17, weight: .semibold).monospacedDigit())
                         .foregroundColor(item.recurring.isIncome ? HB.green : .white)
-                    Image(systemName: "chevron.right").font(.footnote.weight(.bold)).foregroundColor(HB.soft)
+                    Image(systemName: "chevron.right").font(.system(size: 13, weight: .bold)).foregroundColor(HB.soft)
                 }
                 .contentShape(Rectangle())
             }
@@ -28,28 +33,12 @@ struct HBUpcomingRow: View {
                 working = true
                 Task { do { try await store.markPaid(item) } catch { store.notice = error.localizedDescription }; working = false }
             } label: {
-                Image(systemName: working ? "hourglass" : "checkmark").font(.system(size: 14, weight: .bold)).foregroundColor(HB.orange)
-                    .frame(width: 34, height: 34).overlay(Circle().stroke(HB.orange.opacity(0.55), lineWidth: 1))
+                Image(systemName: working ? "hourglass" : "checkmark").font(.system(size: 13, weight: .bold)).foregroundColor(HB.orange)
+                    .frame(width: 32, height: 32).overlay(Circle().stroke(HB.orange.opacity(0.5), lineWidth: 1))
             }
             .accessibilityLabel(item.recurring.isIncome ? "Mark received" : "Mark paid")
         }
-        .padding(.horizontal, 12).padding(.vertical, 8)
-    }
-}
-
-@available(iOS 15.0, *)
-struct HBMonthPill: View {
-    @ObservedObject var store: HBAppStore
-    var body: some View {
-        HStack(spacing: 2) {
-            Button { store.shiftMonth(-1) } label: { Image(systemName: "chevron.left").frame(width: 30, height: 30) }.accessibilityLabel("Previous month")
-            Text(HBDay.monthName(store.month)).font(.subheadline.weight(.semibold)).lineLimit(1)
-            Button { store.shiftMonth(1) } label: { Image(systemName: "chevron.right").frame(width: 30, height: 30) }.accessibilityLabel("Next month")
-        }
-        .font(.footnote.weight(.bold)).foregroundColor(Color(red: 1, green: 0.9, blue: 0.8))
-        .padding(.horizontal, 4)
-        .background(Capsule().fill(Color(red: 1, green: 0.78, blue: 0.5).opacity(0.18)))
-        .overlay(Capsule().stroke(Color(red: 1, green: 0.78, blue: 0.55).opacity(0.32), lineWidth: 1))
+        .padding(.horizontal, 14).padding(.vertical, 9)
     }
 }
 
@@ -59,89 +48,126 @@ struct HBHomeView: View {
     let onClose: () -> Void
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
-                header
-                summaryCard
-                actions
-                comingUp
-                latest
-                if let n = store.notice { Text(n).font(.footnote).foregroundColor(HB.red).onTapGesture { store.notice = nil } }
+        GeometryReader { geo in
+            let w = geo.size.width
+            let hero = min(max(w * 0.40, 128), 190)       // witch width follows the screen
+            let heroH = hero * 0.907
+            let overlap: CGFloat = 36                      // how far the hero's honey dips into the card
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    classicLink
+                    header(heroH: heroH, overlap: overlap)
+                    summaryCard(hero: hero, heroH: heroH, overlap: overlap)
+                    actions
+                    comingUp
+                    streakCard
+                    latest
+                    if let n = store.notice { Text(n).font(.footnote).foregroundColor(HB.red).onTapGesture { store.notice = nil } }
+                }
+                .frame(maxWidth: 560)
+                .padding(.horizontal, HB.gutter).padding(.top, 4).padding(.bottom, 20)
+                .frame(maxWidth: .infinity)
             }
-            .frame(maxWidth: 560)
-            .padding(.horizontal, HB.gutter).padding(.top, 8).padding(.bottom, 24)
-            .frame(maxWidth: .infinity)
+            .refreshable { await store.refresh() }
         }
-        .refreshable { await store.refresh() }
     }
 
-    private var header: some View {
+    // Beta only: the way back to the classic app. Removed when native becomes the default.
+    private var classicLink: some View {
+        Button(action: onClose) {
+            HStack(spacing: 4) { Image(systemName: "chevron.left").font(.system(size: 11, weight: .bold)); Text("Classic") }
+                .font(.system(size: 13, weight: .semibold)).foregroundColor(HB.orange.opacity(0.9))
+        }
+        .accessibilityLabel("Open classic Honeybun")
+    }
+
+    private func header(heroH: CGFloat, overlap: CGFloat) -> some View {
         HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("honeybun").font(.system(size: 30, weight: .bold, design: .rounded)).foregroundColor(HB.orange)
-                Text(store.snapshot?.nest.name ?? "").font(.footnote).foregroundColor(HB.soft).lineLimit(1)
+            VStack(alignment: .leading, spacing: 4) {
+                HBWordmark(size: 36)
+                Text("A happier way to manage\nmoney together.").font(.system(size: 15, weight: .medium)).foregroundColor(Color(red: 0.74, green: 0.69, blue: 0.9))
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            Spacer()
-            Button(action: onClose) {
-                Text("Classic").font(.footnote.weight(.semibold)).foregroundColor(HB.orange)
-                    .padding(.horizontal, 12).padding(.vertical, 7).overlay(Capsule().stroke(HB.orange.opacity(0.5), lineWidth: 1))
+            Spacer(minLength: 0)
+            Button { store.selectedTab = .inbox } label: {
+                ZStack(alignment: .topTrailing) {
+                    Image(systemName: "bell").font(.system(size: 18, weight: .medium)).foregroundColor(.white)
+                        .frame(width: 44, height: 44).background(Circle().fill(Color.white.opacity(0.08))).overlay(Circle().stroke(Color.white.opacity(0.1), lineWidth: 1))
+                    if store.unread > 0 { Circle().fill(Color(red: 1, green: 0.37, blue: 0.53)).frame(width: 10, height: 10).offset(x: -3, y: 3) }
+                }
             }
-            .accessibilityLabel("Open classic Honeybun")
+            .accessibilityLabel("Messages from Bun")
+            .zIndex(2)
         }
+        // room above the card so the hero's hat rises beside the wordmark instead of off the screen
+        .padding(.bottom, max(0, heroH - overlap - 70))
     }
 
-    private var summaryCard: some View {
+    private func summaryCard(hero: CGFloat, heroH: CGFloat, overlap: CGFloat) -> some View {
         let total = store.income + store.carry
         let ratio = total > 0 ? min(1, store.spent / total) : (store.spent > 0 ? 1 : 0)
-        return VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Text(store.isJoint ? "Safe to spend · Joint" : "Safe to spend").font(.headline).foregroundColor(Color(red: 1, green: 0.96, blue: 0.89))
-                Spacer()
-                HBMonthPill(store: store)
+        return VStack(alignment: .leading, spacing: 8) {
+            Text(store.isJoint ? "Safe to spend · Joint" : "Safe to spend").font(.system(size: 20, weight: .semibold)).foregroundColor(Color(red: 1, green: 0.96, blue: 0.9))
+                .padding(.trailing, hero * 0.55)
+            HStack(alignment: .center) {
+                Text(HBFormat.money(store.left)).font(.system(size: 46, weight: .heavy).monospacedDigit())
+                    .minimumScaleFactor(0.5).lineLimit(1).foregroundColor(store.left < 0 ? HB.red : .white)
+                    .shadow(color: .black.opacity(0.35), radius: 8, y: 2)
+                Spacer(minLength: 6)
+                HBMonthMenu(store: store)
             }
-            Text(HBFormat.money(store.left)).font(.system(size: 40, weight: .heavy).monospacedDigit())
-                .minimumScaleFactor(0.5).lineLimit(1).foregroundColor(store.left < 0 ? HB.red : .white)
+            .padding(.top, max(0, 6))
             GeometryReader { g in
                 ZStack(alignment: .leading) {
                     Capsule().fill(Color.black.opacity(0.28))
-                    Capsule().fill(LinearGradient(colors: [store.spent > total ? HB.red : HB.orange, Color(red: 1, green: 0.83, blue: 0.48)], startPoint: .leading, endPoint: .trailing))
-                        .frame(width: max(8, g.size.width * CGFloat(ratio)))
+                    Capsule().fill(LinearGradient(colors: [store.spent > total ? HB.red : Color(red: 1, green: 0.74, blue: 0.33), Color(red: 1, green: 0.83, blue: 0.5)], startPoint: .leading, endPoint: .trailing))
+                        .frame(width: max(10, g.size.width * CGFloat(ratio)))
                 }
             }
-            .frame(height: 10)
+            .frame(height: 14).padding(.top, 6)
             HStack {
-                Text("\(HBFormat.money(store.spent)) of \(HBFormat.money(total)) spent").font(.footnote).foregroundColor(Color(red: 0.98, green: 0.91, blue: 0.82))
+                Text("\(HBFormat.money(store.spent, cents: false)) of \(HBFormat.money(total, cents: false))").font(.system(size: 16)).foregroundColor(Color(red: 0.98, green: 0.92, blue: 0.84))
                 Spacer()
-                Text("\(Int((ratio * 100).rounded()))%").font(.footnote.weight(.semibold)).foregroundColor(Color(red: 0.98, green: 0.91, blue: 0.82))
+                Text("\(Int((ratio * 100).rounded()))%").font(.system(size: 16, weight: .semibold)).foregroundColor(Color(red: 0.98, green: 0.92, blue: 0.84))
             }
         }
-        .padding(16)
-        .background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(LinearGradient(colors: [Color(red: 0.36, green: 0.21, blue: 0.11), Color(red: 0.20, green: 0.12, blue: 0.08)], startPoint: .topTrailing, endPoint: .bottomLeading)))
-        .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).stroke(HB.orange.opacity(0.5), lineWidth: 1.5))
+        .padding(18)
+        .background(
+            RoundedRectangle(cornerRadius: 24, style: .continuous).fill(
+                LinearGradient(colors: [Color(red: 0.43, green: 0.25, blue: 0.12), Color(red: 0.24, green: 0.14, blue: 0.09)], startPoint: .topTrailing, endPoint: .bottomLeading))
+        )
+        .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).stroke(HB.orange.opacity(0.55), lineWidth: 1.5))
+        .shadow(color: HB.orange.opacity(0.18), radius: 16, y: 4)
+        .overlay(alignment: .topTrailing) {
+            Image("HBHero").resizable().scaledToFit().frame(width: hero)
+                .offset(x: -8, y: -(heroH - overlap))
+                .allowsHitTesting(false).accessibilityHidden(true)
+        }
     }
 
     private var actions: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 12) {
             actionButton("Add expense", tint: HB.orange) { store.sheet = .newEntry("expense") }
             actionButton("Add income", tint: HB.green) { store.sheet = .newEntry("income") }
         }
     }
     private func actionButton(_ title: String, tint: Color, _ action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            HStack(spacing: 8) {
-                Image(systemName: "plus").font(.system(size: 13, weight: .heavy)).foregroundColor(Color.black.opacity(0.8))
-                    .frame(width: 26, height: 26).background(Circle().fill(tint))
-                Text(title).font(.subheadline.weight(.semibold)).foregroundColor(.white).lineLimit(1).minimumScaleFactor(0.8)
+            HStack(spacing: 10) {
+                Image(systemName: "plus").font(.system(size: 15, weight: .heavy)).foregroundColor(Color.black.opacity(0.78))
+                    .frame(width: 32, height: 32).background(Circle().fill(tint))
+                    .shadow(color: tint.opacity(0.5), radius: 8)
+                Text(title).font(.system(size: 16, weight: .semibold)).foregroundColor(.white).lineLimit(1).minimumScaleFactor(0.8)
             }
-            .frame(maxWidth: .infinity, minHeight: 46)
-            .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(tint.opacity(0.12)))
-            .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(tint.opacity(0.45), lineWidth: 1))
+            .frame(maxWidth: .infinity, minHeight: 54)
+            .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(tint.opacity(0.10)))
+            .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(tint.opacity(0.4), lineWidth: 1))
         }
     }
 
     private var comingUp: some View {
         let items = store.upcoming
-        return VStack(alignment: .leading, spacing: 6) {
+        return VStack(alignment: .leading, spacing: 8) {
             HBSectionHeader(title: "Coming up", action: "See all") { store.sheet = .upcoming }
             VStack(spacing: 0) {
                 if items.isEmpty {
@@ -149,10 +175,10 @@ struct HBHomeView: View {
                         Text("Add rent, bills and paydays once.").font(.subheadline).foregroundColor(HB.soft)
                         Spacer()
                         Button("Add") { store.sheet = .newRecurring }.font(.subheadline.weight(.bold)).foregroundColor(HB.orange)
-                    }.padding(14)
+                    }.padding(16)
                 } else {
                     ForEach(Array(items.prefix(3).enumerated()), id: \.element.id) { i, item in
-                        if i > 0 { Divider().background(HB.line) }
+                        if i > 0 { Divider().background(HB.line).padding(.leading, 66) }
                         HBUpcomingRow(store: store, item: item)
                     }
                 }
@@ -161,16 +187,36 @@ struct HBHomeView: View {
         }
     }
 
+    // The illustrated streak card. The count is the real streak from your account.
+    private var streakCard: some View {
+        let n = store.streak
+        return HStack(spacing: 10) {
+            Image("HBStreak").resizable().scaledToFit().frame(width: 84, height: 84).accessibilityHidden(true)
+            Image(systemName: "flame.fill").font(.system(size: 34)).foregroundStyle(LinearGradient(colors: [Color(red: 1, green: 0.78, blue: 0.3), Color(red: 1, green: 0.38, blue: 0.2)], startPoint: .top, endPoint: .bottom))
+                .shadow(color: Color(red: 1, green: 0.4, blue: 0.1).opacity(0.5), radius: 8)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(n > 0 ? "\(n) day streak" : "Start a streak").font(.system(size: 21, weight: .bold)).foregroundColor(Color(red: 1, green: 0.83, blue: 0.48)).minimumScaleFactor(0.7).lineLimit(1)
+                Text(n > 0 ? "Keep it going!" : "Log something today").font(.system(size: 15)).foregroundColor(Color(red: 0.74, green: 0.69, blue: 0.9))
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 8).padding(.vertical, 6)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(LinearGradient(colors: [Color(red: 0.24, green: 0.15, blue: 0.14), Color(red: 0.13, green: 0.09, blue: 0.14)], startPoint: .leading, endPoint: .trailing)))
+        .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).stroke(HB.orange.opacity(0.30), lineWidth: 1))
+        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+    }
+
     private var latest: some View {
         let recent = Array(store.entries.prefix(4))
-        return VStack(alignment: .leading, spacing: 6) {
+        return VStack(alignment: .leading, spacing: 8) {
             HBSectionHeader(title: "Latest", action: "See all") { store.selectedTab = .money }
             VStack(spacing: 0) {
                 if recent.isEmpty {
-                    Text("Nothing yet this month. Add your first expense or income.").font(.subheadline).foregroundColor(HB.soft).padding(14)
+                    Text("Nothing yet this month. Add your first expense or income.").font(.subheadline).foregroundColor(HB.soft).padding(16)
                 } else {
                     ForEach(Array(recent.enumerated()), id: \.element.id) { i, e in
-                        if i > 0 { Divider().background(HB.line) }
+                        if i > 0 { Divider().background(HB.line).padding(.leading, 66) }
                         Button { store.sheet = .editEntry(e) } label: { HBEntryRow(entry: e, who: store.members.count > 1 ? store.memberName(e.member_id) : nil) }
                             .buttonStyle(.plain)
                     }

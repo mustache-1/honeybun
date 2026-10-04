@@ -32,19 +32,33 @@ enum HBTab: String, CaseIterable { case home = "Home", money = "Money", goals = 
     @Published var busy = false
     @Published var notice: String?
     @Published var sheet: HBSheet?
+    @Published var prevSpent: Double?   // last month's spending, for the Money insight card
+
+    init() {}
+
+    /// Debug-only screenshots: a ready store with a fixed snapshot and no network (see HBPreview).
+    init(previewSnapshot: HBNestSnapshot, month: String, prevSpent: Double?) {
+        self.snapshot = previewSnapshot; self.month = month; self.prevSpent = prevSpent; self.phase = .ready
+        self.isPreview = true; self.previewMonth = month
+    }
+    private(set) var isPreview = false
+    private var previewMonth: String?
 
     // MARK: loading
 
     func start() async {
+        if isPreview { return }
         phase = .checking
         await HBSession.syncFromWebView()
         await refresh()
     }
 
     func refresh() async {
+        if isPreview { return }
         do {
             snapshot = try await HBAPI.shared.nest(month: month)
             phase = .ready
+            await loadPrevious()
         } catch HBAPIError.notSignedIn {
             // the web view may have refreshed its cookie since we copied it: try once more before calling it signed out
             let copied = await HBSession.syncFromWebView()
@@ -54,7 +68,21 @@ enum HBTab: String, CaseIterable { case home = "Home", money = "Money", goals = 
         }
     }
 
-    func shiftMonth(_ n: Int) { month = HBDay.shiftMonth(month, by: n); Task { await refresh() } }
+    func shiftMonth(_ n: Int) { setMonth(HBDay.shiftMonth(month, by: n)) }
+    func setMonth(_ key: String) { guard key != month else { return }; month = key; Task { await refresh() } }
+
+    // the month before the one on screen, only to say "spending is N% lower than last month"; if it can't load, the card just says something else
+    private func loadPrevious() async {
+        let prev = HBDay.shiftMonth(month, by: -1)
+        if let p = try? await HBAPI.shared.nest(month: prev) { prevSpent = p.entries.filter { !$0.isIncome }.reduce(0) { $0 + $1.amount } } else { prevSpent = nil }
+    }
+
+    /// the last 12 months, newest first, for the month menu
+    var recentMonths: [String] { (0..<12).map { HBDay.shiftMonth(currentKey, by: -$0) } }
+    private var currentKey: String { isPreview ? (previewMonth ?? HBDay.monthKey()) : HBDay.monthKey() }
+    func monthTitle(_ key: String) -> String { key == currentKey ? "This Month" : HBDay.monthName(key) }
+    var streak: Int { snapshot?.members.first { $0.id == myID }?.streak ?? 0 }
+    var unread: Int { snapshot?.inbox?.unread ?? 0 }
 
     // MARK: derived (all from the snapshot)
 

@@ -38,16 +38,17 @@ struct HBCarry: Decodable { let amount_cents: Int; let accepted: Bool? }
 
 struct HBNestSnapshot: Decodable {
     let me: HBUser?; let nest: HBNest; let members: [HBMember]; let entries: [HBEntry]; let recurring: [HBRecurring]
-    let logged: [HBLogged]; let goals: [HBGoal]; let shopping_open: Int?; let carry_in: HBCarry?
+    let logged: [HBLogged]; let goals: [HBGoal]; let shopping_open: Int?; let carry_in: HBCarry?; let inbox: HBInbox?
 }
 
 enum HBCategory: String, CaseIterable, Identifiable {
     case home, groc, food, date, bills, subs, car, fun, pets, debt, other
     var id: String { rawValue }
-    var name: String {
+    // names follow the approved mockups (Food & Dining, Shopping, Transport, Entertainment); the backend ids are unchanged
+    var label: String {
         switch self {
-        case .home: return "Housing"; case .groc: return "Groceries"; case .food: return "Eating out"; case .date: return "Date night"
-        case .bills: return "Bills"; case .subs: return "Subscriptions"; case .car: return "Car"; case .fun: return "Fun"
+        case .home: return "Home"; case .groc: return "Shopping"; case .food: return "Food & Dining"; case .date: return "Date night"
+        case .bills: return "Bills"; case .subs: return "Subscriptions"; case .car: return "Transport"; case .fun: return "Entertainment"
         case .pets: return "Pets"; case .debt: return "Debt"; case .other: return "Other"
         }
     }
@@ -55,11 +56,29 @@ enum HBCategory: String, CaseIterable, Identifiable {
         switch self {
         case .home: return "house.fill"; case .groc: return "cart.fill"; case .food: return "fork.knife"; case .date: return "heart.fill"
         case .bills: return "doc.text.fill"; case .subs: return "play.rectangle.fill"; case .car: return "car.fill"; case .fun: return "gamecontroller.fill"
-        case .pets: return "pawprint.fill"; case .debt: return "creditcard.fill"; case .other: return "ellipsis.circle.fill"
+        case .pets: return "pawprint.fill"; case .debt: return "creditcard.fill"; case .other: return "ellipsis"
+        }
+    }
+    /// RGB of the category's accent (used for its circle in lists and forms)
+    var rgb: (Double, Double, Double) {
+        switch self {
+        case .food: return (1.00, 0.62, 0.22)
+        case .groc: return (1.00, 0.40, 0.55)
+        case .bills: return (0.62, 0.58, 1.00)
+        case .car: return (0.40, 0.62, 1.00)
+        case .fun: return (1.00, 0.42, 0.62)
+        case .home: return (1.00, 0.76, 0.33)
+        case .date: return (1.00, 0.45, 0.62)
+        case .subs: return (0.66, 0.50, 1.00)
+        case .pets: return (0.55, 0.85, 0.65)
+        case .debt: return (1.00, 0.55, 0.45)
+        case .other: return (0.45, 0.72, 1.00)
         }
     }
     static func of(_ raw: String?) -> HBCategory { HBCategory(rawValue: raw ?? "") ?? .other }
 }
+
+struct HBInbox: Decodable { let unread: Int? }
 
 // What the app sends to POST/PATCH /api/entries. Editing keeps the entry's own split so a save never silently changes how it was shared.
 struct HBEntryDraft {

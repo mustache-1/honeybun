@@ -1,88 +1,187 @@
 import SwiftUI
 
+// One bar pair (spent / came in) for a few days of the month, drawn from the real entries.
+private struct HBBucket: Identifiable { let id: Int; let spent: Double; let income: Double }
+
 @available(iOS 15.0, *)
 struct HBMoneyView: View {
     @ObservedObject var store: HBAppStore
+    @State private var showAllCategories = false
+
+    // MARK: derived from the store
+
+    private var daysInMonth: Int {
+        guard let d = HBDay.parse(store.month + "-01"), let r = HBDay.cal.range(of: .day, in: .month, for: d) else { return 30 }
+        return r.count
+    }
+    private var buckets: [HBBucket] {
+        let size = 2
+        let count = Int((Double(daysInMonth) / Double(size)).rounded(.up))
+        var spent = [Double](repeating: 0, count: count), income = [Double](repeating: 0, count: count)
+        for e in store.entries {
+            guard let day = Int(e.date.suffix(2)), day >= 1 else { continue }
+            let i = min(count - 1, (day - 1) / size)
+            if e.isIncome { income[i] += e.amount } else { spent[i] += e.amount }
+        }
+        return (0..<count).map { HBBucket(id: $0, spent: spent[$0], income: income[$0]) }
+    }
+    private var axisLabels: [(String, CGFloat)] {
+        let mon = String(HBDay.monthName(store.month).prefix(3))
+        let days = [1, 8, 15, 22, 29].filter { $0 <= daysInMonth }
+        return days.map { ("\(mon) \($0)", CGFloat($0 - 1) / CGFloat(max(1, daysInMonth - 1))) }
+    }
+    private struct CatRow: Identifiable { let id: String; let category: HBCategory; let total: Double; let pct: Int }
+    private var categoryRows: [CatRow] {
+        let totals = store.categoryTotals
+        let sum = totals.reduce(0) { $0 + $1.total }
+        guard sum > 0 else { return [] }
+        func pct(_ v: Double) -> Int { Int((v / sum * 100).rounded()) }
+        let all = totals.map { CatRow(id: $0.category.rawValue, category: $0.category, total: $0.total, pct: pct($0.total)) }
+        if showAllCategories || all.count <= 5 { return all }
+        // top four, then everything else together as "Other" (like the mockup)
+        let head = Array(all.prefix(4)).filter { $0.category != .other }
+        let headIDs = Set(head.map { $0.id })
+        let rest = totals.filter { !headIDs.contains($0.category.rawValue) }.reduce(0) { $0 + $1.total }
+        return head + (rest > 0 ? [CatRow(id: "other-rest", category: .other, total: rest, pct: pct(rest))] : [])
+    }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
-                HStack {
-                    Text("Money").font(.system(size: 30, weight: .bold, design: .rounded)).foregroundColor(.white)
-                    Spacer()
-                    HBMonthPill(store: store)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Money").font(.system(size: 34, weight: .bold)).foregroundColor(.white)
+                    Text("Track, plan, and grow together.").font(.system(size: 16)).foregroundColor(Color(red: 0.74, green: 0.69, blue: 0.9))
                 }
-                HStack(spacing: 10) {
-                    sum("Came in", store.income, HB.green, "arrow.down.circle.fill")
-                    sum("Spent", store.spent, HB.red, "arrow.up.circle.fill")
+                HBMonthMenu(store: store)
+                HStack(spacing: 12) {
+                    sum("Income", store.income, HB.green, "arrow.up")
+                    sum("Expenses", store.spent, HB.red, "arrow.down")
                 }
+                chart
                 categories
+                insight
+                if let n = store.notice { Text(n).font(.footnote).foregroundColor(HB.red).onTapGesture { store.notice = nil } }
                 transactions
             }
             .frame(maxWidth: 560)
-            .padding(.horizontal, HB.gutter).padding(.top, 8).padding(.bottom, 24)
+            .padding(.horizontal, HB.gutter).padding(.top, 8).padding(.bottom, 20)
             .frame(maxWidth: .infinity)
         }
         .refreshable { await store.refresh() }
     }
 
     private func sum(_ title: String, _ v: Double, _ tint: Color, _ symbol: String) -> some View {
-        HStack(spacing: 10) {
-            Image(systemName: symbol).font(.system(size: 22)).foregroundColor(tint)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(title).font(.footnote).foregroundColor(HB.soft)
-                Text(HBFormat.money(v)).font(.headline.monospacedDigit()).foregroundColor(.white).minimumScaleFactor(0.6).lineLimit(1)
+        HStack(spacing: 12) {
+            Image(systemName: symbol).font(.system(size: 20, weight: .bold)).foregroundColor(tint)
+                .frame(width: 44, height: 44).background(Circle().fill(tint.opacity(0.22))).overlay(Circle().stroke(tint.opacity(0.4), lineWidth: 1))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(.system(size: 14, weight: .medium)).foregroundColor(tint)
+                Text(HBFormat.money(v)).font(.system(size: 21, weight: .bold).monospacedDigit()).foregroundColor(.white).minimumScaleFactor(0.55).lineLimit(1)
             }
             Spacer(minLength: 0)
         }
-        .padding(12).frame(maxWidth: .infinity).hbCard()
+        .padding(14).frame(maxWidth: .infinity).hbCard()
+    }
+
+    // spent (orange) and came in (purple), per couple of days
+    private var chart: some View {
+        let b = buckets
+        let top = max(1, b.map { max($0.spent, $0.income) }.max() ?? 1)
+        return VStack(spacing: 8) {
+            HStack(alignment: .bottom, spacing: 5) {
+                ForEach(b) { x in
+                    HStack(alignment: .bottom, spacing: 2) {
+                        bar(x.spent / top, [Color(red: 1, green: 0.66, blue: 0.3), Color(red: 0.96, green: 0.5, blue: 0.22)])
+                        bar(x.income / top, [Color(red: 0.7, green: 0.55, blue: 0.95), Color(red: 0.5, green: 0.36, blue: 0.85)])
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+            }
+            .frame(height: 150, alignment: .bottom)
+            .overlay(Rectangle().fill(Color.white.opacity(0.1)).frame(height: 1), alignment: .bottom)
+            GeometryReader { g in
+                ZStack(alignment: .leading) {
+                    ForEach(Array(axisLabels.enumerated()), id: \.offset) { _, l in
+                        Text(l.0).font(.system(size: 12)).foregroundColor(HB.soft).fixedSize()
+                            .position(x: min(max(28, g.size.width * l.1), g.size.width - 28), y: 8)
+                    }
+                }
+            }
+            .frame(height: 18)
+        }
+        .padding(.horizontal, 14).padding(.top, 18).padding(.bottom, 10)
+        .hbCard()
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Chart of spending and income this month")
+    }
+    private func bar(_ ratio: Double, _ colors: [Color]) -> some View {
+        RoundedRectangle(cornerRadius: 5, style: .continuous)
+            .fill(LinearGradient(colors: colors, startPoint: .top, endPoint: .bottom))
+            .frame(maxWidth: .infinity)
+            .frame(height: ratio > 0 ? max(6, 150 * CGFloat(ratio)) : 3)
+            .opacity(ratio > 0 ? 1 : 0.18)
     }
 
     private var categories: some View {
-        let totals = store.categoryTotals
-        let top = totals.first?.total ?? 1
-        return VStack(alignment: .leading, spacing: 6) {
-            HBSectionHeader(title: "Where it went")
+        let rows = categoryRows
+        return VStack(alignment: .leading, spacing: 8) {
+            HBSectionHeader(title: "Spending by category", action: store.categoryTotals.count > 5 ? (showAllCategories ? "Show less" : "See all") : nil) { showAllCategories.toggle() }
             VStack(spacing: 0) {
-                if totals.isEmpty {
-                    Text("No spending this month.").font(.subheadline).foregroundColor(HB.soft).padding(14)
-                } else {
-                    ForEach(Array(totals.enumerated()), id: \.element.id) { i, row in
-                        if i > 0 { Divider().background(HB.line) }
-                        HStack(spacing: 12) {
-                            HBTile(symbol: row.category.symbol)
-                            VStack(alignment: .leading, spacing: 5) {
-                                HStack {
-                                    Text(row.category.name).font(.subheadline.weight(.semibold)).foregroundColor(.white)
-                                    Spacer()
-                                    Text(HBFormat.money(row.total)).font(.subheadline.weight(.semibold).monospacedDigit()).foregroundColor(.white)
-                                }
-                                GeometryReader { g in
-                                    Capsule().fill(Color.white.opacity(0.1)).overlay(
-                                        Capsule().fill(HB.orange).frame(width: max(6, g.size.width * CGFloat(row.total / top))), alignment: .leading)
-                                }.frame(height: 6)
-                            }
-                        }
-                        .padding(.horizontal, 12).padding(.vertical, 10)
+                if rows.isEmpty {
+                    Text("No spending this month.").font(.subheadline).foregroundColor(HB.soft).padding(16).frame(maxWidth: .infinity, alignment: .leading)
+                }
+                ForEach(Array(rows.enumerated()), id: \.element.id) { i, row in
+                    HStack(spacing: 12) {
+                        HBCircleIcon(symbol: row.category.symbol, tint: Color(rgb: row.category.rgb), size: 36)
+                        Text(row.category.label).font(.system(size: 17)).foregroundColor(.white).lineLimit(1)
+                        Spacer(minLength: 6)
+                        Text("\(row.pct)%").font(.system(size: 15)).foregroundColor(HB.soft).frame(width: 44, alignment: .trailing)
+                        Text(HBFormat.money(row.total)).font(.system(size: 17, weight: .semibold).monospacedDigit()).foregroundColor(.white).frame(minWidth: 84, alignment: .trailing)
                     }
+                    .padding(.horizontal, 14).padding(.vertical, 8)
+                    if i < rows.count - 1 { Divider().background(HB.line).padding(.leading, 62) }
                 }
             }
             .hbCard()
         }
     }
 
+    // "You're doing great!": compares this month with the one before, from real spending
+    private var insight: some View {
+        var title = "Keep logging!", text = "Add a few more days and Bun will compare your months."
+        if let prev = store.prevSpent, prev > 0.5 {
+            let diff = (store.spent - prev) / prev
+            let pct = Int((abs(diff) * 100).rounded())
+            if pct == 0 { title = "Right on track"; text = "Spending matches last month." }
+            else if diff < 0 { title = "You're doing great!"; text = "Spending is \(pct)% lower than last month." }
+            else { title = "Heads up"; text = "Spending is \(pct)% higher than last month." }
+        }
+        return HStack(spacing: 12) {
+            Image("HBMoneyBun").resizable().scaledToFit().frame(width: 96, height: 92).accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title).font(.system(size: 21, weight: .bold)).foregroundColor(Color(red: 1, green: 0.83, blue: 0.48)).minimumScaleFactor(0.7).lineLimit(2)
+                Text(text).font(.system(size: 16)).foregroundColor(Color(red: 0.86, green: 0.82, blue: 0.95)).fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 10).padding(.vertical, 8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(LinearGradient(colors: [Color(red: 0.24, green: 0.15, blue: 0.14), Color(red: 0.13, green: 0.09, blue: 0.14)], startPoint: .leading, endPoint: .trailing)))
+        .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).stroke(HB.orange.opacity(0.28), lineWidth: 1))
+    }
+
     private var transactions: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 8) {
             HBSectionHeader(title: "Transactions")
             if store.entries.isEmpty {
-                Text("Nothing yet this month.").font(.subheadline).foregroundColor(HB.soft).padding(14).frame(maxWidth: .infinity, alignment: .leading).hbCard()
+                Text("Nothing yet this month.").font(.subheadline).foregroundColor(HB.soft).padding(16).frame(maxWidth: .infinity, alignment: .leading).hbCard()
             }
             ForEach(store.dayGroups) { group in
                 VStack(alignment: .leading, spacing: 4) {
                     Text(HBDay.short(group.date)).font(.footnote.weight(.semibold)).foregroundColor(HB.soft).padding(.leading, 4)
                     VStack(spacing: 0) {
                         ForEach(Array(group.items.enumerated()), id: \.element.id) { i, e in
-                            if i > 0 { Divider().background(HB.line) }
+                            if i > 0 { Divider().background(HB.line).padding(.leading, 62) }
                             Button { store.sheet = .editEntry(e) } label: { HBEntryRow(entry: e, who: store.members.count > 1 ? store.memberName(e.member_id) : nil) }
                                 .buttonStyle(.plain)
                                 .contextMenu {
@@ -94,7 +193,6 @@ struct HBMoneyView: View {
                     .hbCard()
                 }
             }
-            if let n = store.notice { Text(n).font(.footnote).foregroundColor(HB.red).onTapGesture { store.notice = nil } }
         }
     }
 }

@@ -47,5 +47,13 @@ do {
     print("FAIL decode threw: \(error)")
     failures += 1
 }
+#if DEBUG
+// the screenshot fixture must decode with the app's own models and add up to the numbers it is meant to show
+if let pd = HBPreviewData.json.data(using: .utf8), let ps = try? JSONDecoder().decode(HBNestSnapshot.self, from: pd) {
+    let inc = ps.entries.filter { $0.isIncome }.reduce(0) { $0 + $1.amount_cents }, out = ps.entries.filter { !$0.isIncome }.reduce(0) { $0 + $1.amount_cents }
+    check("preview fixture decodes and totals 2540.00 in / 1897.82 out", inc == 254000 && out == 189782)
+    check("preview fixture has 3 bills and a 12-day streak", ps.recurring.count == 3 && ps.members.first?.streak == 12)
+} else { check("preview fixture decodes", false) }
+#endif
 print(failures == 0 ? "ALL PASSED" : "\(failures) FAILED")
 exit(failures == 0 ? 0 : 1)
