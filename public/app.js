@@ -719,6 +719,20 @@
     authMode = "login"; showAuth();
   }
   $("setupLogout").onclick = logout;
+  $("switchCancel").onclick = () => $("switchDlg").close();
+  $("switchGo").onclick = async () => {
+    const code = $("switchCode").value.trim(), err = $("switchErr");
+    if (!code) { err.textContent = tr("Enter the invite code."); return; }
+    busy($("switchGo"), true); err.textContent = "";
+    try { await api("/api/nests/switch", { method: "POST", body: { code, confirm: true } }); $("switchDlg").close(); toast(tr("You joined the budget")); await afterAuth(); }
+    catch (e) { err.textContent = e.message; }
+    finally { busy($("switchGo"), false); }
+  };
+  // the iPhone app has no invite links, so the code box comes first
+  if (IOS_NATIVE) {
+    const sc = $("scr-setup"), cards = sc.querySelectorAll(":scope > .card"), orEl = sc.querySelector(":scope > .or");
+    if (cards.length === 2 && orEl) { sc.insertBefore(cards[1], cards[0]); sc.insertBefore(orEl, cards[0]); }
+  }
   document.querySelectorAll("[data-auth-go]").forEach((b) => (b.onclick = () => { authMode = b.dataset.authGo; showAuth(); }));
   $("authBack").onclick = () => show("landing");
   document.querySelectorAll('#scr-landing a[href^="#lp-"]').forEach((a) => (a.onclick = (ev) => { ev.preventDefault(); document.querySelector(a.getAttribute("href"))?.scrollIntoView({ behavior: "smooth" }); }));
@@ -1445,6 +1459,8 @@
         b.onclick = async () => { NEST.kind = id; render(); try { await api("/api/nest", { method: "PATCH", body: { kind: id } }); } catch (err) { toast(err.message); } };
         ks.appendChild(b);
       });
+      { const sr = $("switchRow"); sr.hidden = MEMBERS.length !== 1;
+        sr.onclick = () => { $("switchErr").textContent = ""; $("switchCode").value = ""; $("switchDlg").showModal(); setTimeout(() => $("switchCode").focus(), 80); }; }
       { const jr = $("jointRow"); jr.hidden = KIND() !== "couple" || MEMBERS.length < 2;
         const on = !!NEST.joint; $("jointState").textContent = tr(on ? "On" : "Off"); $("jointState").classList.toggle("on", on);
         jr.onclick = async () => { NEST.joint = NEST.joint ? 0 : 1; render(); try { await api("/api/nest", { method: "PATCH", body: { joint: !!NEST.joint } }); if (NEST.joint) refresh(); toast(tr(NEST.joint ? "Joint account is on. Everything adds up together." : "Joint account is off.")); } catch (err) { NEST.joint = NEST.joint ? 0 : 1; render(); toast(err.message); } }; }

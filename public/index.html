@@ -2817,6 +2817,7 @@ dialog::backdrop{background:var(--backdrop)}
           <span class="members" id="members"></span></span></div>
         <div class="setting-row col" id="carryRow" hidden><span class="sicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h12M12 7l5 5-5 5"/><path d="M20 5v14"/></svg></span><span class="copy"><b>Monthly carry-over</b><small>What happens to last month's balance on the 1st</small><span class="kinds small-kinds" id="carrySet"></span></span></div>
         <button class="setting-row" id="jointRow" hidden><span class="sicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="9" r="4"/><circle cx="16" cy="9" r="4"/><path d="M3 20c0-3 3-5 6-5M21 20c0-3-3-5-6-5M9 20c0-2 1.5-3.5 3-3.5s3 1.5 3 3.5"/></svg></span><span class="copy"><b>Joint account</b><small>We keep our money in one pot, so everything adds up together</small></span><span class="lock-state" id="jointState">Off</span></button>
+        <button class="setting-row" id="switchRow" hidden><span class="sicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 4h5v5M20 4l-7 7M9 20H4v-5M4 20l7-7"/></svg></span><span class="copy"><b>Join with a code</b><small>Got an invite from your partner? Use it here</small></span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></button>
         <div class="setting-row col"><span class="sicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg></span><span class="copy"><b>Notifications</b><small>Bills, streaks and reminders by email</small>
           <label class="toggle"><span>Bills due soon<small>A heads-up at 9am, 3 days ahead</small></span><input type="checkbox" id="mailBills"></label>
           <label class="toggle"><span>Streak reminder<small>At 7pm if you haven't logged yet</small></span><input type="checkbox" id="mailStreak"></label>
@@ -2963,6 +2964,15 @@ dialog::backdrop{background:var(--backdrop)}
   <div id="supportTips" style="display:grid;gap:8px;margin:10px 0"></div>
   <p class="center" style="margin:6px 0 0"><button class="linkbtn" id="supportClose" type="button">Not now</button></p>
   <p class="err" id="supportErr" role="alert"></p>
+</dialog>
+
+<dialog id="switchDlg" class="get-dlg" aria-labelledby="switchTitle">
+  <h2 id="switchTitle">Join with a code</h2>
+  <p class="get-sub">You're the only one in your budget, so joining will replace it. Everything in your current budget will be deleted.</p>
+  <div class="field"><label for="switchCode">Invite code</label><input id="switchCode" maxlength="12" autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="ABCD-EFGH"></div>
+  <button class="go inc" id="switchGo" type="button">Join budget</button>
+  <p class="center" style="margin:10px 0 0"><button class="linkbtn" id="switchCancel" type="button">Cancel</button></p>
+  <p class="err" id="switchErr" role="alert"></p>
 </dialog>
 
 <dialog id="carryDlg" class="get-dlg" aria-labelledby="carryTitle">

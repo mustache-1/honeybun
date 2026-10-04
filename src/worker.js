@@ -1366,6 +1366,31 @@ async function handle(request, env, url) {
     return json({ ok: true, nest_id: nest.id });
   }
 
+  // Join a different budget with a code while you are alone in your own (checks the code first, so a typo can never cost you your budget)
+  if (path === "/api/nests/switch" && method === "POST") {
+    if (await limited(env, "join:" + user.id, 20, 3600)) throw new HttpError("Too many tries. Try again later.", 429);
+    await recordAttempt(env, "join:" + user.id);
+    if (body.confirm !== true) throw new HttpError("Please confirm first.");
+    const code = String(body.code ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+    const target = await env.DB.prepare("SELECT id FROM nests WHERE invite_code = ?").bind(code).first();
+    if (!target) throw new HttpError("That invite code doesn't match any budget. Check it and try again.", 404);
+    const mine = await membership(env, user.id);
+    if (!mine) throw new HttpError("Use Join with a code on the start screen.", 409);
+    if (mine.nest_id === target.id) return json({ ok: true, nest_id: target.id });
+    const here = await env.DB.prepare("SELECT COUNT(*) AS n FROM members WHERE nest_id = ?").bind(mine.nest_id).first();
+    if (here.n > 1) throw new HttpError("Your budget has other people in it. Leave it in Settings first, then join this one.", 409);
+    const members = (await env.DB.prepare("SELECT emoji, color FROM members WHERE nest_id = ?").bind(target.id).all()).results;
+    if (members.length >= MAX_MEMBERS) throw new HttpError("This budget is full.", 409);
+    const emoji = EMOJIS.find((e) => !members.some((m) => m.emoji === e)) || EMOJIS[0];
+    const color = COLORS.find((c) => !members.some((m) => m.color === c)) || COLORS[0];
+    // the code is good and there is room: now leave the empty-ish budget (deleting it, since you were its only member) and join
+    await env.DB.batch(["entries", "settlements", "jar_moves", "recurring", "goals", "budgets", "debts", "debt_payments", "messages", "custom_categories", "shopping_items", "month_carry"].map((t) => env.DB.prepare(`DELETE FROM ${t} WHERE nest_id = ?`).bind(mine.nest_id))
+      .concat([env.DB.prepare("DELETE FROM members WHERE user_id = ?").bind(user.id), env.DB.prepare("DELETE FROM nests WHERE id = ?").bind(mine.nest_id),
+        env.DB.prepare("INSERT INTO members (nest_id, user_id, emoji, color, joined_at, setup_done) VALUES (?, ?, ?, ?, ?, 0)").bind(target.id, user.id, emoji, color, now())]));
+    await postToOthers(env, target.id, user.id, "joined", { name: user.name }, `joined:${user.id}`);
+    return json({ ok: true, nest_id: target.id });
+  }
+
   // ----- everything below is inside a budget -----
   const nestId = await requireNest(env, user);
 
