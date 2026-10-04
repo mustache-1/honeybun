@@ -18,6 +18,9 @@ final class HBMockServer: URLProtocol {
 
     static func install(seed: String) {
         lock.lock(); defer { lock.unlock() }
+        authMode = seed == "auth"
+        users = []; sessions = [:]; passkeyStore = []
+        if authMode { state = [:]; URLProtocol.registerClass(HBMockServer.self); return }
         let together = ["solo", "partner", "family", "joint", "inbox", "inboxempty"].contains(seed)
         var s = together ? HBPreviewVariants.make(seed) : ((try? JSONSerialization.jsonObject(with: Data(HBPreviewData.json.utf8))) as? [String: Any] ?? [:])
         s["shopping"] = HBPreviewVariants.shopping
@@ -68,16 +71,27 @@ final class HBMockServer: URLProtocol {
         let url = request.url ?? URL(string: "https://honeybun.me/")!
         let method = request.httpMethod ?? "GET"
         var status = 200; var obj: Any = [:]
+        var setCookie: String? = nil
         let origin = request.value(forHTTPHeaderField: "Origin"); let type = request.value(forHTTPHeaderField: "Content-Type") ?? ""
         if method != "GET" && (origin != "https://honeybun.me" || !type.contains("application/json")) {
             status = 403; obj = ["error": "Blocked: not from Honeybun."]
+        } else if HBMockServer.authMode, let r = HBMockServer.handleAuth(method, url.path, body, request) {
+            (status, obj, setCookie) = r
         } else {
             var query: [String: String] = [:]
             for item in URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? [] { query[item.name] = item.value ?? "" }
             (status, obj) = Self.handle(method, url.path, body, query)
         }
         let data = (try? JSONSerialization.data(withJSONObject: obj)) ?? Data("{}".utf8)
-        let resp = HTTPURLResponse(url: url, statusCode: status, httpVersion: "HTTP/1.1", headerFields: ["Content-Type": "application/json"])!
+        var headers = ["Content-Type": "application/json"]
+        if let c = setCookie {
+            headers["Set-Cookie"] = c
+            // a real URLSession would store this cookie itself; this stand-in does it by hand
+            for cookie in HTTPCookie.cookies(withResponseHeaderFields: ["Set-Cookie": c], for: url) {
+                if cookie.value.isEmpty { HTTPCookieStorage.shared.deleteCookie(cookie) } else { HTTPCookieStorage.shared.setCookie(cookie) }
+            }
+        }
+        let resp = HTTPURLResponse(url: url, statusCode: status, httpVersion: "HTTP/1.1", headerFields: headers)!
         client?.urlProtocol(self, didReceive: resp, cacheStoragePolicy: .notAllowed)
         client?.urlProtocol(self, didLoad: data)
         client?.urlProtocolDidFinishLoading(self)
@@ -243,6 +257,176 @@ final class HBMockServer: URLProtocol {
             return (200, ["entries": hits])
         }
         return nil
+    }
+
+    // MARK: sign-in stand-in (seed "auth"): the backend's real rules for accounts, sessions, recovery codes and passkeys, in memory
+    private static var authMode = false
+    private static var users: [[String: Any]] = []
+    private static var sessions: [String: String] = [:]          // session token -> user id
+    private static var passkeyStore: [[String: Any]] = []        // {id, user, name, created}
+    private static let sessionCookieName = "__Host-hb"
+
+    private static func randomCode() -> String {
+        let a = Array("ABCDEFGHJKMNPQRSTUVWXYZ23456789"); let c = (0..<12).map { _ in String(a.randomElement()!) }.joined()
+        return "\(c.prefix(4))-\(c.dropFirst(4).prefix(4))-\(c.dropFirst(8))"
+    }
+    private static func cookie(_ token: String, maxAge: Int = 2592000) -> String { "\(sessionCookieName)=\(token); Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=\(maxAge)" }
+    private static func newSession(_ uid: String) -> String { let t = UUID().uuidString.lowercased(); sessions[t] = uid; return cookie(t) }
+    private static func loginKey(_ v: String) -> String { let x = v.trimmingCharacters(in: .whitespaces).lowercased(); return x.contains("@") ? x : x + "@u.honeybun.invalid" }
+    private static func userIndex(key: String) -> Int? { users.firstIndex { ($0["email"] as? String) == key } }
+    private static func currentUserIndex() -> Int? {
+        guard let c = (HTTPCookieStorage.shared.cookies(for: URL(string: "https://honeybun.me")!) ?? []).first(where: { $0.name == sessionCookieName }),
+              let uid = sessions[c.value] else { return nil }
+        return users.firstIndex { ($0["id"] as? String) == uid }
+    }
+    private static func me(_ u: [String: Any]) -> [String: Any] {
+        let email = u["email"] as? String ?? ""
+        return ["id": u["id"] as? String ?? "", "email": email, "name": u["name"] as? String ?? "", "verified": u["verified"] as? Bool ?? false, "has_email": !email.hasSuffix("@u.honeybun.invalid"),
+                "has_password": u["pwKnown"] as? Bool ?? true, "apple": (u["appleSub"] as? String) != nil]
+    }
+    /// the snapshot the app reads once a budget exists (built from the preview fixture for this user)
+    private static func startBudget(_ i: Int, kind: String, name: String) {
+        var s = HBPreviewVariants.make(kind == "couple" ? "partner" : "solo")
+        let uid = users[i]["id"] as? String ?? ""
+        let old = (s["me"] as? [String: Any])?["id"] as? String ?? ""
+        s["me"] = ["id": uid, "email": users[i]["email"] as? String ?? "", "name": users[i]["name"] as? String ?? ""]
+        s["members"] = (s["members"] as? [[String: Any]] ?? []).map { var m = $0; if (m["id"] as? String) == old { m["id"] = uid; m["name"] = users[i]["name"] as? String ?? "" }; return m }
+        var nest = s["nest"] as? [String: Any] ?? [:]; nest["name"] = name; nest["kind"] = kind; s["nest"] = nest
+        s["setup_done"] = false
+        state = s
+        users[i]["nestID"] = nest["id"] as? String ?? "nest"
+        users[i]["setupDone"] = false
+    }
+
+    private static func handleAuth(_ method: String, _ path: String, _ body: [String: Any], _ request: URLRequest) -> (Int, Any, String?)? {
+        lock.lock(); defer { lock.unlock() }
+        func err(_ m: String, _ code: Int = 400) -> (Int, Any, String?) { (code, ["error": m], nil) }
+        func ok(_ extra: [String: Any] = [:], _ code: Int = 200, cookie: String? = nil) -> (Int, Any, String?) { var d: [String: Any] = ["ok": true]; for (k, v) in extra { d[k] = v }; return (code, d, cookie) }
+        func clean(_ v: Any?, _ n: Int) -> String { String(((v as? String) ?? "").trimmingCharacters(in: .whitespaces).prefix(n)) }
+        func pwOK(_ v: Any?) -> String? { guard let p = v as? String, p.count >= 8, p.count <= 200 else { return nil }; return p }
+        let pwMsg = "Use a password with at least 8 characters."
+
+        // ----- public -----
+        if path == "/api/auth/config" && method == "GET" { return (200, ["apple": true], nil) }
+        if path == "/api/signup" && method == "POST" {
+            let name = clean(body["name"], 24)
+            if name.isEmpty { return err("Enter your name.") }
+            let username = ((body["username"] as? String) ?? "").trimmingCharacters(in: .whitespaces).lowercased()
+            var email: String
+            if !username.isEmpty {
+                if username.range(of: "^[a-z0-9][a-z0-9._-]{2,19}$", options: .regularExpression) == nil { return err("Usernames are 3 to 20 letters, numbers, dots, dashes or underscores.") }
+                email = username + "@u.honeybun.invalid"
+            } else {
+                email = clean(body["email"], 254).lowercased()
+                if email.range(of: "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$", options: .regularExpression) == nil { return err("Enter a valid email address.") }
+            }
+            let passkey = (body["passkey"] as? Bool) ?? false
+            if !passkey && pwOK(body["password"]) == nil { return err(pwMsg) }
+            if userIndex(key: email) != nil { return err(username.isEmpty ? "An account with that email already exists. Log in instead." : "That username is taken. Try another one.", 409) }
+            let id = UUID().uuidString.lowercased(), code = username.isEmpty ? nil : randomCode()
+            users.append(["id": id, "name": name, "email": email, "pw": passkey ? UUID().uuidString : (body["password"] as? String ?? ""), "pwKnown": !passkey, "recovery": code as Any, "verified": false, "nestID": NSNull(), "setupDone": false])
+            var extra: [String: Any] = [:]; if let c = code { extra["recovery_code"] = c }
+            return ok(extra, 201, cookie: newSession(id))
+        }
+        if path == "/api/login" && method == "POST" {
+            let key = loginKey(clean(body["email"], 254))
+            guard let i = userIndex(key: key), (users[i]["pw"] as? String) == (body["password"] as? String), (users[i]["pwKnown"] as? Bool ?? true) else { return err("Wrong email, username or password.", 401) }
+            return ok([:], 200, cookie: newSession(users[i]["id"] as? String ?? ""))
+        }
+        if path == "/api/logout" && method == "POST" {
+            if let c = (HTTPCookieStorage.shared.cookies(for: URL(string: "https://honeybun.me")!) ?? []).first(where: { $0.name == sessionCookieName }) { sessions[c.value] = nil }
+            return ok([:], 200, cookie: "\(sessionCookieName)=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0")
+        }
+        if path == "/api/auth/apple" && method == "POST" {
+            // stand-in token: "mock.<sub>.<sha256hex of the raw nonce>"; the real backend verifies Apple's signature (see auth-contract.mjs)
+            let parts = (body["identity_token"] as? String ?? "").split(separator: ".").map(String.init)
+            guard parts.count == 3, parts[0] == "mock", let raw = body["nonce"] as? String, parts[2] == HBAppleNonce.sha256Hex(raw) else { return err("Apple sign-in failed. Try again.", 401) }
+            if let i = users.firstIndex(where: { ($0["appleSub"] as? String) == parts[1] }) { return ok(["created": false], 200, cookie: newSession(users[i]["id"] as? String ?? "")) }
+            let id = UUID().uuidString.lowercased()
+            users.append(["id": id, "name": clean(body["name"], 24).isEmpty ? "Friend" : clean(body["name"], 24), "email": "a_\(parts[1])@u.honeybun.invalid", "pw": UUID().uuidString, "pwKnown": false, "appleSub": parts[1], "verified": false, "nestID": NSNull(), "setupDone": false])
+            return ok(["created": true], 201, cookie: newSession(id))
+        }
+        if path == "/api/password/forgot" && method == "POST" {
+            let e = clean(body["email"], 254).lowercased()
+            if e.range(of: "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$", options: .regularExpression) == nil { return err("Enter a valid email address.") }
+            return ok()
+        }
+        if path == "/api/password/reset" && method == "POST" {
+            guard pwOK(body["password"]) != nil else { return err(pwMsg) }
+            guard (body["token"] as? String) == "valid-reset-token", let i = users.firstIndex(where: { !(($0["email"] as? String) ?? "").hasSuffix("@u.honeybun.invalid") }) else { return err("This reset link has expired or was already used. Ask for a new one.") }
+            users[i]["pw"] = body["password"] as? String ?? ""; users[i]["pwKnown"] = true
+            return ok([:], 200, cookie: newSession(users[i]["id"] as? String ?? ""))
+        }
+        if path == "/api/password/recover" && method == "POST" {
+            guard pwOK(body["password"]) != nil else { return err(pwMsg) }
+            let key = loginKey(clean(body["username"], 254))
+            let code = ((body["code"] as? String) ?? "").uppercased().filter { $0.isLetter || $0.isNumber }
+            guard let i = userIndex(key: key), let rc = users[i]["recovery"] as? String, rc.filter({ $0.isLetter || $0.isNumber }) == code else { return err("That username and recovery code don't match.", 401) }
+            let new = randomCode(); users[i]["recovery"] = new; users[i]["pw"] = body["password"] as? String ?? ""; users[i]["pwKnown"] = true
+            let uid = users[i]["id"] as? String ?? ""; sessions = sessions.filter { $0.value != uid }
+            return ok(["recovery_code": new], 200, cookie: newSession(uid))
+        }
+        if path == "/api/email/verify" && method == "POST" {
+            guard (body["token"] as? String) == "valid-verify-token" else { return err("This link has expired or was already used. You can send a new one from Settings.") }
+            for i in users.indices { users[i]["verified"] = true }
+            return ok()
+        }
+        if path == "/api/passkeys/login/options" && method == "POST" { return (200, ["challenge": "Y2hhbGxlbmdlLTEyMw", "rpId": "honeybun.me", "timeout": 120000], nil) }
+        if path == "/api/passkeys/login" && method == "POST" {
+            guard let id = body["id"] as? String, let pk = passkeyStore.first(where: { ($0["id"] as? String) == id }), body["signature"] is String else { return err("That passkey isn't registered here. Log in with your password and add it in Settings.", 404) }
+            return ok([:], 200, cookie: newSession(pk["user"] as? String ?? ""))
+        }
+
+        // ----- everything below needs the session cookie -----
+        guard let u = currentUserIndex() else { return path.hasPrefix("/api/") ? err("Please log in.", 401) : nil }
+        let uid = users[u]["id"] as? String ?? ""
+        if path == "/api/me" && method == "GET" { return (200, ["user": me(users[u]), "nest_id": users[u]["nestID"] ?? NSNull()], nil) }
+        if path == "/api/nests" && method == "POST" {
+            if !(users[u]["nestID"] is NSNull) { return err("You're already in a budget.", 409) }
+            let kind = ["solo", "couple", "family"].contains(body["kind"] as? String ?? "") ? (body["kind"] as? String ?? "couple") : "couple"
+            startBudget(u, kind: kind, name: clean(body["name"], 24)); return ok(["nest_id": users[u]["nestID"] ?? ""], 201)
+        }
+        if path == "/api/nests/join" && method == "POST" {
+            let code = ((body["code"] as? String) ?? "").uppercased().filter { $0.isLetter || $0.isNumber }
+            guard code == "HONEY123" else { return err("That invite code doesn't match any budget. Check it and try again.", 404) }
+            startBudget(u, kind: "couple", name: "Our Hive"); users[u]["setupDone"] = true; state["setup_done"] = true
+            return ok(["nest_id": users[u]["nestID"] ?? ""])
+        }
+        if path == "/api/setup/done" && method == "POST" { users[u]["setupDone"] = true; state["setup_done"] = true; return ok() }
+        if path == "/api/email/resend" && method == "POST" { return ok() }
+        if path == "/api/recovery/new" && method == "POST" {
+            if !((users[u]["email"] as? String) ?? "").hasSuffix("@u.honeybun.invalid") { return err("Accounts with an email reset their password by email.") }
+            let c = randomCode(); users[u]["recovery"] = c; return ok(["recovery_code": c])
+        }
+        if path == "/api/password/change" && method == "POST" {
+            guard (users[u]["pw"] as? String) == (body["current"] as? String) else { return err("Your current password is wrong.") }
+            guard pwOK(body["password"]) != nil else { return err(pwMsg) }
+            users[u]["pw"] = body["password"] as? String ?? ""; return ok()
+        }
+        if path == "/api/passkeys" && method == "GET" { return (200, ["passkeys": passkeyStore.filter { ($0["user"] as? String) == uid }.map { ["id": $0["id"] ?? "", "name": $0["name"] ?? "", "created_at": $0["created"] ?? 0, "last_used": NSNull()] }], nil) }
+        if path == "/api/passkeys/options" && method == "POST" {
+            return (200, ["challenge": "cmVnLWNoYWxsZW5nZQ", "rp": ["id": "honeybun.me", "name": "Honeybun"], "user": ["id": HBBase64URL.encode(Data(uid.utf8)), "name": users[u]["email"] ?? "", "displayName": users[u]["name"] ?? ""]], nil)
+        }
+        if path == "/api/passkeys" && method == "POST" {
+            guard let id = body["id"] as? String, body["publicKey"] is String, (body["alg"] as? Int) == -7, body["authenticatorData"] is String else { return err("Your browser didn't return a usable passkey. Try a newer browser.") }
+            if passkeyStore.contains(where: { ($0["id"] as? String) == id }) { return err("That passkey is already registered.", 409) }
+            passkeyStore.append(["id": id, "user": uid, "name": (body["name"] as? String) ?? "Passkey", "created": Date().timeIntervalSince1970]); return ok([:], 201)
+        }
+        if path.hasPrefix("/api/passkeys/") {
+            let id = String(path.dropFirst("/api/passkeys/".count)).removingPercentEncoding ?? ""
+            guard let i = passkeyStore.firstIndex(where: { ($0["id"] as? String) == id && ($0["user"] as? String) == uid }) else { return ok() }
+            if method == "DELETE" { passkeyStore.remove(at: i); return ok() }
+            if method == "PATCH" { passkeyStore[i]["name"] = (body["name"] as? String) ?? "Passkey"; return ok() }
+        }
+        if path == "/api/account/export" && method == "GET" { return (200, ["exported_at": "now", "account": ["id": uid, "name": users[u]["name"] ?? ""]], nil) }
+        if path == "/api/account/delete" && method == "POST" {
+            if (users[u]["pwKnown"] as? Bool ?? true) == false {
+                if (body["confirm"] as? String) != "DELETE" { return err("Type DELETE to confirm.") }
+            } else if (body["password"] as? String) != (users[u]["pw"] as? String) { return err("That password is wrong.") }
+            users.remove(at: u); sessions = sessions.filter { $0.value != uid }
+            return ok([:], 200, cookie: "\(sessionCookieName)=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0")
+        }
+        return nil   // everything else (nest, goals, shopping, inbox…) is answered by the handlers above
     }
 
     private static func cents(_ v: Any?) -> Int? {
