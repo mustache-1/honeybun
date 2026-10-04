@@ -13,7 +13,7 @@ enum HB {
     static let line = Color.white.opacity(0.09)
     static let gutter: CGFloat = 16
     /// space between the bottom of a screen and the floating tab bar
-    static let barGap: CGFloat = 18
+    static let barGap: CGFloat = 6
 }
 
 @available(iOS 15.0, *)
@@ -109,5 +109,13 @@ struct HBWordmark: View {
             Image(systemName: "heart.fill").font(.system(size: size * 0.36)).foregroundColor(Color(red: 1.0, green: 0.37, blue: 0.53)).padding(.top, size * 0.16)
         }
         .accessibilityElement(children: .ignore).accessibilityLabel("honeybun")
+    }
+}
+
+// The real top safe-area inset of the screen (Dynamic Island / notch / status bar height), read from the window so it adapts to every iPhone.
+enum HBSafeArea {
+    static var top: CGFloat {
+        let windows = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.flatMap { $0.windows }
+        return (windows.first { $0.isKeyWindow } ?? windows.first)?.safeAreaInsets.top ?? 47
     }
 }

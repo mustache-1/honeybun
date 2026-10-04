@@ -25,9 +25,11 @@ struct HBRootView: View {
         // scrolling content fades out under the status bar / Dynamic Island instead of colliding with the clock
         .overlay(alignment: .top) {
             if store.phase == .ready {
-                GeometryReader { g in
+                // a container that starts at the very top of the screen (under the status bar), with the fade at its top edge
+                VStack(spacing: 0) {
                     LinearGradient(colors: [Color(red: 0.06, green: 0.04, blue: 0.09).opacity(0.96), Color(red: 0.06, green: 0.04, blue: 0.09).opacity(0.96), Color(red: 0.06, green: 0.04, blue: 0.09).opacity(0)], startPoint: .top, endPoint: .bottom)
-                        .frame(height: g.safeAreaInsets.top + 16)
+                        .frame(height: HBSafeArea.top + 14)
+                    Spacer(minLength: 0)
                 }
                 .ignoresSafeArea(edges: .top).allowsHitTesting(false)
             }
