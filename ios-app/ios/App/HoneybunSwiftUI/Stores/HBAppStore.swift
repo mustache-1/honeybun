@@ -31,6 +31,7 @@ enum HBTab: String, CaseIterable { case home = "Home", money = "Money", goals = 
     @Published var selectedTab: HBTab = .home
     @Published var busy = false
     @Published var notice: String?
+    var previewScrollToEnd = false   // debug screenshots: open scrolled all the way down
     @Published var sheet: HBSheet?
     @Published var prevSpent: Double?   // last month's spending, for the Money insight card
     @Published var prevDaily: [Int: Double] = [:]   // last month's spending by day of month, for the chart
@@ -80,9 +81,7 @@ enum HBTab: String, CaseIterable { case home = "Home", money = "Money", goals = 
         if let p = try? await HBAPI.shared.nest(month: prev) {
             let out = p.entries.filter { !$0.isIncome }
             prevSpent = out.reduce(0) { $0 + $1.amount }
-            var by: [Int: Double] = [:]
-            for e in out { if let d = Int(e.date.suffix(2)) { by[d, default: 0] += e.amount } }
-            prevDaily = by
+            prevDaily = HBChartMath.dailyExpenses(out)
         } else { prevSpent = nil; prevDaily = [:] }
     }
 

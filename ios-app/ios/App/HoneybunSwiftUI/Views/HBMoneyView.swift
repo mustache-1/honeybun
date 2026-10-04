@@ -6,6 +6,7 @@ private struct HBBucket: Identifiable { let id: Int; let spent: Double; let last
 @available(iOS 15.0, *)
 struct HBMoneyView: View {
     @ObservedObject var store: HBAppStore
+    var bottomInset: CGFloat = 96   // room under the last item for the floating tab bar
     @State private var showAllCategories = false
 
     // MARK: derived from the store
@@ -14,17 +15,11 @@ struct HBMoneyView: View {
         guard let d = HBDay.parse(store.month + "-01"), let r = HBDay.cal.range(of: .day, in: .month, for: d) else { return 30 }
         return r.count
     }
-    // spending this month vs the same days last month, per couple of days
+    // spending this month vs last month, per couple of days, from the real transactions' dates and amounts (see HBChartMath)
     private var buckets: [HBBucket] {
-        let size = 2
-        let count = Int((Double(daysInMonth) / Double(size)).rounded(.up))
-        var spent = [Double](repeating: 0, count: count), last = [Double](repeating: 0, count: count)
-        for e in store.entries where !e.isIncome {
-            guard let day = Int(e.date.suffix(2)), day >= 1 else { continue }
-            spent[min(count - 1, (day - 1) / size)] += e.amount
-        }
-        for (day, amt) in store.prevDaily where day >= 1 { last[min(count - 1, (day - 1) / size)] += amt }
-        return (0..<count).map { HBBucket(id: $0, spent: spent[$0], last: last[$0]) }
+        let this = HBChartMath.slices(daily: HBChartMath.dailyExpenses(store.entries), daysInMonth: daysInMonth)
+        let last = HBChartMath.slices(daily: store.prevDaily, daysInMonth: daysInMonth)
+        return (0..<this.count).map { HBBucket(id: $0, spent: this[$0], last: last[$0]) }
     }
     private var axisLabels: [(String, CGFloat)] {
         let mon = String(HBDay.monthName(store.month).prefix(3))
@@ -49,6 +44,7 @@ struct HBMoneyView: View {
     }
 
     var body: some View {
+        ScrollViewReader { proxy in
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
                 VStack(alignment: .leading, spacing: 4) {
@@ -67,10 +63,15 @@ struct HBMoneyView: View {
                 transactions
             }
             .frame(maxWidth: 560)
-            .padding(.horizontal, HB.gutter).padding(.top, 8).padding(.bottom, 20)
+            .padding(.horizontal, HB.gutter).padding(.top, 8)
             .frame(maxWidth: .infinity)
+            Color.clear.frame(height: bottomInset).id("hb-end")   // the last card scrolls completely above the tab bar
         }
         .refreshable { await store.refresh() }
+        #if DEBUG
+        .onAppear { if store.previewScrollToEnd { DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { proxy.scrollTo("hb-end", anchor: .bottom) } } }
+        #endif
+        }
     }
 
     private func sum(_ title: String, _ v: Double, _ tint: Color, _ symbol: String) -> some View {

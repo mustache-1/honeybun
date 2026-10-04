@@ -28,6 +28,18 @@ do {
     let paid = s.logged.first!
     check("an occurrence that was logged is skipped", !up.contains { $0.recurring.id == paid.recurring_id && $0.dateString == paid.occ_date })
 
+    // Money chart: bars come only from the real entries' dates and amounts
+    let daily = HBChartMath.dailyExpenses(s.entries)
+    let totalOut = s.entries.filter { !$0.isIncome }.reduce(0) { $0 + $1.amount }
+    check("chart: per-day expense sums add up to the month's real spending", abs(daily.values.reduce(0, +) - totalOut) < 0.001)
+    let sl = HBChartMath.slices(daily: daily, daysInMonth: 30)
+    check("chart: 15 two-day slices for a 30-day month, total preserved", sl.count == 15 && abs(sl.reduce(0, +) - totalOut) < 0.001)
+    let probe = try JSONDecoder().decode([HBEntry].self, from: Data(#"[{"id":"a","member_id":"m","type":"expense","amount_cents":1000,"label":"x","category":"food","shared":0,"private":0,"date":"2026-09-02"},{"id":"b","member_id":"m","type":"expense","amount_cents":2500,"label":"y","category":null,"shared":0,"private":0,"date":"2026-09-03"},{"id":"c","member_id":"m","type":"expense","amount_cents":700,"label":"z","category":"car","shared":0,"private":0,"date":"2026-09-30"},{"id":"d","member_id":"m","type":"income","amount_cents":999900,"label":"pay","category":null,"shared":0,"private":0,"date":"2026-09-03"}]"#.utf8))
+    let ps = HBChartMath.slices(daily: HBChartMath.dailyExpenses(probe), daysInMonth: 30)
+    check("chart: day 2 → slice 0, day 3 → slice 1, day 30 → last slice", ps[0] == 10 && ps[1] == 25 && ps[14] == 7 && ps.reduce(0, +) == 42)
+    check("chart: income never appears in the spending bars", HBChartMath.dailyExpenses(probe)[3] == 25)
+    check("category names are the account's own", HBCategory.groc.label == "Groceries" && HBCategory.food.label == "Eating out" && HBCategory.home.label == "Housing" && HBCategory.car.label == "Car")
+
     // month-end clamp: a bill anchored on the 31st lands on the last day of shorter months
     let r = try JSONDecoder().decode(HBRecurring.self, from: Data(#"{"id":"x","type":"expense","label":"Rent","amount_cents":100000,"category":null,"member_id":"m","shared":0,"split_mode":null,"split_value":null,"freq":"monthly","anchor_date":"2026-01-31"}"#.utf8))
     let feb = HBRecur.occurrences(r, from: HBDay.parse("2026-02-01")!, to: HBDay.parse("2026-02-28")!)

@@ -17,6 +17,8 @@ enum HBPreview {
         let s = HBAppStore(previewSnapshot: snap, month: HBPreviewData.month, prevSpent: HBPreviewData.previousDaily.values.reduce(0, +), prevDaily: HBPreviewData.previousDaily)
         switch screen {
         case "splash": s.forceLoading = true
+        case "homeend": s.previewScrollToEnd = true
+        case "moneyend": s.selectedTab = .money; s.previewScrollToEnd = true
         case "money": s.selectedTab = .money
         case "addexp": s.sheet = .newEntry("expense")
         case "addinc": s.sheet = .newEntry("income")

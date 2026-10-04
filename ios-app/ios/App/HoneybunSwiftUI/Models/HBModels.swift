@@ -44,11 +44,11 @@ struct HBNestSnapshot: Decodable {
 enum HBCategory: String, CaseIterable, Identifiable {
     case home, groc, food, date, bills, subs, car, fun, pets, debt, other
     var id: String { rawValue }
-    // names follow the approved mockups (Food & Dining, Shopping, Transport, Entertainment); the backend ids are unchanged
+    // the account's own category names (same as the website and classic app)
     var label: String {
         switch self {
-        case .home: return "Home"; case .groc: return "Shopping"; case .food: return "Food & Dining"; case .date: return "Date night"
-        case .bills: return "Bills"; case .subs: return "Subscriptions"; case .car: return "Transport"; case .fun: return "Entertainment"
+        case .home: return "Housing"; case .groc: return "Groceries"; case .food: return "Eating out"; case .date: return "Date night"
+        case .bills: return "Bills"; case .subs: return "Subscriptions"; case .car: return "Car"; case .fun: return "Fun"
         case .pets: return "Pets"; case .debt: return "Debt"; case .other: return "Other"
         }
     }

@@ -45,6 +45,7 @@ struct HBUpcomingRow: View {
 @available(iOS 15.0, *)
 struct HBHomeView: View {
     @ObservedObject var store: HBAppStore
+    var bottomInset: CGFloat = 96   // room under the last item for the floating tab bar
     let onClose: () -> Void
 
     var body: some View {
@@ -53,6 +54,7 @@ struct HBHomeView: View {
             let hero = min(max(w * 0.40, 128), 190)       // witch width follows the screen
             let heroH = hero * 0.907
             let overlap: CGFloat = 36                      // how far the hero's honey dips into the card
+            ScrollViewReader { proxy in
             ScrollView {
                 VStack(alignment: .leading, spacing: 11) {
                     classicLink
@@ -65,10 +67,15 @@ struct HBHomeView: View {
                     if let n = store.notice { Text(n).font(.footnote).foregroundColor(HB.red).onTapGesture { store.notice = nil } }
                 }
                 .frame(maxWidth: 560)
-                .padding(.horizontal, HB.gutter).padding(.top, 4).padding(.bottom, 20)
+                .padding(.horizontal, HB.gutter).padding(.top, 4)
                 .frame(maxWidth: .infinity)
+                Color.clear.frame(height: bottomInset).id("hb-end")   // the last card scrolls completely above the tab bar
             }
             .refreshable { await store.refresh() }
+            #if DEBUG
+            .onAppear { if store.previewScrollToEnd { DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { proxy.scrollTo("hb-end", anchor: .bottom) } } }
+            #endif
+            }
         }
     }
 

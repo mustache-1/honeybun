@@ -5,6 +5,7 @@ import SwiftUI
 struct HBRootView: View {
     @StateObject private var store: HBAppStore
     let onClose: () -> Void
+    @State private var tabH: CGFloat = 80   // measured height of the floating tab bar
 
     init(store: HBAppStore? = nil, onClose: @escaping () -> Void) {
         HBFonts.register()
@@ -17,9 +18,11 @@ struct HBRootView: View {
             HBBackground()
             content
         }
-        .safeAreaInset(edge: .bottom, spacing: 0) {
+        // the tab bar is a persistent overlay in the bottom safe area; screens get its measured height as their bottom inset (below)
+        .overlay(alignment: .bottom) {
             if store.phase == .ready { HBTabBar(selected: $store.selectedTab) }
         }
+        .onPreferenceChange(HBTabBarHeightKey.self) { tabH = $0 }
         .fullScreenCover(item: $store.sheet) { sheet in sheetView(sheet) }
         .task { await store.start() }
         .preferredColorScheme(.dark)
@@ -38,12 +41,13 @@ struct HBRootView: View {
                           primary: ("Try again", { Task { await store.start() } }), secondary: ("Open classic Honeybun", onClose))
         case .ready:
             switch store.selectedTab {
-            case .home: HBHomeView(store: store, onClose: onClose)
-            case .money: HBMoneyView(store: store)
+            case .home: HBHomeView(store: store, bottomInset: tabH + 16, onClose: onClose)
+            case .money: HBMoneyView(store: store, bottomInset: tabH + 16)
             default:
                 HBMessageView(title: "\(store.selectedTab.rawValue) isn't native yet",
                               message: "This screen is still the classic Honeybun. Nothing is lost: it uses the same account and data.",
                               primary: ("Open classic Honeybun", onClose))
+                    .padding(.bottom, tabH)
             }
         }
     }

@@ -20,21 +20,14 @@ struct HBField<Content: View>: View {
     }
 }
 
-// The tiles on the form. Expense tiles map onto the backend's category ids (same mapping the web Halloween form uses); a bill's own category
-// (Date night, Subscriptions, Pets, Debt) has no tile, and is simply kept if you don't pick a different one.
+// The tiles on the form.
 private struct HBTileDef: Identifiable {
     let id: String; let label: String; let symbol: String; let rgb: (Double, Double, Double); let backend: String
 }
-private let hbExpenseTiles: [HBTileDef] = [
-    HBTileDef(id: "Food", label: "Food", symbol: "fork.knife", rgb: (1.00, 0.66, 0.25), backend: "food"),
-    HBTileDef(id: "Shopping", label: "Shopping", symbol: "cart.fill", rgb: (1.00, 0.40, 0.55), backend: "groc"),
-    HBTileDef(id: "Bills", label: "Bills", symbol: "doc.text.fill", rgb: (1.00, 0.78, 0.35), backend: "bills"),
-    HBTileDef(id: "Transport", label: "Transport", symbol: "car.fill", rgb: (0.40, 0.62, 1.00), backend: "car"),
-    HBTileDef(id: "Entertainment", label: "Entertainment", symbol: "gamecontroller.fill", rgb: (1.00, 0.42, 0.62), backend: "fun"),
-    HBTileDef(id: "Health", label: "Health", symbol: "heart.fill", rgb: (0.62, 0.55, 1.00), backend: "other"),
-    HBTileDef(id: "Home", label: "Home", symbol: "house.fill", rgb: (1.00, 0.76, 0.33), backend: "home"),
-    HBTileDef(id: "Other", label: "Other", symbol: "ellipsis", rgb: (0.78, 0.72, 0.85), backend: "other"),
-]
+// expense tiles: every real category of the account (same ids and names as the website), in the mockup's circle style
+private let hbExpenseTiles: [HBTileDef] = HBCategory.allCases.map {
+    HBTileDef(id: $0.rawValue, label: $0.label, symbol: $0.symbol, rgb: $0.rgb, backend: $0.rawValue)
+}
 private let hbIncomeTiles: [HBTileDef] = [
     HBTileDef(id: "Paycheck", label: "Paycheck", symbol: "briefcase.fill", rgb: (0.45, 0.90, 0.62), backend: ""),
     HBTileDef(id: "Gift", label: "Gift", symbol: "gift.fill", rgb: (1.00, 0.66, 0.30), backend: ""),
@@ -86,7 +79,7 @@ struct HBEntryForm: View {
         _category = State(initialValue: base.category)
         _pick = State(initialValue: base.type == "income"
             ? (hbIncomeTiles.first { $0.id == base.label }?.id ?? (editing == nil ? "Paycheck" : ""))
-            : (editing == nil ? "" : (hbExpenseTiles.first { $0.backend == base.category && $0.id != "Health" }?.id ?? "")))
+            : (editing == nil ? "" : (hbExpenseTiles.first { $0.backend == base.category }?.id ?? "")))
         _date = State(initialValue: HBDay.parse(base.date) ?? Date())
         _memberID = State(initialValue: base.memberID)
         _shared = State(initialValue: base.shared)
