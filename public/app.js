@@ -1283,7 +1283,7 @@
         <button type="button" class="hq-ib gear" id="hhGear" aria-label="${esc(tr("Settings"))}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
       </header>
       <section class="hq-card" aria-label="${esc(tr("This month's money"))}">
-        <img class="hq-witch" src="/hh-witch-top.png" alt="">
+        <img class="hq-witch" src="/hh-hero-v6.png?v=6" alt="">
         <p class="hq-lbl">${esc(tr("Safe to spend"))}</p><p class="hq-context">${esc(lbl)}</p>
         <div class="hq-row">
           <div class="hq-amt ${c.left < 0 ? "neg" : ""}">${esc(w)}${cents ? `<small>.${esc(cents)}</small>` : ""}</div>
@@ -1298,7 +1298,7 @@
       </div>
       <div class="hq-h"><h2>${esc(tr("Coming up"))}</h2><button type="button" id="hhPlan">${esc(tr("See all"))} ›</button></div>
       <div class="hq-list">${items.length ? items.map(dueRow).join("") : `<div class="hq-empty"><span>${esc(RECUR.length ? tr("Nothing due soon") + " ♡" : tr("Add rent, bills and paydays once."))}</span><button type="button" id="hhAddBill">${esc(tr("Add"))}</button></div>`}</div>
-      <button type="button" class="hq-streak" id="hhStreak"><img src="/hh-witch-top.png" alt="">${flame}<span class="hq-st"><b>${st === 1 ? esc(tr("1 day")) : st + " " + esc(tr("days"))} ${esc(tr("hop streak"))}</b><small>${esc(done ? tr("Keep it going!") : tr("Log today to hop"))} · ${esc(tr("Level"))} ${li.l}</small></span>${chev}</button>
+      <button type="button" class="hq-streak" id="hhStreak"><img src="/hh-streak-v6.png?v=6" alt="">${flame}<span class="hq-st"><b>${st === 1 ? esc(tr("1 day")) : st + " " + esc(tr("days"))} ${esc(tr("hop streak"))}</b><small>${esc(done ? tr("Keep it going!") : tr("Log today to hop"))} · ${esc(tr("Level"))} ${li.l}</small></span>${chev}</button>
       <div class="hq-h hq-latest-head"><h2>${esc(tr("Latest"))}</h2><button type="button" id="hhAll">${esc(tr("See all"))} ›</button></div>
       <div class="hq-list hq-latest-list">${recent.length ? recent.map(actRow).join("") : `<div class="hq-empty"><span>${esc(tr("Nothing yet. Tap + to add something."))}</span></div>`}</div>`;
     const q = (id) => root.querySelector("#" + id);

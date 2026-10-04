@@ -404,8 +404,7 @@ html.hb-hh #hhHome .hq-latest-head{margin-top:20px}
   html.hb-hh #hhHome{
     position:relative!important;
     background:
-      linear-gradient(180deg,rgba(14,9,18,.03) 0,rgba(14,9,18,.78) 150px,#0e0912 245px),
-      url('/hh-v3-night-scene.webp') top center/100% 176px no-repeat!important;
+      linear-gradient(180deg,rgba(14,9,18,.03) 0,rgba(14,9,18,.78) 150px,#0e0912 245px)!important;
   }
   html.hb-hh #hhHome:before{
     content:"";position:absolute;z-index:0;left:0;right:0;top:0;height:210px;pointer-events:none;
@@ -443,7 +442,7 @@ html.hb-hh #hhHome .hq-latest-head{margin-top:20px}
   html.hb-hh #scr-home{position:relative;background:#0d0911!important}
   html.hb-hh #scr-home::before{
     content:"";position:fixed;z-index:0;left:0;right:0;top:0;height:265px;pointer-events:none;
-    background-image:linear-gradient(180deg,rgba(10,6,14,.12) 0%,rgba(13,9,17,.48) 64%,#0d0911 100%),url('/halloween-v3/scene-strip.webp');
+    background-image:linear-gradient(180deg,rgba(10,6,14,.12) 0%,rgba(13,9,17,.48) 64%,#0d0911 100%);
     background-size:cover;background-position:center 52%;opacity:.48;filter:saturate(.88) brightness(.72)
   }
   html.hb-hh #hhHome{position:relative;z-index:1}
@@ -500,7 +499,7 @@ html.hb-hh #hhHome .hq-latest-head{margin-top:20px}
    separate from live text/data. Standard Honeybun is untouched. */
 @media (max-width:500px){
   html.hb-hh #hhHome{max-width:390px!important;padding-top:calc(max(env(safe-area-inset-top,0px),var(--sat,0px)) + 4px)!important;padding-bottom:96px!important;background:linear-gradient(180deg,#130b19 0,#0b0710 100%)!important}
-  html.hb-hh #hhHome:before{content:""!important;display:block!important;position:absolute!important;z-index:0!important;left:0!important;right:0!important;top:0!important;height:188px!important;pointer-events:none!important;background:linear-gradient(180deg,rgba(13,7,18,.10),rgba(11,7,16,.72) 78%,#0b0710 100%),url('/') top center/390px 188px no-repeat!important;opacity:.88!important}
+  html.hb-hh #hhHome:before{content:""!important;display:block!important;position:absolute!important;z-index:0!important;left:0!important;right:0!important;top:0!important;height:188px!important;pointer-events:none!important;background:linear-gradient(180deg,rgba(13,7,18,.10),rgba(11,7,16,.72) 78%,#0b0710 100%),url('/hh-header-v6.webp?v=6') center top/100% 188px no-repeat!important;opacity:.95!important}
   html.hb-hh #hhHome>*{position:relative;z-index:1}
   html.hb-hh #hhHome .hq-head{height:94px!important;margin:0 24px!important;padding-top:5px!important}
   html.hb-hh #hhHome .hq-brand h1{font-size:27px!important;line-height:30px!important}
@@ -528,7 +527,7 @@ html.hb-hh #hhHome .hq-latest-head{margin-top:20px}
   html.hb-hh #hhHome .hq-amt2{font-size:12.5px!important}
   html.hb-hh #hhHome .hq-dw+.hq-dw{margin:0 11px!important}
   html.hb-hh #hhHome .hq-streak{height:70px!important;width:calc(100% - 44px)!important;margin:10px 22px 0!important;padding:0 12px 0 93px!important;border-radius:17px!important}
-  html.hb-hh #hhHome .hq-streak>img{content:url('/hh-v4-streak.png')!important;left:7px!important;bottom:0!important;width:82px!important;max-height:83px!important;object-fit:contain!important}
+  html.hb-hh #hhHome .hq-streak>img{left:7px!important;bottom:0!important;width:82px!important;max-height:83px!important;object-fit:contain!important}
   html.hb-hh #hhHome .hq-flame{width:22px!important;height:29px!important}
   html.hb-hh #hhHome .hq-st b{font-size:14.5px!important;line-height:18px!important}
   html.hb-hh #hhHome .hq-st small{font-size:10.8px!important;line-height:14px!important}
@@ -555,3 +554,4 @@ html.hb-hh #hhHome .hq-latest-head{margin-top:20px}
   #hhHome .hh-streak-mascot, #hhHome .hh-witch-streak { width:112px !important; min-width:112px !important; transform:none !important; }
   #hhHome .hh-bottom-nav { left:18px !important; right:18px !important; width:auto !important; bottom:10px !important; }
 }
+
