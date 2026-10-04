@@ -73,6 +73,7 @@ jobs:
           }
           publish "start"
           cd - > /dev/null
+          touch "$RUNNER_TEMP/mark"
           xcrun simctl list devices available -j > "$RUNNER_TEMP/devs.json"
           python3 - "$RUNNER_TEMP/devs.json" "${{ github.event.inputs.small || 'true' }}" > "$RUNNER_TEMP/picked.txt" <<'PY'
           import json,sys,re
@@ -100,10 +101,18 @@ jobs:
               run_to 60 xcrun simctl launch --terminate-running-process "$udid" me.honeybun.app -HBPreview "$screen" > /dev/null || log "launch $screen failed"
               sleep 6
               run_to 60 xcrun simctl io "$udid" screenshot "$RUNNER_TEMP/${tag}_${screen}.png" || log "screenshot $screen failed"
+              # if the app died, keep its crash report and recent log lines so the cause can be read
+              for f in $(find "$HOME/Library/Logs/DiagnosticReports" -name '*.ips' -newer "$RUNNER_TEMP/mark" 2>/dev/null | head -2); do cp "$f" "$PUB/crash_${tag}_${screen}_$(basename "$f").txt"; done
+              if ! xcrun simctl spawn "$udid" launchctl list 2>/dev/null | grep -q "me.honeybun.app"; then
+                log "app is not running after launching $screen"
+                xcrun simctl spawn "$udid" log show --last 2m --style compact --predicate 'process == "App" OR eventMessage CONTAINS "honeybun"' 2>/dev/null | tail -80 > "$PUB/log_${tag}_${screen}.txt" || true
+              fi
               xcrun simctl terminate "$udid" me.honeybun.app || true
               if [ -f "$RUNNER_TEMP/${tag}_${screen}.png" ]; then
                 cp "$RUNNER_TEMP/${tag}_${screen}.png" "$PUB/"
                 ( cd "$PUB" && publish "${tag} ${screen}" )
+              else
+                ( cd "$PUB" && publish "${tag} ${screen} (no picture)" )
                 log "published ${tag}_${screen}"
               fi
             done
