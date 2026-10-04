@@ -43,6 +43,8 @@ enum HBTab: String, CaseIterable { case home = "Home", money = "Money", goals = 
         self.isPreview = true; self.previewMonth = month
     }
     private(set) var isPreview = false
+    /// debug screenshots only: keep showing the loading splash
+    var forceLoading = false { didSet { if forceLoading { phase = .checking } } }
     private var previewMonth: String?
 
     // MARK: loading

@@ -99,6 +99,15 @@ jobs:
             n=$(grep -c "$sym" "$RUNNER_TEMP/bin.strings" || true)
             echo "$sym: $n"
           done
+          echo "--- artwork inside the compiled asset catalog (Release) ---"
+          xcrun assetutil --info "$APP/Assets.car" > "$RUNNER_TEMP/assets.json" 2>/dev/null || true
+          for img in HBSplash HBHero HBFormPeek HBStreak HBMoneyBun HBScene HBFredokaSemiBold; do
+            n=$(grep -c "\"Name\" : \"$img\"" "$RUNNER_TEMP/assets.json" || true)
+            echo "$img: $n"
+            if [ "${n:-0}" = "0" ]; then echo "::error::$img is missing from the Release asset catalog"; missing=1; fi
+          done
+          echo "app icons in the asset catalog: AppIcon=$(grep -c '"Name" : "AppIcon"' "$RUNNER_TEMP/assets.json" || true) AppIcon-Classic=$(grep -c '"Name" : "AppIcon-Classic"' "$RUNNER_TEMP/assets.json" || true)"
+          if grep -q "HoneybunWitch" "$RUNNER_TEMP/assets.json"; then echo "::error::the old rounded-rectangle bunny frames are still in the asset catalog"; missing=1; fi
           if ! grep -q "openNativeApp" "$RUNNER_TEMP/bin.strings"; then echo "::error::openNativeApp bridge method is not in the Release binary"; missing=1; fi
           if ! grep -q "HBRootView" "$RUNNER_TEMP/bin.strings"; then echo "::error::HBRootView is not in the Release binary"; missing=1; fi
           exit $missing

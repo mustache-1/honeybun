@@ -28,7 +28,8 @@ struct HBRootView: View {
     @ViewBuilder private var content: some View {
         switch store.phase {
         case .checking:
-            ProgressView().progressViewStyle(.circular).tint(HB.orange)
+            // while the native screens sign in and load your account, the same Halloween splash as app launch
+            HalloweenLoadingView()
         case .signedOut:
             HBMessageView(title: "Sign in first", message: "The native screens use your normal Honeybun login. Open the classic Honeybun, sign in, then come back.",
                           primary: ("Open classic Honeybun", onClose), secondary: ("Try again", { Task { await store.start() } }))
