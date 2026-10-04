@@ -57,7 +57,8 @@ final class HoneybunGoalsUITests: XCTestCase {
     /// put the caret at the end of the field, wipe what is there, type the new text
     private func replaceText(_ field: XCUIElement, _ text: String) {
         XCTAssertTrue(field.waitForExistence(timeout: 8), "missing field")
-        field.coordinate(withNormalizedOffset: CGVector(dx: 0.98, dy: 0.5)).tap()
+        field.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+        _ = app.keyboards.firstMatch.waitForExistence(timeout: 3)
         let cur = (field.value as? String) ?? ""
         if !cur.isEmpty && cur != field.placeholderValue {
             field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: cur.count + 2))

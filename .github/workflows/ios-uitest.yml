@@ -76,7 +76,7 @@ jobs:
           rm -rf "$RUNNER_TEMP/pub" && mkdir "$RUNNER_TEMP/pub" && cd "$RUNNER_TEMP/pub"
           git init -q && git checkout -q -b ci-shots
           cp /tmp/hbshots/* . 2>/dev/null || true
-          tail -150 "$RUNNER_TEMP/uitest.log" > uitest.log.txt 2>/dev/null || true
+          grep -E "error:|Test Case.*(passed|failed)|TEST (SUCCEEDED|FAILED)" "$RUNNER_TEMP/uitest.log" > uitest.log.txt 2>/dev/null || true
           echo "native touch test from ${GITHUB_SHA}" > README.txt
           git add -A
           git -c user.name=ci -c user.email=ci@users.noreply.github.com commit -q -m "touch test for ${GITHUB_SHA}"
