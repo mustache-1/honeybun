@@ -4,6 +4,9 @@ name: iPhone app (release archive check)
 
 on:
   workflow_dispatch:
+  push:
+    branches: [claude/wizardly-ritchie-b9p7jn]
+    paths: [".github/workflows/ios-release-check.yml"]
 
 jobs:
   check:
