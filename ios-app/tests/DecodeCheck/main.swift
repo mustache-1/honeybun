@@ -102,7 +102,7 @@ if CommandLine.arguments.count > 3, let tdata = FileManager.default.contents(atP
         check("together: the shared dinner counts as shared spending for me", totals.first { $0.member.id == meID }.map { $0.shared >= 100 } ?? false)
     } catch { print("FAIL together fixture decode threw: \(error)"); failures += 1 }
 }
-func mem(_ id: String) -> HBMember { try! JSONDecoder().decode(HBMember.self, from: Data(#"{"id":"\#(id)","name":"\#(id)","emoji":"🐰","color":"#FFD6E5"}"#.utf8)) }
+func mem(_ id: String) -> HBMember { try! JSONDecoder().decode(HBMember.self, from: Data(("{\"id\":\"" + id + "\",\"name\":\"" + id + "\",\"emoji\":\"🐰\",\"color\":\"#FFD6E5\"}").utf8)) }
 let fam = [mem("a"), mem("b"), mem("c")]
 let famPairs = HBTogether.pairs(members: fam, balances: ["a": -1200, "b": 3000, "c": -1800])
 check("together: family of three → two payments into the one who is owed (a→b $12, c→b $18)",
