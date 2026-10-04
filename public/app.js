@@ -497,7 +497,7 @@
   // iPhone app: screens that open "on top" of the tabs get a history entry, so the edge-swipe goes back
   const SUB_SCREENS = ["add", "inbox", "settings", "refer", "share", "shop", "help", "updates"];
   const TAB_OF = { home: "home", plan: "plan", stats: "stats", us: "us", share: "us" };
-  let popping = false, lastTab = "home";
+  let popping = false, lastTab = "home", splashSent = false;
   let tabSent = "", tabTimer = 0;
   function syncTab() {
     if (!NTABS || !HBN) return;
@@ -513,6 +513,8 @@
     if (IOS_NATIVE && !popping && SUB_SCREENS.includes(s) && !(history.state && history.state.hbSub === s)) { try { history.pushState({ hbSub: s }, ""); } catch {} }
     if (TAB_OF[s] === s) lastTab = s;
     screen = s;
+    document.documentElement.setAttribute("data-scr", s);
+    if (s !== "loading" && IOS_NATIVE && HBN && HBN.splashDone && !splashSent) { splashSent = true; HBN.splashDone().catch(() => {}); }
     if (NTABS) syncTab();
     fitDesktop();
     ALL_SCREENS.forEach((k) => ($("scr-" + k).hidden = k !== s));
@@ -1236,6 +1238,18 @@
     return out;
   }
 
+  // Halloween Honeybun home: the extra header, quick actions and streak card are filled from the same data as the normal home. Nothing here writes anything.
+  function drawHHHome() {
+    if (!(window.hbHH && window.hbHH()) || !$("hhHead")) return;
+    const m = meMember(), st = streakOf(m), done = loggedToday(), li = levelInfo((m && m.xp) || 0);
+    $("hhBell").onclick = openInbox; $("hhGear").onclick = () => show("settings");
+    $("hhBellDot").hidden = !INBOX.unread;
+    $("hhAddExp").onclick = () => openAdd(); $("hhAddInc").onclick = () => openAdd({ type: "income" });
+    $("hhHi").textContent = (m && m.name) ? tr("Hi") + " " + m.name : tr("Hi");
+    const box = $("hhStreak");
+    box.innerHTML = `<img src="${(window.hbHalloweenActive && window.hbHalloweenActive()) ? "/icon-192-halloween.png" : "/icon-192.png"}" alt=""><span class="hh-flame" aria-hidden="true">🔥</span><span class="hh-st"><b>${st === 1 ? esc(tr("1 day")) : st + " " + esc(tr("days"))} ${esc(tr("hop streak"))}</b><small>${esc(done ? tr("Keep it going!") : tr("Log today to hop"))} · ${esc(tr("Level"))} ${li.l}</small></span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>`;
+    box.onclick = () => show("stats");
+  }
   function renderDue(left) {
     const box = $("dueCard");
     if (!RECUR.length) {
@@ -1351,6 +1365,7 @@
       renderTip(false);
       $("bunNote").hidden = false;
       renderBunExtras();
+      drawHHHome();
       maybeAskCarry();
       $("verifyBanner").hidden = !!ME.verified || ME.has_email === false || +(store.get("hb-verify-hide") || 0) > Date.now();
       const isThisMonth = MONTH === today().slice(0, 7);
@@ -2905,15 +2920,17 @@
   // Presentation only: it flips a saved flag and the theme classes, nothing in the account or data changes.
   (function () {
     const sw = $("hhSwitch"); if (!sw) return;
-    const on = () => { try { return localStorage.getItem("hb-hh") === "on"; } catch { return false; } };
+    const on = () => !!(window.hbHH && window.hbHH());
     const paint = () => sw.setAttribute("aria-checked", on() ? "true" : "false");
     sw.onclick = () => {
-      try { if (on()) localStorage.removeItem("hb-hh"); else localStorage.setItem("hb-hh", "on"); } catch {}
+      const next = !on();
+      window.hbSetHH(next, (v) => { if (HBN && HBN.setHalloween) HBN.setHalloween({ on: v }).catch(() => {}); });
       paint();
       if (window.hbHalloweenRefresh) window.hbHalloweenRefresh();
-      document.documentElement.classList.toggle("hb-hh", on());
-      buzz && buzz();
-      toast(on() ? "Halloween Honeybun is on 🎃" : "Back to the normal Honeybun");
+      document.documentElement.classList.toggle("hb-hh", next);
+      buzz();
+      toast(next ? "Halloween Honeybun is on 🎃" : "Back to the normal Honeybun");
+      if (typeof render === "function" && NEST) render();
     };
     paint();
   })();

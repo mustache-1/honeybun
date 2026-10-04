@@ -19,8 +19,25 @@ public class HoneybunNativePlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "setIcon", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "getTips", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "buyTip", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "openNativePreview", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "openNativePreview", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setHalloween", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "splashDone", returnType: CAPPluginReturnPromise)
     ]
+
+    // Halloween Honeybun: the website's Settings switch. This is the one stored value (read at launch for the native loading screen
+    // and injected into the website as window.__hbHH). Changing it only changes how things look, never any account data.
+    @objc func setHalloween(_ call: CAPPluginCall) {
+        HalloweenPref.enabled = call.getBool("on") ?? false
+        call.resolve()
+    }
+
+    // the website calls this once it has its first real screen, so the native loading screen can fade out right away
+    @objc func splashDone(_ call: CAPPluginCall) {
+        DispatchQueue.main.async {
+            NativeChrome.shared.splashDone()
+            call.resolve()
+        }
+    }
 
     // opens the hands-on SwiftUI demo (sample data only) over the app
     @objc func openNativePreview(_ call: CAPPluginCall) {
@@ -95,7 +112,7 @@ public class HoneybunNativePlugin: CAPPlugin, CAPBridgedPlugin {
     // lets the website know which native pieces this build of the app has
     @objc func info(_ call: CAPPluginCall) {
         DispatchQueue.main.async {
-            call.resolve(["nativeTabs": true, "nativeRefresh": true, "icons": true, "iconsV": 2, "tips": true, "demo": true, "tabsHeight": NativeChrome.shared.height, "version": 2])
+            call.resolve(["nativeTabs": true, "nativeRefresh": true, "icons": true, "iconsV": 2, "tips": true, "demo": true, "halloween": true, "tabsHeight": NativeChrome.shared.height, "version": 2])
         }
     }
 

@@ -30,7 +30,7 @@ shared_group = group_for(main, 'Shared')
 widget_group = group_for(main, 'HoneybunWidget')
 
 # app target: native plugin, Siri shortcuts, shared code, entitlements
-%w[BiometricLock.swift MainViewController.swift HoneybunNative.swift HoneybunIntents.swift NativeDemo.swift].each { |n| add_source(app, ensure_file(app_group, n)) }
+%w[BiometricLock.swift MainViewController.swift HoneybunNative.swift HoneybunIntents.swift NativeDemo.swift HalloweenSplash.swift].each { |n| add_source(app, ensure_file(app_group, n)) }
 shared_ref = ensure_file(shared_group, 'HoneybunShared.swift')
 add_source(app, shared_ref)
 ensure_file(app_group, 'App.entitlements')

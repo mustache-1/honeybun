@@ -1,5 +1,7 @@
 import UIKit
 import Capacitor
+import SwiftUI
+import WebKit
 
 // Registers Honeybun's own native plugins with the web view, and adds the real iPhone chrome around the
 // website: a native tab bar, native pull-to-refresh, and edge-swipe back.
@@ -10,7 +12,12 @@ class MainViewController: CAPBridgeViewController, UITabBarDelegate {
     private var lastItem: UITabBarItem?
     private var tabsWanted = true
 
+    private var splash: UIViewController?
+
     override open func capacitorDidLoad() {
+        // hand the website the Halloween Honeybun switch before it loads, so its first paint is already right (one stored value, owned here)
+        let flag = WKUserScript(source: "window.__hbHH = \(HalloweenPref.enabled ? "true" : "false");", injectionTime: .atDocumentStart, forMainFrameOnly: true)
+        bridge?.webView?.configuration.userContentController.addUserScript(flag)
         bridge?.registerPluginInstance(BiometricLockPlugin())
         bridge?.registerPluginInstance(HoneybunNativePlugin())
     }
@@ -26,6 +33,33 @@ class MainViewController: CAPBridgeViewController, UITabBarDelegate {
         webView?.scrollView.bounces = false // signed-out screens (login) stay put like an app, not a web page
         webView?.scrollView.refreshControl = nil
         tabBar.isHidden = true // the website switches it on once the user is signed in
+        showSplashIfWanted()
+    }
+
+    // MARK: Halloween loading screen (only when Halloween Honeybun is on)
+
+    private func showSplashIfWanted() {
+        guard HalloweenPref.enabled, splash == nil else { return }
+        let host = UIHostingController(rootView: HalloweenLoadingView())
+        host.view.backgroundColor = UIColor(red: 0.05, green: 0.02, blue: 0.09, alpha: 1)
+        addChild(host)
+        host.view.frame = view.bounds
+        host.view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        view.addSubview(host.view)
+        host.didMove(toParent: self)
+        splash = host
+        // safety net: never leave the splash up if the website can't load
+        DispatchQueue.main.asyncAfter(deadline: .now() + 15) { [weak self] in self?.hideSplash() }
+    }
+
+    func hideSplash() {
+        guard let host = splash else { return }
+        splash = nil
+        UIView.animate(withDuration: 0.35, animations: { host.view.alpha = 0 }, completion: { _ in
+            host.willMove(toParent: nil)
+            host.view.removeFromSuperview()
+            host.removeFromParent()
+        })
     }
 
     override func viewDidLayoutSubviews() {
@@ -33,6 +67,7 @@ class MainViewController: CAPBridgeViewController, UITabBarDelegate {
         let h = tabsHeight
         tabBar.frame = CGRect(x: 0, y: view.bounds.height - h, width: view.bounds.width, height: h)
         view.bringSubviewToFront(tabBar)
+        if let sv = splash?.view { view.bringSubviewToFront(sv) }
     }
 
     var tabsHeight: CGFloat {
@@ -124,4 +159,5 @@ final class NativeChrome {
     weak var vc: MainViewController?
     var height: Double { Double(vc?.tabsHeight ?? 0) }
     func set(tab: String?, visible: Bool, app: Bool) { vc?.setTab(tab, visible: visible, app: app) }
+    func splashDone() { vc?.hideSplash() }
 }

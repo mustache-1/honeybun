@@ -18,7 +18,16 @@
     if (q) { if (q[1] === "1") localStorage.setItem("hb-halloween", "on"); else localStorage.removeItem("hb-halloween"); }
   } catch (e) {}
   // Halloween Honeybun (experimental preview, Settings > Seasonal / Experimental): a fuller Halloween look. Presentation only.
-  window.hbHH = function () { try { return localStorage.getItem("hb-hh") === "on"; } catch (e) { return false; } };
+  // ONE source of truth: inside the iPhone app the native side owns it (UserDefaults "halloweenHoneybunEnabled"; the app injects window.__hbHH
+  // before the page loads, and the native loading screen reads the same value). On the web and in the Windows app it lives in localStorage.
+  window.hbHH = function () {
+    if (typeof window.__hbHH === "boolean") return window.__hbHH;
+    try { return localStorage.getItem("hb-hh") === "on"; } catch (e) { return false; }
+  };
+  window.hbSetHH = function (on, native) {
+    if (typeof window.__hbHH === "boolean") { window.__hbHH = !!on; if (native) native(!!on); return; }
+    try { if (on) localStorage.setItem("hb-hh", "on"); else localStorage.removeItem("hb-hh"); } catch (e) {}
+  };
   window.hbHalloweenActive = function () {
     try {
       if (window.hbHH()) return true;
