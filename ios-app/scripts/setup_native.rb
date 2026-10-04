@@ -87,5 +87,29 @@ unless widget
   end
 end
 
+# real-touch UI tests (only when asked for, e.g. by the CI screenshot job; never part of the App Store build)
+if ENV['HB_UITESTS'] == '1' && !project.targets.any? { |t| t.name == 'HoneybunUITests' }
+  ui = project.new_target(:ui_test_bundle, 'HoneybunUITests', :ios, '16.0', nil, :swift)
+  ui_group = group_for(main, 'HoneybunUITests')
+  add_source(ui, ensure_file(ui_group, 'HoneybunScrollUITests.swift'))
+  ui.add_dependency(app)
+  ui.build_configurations.each do |c|
+    s = c.build_settings
+    s['PRODUCT_BUNDLE_IDENTIFIER'] = 'me.honeybun.app.uitests'
+    s['PRODUCT_NAME'] = '$(TARGET_NAME)'
+    s['TEST_TARGET_NAME'] = 'App'
+    s['GENERATE_INFOPLIST_FILE'] = 'YES'
+    s['SWIFT_VERSION'] = '5.0'
+    s['TARGETED_DEVICE_FAMILY'] = '1'
+    s['IPHONEOS_DEPLOYMENT_TARGET'] = '16.0'
+    s['CODE_SIGN_STYLE'] = 'Automatic'
+  end
+  scheme = Xcodeproj::XCScheme.new
+  scheme.add_build_target(app)
+  scheme.add_test_target(ui)
+  scheme.set_launch_target(app)
+  scheme.save_as(project.path, 'HoneybunUITests', true)
+end
+
 project.save
 puts 'Honeybun native targets are set up.'
