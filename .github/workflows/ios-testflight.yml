@@ -81,6 +81,17 @@ jobs:
           grep -E "error:|ARCHIVE (SUCCEEDED|FAILED)" "$RUNNER_TEMP/archive.log" | head -30
           grep -q "ARCHIVE SUCCEEDED" "$RUNNER_TEMP/archive.log"
 
+      - name: Put the app's permissions (push, App Group) into the archive before Apple signs it
+        working-directory: ios-app/ios/App
+        shell: bash
+        run: |
+          APP="$RUNNER_TEMP/Honeybun.xcarchive/Products/Applications/App.app"
+          for f in "$APP"/Frameworks/*.framework "$APP"/Frameworks/*.dylib; do [ -e "$f" ] && codesign --force --sign - "$f"; done
+          for x in "$APP"/PlugIns/*.appex; do codesign --force --sign - --entitlements HoneybunWidget/HoneybunWidget.entitlements "$x"; done
+          codesign --force --sign - --entitlements App/App.entitlements "$APP"
+          echo "--- permissions now inside the archived app ---"
+          codesign -d --entitlements :- "$APP" 2>/dev/null
+
       - name: Upload to TestFlight
         working-directory: ios-app/ios/App
         shell: bash
