@@ -70,7 +70,7 @@ enum HBPlatformAuthError: LocalizedError {
 
     func authorizationController(controller: ASAuthorizationController, didCompleteWithError error: Error) {
         if let e = error as? ASAuthorizationError, e.code == .canceled { fail(HBPlatformAuthError.cancelled) }
-        else if let e = error as? ASAuthorizationError, e.code == .notInteractive || e.code == .failed || e.code == .invalidResponse || e.code == .unknown {
+        else if let e = error as? ASAuthorizationError, e.code == .failed || e.code == .invalidResponse || e.code == .unknown {
             fail(HBPlatformAuthError.failed("Passkeys didn't work here. Make sure you're signed in to iCloud with passkeys on, then try again. (\(e.code.rawValue))"))
         } else { fail(error) }
     }
