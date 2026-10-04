@@ -499,7 +499,7 @@ html.hb-hh #hhHome .hq-latest-head{margin-top:20px}
    separate from live text/data. Standard Honeybun is untouched. */
 @media (max-width:500px){
   html.hb-hh #hhHome{max-width:390px!important;padding-top:calc(max(env(safe-area-inset-top,0px),var(--sat,0px)) + 4px)!important;padding-bottom:96px!important;background:linear-gradient(180deg,#130b19 0,#0b0710 100%)!important}
-  html.hb-hh #hhHome:before{content:""!important;display:block!important;position:absolute!important;z-index:0!important;left:0!important;right:0!important;top:0!important;height:188px!important;pointer-events:none!important;background:linear-gradient(180deg,rgba(13,7,18,.10),rgba(11,7,16,.72) 78%,#0b0710 100%),url('/hh-header-v6.webp?v=6') center top/100% 188px no-repeat!important;opacity:.95!important}
+  html.hb-hh #hhHome:before{content:""!important;display:block!important;position:absolute!important;z-index:0!important;left:0!important;right:0!important;top:0!important;height:188px!important;pointer-events:none!important;background:linear-gradient(180deg,rgba(13,7,18,.10),rgba(11,7,16,.72) 78%,#0b0710 100%),url('/hh-header-v6.webp?v=8') center 38%/cover no-repeat!important;opacity:.32!important}
   html.hb-hh #hhHome>*{position:relative;z-index:1}
   html.hb-hh #hhHome .hq-head{height:94px!important;margin:0 24px!important;padding-top:5px!important}
   html.hb-hh #hhHome .hq-brand h1{font-size:27px!important;line-height:30px!important}
@@ -555,3 +555,7 @@ html.hb-hh #hhHome .hq-latest-head{margin-top:20px}
   #hhHome .hh-bottom-nav { left:18px !important; right:18px !important; width:auto !important; bottom:10px !important; }
 }
 
+
+/* V6 fixed artwork: placement measured from the authoritative reference (390px wide) */
+html.hb-hh #hhHome .hq-witch{position:absolute!important;right:24px!important;top:-112px!important;bottom:auto!important;left:auto!important;width:164px!important;height:auto!important;max-height:none!important;object-fit:contain!important;z-index:6!important;filter:drop-shadow(0 6px 8px rgba(0,0,0,.45))!important}
+html.hb-hh #hhHome .hq-streak>img{position:absolute!important;left:4px!important;bottom:-4px!important;top:auto!important;height:86px!important;width:auto!important;max-height:none!important;max-width:none!important;object-fit:contain!important;filter:drop-shadow(0 4px 6px rgba(0,0,0,.4))!important}
