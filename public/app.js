@@ -280,6 +280,28 @@
   // "Buy me a coffee" support link: paste the page address here and the buttons appear
   const COFFEE_URL = "https://buymeacoffee.com/honeybunapp";
   if (COFFEE_URL) document.querySelectorAll("[data-coffee]").forEach((a) => { a.href = COFFEE_URL; a.closest("[data-coffee-wrap]").hidden = false; });
+  // a tiny tap on the phone: Android vibrates, iPhone (Safari 18+) ticks through a hidden switch
+  const buzz = (() => {
+    let sw;
+    return (kind = "tick") => {
+      try {
+        if (!matchMedia("(pointer: coarse)").matches) return;
+        if (navigator.vibrate) { navigator.vibrate(kind === "ok" ? [10, 40, 14] : kind === "warn" ? 28 : 9); return; }
+        if (!sw) { sw = document.createElement("label"); sw.setAttribute("aria-hidden", "true"); sw.style.cssText = "position:fixed;left:-99px;top:0;opacity:0;pointer-events:none"; sw.innerHTML = '<input type="checkbox" switch tabindex="-1">'; document.body.appendChild(sw); }
+        sw.click();
+      } catch {}
+    };
+  })();
+  // home-screen shortcuts (long-press the app icon on Android) open honeybun.me/?quick=add|plan|stats
+  let QUICK = (() => {
+    const q = new URLSearchParams(location.search).get("quick");
+    if (q) history.replaceState(null, "", location.pathname + location.hash);
+    return ["add", "plan", "stats", "income"].includes(q) ? q : null;
+  })();
+  function runQuick() {
+    const q = QUICK; QUICK = null; if (!q) return;
+    if (q === "add") openAdd(); else if (q === "income") openAdd({ type: "income" }); else show(q);
+  }
   // the Windows app opens honeybun.me/?app=desktop: it skips the marketing page and goes straight to log in / sign up
   const IS_DESKTOP_APP = (() => {
     if (new URLSearchParams(location.search).get("app") === "desktop") { store.set("hb-desktop", "1"); history.replaceState(null, "", location.pathname + location.hash); }
@@ -403,6 +425,7 @@
     if (inApp) render();
   }
   document.querySelectorAll("nav.bottom [data-go]").forEach((b) => (b.onclick = () => {
+    buzz();
     if (b.dataset.go === "add") openAdd(); else { if (screen === "add") editing = null; show(b.dataset.go); }
   }));
 
@@ -597,7 +620,7 @@
     if (!me.nest_id) { $("setupHi").textContent = "Hi, " + ME.name + "!"; drawKinds(); show("setup"); return; }
     await loadNest();
     if (!SETUP_DONE) { openOnboard(false); return; }
-    show("home"); bunnyHop();
+    show("home"); bunnyHop(); runQuick();
   }
   async function logout() {
     try { if (window.google && google.accounts) google.accounts.id.disableAutoSelect(); } catch {}
@@ -998,6 +1021,7 @@
     if (e.pending) { store.set("hb-queue", JSON.stringify(queued().filter((q) => q.pending_id !== e.id))); await loadNest(); toast("Removed"); return; }
     try {
       await api("/api/entries/" + e.id, { method: "DELETE" });
+      buzz("warn");
       await loadNest();
       toast("Deleted " + e.label, "Undo", async () => {
         try { await api("/api/entries", { method: "POST", body: entryPayload(e) }); await loadNest(); toast("Restored"); }
@@ -1005,6 +1029,61 @@
       });
     } catch (err) { toast(err.message); }
   }
+
+  // phones: drag a row right to edit it, left to delete it (Undo shows after a delete)
+  function attachSwipe(li, e) {
+    if (!matchMedia("(pointer: coarse)").matches || matchMedia("(min-width: 900px)").matches) return;
+    const TH = 88; let x0 = 0, y0 = 0, dx = 0, dir = null, hit = false;
+    li.addEventListener("touchstart", (t) => { const p = t.touches[0]; x0 = p.clientX; y0 = p.clientY; dx = 0; dir = null; hit = false; li.style.transition = "none"; }, { passive: true });
+    li.addEventListener("touchmove", (t) => {
+      const p = t.touches[0], mx = p.clientX - x0, my = p.clientY - y0;
+      if (dir === null) { if (Math.abs(mx) < 10 && Math.abs(my) < 10) return; dir = Math.abs(mx) > Math.abs(my) * 1.4 ? "h" : "v"; }
+      if (dir !== "h") return;
+      if (t.cancelable) t.preventDefault();
+      dx = Math.max(-150, Math.min(150, mx));
+      li.style.transform = `translateX(${dx}px)`;
+      li.classList.toggle("sw-l", dx < 0); li.classList.toggle("sw-r", dx > 0);
+      li.style.setProperty("--p", Math.min(1, Math.abs(dx) / TH));
+      if (Math.abs(dx) >= TH && !hit) { hit = true; buzz("tick"); } else if (Math.abs(dx) < TH) hit = false;
+    }, { passive: false });
+    const end = () => {
+      if (dir !== "h") return;
+      const go = Math.abs(dx) >= TH, left = dx < 0;
+      li.dataset.swiped = "1"; setTimeout(() => delete li.dataset.swiped, 400);
+      li.style.transition = "transform .18s ease"; li.style.transform = ""; li.classList.remove("sw-l", "sw-r");
+      if (go) { if (left) deleteEntry(e); else openEditEntry(e); }
+    };
+    li.addEventListener("touchend", end); li.addEventListener("touchcancel", end);
+  }
+
+  // phones: pull down from the top of Home, Plan, Stats or Together to refresh
+  (() => {
+    if (!matchMedia("(pointer: coarse)").matches || matchMedia("(min-width: 900px)").matches) return;
+    const ind = document.createElement("div"); ind.id = "ptr"; ind.setAttribute("aria-hidden", "true"); ind.textContent = "🐰"; document.body.appendChild(ind);
+    let y0 = 0, pull = 0, on = false, working = false;
+    const reset = () => { ind.style.transition = "transform .2s, opacity .2s"; ind.style.opacity = "0"; ind.style.transform = "translate(-50%,-48px)"; ind.classList.remove("spin"); };
+    addEventListener("touchstart", (t) => {
+      on = false;
+      if (working || window.scrollY > 0 || !ME || !["home", "plan", "stats", "us"].includes(screen) || document.querySelector("dialog[open]")) return;
+      y0 = t.touches[0].clientY; pull = 0; on = true; ind.style.transition = "none";
+    }, { passive: true });
+    addEventListener("touchmove", (t) => {
+      if (!on) return;
+      const d = t.touches[0].clientY - y0;
+      if (window.scrollY > 0) { on = false; reset(); return; }
+      if (d < 12) return;
+      pull = Math.min(110, (d - 12) * 0.55);
+      ind.style.opacity = String(Math.min(1, pull / 45)); ind.style.transform = `translate(-50%,${pull - 48}px) rotate(${pull * 3}deg)`;
+    }, { passive: true });
+    addEventListener("touchend", async () => {
+      if (!on) return; on = false;
+      if (pull < 55) { reset(); return; }
+      working = true; buzz("tick");
+      ind.style.transition = "transform .15s"; ind.style.transform = "translate(-50%,24px)"; ind.classList.add("spin");
+      try { await loadNest(); } catch {}
+      setTimeout(() => { working = false; reset(); }, 350);
+    });
+  })();
 
   function entryLi(e) {
     const m = member(e.member_id), c = CATS.find((x) => x.id === e.category) || CATS[8], isIn = e.type === "income";
@@ -1014,7 +1093,8 @@
       <div class="s">${esc(m.emoji)} ${esc(m.name)}, ${shortDay(parseD(e.date))}${isIn ? "" : ", " + esc(splitText(e))}</div></div>
       <div class="amt ${isIn ? "in" : ""}">${isIn ? "+" : "−"}${fmt(e.amount)}</div>
       <button class="del" aria-label="Delete ${esc(e.label)}">✕</button>`;
-    li.onclick = () => openEditEntry(e);
+    li.onclick = () => { if (li.dataset.swiped) return; openEditEntry(e); };
+    attachSwipe(li, e);
     li.querySelector(".del").onclick = (ev) => { ev.stopPropagation(); deleteEntry(e); };
     return li;
   }
@@ -1753,7 +1833,7 @@
 
   // ---------- add / edit form ----------
   function resetForm(opts = {}) {
-    mode = opts.type || "expense"; cat = opts.cat || "groc"; who = ME.id; shared = MEMBERS.length > 1; splitMode = "equal";
+    mode = opts.type || "expense"; cat = opts.cat || (mode === "expense" && CATS.some((c) => c.id === store.get("hb-last-cat")) ? store.get("hb-last-cat") : "groc"); who = ME.id; shared = MEMBERS.length > 1; splitMode = "equal";
     $("amt").value = ""; $("lbl").value = ""; $("splitVal").value = ""; $("priv").checked = false;
     $("repeat").value = opts.repeat || ""; $("dt").value = today(); $("paidNow").checked = false; $("err").textContent = "";
   }
@@ -1903,6 +1983,7 @@
         await loadNest(); rewardToast(res.reward, mode === "income" ? "Payday added" : "Bill added"); show("plan");
       } else {
         const res = await api("/api/entries", { method: "POST", body });
+        buzz("ok"); if (mode === "expense") store.set("hb-last-cat", cat);
         MONTH = ym(date); await loadNest();
         if (res.queued) toast("Saved offline. It'll sync when you're back.");
         else rewardToast(res.reward, `${label} · ${fmt(amount)}`, res.id ? async () => {
