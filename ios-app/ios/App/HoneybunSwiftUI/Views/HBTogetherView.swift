@@ -2,23 +2,28 @@ import SwiftUI
 
 // MARK: - small pieces shared by the Together screens
 
-/// A member's picture: the buddy they picked (same artwork as the website) on their own colour.
+/// A member's picture: the buddy they picked (the same artwork as the website), shown whole as a rounded tile with the member's colour as its border.
+/// The artwork is a full square picture, so it is never cropped into a circle.
 @available(iOS 15.0, *)
 struct HBMemberAvatar: View {
     let member: HBMember
     var size: CGFloat = 44
+    var highlight = false
+    private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: size * 0.26, style: .continuous) }
     var body: some View {
-        ZStack {
-            Circle().fill(Color(hex: member.color) ?? HB.orange)
+        Group {
             if let name = HBTogether.buddyAsset(member.emoji) {
-                Image(name).resizable().scaledToFit().padding(size * 0.06)
+                Image(name).resizable().scaledToFit().frame(width: size, height: size)
             } else {
-                Text(String(member.name.first ?? "?").uppercased()).font(.system(size: size * 0.45, weight: .bold)).foregroundColor(Color.black.opacity(0.7))
+                ZStack {
+                    Color(hex: member.color) ?? HB.orange
+                    Text(String(member.name.first ?? "?").uppercased()).font(.system(size: size * 0.45, weight: .bold)).foregroundColor(Color.black.opacity(0.7))
+                }
+                .frame(width: size, height: size)
             }
         }
-        .frame(width: size, height: size)
-        .clipShape(Circle())
-        .overlay(Circle().stroke(Color.white.opacity(0.25), lineWidth: 1))
+        .clipShape(shape)
+        .overlay(shape.stroke(highlight ? HB.orange : (Color(hex: member.color) ?? Color.white.opacity(0.25)), lineWidth: highlight ? 3 : max(2, size * 0.05)))
         .accessibilityHidden(true)
     }
 }
@@ -263,7 +268,7 @@ struct HBTogetherView: View {
                 HStack(spacing: 16) {
                     ForEach(store.members) { m in
                         VStack(spacing: 6) {
-                            HBMemberAvatar(member: m, size: 56).overlay(Circle().stroke(m.id == store.myID ? HB.orange : Color.clear, lineWidth: 2))
+                            HBMemberAvatar(member: m, size: 56, highlight: m.id == store.myID)
                             Text(m.id == store.myID ? "You" : m.name).font(.system(size: 14)).foregroundColor(.white).lineLimit(1).frame(maxWidth: 72)
                         }
                     }

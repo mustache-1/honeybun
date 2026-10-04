@@ -392,12 +392,11 @@ struct HBEditMeSheet: View {
                 LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 4), spacing: 10) {
                     ForEach(HBTogether.emojis, id: \.self) { e in
                         Button { emoji = e } label: {
-                            ZStack {
-                                Circle().fill(Color(hex: color) ?? HB.orange)
-                                if let a = HBTogether.buddyAsset(e) { Image(a).resizable().scaledToFit().padding(4) }
+                            Group {
+                                if let a = HBTogether.buddyAsset(e) { Image(a).resizable().scaledToFit() } else { Color(hex: color) ?? HB.orange }
                             }
-                            .frame(width: 64, height: 64).clipShape(Circle())
-                            .overlay(Circle().stroke(emoji == e ? HB.orange : Color.white.opacity(0.18), lineWidth: emoji == e ? 3 : 1))
+                            .frame(width: 72, height: 72).clipShape(RoundedRectangle(cornerRadius: 19, style: .continuous))
+                            .overlay(RoundedRectangle(cornerRadius: 19, style: .continuous).stroke(emoji == e ? HB.orange : (Color(hex: color) ?? Color.white.opacity(0.18)), lineWidth: emoji == e ? 4 : 2))
                         }
                         .accessibilityLabel("Buddy").accessibilityAddTraits(emoji == e ? .isSelected : [])
                     }
