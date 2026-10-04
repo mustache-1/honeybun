@@ -376,7 +376,10 @@
       if (!tok) { try { tok = (await api("/api/app/token", { method: "POST" })).token; store.set("hb-app-token", tok); } catch { tok = null; } }
       if (tok) { try { await HBN.setToken({ token: tok }); } catch {} }
     }
-    if (PUSHP && store.get("hb-apns") === "1") registerPush(true);
+    if (PUSHP) {
+      if (store.get("hb-apns-asked") !== "1") { store.set("hb-apns-asked", "1"); if (await registerPush(false)) store.set("hb-apns", "1"); }
+      else if (store.get("hb-apns") === "1") registerPush(true);
+    }
   }
   let pushListening = false;
   async function registerPush(quiet) {
@@ -425,6 +428,9 @@
   if (IOS_NATIVE) {
     document.documentElement.classList.add("hb-ios");
     $("openPasskeys").hidden = true; // passkeys need an extra Apple setup (associated domains) that the app does not have yet
+    // the app notifies you by itself, the home screen / website install steps don't apply, What's new lives on the landing page, and the app has one look
+    [$("mailBills").closest(".setting-row"), $("themePick").closest(".setting-row"), $("swatches").closest(".setting-row"), $("openGet"), $("sideGet"), $("openUpd"), $("sideUpd")]
+      .forEach((el) => { if (el) el.hidden = true; });
     document.querySelector('meta[name="viewport"]')?.setAttribute("content", "width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover"); // no accidental pinch-zoom in the app
     const row = $("siriRow");
     row.hidden = false;
@@ -2480,6 +2486,7 @@
       joint: (d) => d.on ? `${d.name} turned on Joint account. Everything now adds up together and nobody owes anybody.` : `${d.name} turned off Joint account. Splitting and balances are back.`,
       settled: (d) => d.you_paid ? `${d.name} marked your ${money(d.amount)} payment as received 💸` : `${d.name} marked ${money(d.amount)} as paid to you 💸`,
       shared_expense: (d) => `${d.name} added ${d.label} (${money(d.amount)}) and split it with you.`,
+      joint_entry: (d) => `${d.name} added ${d.label} (${money(d.amount)}).`,
     },
     es: {
       welcome: (d) => `¡Hola, ${d.name}! Soy Bun 🐰 Aquí te avisaré de facturas, días de pago y tu racha.`,
@@ -2502,6 +2509,7 @@
       joint: (d) => d.on ? `${d.name} activó la cuenta conjunta. Todo se suma junto y nadie le debe a nadie.` : `${d.name} desactivó la cuenta conjunta. Vuelven la división y los saldos.`,
       settled: (d) => d.you_paid ? `${d.name} marcó tu pago de ${money(d.amount)} como recibido 💸` : `${d.name} marcó ${money(d.amount)} como pagado para ti 💸`,
       shared_expense: (d) => `${d.name} agregó ${d.label} (${money(d.amount)}) y lo dividió contigo.`,
+      joint_entry: (d) => `${d.name} agregó ${d.label} (${money(d.amount)}).`,
     },
     zh: {
       welcome: (d) => `${d.name}，你好！我是 Bun 🐰 账单提醒、发薪日和连续记录，我都会在这里告诉你。`,
@@ -2524,6 +2532,7 @@
       joint: (d) => d.on ? `${d.name} 开启了共同账户。所有金额合并计算，没人欠谁。` : `${d.name} 关闭了共同账户。分摊和结算恢复。`,
       settled: (d) => d.you_paid ? `${d.name} 确认收到了你的 ${money(d.amount)} 💸` : `${d.name} 标记已付给你 ${money(d.amount)} 💸`,
       shared_expense: (d) => `${d.name} 添加了 ${d.label}（${money(d.amount)}），和你一起分摊。`,
+      joint_entry: (d) => `${d.name} 添加了 ${d.label}（${money(d.amount)}）。`,
     },
   };
   {
@@ -2667,7 +2676,7 @@
   }
   function renderRefCard() {
     const r = ME && ME.ref, c = $("refCard");
-    if (!r) { c.hidden = true; return; }
+    if (!r || IOS_NATIVE) { c.hidden = true; return; }
     // new for a few days, then it moves into Bun's inbox unless friends are already on the way
     const first = +store.get("hb-ref-first") || (store.set("hb-ref-first", String(Date.now())), Date.now());
     c.hidden = Date.now() - first > 4 * 864e5 && !r.qualified && !r.pending;

@@ -127,20 +127,20 @@ async function postToOthers(env, nestId, exceptId, kind, data, dedupe) {
 
 // ---------- Web Push (no payload: the service worker asks /api/push/latest for the text) ----------
 const PUSH_TEXT = {
-  en: { shared_expense: (d) => `${d.name} added ${money(d.amount)} for ${d.label}, split with you.`, joined: (d) => `${d.name} joined your budget 🎉`,
+  en: { joint_entry: (d) => `${d.name} added ${d.label} (${money(d.amount)}).`, shared_expense: (d) => `${d.name} added ${money(d.amount)} for ${d.label}, split with you.`, joined: (d) => `${d.name} joined your budget 🎉`,
         carry_ask: (d) => `New month! ${d.from} ended at ${d.neg ? "-" : ""}${money(d.amount)}. Open Honeybun to carry it over or start fresh.`,
         carry_done: (d) => d.accepted ? `${d.name} carried over ${d.neg ? "-" : ""}${money(d.amount)} from last month.` : `${d.name} started this month fresh.`,
         carry_auto: (d) => `New month! ${d.neg ? "-" : ""}${money(d.amount)} from ${d.from} was carried over for you.`,
         joint: (d) => d.on ? `${d.name} turned on Joint account. Everything adds up together now.` : `${d.name} turned off Joint account.`,
         bills: (d) => d.n === 1 ? `${d.label} (${money(d.amount)}) is due ${d.when}.` : `${d.n} bills are due in the next 3 days.`,
         streak: (d) => `Log one thing today to keep your ${d.streak}-day hop streak 🐾`, other: () => "Bun has something for you 🐰" },
-  es: { shared_expense: (d) => `${d.name} agregó ${money(d.amount)} de ${d.label}, dividido contigo.`, joined: (d) => `${d.name} se unió a tu presupuesto 🎉`,
+  es: { joint_entry: (d) => `${d.name} agregó ${d.label} (${money(d.amount)}).`, shared_expense: (d) => `${d.name} agregó ${money(d.amount)} de ${d.label}, dividido contigo.`, joined: (d) => `${d.name} se unió a tu presupuesto 🎉`,
         carry_ask: (d) => `¡Nuevo mes! ${d.from} terminó en ${d.neg ? "-" : ""}${money(d.amount)}. Abre Honeybun para trasladarlo o empezar de cero.`,
         carry_done: (d) => d.accepted ? `${d.name} trasladó ${d.neg ? "-" : ""}${money(d.amount)} del mes pasado.` : `${d.name} empezó este mes de cero.`,
         joint: (d) => d.on ? `${d.name} activó la cuenta conjunta. Ahora todo se suma junto.` : `${d.name} desactivó la cuenta conjunta.`,
         bills: (d) => d.n === 1 ? `${d.label} (${money(d.amount)}) vence ${d.when}.` : `${d.n} facturas vencen en los próximos 3 días.`,
         streak: (d) => `Registra algo hoy para mantener tu racha de ${d.streak} días 🐾`, other: () => "Bun tiene algo para ti 🐰" },
-  zh: { shared_expense: (d) => `${d.name} 记了一笔 ${money(d.amount)}（${d.label}），和你分摊。`, joined: (d) => `${d.name} 加入了你的预算 🎉`,
+  zh: { joint_entry: (d) => `${d.name} 添加了 ${d.label}（${money(d.amount)}）。`, shared_expense: (d) => `${d.name} 记了一笔 ${money(d.amount)}（${d.label}），和你分摊。`, joined: (d) => `${d.name} 加入了你的预算 🎉`,
         carry_ask: (d) => `新的一个月！${d.from} 结余 ${d.neg ? "-" : ""}${money(d.amount)}。打开 Honeybun 选择结转或重新开始。`,
         carry_done: (d) => d.accepted ? `${d.name} 把上月的 ${d.neg ? "-" : ""}${money(d.amount)} 结转到了本月。` : `${d.name} 选择本月重新开始。`,
         joint: (d) => d.on ? `${d.name} 开启了共同账户，所有金额合并计算。` : `${d.name} 关闭了共同账户。`,
@@ -1799,6 +1799,10 @@ async function handle(request, env, url) {
     const id = await insertEntry(env, nestId, user, e, rid, occ);
     if (e.type === "expense") await env.DB.prepare("UPDATE members SET inbox_gen_at = 0 WHERE nest_id = ?").bind(nestId).run();
     if (e.shared && !body.restore) await postToOthers(env, nestId, user.id, "shared_expense", { name: user.name, label: e.label, amount: e.amount }, `shared:${id}`);
+    else if (!body.restore && !e.priv && (await isJoint(env, nestId))) {
+      // a joint account is one shared pot: your partner hears about everything that goes into it
+      try { await postToOthers(env, nestId, user.id, "joint_entry", { name: user.name, label: e.label, amount: e.amount }, `joint:${id}`); } catch (err) { console.error("joint notify", err.message); }
+    }
     return json({ ok: true, id, reward: body.restore ? null : await award(env, request, user.id, nestId, "entry") }, 201);
   }
   const entryId = path.match(/^\/api\/entries\/([0-9a-f-]{36})$/);
