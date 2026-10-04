@@ -19,6 +19,8 @@ class MainViewController: CAPBridgeViewController, UITabBarDelegate {
         super.viewDidLoad()
         NativeChrome.shared.vc = self
         webView?.allowsBackForwardNavigationGestures = true
+        webView?.scrollView.showsVerticalScrollIndicator = false // no scroll line down the right side
+        webView?.scrollView.showsHorizontalScrollIndicator = false
         buildTabBar()
         buildRefreshControl()
         webView?.scrollView.bounces = false // signed-out screens (login) stay put like an app, not a web page

@@ -771,6 +771,8 @@ html.hb-tabs .app{padding-bottom:calc(var(--tabs-h,83px) + 24px)!important}
 html.hb-tabs .toast{bottom:calc(var(--tabs-h,83px) + 10px)!important}
 html.hb-tabs .update-card{bottom:calc(var(--tabs-h,83px) + 10px)!important}
 html.hb-ios{-webkit-touch-callout:none}
+html.hb-ios *::-webkit-scrollbar{display:none}
+html.hb-ios{scrollbar-width:none}
 html.hb-ios input,html.hb-ios textarea{-webkit-touch-callout:default}
 /* iPhone zooms the whole page when a field smaller than 16px gets focus */
 @media (pointer:coarse) and (max-width:899px){.filters select,.filters.more input{font-size:16px}}
