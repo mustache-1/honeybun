@@ -65,7 +65,7 @@
   const EMOJIS = ["🐰", "🐻", "🐱", "🐶", "🦊", "🐼", "🐨", "🐸", "🐧", "🦄", "🐥", "🐹"];
   // the buddy picture for each saved buddy (older accounts keep the emoji they picked, it just shows as Bun in a honey pot)
   const BUDDY = { "🐰": "default", "🐻": "happy", "🐱": "sleepy", "🐶": "cool", "🦊": "devil", "🐼": "angel", "🐨": "witch", "🐸": "ghost", "🐧": "nerd", "🦄": "cowboy", "🐥": "frog", "🐹": "dinosaur" };
-  const bud = (e) => BUDDY[e] ? `<img class="bud" src="/buddies/${BUDDY[e]}.png" alt="" draggable="false">` : esc(e);
+  const bud = (e) => BUDDY[e] ? `<img class="bdy" src="/buddies/${BUDDY[e]}.png" alt="" draggable="false">` : esc(e);
   const COLORS = ["#FFD6E5", "#FFF0C2", "#DDF5E9", "#E4EDFF", "#EADFFF", "#FFE1CC"];
   const GOAL_EMOJIS = ["🍯", "✈️", "🏠", "💍", "🚗", "🎓", "🐶", "🎄", "🛟", "🎁"];
   const THEMES = [
