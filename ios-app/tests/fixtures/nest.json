@@ -2,14 +2,14 @@
  "today": "2026-10-04",
  "snapshot": {
   "me": {
-   "id": "62ebf1d2-a85a-43db-9967-95920760dfc9",
-   "email": "ct8848153@u.honeybun.invalid",
+   "id": "5e188245-dc0f-4371-bc25-8876297dc4c6",
+   "email": "ct2088521@u.honeybun.invalid",
    "name": "Contract Test"
   },
   "nest": {
-   "id": "c16c1bf1-bc57-4668-932a-6f1db6880899",
+   "id": "597976d3-30a4-496a-9fc4-bb798f6d2d42",
    "name": "Us",
-   "invite_code": "CRMEC4SS",
+   "invite_code": "E22Z8V9K",
    "accent": "blush",
    "kind": "couple",
    "rollover": 0,
@@ -18,7 +18,7 @@
   },
   "members": [
    {
-    "id": "62ebf1d2-a85a-43db-9967-95920760dfc9",
+    "id": "5e188245-dc0f-4371-bc25-8876297dc4c6",
     "name": "Contract Test",
     "emoji": "🐰",
     "color": "#FFD6E5",
@@ -33,8 +33,8 @@
   ],
   "entries": [
    {
-    "id": "d4af129d-ba17-49f0-97f3-2bcf96a2850d",
-    "member_id": "62ebf1d2-a85a-43db-9967-95920760dfc9",
+    "id": "ba931ee4-680c-4ce2-bea2-eb71c22c59e5",
+    "member_id": "5e188245-dc0f-4371-bc25-8876297dc4c6",
     "type": "expense",
     "amount_cents": 1799,
     "label": "Streaming+",
@@ -45,13 +45,13 @@
     "shares": null,
     "private": 0,
     "date": "2026-10-04",
-    "recurring_id": "2768c063-cc90-4d01-875f-b060f112d6ae",
+    "recurring_id": "d17797ad-ee81-4952-95ec-12ffa0a21cf4",
     "occ_date": "2026-10-09",
-    "created_at": 1791148850
+    "created_at": 1791152088
    },
    {
-    "id": "137c824b-d05b-4aa8-855e-9c5bd2979747",
-    "member_id": "62ebf1d2-a85a-43db-9967-95920760dfc9",
+    "id": "ee31eebf-19c4-43c7-8ef5-802f1c33c0bc",
+    "member_id": "5e188245-dc0f-4371-bc25-8876297dc4c6",
     "type": "income",
     "amount_cents": 300000,
     "label": "Native pay",
@@ -64,11 +64,11 @@
     "date": "2026-10-04",
     "recurring_id": null,
     "occ_date": null,
-    "created_at": 1791148850
+    "created_at": 1791152088
    },
    {
-    "id": "8c7991bc-1b48-4b1f-9646-28dcc3050ba5",
-    "member_id": "62ebf1d2-a85a-43db-9967-95920760dfc9",
+    "id": "ca032b6f-ff9b-4f14-b256-7836088fd327",
+    "member_id": "5e188245-dc0f-4371-bc25-8876297dc4c6",
     "type": "expense",
     "amount_cents": 8000,
     "label": "Native dinner v2",
@@ -81,7 +81,7 @@
     "date": "2026-10-04",
     "recurring_id": null,
     "occ_date": null,
-    "created_at": 1791148850
+    "created_at": 1791152088
    }
   ],
   "categories": [],
@@ -90,17 +90,17 @@
   "carry_pending": null,
   "carry_prev": null,
   "balances": {
-   "62ebf1d2-a85a-43db-9967-95920760dfc9": 0
+   "5e188245-dc0f-4371-bc25-8876297dc4c6": 0
   },
   "settlements": [],
   "recurring": [
    {
-    "id": "1b3c2357-4385-43ed-b135-2ee051358fdf",
+    "id": "a798eb05-1b95-4573-8c25-debca7ea4f07",
     "type": "income",
     "label": "Side payday",
     "amount_cents": 120000,
     "category": null,
-    "member_id": "62ebf1d2-a85a-43db-9967-95920760dfc9",
+    "member_id": "5e188245-dc0f-4371-bc25-8876297dc4c6",
     "shared": 0,
     "split_mode": null,
     "split_value": null,
@@ -110,12 +110,12 @@
     "price_changed_at": null
    },
    {
-    "id": "c80b4227-d060-41b3-ab0e-97d6665350ef",
+    "id": "b0b842df-77fe-44a9-bb7b-bb0014a1a106",
     "type": "expense",
     "label": "Phone bill",
     "amount_cents": 4234,
     "category": "bills",
-    "member_id": "62ebf1d2-a85a-43db-9967-95920760dfc9",
+    "member_id": "5e188245-dc0f-4371-bc25-8876297dc4c6",
     "shared": 0,
     "split_mode": null,
     "split_value": null,
@@ -125,12 +125,12 @@
     "price_changed_at": null
    },
    {
-    "id": "2768c063-cc90-4d01-875f-b060f112d6ae",
+    "id": "d17797ad-ee81-4952-95ec-12ffa0a21cf4",
     "type": "expense",
     "label": "Streaming+",
     "amount_cents": 1799,
     "category": "subs",
-    "member_id": "62ebf1d2-a85a-43db-9967-95920760dfc9",
+    "member_id": "5e188245-dc0f-4371-bc25-8876297dc4c6",
     "shared": 0,
     "split_mode": null,
     "split_value": null,
@@ -142,14 +142,14 @@
   ],
   "logged": [
    {
-    "recurring_id": "2768c063-cc90-4d01-875f-b060f112d6ae",
+    "recurring_id": "d17797ad-ee81-4952-95ec-12ffa0a21cf4",
     "occ_date": "2026-10-09"
    }
   ],
   "jar": [],
   "goals": [
    {
-    "id": "85f173c5-76d7-40c1-8391-86d032746c7d",
+    "id": "2fcaa8fd-f5fe-423e-95fb-09d6fd1763e4",
     "name": "Trip to Japan",
     "emoji": "✈️",
     "target_cents": 300000,
@@ -175,7 +175,7 @@
   "carry": {},
   "inbox": {
    "unread": 2,
-   "latest": "f8101149-3ebc-4747-b6c3-35e31513c391|bill_soon|{\"rid\":\"c80b4227-d060-41b3-ab0e-97d6665350ef\",\"occ\":\"2026-10-07\",\"label\":\"Phone bill\",\"amount\":4234}"
+   "latest": "fccfd3d0-de16-4cb6-a287-bd7ab66c03d0|bill_soon|{\"rid\":\"b0b842df-77fe-44a9-bb7b-bb0014a1a106\",\"occ\":\"2026-10-07\",\"label\":\"Phone bill\",\"amount\":4234}"
   }
  }
 }

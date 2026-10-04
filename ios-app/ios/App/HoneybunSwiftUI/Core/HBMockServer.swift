@@ -18,9 +18,13 @@ final class HBMockServer: URLProtocol {
 
     static func install(seed: String) {
         lock.lock(); defer { lock.unlock() }
-        let together = ["solo", "partner", "family", "joint"].contains(seed)
+        let together = ["solo", "partner", "family", "joint", "inbox", "inboxempty"].contains(seed)
         var s = together ? HBPreviewVariants.make(seed) : ((try? JSONSerialization.jsonObject(with: Data(HBPreviewData.json.utf8))) as? [String: Any] ?? [:])
         s["shopping"] = HBPreviewVariants.shopping
+        if seed == "inbox" || seed == "inboxempty" {
+            let rec = (s["recurring"] as? [[String: Any]] ?? []).map { ($0["id"] as? String ?? "", $0["label"] as? String ?? "", $0["amount_cents"] as? Int ?? 0) }
+            s["inboxMessages"] = HBPreviewVariants.inboxMessages(seed == "inbox" ? "mixed" : "empty", recurring: rec)
+        }
         var goals = s["goals"] as? [[String: Any]] ?? []
         var jar = s["jar"] as? [[String: Any]] ?? []
         func goal(_ name: String, _ emoji: String, _ target: Int, _ saved: Int) -> [String: Any] {
@@ -95,6 +99,44 @@ final class HBMockServer: URLProtocol {
         let last = path.split(separator: "/").last.map(String.init) ?? ""
         func clean(_ v: Any?, _ max: Int) -> String { String(((v as? String) ?? "").trimmingCharacters(in: .whitespaces).prefix(max)) }
         func newID() -> String { UUID().uuidString.lowercased() }
+
+        // ---- Inbox: Bun's messages, reading them, the carry-over question, marking a bill paid from a message
+        if path == "/api/nest" && method == "GET", let msgs = state["inboxMessages"] as? [[String: Any]] {
+            state["inbox"] = ["unread": msgs.filter { $0["read_at"] is NSNull }.count]
+            return nil
+        }
+        if path == "/api/inbox" && method == "GET" {
+            let msgs = (state["inboxMessages"] as? [[String: Any]] ?? []).sorted { ($0["created_at"] as? Double ?? 0) < ($1["created_at"] as? Double ?? 0) }
+            return (200, ["messages": msgs])
+        }
+        if path == "/api/inbox/read" && method == "POST" {
+            clock += 1
+            let stamped: [[String: Any]] = (state["inboxMessages"] as? [[String: Any]] ?? []).map { var c = $0; if c["read_at"] is NSNull { c["read_at"] = clock }; return c }
+            state["inboxMessages"] = stamped; state["inbox"] = ["unread": 0]
+            return (200, ["ok": true])
+        }
+        if path == "/api/carry" && method == "POST" {
+            guard let pending = state["carry_pending"] as? [String: Any] else { return (200, ["ok": true, "already": true]) }
+            let accept = (body["accept"] as? Bool) ?? false
+            let amount = pending["amount_cents"] as? Int ?? 0
+            state["carry_pending"] = NSNull()
+            state["carry_in"] = ["amount_cents": accept ? amount : 0, "accepted": accept]
+            if (body["remember"] as? Bool) == true { nest["carry_mode"] = accept ? "always" : "never" }
+            return (200, ["ok": true, "amount_cents": accept ? amount : 0, "accepted": accept])
+        }
+        if path.hasPrefix("/api/recurring/") && path.hasSuffix("/log") && method == "POST" {
+            let rid = path.replacingOccurrences(of: "/api/recurring/", with: "").replacingOccurrences(of: "/log", with: "")
+            let occ = body["occ_date"] as? String ?? ""
+            var logged = state["logged"] as? [[String: Any]] ?? []
+            guard let r = (state["recurring"] as? [[String: Any]] ?? []).first(where: { ($0["id"] as? String) == rid }) else { return (404, ["error": "That bill is gone."]) }
+            if logged.contains(where: { ($0["recurring_id"] as? String) == rid && ($0["occ_date"] as? String) == occ }) { return (200, ["ok": true, "already": true]) }
+            logged.append(["recurring_id": rid, "occ_date": occ]); state["logged"] = logged
+            let income = (r["type"] as? String) == "income"
+            entries.insert(["id": newID(), "member_id": meID, "type": income ? "income" : "expense", "amount_cents": r["amount_cents"] as? Int ?? 0, "label": r["label"] as? String ?? "",
+                            "category": income ? NSNull() : (r["category"] as? String ?? "bills"), "shared": 0, "split_mode": NSNull(), "split_value": NSNull(), "shares": NSNull(), "private": 0,
+                            "date": occ, "recurring_id": rid, "occ_date": occ, "created_at": clock], at: 0)
+            return (201, ["ok": true])
+        }
 
         if path == "/api/nest" && method == "PATCH" {
             if body["name"] != nil { nest["name"] = clean(body["name"], 24) }

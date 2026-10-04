@@ -76,6 +76,7 @@ struct HBRootView: View {
             case .money: HBMoneyView(store: store)
             case .goals: HBGoalsView(store: store)
             case .together: HBTogetherView(store: store)
+            case .inbox: HBInboxView(store: store, onClose: onClose)
             default:
                 HBMessageView(title: "\(store.selectedTab.rawValue) isn't native yet",
                               message: "This screen is still the classic Honeybun. Nothing is lost: it uses the same account and data.",
@@ -100,6 +101,7 @@ struct HBRootView: View {
         case .shopping: HBShoppingSheet(store: store)
         case .search: HBSearchSheet(store: store)
         case .editMe: HBEditMeSheet(store: store)
+        case .carry: HBCarrySheet(store: store)
         }
     }
 }

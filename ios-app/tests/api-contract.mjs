@@ -257,4 +257,49 @@ ok("GET /api/search → {entries:[...]} with the shared dinner", r.status === 20
 r = await call("/api/search?" + new URLSearchParams({ q: "zzzz-nothing", type: "", member: "" }));
 ok("search with no match → empty list", r.status === 200 && r.json.entries.length === 0);
 
+
+// --- 10. Inbox: Bun's messages, read/unread, the buttons' backend calls, carry-over question
+cookie = cookieA;
+r = await call("/api/recurring", "POST", { type: "expense", amount: 31.5, label: "Inbox Bill", freq: "monthly", date: dd(0), member_id: mid, shared: false, category: "bills" });
+const inboxRec = r.json?.id;
+r = await call("/api/recurring", "POST", { type: "income", amount: 800, label: "Inbox Payday", freq: "monthly", date: dd(0), member_id: mid, shared: false });
+const inboxPay = r.json?.id;
+// something from last month so the new-month "carry it over?" question exists
+const lastMonth = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth() - 1, 15)).toISOString().slice(0, 10);
+r = await call("/api/entries", "POST", { type: "income", amount: 500, label: "Last month pay", date: lastMonth, member_id: mid, shared: false, private: false });
+ok("an entry from last month was accepted", r.status === 201, JSON.stringify(r));
+r = await call("/api/inbox");
+const inbox1 = r.json;
+ok("GET /api/inbox → {messages:[{id,kind,data,created_at,read_at}]}", r.status === 200 && Array.isArray(inbox1?.messages) && inbox1.messages.length > 0 && inbox1.messages.every((m) => has(m, "id", "string") && has(m, "kind", "string") && typeof m.data === "object" && typeof m.created_at === "number"));
+ok("real events produce messages: level-ups and 'joined' from the household (welcome only appears if the inbox was empty first)", inbox1.messages.some((m) => m.kind === "level" && typeof m.data.level === "number") && inbox1.messages.some((m) => m.kind === "joined" && typeof m.data.name === "string"));
+const billMsg = inbox1.messages.find((m) => m.data?.rid === inboxRec), payMsg = inbox1.messages.find((m) => m.data?.rid === inboxPay);
+ok("a bill due today produces a bill message with rid, occ, label, amount (kind bill_today / bill_late / bill_soon)", !!billMsg && ["bill_today", "bill_late", "bill_soon"].includes(billMsg.kind) && /^\d{4}-\d{2}-\d{2}$/.test(billMsg.data.occ) && billMsg.data.label === "Inbox Bill" && billMsg.data.amount === 3150, JSON.stringify(billMsg));
+ok("a payday produces a payday message", payMsg?.kind === "payday" && payMsg.data.amount === 80000, JSON.stringify(payMsg));
+ok("new messages arrive unread (read_at null)", inbox1.messages.every((m) => m.read_at === null));
+r = await call("/api/nest?month=" + month);
+const unreadBefore = r.json.inbox?.unread;
+ok("/api/nest carries the unread count for the badge", typeof unreadBefore === "number" && unreadBefore >= inbox1.messages.length - 0, JSON.stringify(r.json.inbox));
+ok("/api/nest has a carry_pending question {from,amount_cents} for this month", r.json.carry_pending?.from === lastMonth.slice(0, 7) && r.json.carry_pending?.amount_cents === 50000, JSON.stringify(r.json.carry_pending));
+// "Paid" on the bill message
+r = await call(`/api/recurring/${inboxRec}/log`, "POST", { occ_date: billMsg.data.occ });
+ok("Paid on a bill message → POST /api/recurring/:id/log → 201", r.status === 201 && r.json?.ok, JSON.stringify(r));
+r = await call("/api/nest?month=" + billMsg.data.occ.slice(0, 7));
+ok("the occurrence is now in logged[] (so the message shows 'Paid ✓') and an expense of 3150 exists", r.json.logged.some((l) => l.recurring_id === inboxRec && l.occ_date === billMsg.data.occ) && r.json.entries.some((e) => e.recurring_id === inboxRec && e.amount_cents === 3150));
+r = await call(`/api/recurring/${inboxRec}/log`, "POST", { occ_date: billMsg.data.occ });
+ok("tapping Paid twice does not double-log (200 already)", r.status === 200 && r.json?.already === true || (await call("/api/nest?month=" + billMsg.data.occ.slice(0, 7))).json.entries.filter((e) => e.recurring_id === inboxRec).length === 1, JSON.stringify(r));
+// opening the inbox marks everything read
+r = await call("/api/inbox/read", "POST");
+ok("POST /api/inbox/read → 200", r.status === 200 && r.json?.ok);
+r = await call("/api/inbox");
+ok("every message is now read (read_at set)", r.json.messages.length > 0 && r.json.messages.every((m) => typeof m.read_at === "number"));
+ok("and the badge count is 0", (await call("/api/nest?month=" + month)).json.inbox?.unread === 0);
+writeFileSync(new URL("./fixtures/inbox.json", import.meta.url), JSON.stringify({ today: dd(0), recurring: [inboxRec, inboxPay], messages: r.json.messages }, null, 1));
+// carry over decision
+r = await call("/api/carry", "POST", { month, accept: true, change: false, remember: false });
+ok("Carry it over → POST /api/carry → 200 {accepted, amount_cents 50000}", r.status === 200 && r.json?.ok && r.json.accepted === true && r.json.amount_cents === 50000, JSON.stringify(r));
+r = await call("/api/nest?month=" + month);
+ok("carry_in is set and the question is gone", r.json.carry_in?.accepted === true && r.json.carry_in?.amount_cents === 50000 && r.json.carry_pending === null, JSON.stringify([r.json.carry_in, r.json.carry_pending]));
+r = await call("/api/carry", "POST", { month, accept: false, change: false, remember: false });
+ok("deciding again without 'change' keeps the first choice (already)", r.status === 200 && r.json?.already === true, JSON.stringify(r));
+
 console.log(out.join("\n"));

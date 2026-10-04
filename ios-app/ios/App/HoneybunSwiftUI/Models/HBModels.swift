@@ -54,12 +54,42 @@ struct HBShopItem: Decodable, Identifiable {
 }
 struct HBShopEnvelope: Decodable { let items: [HBShopItem] }
 struct HBSearchEnvelope: Decodable { let entries: [HBEntry] }
+
+/// one value inside an inbox message's small "data" object (text, number or flag)
+enum HBJSONValue: Decodable {
+    case string(String), number(Double), bool(Bool), null
+    init(from decoder: Decoder) throws {
+        let c = try decoder.singleValueContainer()
+        if c.decodeNil() { self = .null }
+        else if let b = try? c.decode(Bool.self) { self = .bool(b) }
+        else if let d = try? c.decode(Double.self) { self = .number(d) }
+        else if let s = try? c.decode(String.self) { self = .string(s) }
+        else { self = .null }
+    }
+    var string: String? { if case let .string(s) = self { return s }; return nil }
+    var double: Double? { if case let .number(d) = self { return d }; return nil }
+    var bool: Bool { if case let .bool(b) = self { return b }; return false }
+}
+/// one of Bun's messages, from GET /api/inbox (kind + a small data object; the app turns it into friendly text)
+struct HBInboxMessage: Decodable, Identifiable {
+    let id: String; let kind: String; let data: [String: HBJSONValue]; let created_at: Double; var read_at: Double?
+    var isUnread: Bool { read_at == nil }
+    var date: Date { Date(timeIntervalSince1970: created_at) }
+    func str(_ k: String) -> String { data[k]?.string ?? "" }
+    func num(_ k: String) -> Double { data[k]?.double ?? 0 }
+    func flag(_ k: String) -> Bool { data[k]?.bool ?? false }
+}
+struct HBInboxEnvelope: Decodable { let messages: [HBInboxMessage] }
+/// "New month! August ended at $X. Carry it over?" (nil once you have decided)
+struct HBCarryPrompt: Decodable { let from: String; let amount_cents: Int }
+struct HBCustomCategory: Decodable, Identifiable { let id: String; let name: String; let emoji: String? }
 struct HBCarry: Decodable { let amount_cents: Int; let accepted: Bool? }
 
 struct HBNestSnapshot: Decodable {
     let me: HBUser?; let nest: HBNest; let members: [HBMember]; let entries: [HBEntry]; let recurring: [HBRecurring]
     let logged: [HBLogged]; let goals: [HBGoal]; let shopping_open: Int?; let carry_in: HBCarry?; let inbox: HBInbox?; let jar: [HBJarMove]?
     let balances: [String: Int]?; let settlements: [HBSettlement]?
+    let carry_pending: HBCarryPrompt?; let categories: [HBCustomCategory]?
 }
 
 enum HBCategory: String, CaseIterable, Identifiable {

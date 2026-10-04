@@ -115,5 +115,74 @@ check("together: situation by head-count (0/1 solo, 2 partner, 3+ family)", HBTo
 check("together: joint account only for a couple of 2+ people with joint on", HBTogether.isJoint(kind: "couple", joint: 1, memberCount: 2) && !HBTogether.isJoint(kind: "family", joint: 1, memberCount: 3) && !HBTogether.isJoint(kind: "couple", joint: 1, memberCount: 1) && !HBTogether.isJoint(kind: "couple", joint: 0, memberCount: 2))
 check("together: all 12 backend buddy emoji have artwork; unknown ones don't", HBTogether.emojis.allSatisfy { HBTogether.buddyAsset($0) != nil } && HBTogether.buddyAsset("🤖") == nil && HBTogether.buddyAsset("🐰") == "HBBuddy_default" && HBTogether.buddyAsset("🐹") == "HBBuddy_dinosaur")
 check("together: invite code is shown ABCD-EFGH and the link is /join/<code>", HBTogether.prettyCode("GQF3HGLY") == "GQF3-HGLY" && HBTogether.inviteLink("GQF3HGLY") == "https://honeybun.me/join/GQF3HGLY")
+// ---- Inbox: the real GET /api/inbox response, every message turned into text + a button
+if CommandLine.arguments.count > 4, let idata = FileManager.default.contents(atPath: CommandLine.arguments[4]),
+   let iroot = try? JSONSerialization.jsonObject(with: idata) as? [String: Any], let msgs = iroot["messages"],
+   let rids = iroot["recurring"] as? [String], let today = iroot["today"] as? String,
+   let mdata = try? JSONSerialization.data(withJSONObject: ["messages": msgs]) {
+    do {
+        let env = try JSONDecoder().decode(HBInboxEnvelope.self, from: mdata)
+        check("inbox: real /api/inbox response decodes (id, kind, data, created_at, read_at)", !env.messages.isEmpty && env.messages.allSatisfy { !$0.id.isEmpty && !$0.kind.isEmpty })
+        check("inbox: every real message has readable text", env.messages.allSatisfy { !HBInbox.text($0, today: today, categoryName: { HBCategory.of($0).label }).isEmpty })
+        check("inbox: every real message belongs to a tab and has a heading", env.messages.allSatisfy { !HBInbox.heading(for: $0.kind).isEmpty })
+        if let bill = env.messages.first(where: { $0.str("rid") == rids[0] }) {
+            check("inbox: the real bill message reads \"Inbox Bill ($31.50) is due today…\"", HBInbox.text(bill, today: today, categoryName: { $0 }).hasPrefix("Inbox Bill ($31.50) is due today"))
+            check("inbox: and its button is Paid (the recurring bill still exists)", HBInbox.action(for: bill, recurringExists: { $0 == rids[0] }, carryPending: false) == .markPaid(rid: rids[0], occ: today, label: "Paid"))
+            check("inbox: with the bill gone there is no Paid button", HBInbox.action(for: bill, recurringExists: { _ in false }, carryPending: false) == nil)
+        } else { check("inbox: found the bill message", false) }
+        if let pay = env.messages.first(where: { $0.str("rid") == rids[1] }) {
+            check("inbox: the payday message reads \"It's payday!…\" with a Got it button", HBInbox.text(pay, today: today, categoryName: { $0 }).hasPrefix("It's payday! Inbox Payday ($800.00)") && HBInbox.action(for: pay, recurringExists: { _ in true }, carryPending: false)?.label == "Got it")
+        } else { check("inbox: found the payday message", false) }
+        let lvl = env.messages.first { $0.kind == "level" }
+        check("inbox: level messages name the title", lvl.map { HBInbox.text($0, today: today, categoryName: { $0 }).hasPrefix("Level ") && HBInbox.text($0, today: today, categoryName: { $0 }).contains("You're now a ") } ?? false)
+        check("inbox: read messages (read_at set) are not unread", env.messages.allSatisfy { !$0.isUnread })
+    } catch { print("FAIL inbox fixture decode threw: \(error)"); failures += 1 }
+}
+func msg(_ kind: String, _ data: String, read: Bool = false) -> HBInboxMessage {
+    try! JSONDecoder().decode(HBInboxMessage.self, from: Data(("{\"id\":\"x\",\"kind\":\"" + kind + "\",\"data\":" + data + ",\"created_at\":1791100000,\"read_at\":" + (read ? "1791100100" : "null") + "}").utf8))
+}
+let tday = "2026-10-04"
+func txt(_ m: HBInboxMessage) -> String { HBInbox.text(m, today: tday, categoryName: { HBCategory.of($0).label }) }
+check("inbox: bill wording follows the date, not the stored kind (tomorrow / in 3 days / today / was due)",
+      txt(msg("bill_soon", #"{"rid":"r","occ":"2026-10-05","label":"Rent","amount":85000}"#)) == "Rent ($850.00) is due tomorrow 🐰"
+      && txt(msg("bill_soon", #"{"rid":"r","occ":"2026-10-07","label":"Rent","amount":85000}"#)) == "Rent ($850.00) is due in 3 days 🐰"
+      && txt(msg("bill_soon", #"{"rid":"r","occ":"2026-10-04","label":"Rent","amount":85000}"#)) == "Rent ($850.00) is due today. Tap Paid once it's done ✓"
+      && txt(msg("bill_today", #"{"rid":"r","occ":"2026-10-02","label":"Rent","amount":85000}"#)) == "Rent ($850.00) was due Oct 2. Did it get paid?")
+check("inbox: budget, week and carry texts", txt(msg("budget_warn", #"{"cat":"food","spent":21000,"limit":25000}"#)) == "Heads up: Eating out is at 84% of its budget ($210.00 of $250.00) 🥕"
+      && txt(msg("week", #"{"spent":41230,"cat":"food","xp":90}"#)) == "Last week you spent $412.30, mostly on eating out. You earned 90 carrots 🥕"
+      && txt(msg("carry_ask", #"{"amount":12450,"neg":false,"from":"September"}"#)) == "New month! September ended at $124.50. Carry it over or start fresh?"
+      && txt(msg("carry_ask", #"{"amount":3000,"neg":true,"from":"August"}"#)) == "New month! August ended at -$30.00. Carry it over or start fresh?"
+      && txt(msg("carry_done", #"{"name":"Sam","accepted":true,"amount":12450,"neg":false,"from":"September"}"#)) == "Sam carried $124.50 over from September."
+      && txt(msg("carry_done", #"{"name":"Sam","accepted":false,"amount":0,"neg":false,"from":"September"}"#)) == "Sam started this month fresh.")
+check("inbox: people messages", txt(msg("shared_expense", #"{"name":"Riley","label":"Groceries","amount":6200}"#)) == "Riley added Groceries ($62.00) and split it with you."
+      && txt(msg("settled", #"{"name":"Riley","amount":2000,"you_paid":true}"#)) == "Riley marked your $20.00 payment as received 💸"
+      && txt(msg("settled", #"{"name":"Riley","amount":2000,"you_paid":false}"#)) == "Riley marked $20.00 as paid to you 💸"
+      && txt(msg("joint", #"{"name":"Riley","on":true}"#)).hasPrefix("Riley turned on Joint account.") && txt(msg("joined", #"{"name":"Riley"}"#)) == "Riley joined your budget 💞 Say hi!")
+check("inbox: streak, level, goal and gift-card texts", txt(msg("streak_risk", #"{"n":12}"#)) == "Your 12-day streak ends at midnight 🐾 Log one thing to keep hopping!"
+      && txt(msg("level", #"{"level":3}"#)) == "Level 3! You're now a Hoppy Saver. I got a pink bow to wear 🎀" && txt(msg("level", #"{"level":4}"#)) == "Level 4! You're now a Carrot Collector. Keep hopping!"
+      && txt(msg("goal_done", #"{"goal":"Wedding Fund"}"#)) == "You reached your \"Wedding Fund\" goal! 🍯 So proud of you."
+      && txt(msg("ref_intro", #"{"goal":10,"amount":1000}"#)) == "Psst 🎁 Share Honeybun with friends and earn a $10 gift card for every 10 who stick around for a week. Tap below for your link!"
+      && txt(msg("reward_sent", #"{"amount":1000}"#)) == "Your $10 gift card was sent! Check your email 💌 Thanks for sharing Honeybun.")
+check("inbox: tabs — bills / shared / updates", HBInbox.tab(for: "bill_late") == .bills && HBInbox.tab(for: "carry_ask") == .bills && HBInbox.tab(for: "budget_over") == .bills && HBInbox.tab(for: "shared_expense") == .shared
+      && HBInbox.tab(for: "settled") == .shared && HBInbox.tab(for: "streak_risk") == .updates && HBInbox.tab(for: "week") == .updates && HBInbox.tab(for: "ref_intro") == .updates)
+let ex = { (_: String) in true }
+check("inbox: buttons route to the right native screen (or Classic only when there is none)",
+      HBInbox.action(for: msg("streak_risk", "{}"), recurringExists: ex, carryPending: false) == .logSomething
+      && HBInbox.action(for: msg("budget_warn", "{}"), recurringExists: ex, carryPending: false) == .openMoney("See Money")
+      && HBInbox.action(for: msg("week", "{}"), recurringExists: ex, carryPending: false) == .openMoney("See stats")
+      && HBInbox.action(for: msg("goal_done", "{}"), recurringExists: ex, carryPending: false) == .openGoals("See goals")
+      && HBInbox.action(for: msg("level", "{}"), recurringExists: ex, carryPending: false) == .openHome("See my bunny")
+      && HBInbox.action(for: msg("shared_expense", "{}"), recurringExists: ex, carryPending: false) == .openTogether("Open Together")
+      && HBInbox.action(for: msg("carry_ask", "{}"), recurringExists: ex, carryPending: true) == .decideCarry
+      && HBInbox.action(for: msg("carry_ask", "{}"), recurringExists: ex, carryPending: false) == nil
+      && HBInbox.action(for: msg("ref_intro", "{}"), recurringExists: ex, carryPending: false) == .classic("Get my link")
+      && HBInbox.action(for: msg("debt_done", "{}"), recurringExists: ex, carryPending: false) == .classic("See Plan")
+      && HBInbox.action(for: msg("welcome", "{}"), recurringExists: ex, carryPending: false) == nil)
+let now = Date(timeIntervalSince1970: 1791200000)
+let grp = HBInbox.groups([msg("welcome", "{}"), msg("week", "{}")], now: now.addingTimeInterval(86400))
+check("inbox: grouped newest first by day (Yesterday for a message 1 day old)", grp.count == 1 && grp[0].title == "Yesterday" && grp[0].items.count == 2)
+check("inbox: unread vs read", msg("welcome", "{}").isUnread && !msg("welcome", "{}", read: true).isUnread)
+check("inbox: dayDiff", HBInbox.dayDiff("2026-10-07", today: "2026-10-04") == 3 && HBInbox.dayDiff("2026-10-02", today: "2026-10-04") == -2 && HBInbox.dayDiff("2026-10-04", today: "2026-10-04") == 0)
+check("inbox: 10 general tips like the website", HBInbox.generalTips.count == 10)
 print(failures == 0 ? "ALL PASSED" : "\(failures) FAILED")
 exit(failures == 0 ? 0 : 1)

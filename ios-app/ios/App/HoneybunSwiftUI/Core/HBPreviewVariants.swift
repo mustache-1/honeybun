@@ -41,6 +41,14 @@ enum HBPreviewVariants {
             d["balances"] = [meID: -1200, riley: 3000, jordan: -1800]
             d["settlements"] = [["id": "5e771e00-0000-4000-8000-000000000001", "from_id": jordan, "to_id": riley, "amount_cents": 2500, "date": "2026-10-02", "created_at": 1791100000]]
             others([riley, jordan], 0.6)
+        case "inbox", "inboxempty":   // partner household; the full inbox also has a carry-over question waiting
+            nest["kind"] = "couple"; nest["joint"] = 0
+            members += [person(riley, "Riley", "🐻", "#FFF0C2", 5)]
+            d["balances"] = [meID: 4250, riley: -4250]
+            d["settlements"] = [[String: Any]]()
+            others([riley], 0.7)
+            d["inbox"] = ["unread": name == "inbox" ? 6 : 0]
+            if name == "inbox" { d["carry_pending"] = ["from": "2026-09", "amount_cents": 12450] }
         default: // "partner" and "joint"
             nest["kind"] = "couple"; nest["joint"] = name == "joint" ? 1 : 0
             members += [person(riley, "Riley", "🐻", "#FFF0C2", 5)]
@@ -53,6 +61,37 @@ enum HBPreviewVariants {
         }
         d["nest"] = nest; d["members"] = members
         return d
+    }
+
+    /// Bun's messages for the Inbox screenshots and tests ("mixed", "long" = the same list twice, "empty"), dated relative to now
+    static func inboxMessages(_ kind: String, recurring: [(String, String, Int)]) -> [[String: Any]] {
+        if kind == "empty" { return [] }
+        let now = Date().timeIntervalSince1970
+        let today = HBDay.todayString
+        func day(_ n: Int) -> String { HBDay.string(HBDay.addDays(HBDay.startOfToday(), n)) }
+        func r(_ i: Int) -> (String, String, Int) { recurring.isEmpty ? ("none", "Rent", 85000) : recurring[i % recurring.count] }
+        func m(_ kind: String, _ data: [String: Any], ago: Double, unread: Bool) -> [String: Any] {
+            ["id": UUID().uuidString.lowercased(), "kind": kind, "data": data, "created_at": now - ago, "read_at": unread ? NSNull() : now - ago + 60]
+        }
+        var list: [[String: Any]] = [
+            m("bill_today", ["rid": r(0).0, "occ": today, "label": r(0).1, "amount": r(0).2], ago: 1800, unread: true),
+            m("bill_late", ["rid": r(1).0, "occ": day(-2), "label": r(1).1, "amount": r(1).2], ago: 3600, unread: true),
+            m("bill_soon", ["rid": r(2).0, "occ": day(2), "label": r(2).1, "amount": r(2).2], ago: 5400, unread: true),
+            m("carry_ask", ["amount": 12450, "neg": false, "from": "September"], ago: 7200, unread: true),
+            m("shared_expense", ["name": "Riley", "label": "Groceries", "amount": 6200], ago: 9000, unread: true),
+            m("budget_warn", ["cat": "food", "spent": 21000, "limit": 25000], ago: 10800, unread: true),
+            m("streak_risk", ["n": 12], ago: 86400 + 3600, unread: false),
+            m("week", ["spent": 41230, "cat": "food", "xp": 90], ago: 86400 + 7200, unread: false),
+            m("goal_done", ["goal": "Wedding Fund"], ago: 2 * 86400, unread: false),
+            m("settled", ["name": "Riley", "amount": 2000, "you_paid": true], ago: 2 * 86400 + 3600, unread: false),
+            m("level", ["level": 3], ago: 3 * 86400, unread: false),
+            m("ref_intro", ["goal": 10, "amount": 1000], ago: 4 * 86400, unread: false),
+            m("welcome", ["name": "Sam"], ago: 9 * 86400, unread: false),
+        ]
+        if kind == "long" {
+            list += list.map { var c = $0; c["id"] = UUID().uuidString.lowercased(); c["created_at"] = ($0["created_at"] as? Double ?? now) - 12 * 86400; c["read_at"] = now; return c }
+        }
+        return list
     }
 
     static var shopping: [[String: Any]] {

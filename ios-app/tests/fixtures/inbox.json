@@ -1,0 +1,72 @@
+{
+ "today": "2026-10-04",
+ "recurring": [
+  "b34c3b20-77d5-43ce-aa00-97879b26dbd8",
+  "8a803776-2a20-4aea-95ab-1b8e7904214b"
+ ],
+ "messages": [
+  {
+   "id": "fc23b48c-a5b4-42ff-ac11-e99e06318b62",
+   "kind": "level",
+   "data": {
+    "level": 2
+   },
+   "created_at": 1791152088,
+   "read_at": 1791152090
+  },
+  {
+   "id": "fccfd3d0-de16-4cb6-a287-bd7ab66c03d0",
+   "kind": "bill_soon",
+   "data": {
+    "rid": "b0b842df-77fe-44a9-bb7b-bb0014a1a106",
+    "occ": "2026-10-07",
+    "label": "Phone bill",
+    "amount": 4234
+   },
+   "created_at": 1791152088,
+   "read_at": 1791152090
+  },
+  {
+   "id": "d2c986ac-ae88-4383-960b-fbf5aecad924",
+   "kind": "joined",
+   "data": {
+    "name": "Second Person"
+   },
+   "created_at": 1791152089,
+   "read_at": 1791152090
+  },
+  {
+   "id": "ebfe933d-591d-49f7-8db8-4ab121560713",
+   "kind": "level",
+   "data": {
+    "level": 3
+   },
+   "created_at": 1791152089,
+   "read_at": 1791152090
+  },
+  {
+   "id": "e4210d13-bed4-4858-8f8c-4752d07941ac",
+   "kind": "bill_today",
+   "data": {
+    "rid": "b34c3b20-77d5-43ce-aa00-97879b26dbd8",
+    "occ": "2026-10-04",
+    "label": "Inbox Bill",
+    "amount": 3150
+   },
+   "created_at": 1791152090,
+   "read_at": 1791152090
+  },
+  {
+   "id": "311892e3-6513-4827-b742-133000a90135",
+   "kind": "payday",
+   "data": {
+    "rid": "8a803776-2a20-4aea-95ab-1b8e7904214b",
+    "occ": "2026-10-04",
+    "label": "Inbox Payday",
+    "amount": 80000
+   },
+   "created_at": 1791152090,
+   "read_at": 1791152090
+  }
+ ]
+}

@@ -3,7 +3,7 @@ import SwiftUI
 
 enum HBSheet: Identifiable {
     case newEntry(String), editEntry(HBEntry), editRecurring(HBRecurring), newRecurring, upcoming, allTransactions, goalDetail(String), goalForm(String?)
-    case settle(String, String), fairShare, household(Bool), shopping, search, editMe
+    case settle(String, String), fairShare, household(Bool), shopping, search, editMe, carry
     var id: String {
         switch self {
         case let .newEntry(t): return "new-" + t
@@ -20,6 +20,7 @@ enum HBSheet: Identifiable {
         case .shopping: return "shopping"
         case .search: return "search"
         case .editMe: return "edit-me"
+        case .carry: return "carry"
         }
     }
 }
@@ -43,6 +44,9 @@ enum HBTab: String, CaseIterable { case home = "Home", money = "Money", goals = 
     @Published var notice: String?
     var previewScrollToEnd = false   // debug screenshots: open scrolled all the way down
     @Published var sheet: HBSheet?
+    @Published var inboxMessages: [HBInboxMessage] = []
+    enum InboxState: Equatable { case idle, loading, loaded, failed(String) }
+    @Published var inboxState: InboxState = .idle
     @Published var shopping: [HBShopItem] = []
     enum ShopState: Equatable { case idle, loading, loaded, failed(String) }
     @Published var shopState: ShopState = .idle
@@ -58,6 +62,13 @@ enum HBTab: String, CaseIterable { case home = "Home", money = "Money", goals = 
     }
     private(set) var isPreview = false
     #if DEBUG
+    /// debug screenshots only: a sample inbox ("mixed", "long" or "empty")
+    func seedPreviewInbox(_ kind: String) {
+        guard let snap = snapshot else { return }
+        let list = HBPreviewVariants.inboxMessages(kind, recurring: snap.recurring.map { ($0.id, $0.label, $0.amount_cents) })
+        guard let data = try? JSONSerialization.data(withJSONObject: ["messages": list]), let env = try? JSONDecoder().decode(HBInboxEnvelope.self, from: data) else { return }
+        inboxMessages = env.messages; inboxState = .loaded
+    }
     /// debug screenshots only: a sample shopping list, since previews have no network
     func seedPreviewShopping() {
         guard let data = try? JSONSerialization.data(withJSONObject: ["items": HBPreviewVariants.shopping]),
@@ -150,6 +161,18 @@ enum HBTab: String, CaseIterable { case home = "Home", money = "Money", goals = 
     var iOwe: Double { pairs.filter { $0.from.id == myID }.reduce(0) { $0 + $1.amount } }
     var owedToMe: Double { pairs.filter { $0.to.id == myID }.reduce(0) { $0 + $1.amount } }
     var partner: HBMember? { members.first { $0.id != myID } }
+
+    // MARK: Inbox (derived)
+
+    var carryPrompt: HBCarryPrompt? { snapshot?.carry_pending }
+    func recurringExists(_ id: String) -> Bool { snapshot?.recurring.contains { $0.id == id } ?? false }
+    func isLogged(rid: String, occ: String) -> Bool { snapshot?.logged.contains { $0.recurring_id == rid && $0.occ_date == occ } ?? false }
+    /// a category id from a message ("food", "c_ab12…") as the account names it
+    func categoryName(_ id: String) -> String {
+        if let c = snapshot?.categories?.first(where: { $0.id == id }) { return c.name }
+        return HBCategory.of(id).label
+    }
+    var inboxTodayString: String { HBDay.todayString }
     func member(_ id: String) -> HBMember? { members.first { $0.id == id } }
 
     func newEntryDraft(type: String) -> HBEntryDraft {
@@ -228,4 +251,26 @@ enum HBTab: String, CaseIterable { case home = "Home", money = "Money", goals = 
     func newInviteCode() async throws { try await run { _ = try await HBAPI.shared.newInviteCode() } }
     func updateMe(name: String, emoji: String, color: String) async throws { try await run { try await HBAPI.shared.updateMe(name: name, emoji: emoji, color: color) } }
     func search(q: String, type: String, member: String) async throws -> [HBEntry] { try await HBAPI.shared.search(q: q, type: type, member: member) }
+
+    // MARK: Inbox actions
+
+    /// Bun's messages, newest first. Opening the inbox also generates anything new (bills due, streak check-ins) on the server.
+    func loadInbox() async {
+        if isPreview { return }
+        if inboxState == .idle { inboxState = .loading }
+        do { inboxMessages = try await HBAPI.shared.inbox(); inboxState = .loaded }
+        catch { if inboxState != .loaded { inboxState = .failed(error.localizedDescription) } else { notice = error.localizedDescription } }
+    }
+    /// Mark everything read on the server and refresh the badge. The messages on screen keep their "new" look until you leave.
+    func markInboxRead() async {
+        if isPreview { return }
+        guard inboxMessages.contains(where: { $0.isUnread }) || unread > 0 else { return }
+        do { try await HBAPI.shared.markInboxRead(); await refresh() } catch { notice = error.localizedDescription }
+    }
+    /// "Paid" / "Got it" on a bill or payday message: logs that occurrence exactly like Home's Coming Up does
+    func markOccurrencePaid(recurringID: String, date: String) async throws { try await run { try await HBAPI.shared.logOccurrence(recurringID: recurringID, date: date) } }
+    func decideCarry(accept: Bool, remember: Bool) async throws {
+        try await run { try await HBAPI.shared.decideCarry(month: HBDay.monthKey(), accept: accept, remember: remember) }
+        await loadInbox()
+    }
 }

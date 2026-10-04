@@ -15,6 +15,8 @@ enum HBPreview {
     @MainActor static func store(for screen: String) -> HBAppStore? {
         // Together screens: "together" (partner), "togethersolo", "togetherfamily", "togetherjoint" and their sheets
         let tvariant: String? = {
+            if screen == "inboxempty" { return "inboxempty" }
+            if screen.hasPrefix("inbox") { return "inbox" }
             if screen.hasPrefix("togethersolo") { return "solo" }
             if screen.hasPrefix("togetherfamily") { return "family" }
             if screen.hasPrefix("togetherjoint") { return "joint" }
@@ -34,6 +36,11 @@ enum HBPreview {
         case "goalform": s.sheet = .goalForm(nil)
         case "goaledit": if let g = snap.goals.first { s.sheet = .goalForm(g.id) }
         case "money": s.selectedTab = .money
+        case "inbox": s.selectedTab = .inbox; s.seedPreviewInbox("mixed")
+        case "inboxupdates": s.selectedTab = .inbox; s.seedPreviewInbox("mixed")
+        case "inboxempty": s.selectedTab = .inbox; s.seedPreviewInbox("empty")
+        case "inboxend": s.selectedTab = .inbox; s.seedPreviewInbox("long"); s.previewScrollToEnd = true
+        case "inboxcarry": s.selectedTab = .inbox; s.seedPreviewInbox("mixed"); s.sheet = .carry
         case "together", "togethersolo", "togetherfamily", "togetherjoint": s.selectedTab = .together; s.seedPreviewShopping()
         case "togetherend", "togethersoloend", "togetherfamilyend", "togetherjointend": s.selectedTab = .together; s.previewScrollToEnd = true; s.seedPreviewShopping()
         case "household": s.selectedTab = .together; s.sheet = .household(false)

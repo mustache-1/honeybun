@@ -86,6 +86,13 @@ actor HBAPI {
         return env.entries
     }
 
+    // Inbox: Bun's messages
+    func inbox() async throws -> [HBInboxMessage] { let e: HBInboxEnvelope = try decode(try await send("/api/inbox", method: "GET", body: nil)); return e.messages }
+    func markInboxRead() async throws { _ = try await send("/api/inbox/read", method: "POST", body: nil) }
+    func decideCarry(month: String, accept: Bool, remember: Bool) async throws {
+        _ = try await send("/api/carry", method: "POST", body: ["month": month, "accept": accept, "change": false, "remember": remember])
+    }
+
     func logOccurrence(recurringID: String, date: String) async throws { _ = try await send("/api/recurring/\(recurringID)/log", method: "POST", body: ["occ_date": date]) }
     func updateRecurring(id: String, _ d: HBRecurringDraft) async throws { _ = try await send("/api/recurring/\(id)", method: "PATCH", body: d.json) }
     func addRecurring(_ d: HBRecurringDraft) async throws { _ = try await send("/api/recurring", method: "POST", body: d.json) }
