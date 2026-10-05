@@ -59,7 +59,7 @@ struct HBHomeView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                 VStack(alignment: .leading, spacing: 11) {
-                    classicLink
+                    Color.clear.frame(height: 17)     // where the beta "Classic" link used to be: keeps the approved layout
                     header(heroH: heroH, overlap: overlap)
                     summaryCard(hero: hero, heroH: heroH, overlap: overlap)
                     actions
@@ -81,17 +81,6 @@ struct HBHomeView: View {
             #endif
             }
         }
-    }
-
-    // Beta only: the way back to the classic app. Removed when native becomes the default.
-    private var classicLink: some View {
-        Button(action: onClose) {
-            HStack(spacing: 4) { Image(systemName: "chevron.left").font(.system(size: 11, weight: .bold)); Text("Classic") }
-                .font(.system(size: 13, weight: .semibold)).foregroundColor(HB.orange.opacity(0.9))
-        }
-        .accessibilityLabel("Open classic Honeybun")
-        .simultaneousGesture(LongPressGesture(minimumDuration: 0.8).onEnded { _ in showDiagnostic = true })
-        .alert("Layout details", isPresented: $showDiagnostic) { Button("OK", role: .cancel) {} } message: { Text(metrics.summary) }
     }
 
     private func header(heroH: CGFloat, overlap: CGFloat) -> some View {

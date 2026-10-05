@@ -11,6 +11,7 @@
 	<key>com.apple.developer.associated-domains</key>
 	<array>
 		<string>webcredentials:honeybun.me</string>
+		<string>applinks:honeybun.me</string>
 	</array>
 	<key>com.apple.security.application-groups</key>
 	<array>

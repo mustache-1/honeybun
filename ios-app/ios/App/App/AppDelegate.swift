@@ -7,7 +7,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // Override point for customization after application launch.
+        // Native Honeybun is the root (see HoneybunRoot); Classic is only built when asked for.
+        let w = UIWindow(frame: UIScreen.main.bounds)
+        w.backgroundColor = UIColor(red: 0.051, green: 0.035, blue: 0.075, alpha: 1)
+        w.rootViewController = HoneybunRoot.shared.makeRoot()
+        w.makeKeyAndVisible()
+        window = w
+        HoneybunPush.refreshIfAllowed()
         return true
     }
 
@@ -40,9 +46,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     func application(_ application: UIApplication, continue userActivity: NSUserActivity, restorationHandler: @escaping ([UIUserActivityRestoring]?) -> Void) -> Bool {
-        // Called when the app was launched with an activity, including Universal Links.
-        // Feel free to add additional processing here, but if you want the App API to support
-        // tracking app url opens, make sure to keep this call
+        // Universal Links: honeybun.me verify / reset / invite links open the native screens
+        if userActivity.activityType == NSUserActivityTypeBrowsingWeb, let url = userActivity.webpageURL, HoneybunRoot.shared.handle(url: url) { return true }
         return ApplicationDelegateProxy.shared.application(application, continue: userActivity, restorationHandler: restorationHandler)
     }
 
@@ -50,6 +55,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     // Real push notifications: hand the Apple device token to Capacitor's PushNotifications plugin
     func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
         NotificationCenter.default.post(name: .capacitorDidRegisterForRemoteNotifications, object: deviceToken)
+        HoneybunPush.upload(deviceToken)
     }
 
     func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {

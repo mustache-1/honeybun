@@ -55,15 +55,11 @@ public class HoneybunNativePlugin: CAPPlugin, CAPBridgedPlugin {
         }
     }
 
-    // opens the real native SwiftUI Honeybun (beta). It uses this app's own login session and the live backend; the web app stays underneath.
+    // Classic is now the fallback shown over native Honeybun: this is its way back (called from Classic's Settings / login screen)
     @objc func openNativeApp(_ call: CAPPluginCall) {
         guard #available(iOS 15.0, *) else { call.reject("The native app needs iOS 15 or newer."); return }
         DispatchQueue.main.async {
-            guard let vc = NativeChrome.shared.vc else { call.reject("Not ready yet."); return }
-            HBLauncher.present(from: vc) { [weak vc] in
-                // back in the classic app: reload its data so it shows whatever was changed natively
-                (vc as? CAPBridgeViewController)?.bridge?.webView?.evaluateJavaScript("window.hbNativeRefresh && window.hbNativeRefresh()", completionHandler: nil)
-            }
+            HoneybunRoot.shared.closeClassic()
             call.resolve()
         }
     }
@@ -129,7 +125,7 @@ public class HoneybunNativePlugin: CAPPlugin, CAPBridgedPlugin {
     // lets the website know which native pieces this build of the app has
     @objc func info(_ call: CAPPluginCall) {
         DispatchQueue.main.async {
-            call.resolve(["nativeTabs": true, "nativeRefresh": true, "icons": true, "iconsV": 2, "tips": true, "demo": true, "nativeBeta": true, "halloween": true, "tabsHeight": NativeChrome.shared.height, "version": 2])
+            call.resolve(["nativeTabs": true, "nativeRefresh": true, "icons": true, "iconsV": 2, "tips": true, "demo": false, "nativeBeta": true, "halloween": true, "tabsHeight": NativeChrome.shared.height, "version": 2])
         }
     }
 

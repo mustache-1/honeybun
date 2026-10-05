@@ -57,7 +57,7 @@ jobs:
           bad=0
           strings -a "$APP/App" > "$RUNNER_TEMP/bin.strings"
           echo "--- code that must be in the Release binary ---"
-          for sym in HBAuthFlowView HBAuthModel HBAccountView HBSetupView HBOnboardingView HBPasskeyService HBAppleButton openNativeApp HBRootView; do
+          for sym in HoneybunRoot HBRootView HBAuthFlowView HBAuthModel HBAccountView HBSetupView HBOnboardingView HBPasskeyService HBAppleButton HBHomeView HBMoneyView HBGoalsView HBTogetherView HBInboxView; do
             n=$(grep -c "$sym" "$RUNNER_TEMP/bin.strings" || true); echo "$sym: $n"
             [ "${n:-0}" = "0" ] && { echo "::error::$sym is missing from the Release binary"; bad=1; }
           done
@@ -70,6 +70,13 @@ jobs:
             n=$(grep -c "$sym" "$RUNNER_TEMP/bin.strings" || true); echo "$sym: $n"
             [ "${n:-0}" != "0" ] && { echo "::error::$sym (debug-only) is in the Release binary"; bad=1; }
           done
+          echo "--- obsolete beta / placeholder UI must be gone ---"
+          for lit in "isn't native yet" "Native Honeybun (beta)" "Try native Honeybun"; do
+            n=$(grep -c -F "$lit" "$RUNNER_TEMP/bin.strings" || true); echo "[$lit]: $n"
+            [ "${n:-0}" != "0" ] && { echo "::error::obsolete text ($lit) is still in the Release binary"; bad=1; }
+          done
+          echo "--- native is the launch root: no main storyboard at launch ---"
+          if /usr/libexec/PlistBuddy -c "Print :UIMainStoryboardFile" "$APP/Info.plist" >/dev/null 2>&1; then echo "::error::UIMainStoryboardFile is still set: Classic would open first"; bad=1; else echo "no UIMainStoryboardFile (good)"; fi
           echo "--- the Google sign-in is gone ---"
           n=$(grep -ci "accounts.google.com\|google_client\|GIDSignIn" "$RUNNER_TEMP/bin.strings" || true); echo "google references: $n"
           [ "${n:-0}" != "0" ] && { echo "::error::Google sign-in references remain in the Release binary"; bad=1; }
@@ -83,5 +90,6 @@ jobs:
           codesign --force --sign - --entitlements App/App.entitlements "$APP"
           codesign -d --entitlements :- "$APP" 2>/dev/null | tee "$RUNNER_TEMP/ent.txt"
           grep -q "com.apple.developer.applesignin" "$RUNNER_TEMP/ent.txt" || { echo "::error::Sign in with Apple entitlement missing"; bad=1; }
+          grep -q "applinks:honeybun.me" "$RUNNER_TEMP/ent.txt" || { echo "::error::Associated Domains (applinks:honeybun.me) missing"; bad=1; }
           grep -q "webcredentials:honeybun.me" "$RUNNER_TEMP/ent.txt" || { echo "::error::Associated Domains (webcredentials:honeybun.me) missing"; bad=1; }
           exit $bad

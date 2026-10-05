@@ -52,6 +52,8 @@ struct HBSetupView: View {
             Button("Log out", role: .destructive) { Task { await store.logout() } }
             Button("Stay", role: .cancel) {}
         }
+        // an invite link (honeybun.me/join/CODE) opened in the app fills the code in
+        .onReceive(store.$joinPrefill) { c in if let c = c { code = c; store.joinPrefill = nil } }
     }
 
     private func create() {

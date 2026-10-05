@@ -1,6 +1,7 @@
 import SwiftUI
 
-// Native Honeybun shell. Screens that aren't native yet say so and hand you back to the classic (web) app, which stays fully working.
+// Native Honeybun: the app's root. Launch → splash (checking) → Home, or native Welcome when signed out. Classic (the web app) is only a fallback
+// reached from Account (`onClose` opens it).
 @available(iOS 15.0, *)
 struct HBRootView: View {
     @StateObject private var store: HBAppStore
@@ -31,6 +32,8 @@ struct HBRootView: View {
         }
         .fullScreenCover(item: $store.sheet) { sheet in sheetView(sheet) }
         .task { await store.start() }
+        .onChange(of: store.phase) { _ in Task { await store.processPendingLink() } }
+        .onReceive(NotificationCenter.default.publisher(for: .hbClassicClosed)) { _ in Task { await store.returnedFromClassic() } }
         .preferredColorScheme(.dark)
     }
 
@@ -81,10 +84,6 @@ struct HBRootView: View {
             case .goals: HBGoalsView(store: store)
             case .together: HBTogetherView(store: store)
             case .inbox: HBInboxView(store: store, onClose: onClose)
-            default:
-                HBMessageView(title: "\(store.selectedTab.rawValue) isn't native yet",
-                              message: "This screen is still the classic Honeybun. Nothing is lost: it uses the same account and data.",
-                              primary: ("Open classic Honeybun", onClose))
             }
         }
     }

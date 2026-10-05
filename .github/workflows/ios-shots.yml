@@ -100,8 +100,16 @@ jobs:
             # a throwaway first launch: the first start after an install is slow and sometimes fails to come up
             xcrun simctl launch "$udid" me.honeybun.app -HBPreview home > /dev/null 2>&1 || true; sleep 10; xcrun simctl terminate "$udid" me.honeybun.app || true
             for screen in ${{ github.event.inputs.screens || 'home money addexp addinc editexp upcoming editbill splash' }}; do
-              run_to 60 xcrun simctl launch --terminate-running-process "$udid" me.honeybun.app -HBPreview "$screen" > /dev/null || log "launch $screen failed"
-              sleep 6
+              # `fresh` = a normal launch with no test arguments (what a real user gets); `classicdemo` = Native → Classic → Native round trip
+              args=(-HBPreview "$screen")
+              case "$screen" in fresh) args=();; freshearly) args=();; classicdemo) args=(-HBClassicDemo);; esac
+              run_to 60 xcrun simctl launch --terminate-running-process "$udid" me.honeybun.app ${args[@]+"${args[@]}"} > /dev/null || log "launch $screen failed"
+              if [ "$screen" = "freshearly" ]; then sleep 1; elif [ "$screen" = "classicdemo" ]; then
+                sleep 3; run_to 60 xcrun simctl io "$udid" screenshot "$PUB/${tag}_classicdemo_1_native.png" || true
+                sleep 9; run_to 60 xcrun simctl io "$udid" screenshot "$PUB/${tag}_classicdemo_2_classic.png" || true
+                sleep 9; run_to 60 xcrun simctl io "$udid" screenshot "$PUB/${tag}_classicdemo_3_back.png" || true
+                ( cd "$PUB" && publish "${tag} classicdemo" )
+              else sleep 6; fi
               run_to 60 xcrun simctl io "$udid" screenshot "$RUNNER_TEMP/${tag}_${screen}.png" || log "screenshot $screen failed"
               # if the app died, keep its crash report and recent log lines so the cause can be read
               for f in $(find "$HOME/Library/Logs/DiagnosticReports" -name '*.ips' -newer "$RUNNER_TEMP/mark" 2>/dev/null | head -2); do cp "$f" "$PUB/crash_${tag}_${screen}_$(basename "$f").txt"; done

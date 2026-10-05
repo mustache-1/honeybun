@@ -39,6 +39,9 @@ enum HBTab: String, CaseIterable { case home = "Home", money = "Money", goals = 
     enum Phase: Equatable { case checking, signedOut, needsBudget, onboarding, ready, failed(String) }
 
     @Published var phase: Phase = .checking
+    /// a verify / reset / invite link that opened the app; consumed by the sign-in screens or, once signed in, by processPendingLink()
+    @Published var pendingLink: HBDeepLink? { didSet { if pendingLink != nil { Task { await processPendingLink() } } } }
+    @Published var joinPrefill: String?
     @Published var account: HBUser?          // who is signed in (from /api/me): name, email, how they sign in
     private var onboardingDone = false       // set once the first-run setup was finished or skipped in this session
     #if DEBUG
@@ -121,6 +124,39 @@ enum HBTab: String, CaseIterable { case home = "Home", money = "Money", goals = 
         } catch {
             if snapshot == nil { phase = .failed(error.localizedDescription) } else { notice = error.localizedDescription }
         }
+    }
+
+    // MARK: links and the Classic fallback
+
+    /// Signed-in handling of a link (the signed-out screens handle their own, see HBAuthModel.consume).
+    func processPendingLink() async {
+        guard let link = pendingLink else { return }
+        switch phase { case .checking, .signedOut, .failed: return; default: break }
+        pendingLink = nil
+        switch link {
+        case let .verify(t):
+            do { try await HBAPI.shared.verifyEmail(token: t); if let me = try? await HBAPI.shared.me() { account = me.user } }
+            catch { notice = error.localizedDescription }
+        case .reset: notice = "You're signed in. To reset a password, log out first."
+        case let .join(c):
+            if phase == .needsBudget { joinPrefill = c } else { notice = "You're already in a budget." }
+        }
+    }
+
+    /// Back from Classic: if it's another account now, start over cleanly; otherwise just reload (Classic may have changed things).
+    func returnedFromClassic() async {
+        if isPreview { return }
+        do {
+            let me = try await HBAPI.shared.me()
+            if let mine = account?.id, mine != me.user.id { resetAfterSignOut(); await start(); return }
+            account = me.user
+            if me.nest_id == nil { phase = .needsBudget; return }
+            await refresh()
+            if inboxState != .idle { await loadInbox() }
+        } catch HBAPIError.notSignedIn {
+            await HBSession.clearEverywhere()
+            resetAfterSignOut()
+        } catch {}
     }
 
     // MARK: signing in and out

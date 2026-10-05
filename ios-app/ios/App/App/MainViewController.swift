@@ -36,23 +36,6 @@ class MainViewController: CAPBridgeViewController, UITabBarDelegate {
         showSplashIfWanted()
     }
 
-#if DEBUG
-    // CI screenshots of the native SwiftUI screens (see HBPreview); does nothing unless launched with -HBPreview <screen>
-    private var previewShown = false
-    override func viewDidAppear(_ animated: Bool) {
-        super.viewDidAppear(animated)
-        guard !previewShown, #available(iOS 15.0, *) else { return }
-        if let seed = HBMockServer.requestedSeed {
-            // UI tests: the real native screens against the in-process stand-in backend (see HBMockServer)
-            previewShown = true
-            HBMockServer.install(seed: seed)
-            HBLauncher.presentMock(from: self)
-        } else if let screen = HBPreview.requestedScreen {
-            previewShown = true
-            HBLauncher.presentPreview(from: self, screen: screen)
-        }
-    }
-#endif
 
     // MARK: Halloween loading screen (only when Halloween Honeybun is on)
 

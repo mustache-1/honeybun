@@ -41,6 +41,19 @@ import AuthenticationServices
 
     func go(_ s: Screen) { error = nil; info = nil; screen = s }
 
+    /// A link from an email or an invite opened the app while signed out.
+    func consume(_ link: HBDeepLink?) async {
+        guard let link = link else { return }
+        store.pendingLink = nil
+        switch link {
+        case let .reset(t): resetLink = t; go(.reset)
+        case let .join(c): inviteCode = c; go(.signup); info = "Invite code added. Create an account to join."
+        case let .verify(t):
+            go(.login)
+            await run { try await HBAPI.shared.verifyEmail(token: t); info = "Email confirmed. Log in to continue." }
+        }
+    }
+
     private func run(_ work: () async throws -> Void) async {
         busy = true; error = nil; info = nil
         defer { busy = false }

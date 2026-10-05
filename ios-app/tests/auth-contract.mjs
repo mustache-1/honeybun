@@ -295,6 +295,9 @@ r = await fetch(BASE + "/.well-known/apple-app-site-association");
 const aasa = await r.json().catch(() => null);
 ok("/.well-known/apple-app-site-association → JSON with webcredentials for TEAMID.me.honeybun.app (so passkeys work in the iPhone app)", r.status === 200 && /application\/json/.test(r.headers.get("content-type") || "") && aasa?.webcredentials?.apps?.[0] === "TEAM123456.me.honeybun.app", JSON.stringify(aasa));
 
+const comps = (aasa?.applinks?.details?.[0]?.components || []).map((c) => c["/"]);
+ok("…and Universal Links for only the email / invite links (/verify/*, /reset/*, /join/*), so the rest of the site stays in Safari", aasa?.applinks?.details?.[0]?.appIDs?.[0] === "TEAM123456.me.honeybun.app" && JSON.stringify(comps) === JSON.stringify(["/verify/*", "/reset/*", "/join/*"]), JSON.stringify(aasa));
+
 // ===== 9. Google sign-in is gone =====
 r = await call(jar(), "/api/auth/google", "POST", { credential: "x".repeat(200) });
 ok("POST /api/auth/google no longer signs anyone in (no session cookie, an error)", r.status >= 400 && !/__Host-hb=/.test(r.setCookie || ""), JSON.stringify([r.status, r.json]));

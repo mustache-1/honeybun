@@ -163,6 +163,15 @@ func run() async {
     check("SIGN UP: the request body is the backend's: name, lowercase username, password, lang — or `passkey: true` instead of a password", { var d = HBSignupDraft(); d.name = "Una"; d.id = .username("Una_01 "); d.password = "pw123456"
         let j = d.json; var p = d; p.passkeyOnly = true; let k = p.json
         return (j["username"] as? String) == "una_01" && (j["password"] as? String) == "pw123456" && (j["email"] == nil) && (k["passkey"] as? Bool) == true && k["password"] == nil }())
+
+    // links that open the app (Universal Links): only honeybun.me/verify|reset|join/<value>
+    func link(_ s: String) -> HBDeepLink? { URL(string: s).flatMap(HBDeepLink.parse) }
+    check("LINKS: /verify/<token>, /reset/<token> and /join/<code> on honeybun.me are recognised",
+          link("https://honeybun.me/verify/abc123") == .verify("abc123") && link("https://honeybun.me/reset/tok_en-9") == .reset("tok_en-9") && link("https://honeybun.me/join/ABCD-EFGH") == .join("ABCD-EFGH"))
+    check("LINKS: other pages and other sites are not taken over by the app",
+          link("https://honeybun.me/") == nil && link("https://honeybun.me/privacy") == nil && link("https://honeybun.me/verify/") == nil && link("https://honeybun.me/verify/a/b") == nil
+          && link("https://evil.example/reset/abc") == nil && link("https://honeybun.me.evil.example/reset/abc") == nil)
+    check("LINKS: a pasted reset link still gives the same token the deep link carries", HBAuthText.token(from: "https://honeybun.me/reset/tok_en-9") == "tok_en-9")
 }
 
 let done = DispatchSemaphore(value: 0)

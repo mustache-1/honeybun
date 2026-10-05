@@ -2041,7 +2041,10 @@ export default {
     // lets the iPhone app use honeybun.me passkeys (webcredentials); needs APPLE_TEAM_ID in the site's variables
     if (url.pathname === "/.well-known/apple-app-site-association") {
       if (!env.APPLE_TEAM_ID) return new Response("Not found", { status: 404 });
-      return new Response(JSON.stringify({ webcredentials: { apps: [env.APPLE_TEAM_ID + ".me.honeybun.app"] } }), { headers: { "content-type": "application/json", "cache-control": "public, max-age=3600" } });
+      const appID = env.APPLE_TEAM_ID + ".me.honeybun.app";
+      // passkeys (webcredentials) and Universal Links: only the email / invite links open the app, the rest of the site stays in Safari
+      const aasa = { webcredentials: { apps: [appID] }, applinks: { details: [{ appIDs: [appID], components: [{ "/": "/verify/*" }, { "/": "/reset/*" }, { "/": "/join/*" }] }] } };
+      return new Response(JSON.stringify(aasa), { headers: { "content-type": "application/json", "cache-control": "public, max-age=3600" } });
     }
     if (!url.pathname.startsWith("/api/")) return env.ASSETS.fetch(request);
 

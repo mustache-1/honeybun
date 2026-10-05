@@ -126,6 +126,8 @@ struct HBAuthFlowView: View {
             case .verifyEmail: verifyEmail
             }
         }
+        .task { await model.consume(store.pendingLink) }
+        .onChange(of: store.pendingLink) { link in Task { await model.consume(link) } }
         #if DEBUG
         .onAppear { applyPreviewScreen() }
         #endif
@@ -161,7 +163,7 @@ struct HBAuthFlowView: View {
                     Spacer(minLength: 20)
                     Image("HBHero").resizable().scaledToFit().frame(width: 200).accessibilityHidden(true)
                     VStack(spacing: 8) {
-                        HBWordmark(size: 46)
+                        HBWordmark(size: 46).onLongPressGesture(minimumDuration: 1.5) { onClose() }   // emergency way to Classic; new users never see it
                         Text("A happier way to manage money together.").font(.system(size: 17)).foregroundColor(Color(red: 0.74, green: 0.69, blue: 0.9)).multilineTextAlignment(.center)
                     }
                     Spacer(minLength: 16)
@@ -185,7 +187,6 @@ struct HBAuthFlowView: View {
                         .font(.system(size: 16))
                     }
                     .frame(maxWidth: 420)
-                    Button { onClose() } label: { Text("Open classic Honeybun").font(.footnote).foregroundColor(HB.soft).underline() }.padding(.top, 6)
                 }
                 .padding(.horizontal, HB.gutter).padding(.bottom, 28).frame(maxWidth: .infinity)
             }

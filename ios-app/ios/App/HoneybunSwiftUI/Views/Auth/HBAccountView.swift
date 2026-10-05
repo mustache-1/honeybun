@@ -188,7 +188,7 @@ struct HBAccountView: View {
                 Text("Delete my account").font(.system(size: 16, weight: .semibold)).foregroundColor(HB.red).frame(maxWidth: .infinity, minHeight: 50)
                     .overlay(Capsule().stroke(HB.red.opacity(0.6), lineWidth: 1))
             }.accessibilityIdentifier("hb-account-delete")
-            HBAuthLink(title: "Open classic Honeybun") { onClose() }
+            HBAuthLink(title: "Open Classic Honeybun (fallback)") { onClose() }
         }
     }
 

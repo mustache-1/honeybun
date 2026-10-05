@@ -66,6 +66,14 @@ enum HBSession {
             WKWebsiteDataStore.default().httpCookieStore.setCookie(c) { cont.resume() }
         }
     }
+    /// Back from Classic: if its web view holds a (different) session, native uses that one, so both always mean the same account.
+    @MainActor static func adoptFromWebView() async {
+        let store = WKWebsiteDataStore.default().httpCookieStore
+        let all: [HTTPCookie] = await withCheckedContinuation { cont in store.getAllCookies { cont.resume(returning: $0) } }
+        guard let web = all.first(where: { $0.name == cookieName && !$0.value.isEmpty && $0.domain.hasSuffix(host) }) else { return }
+        if sessionCookie?.value != web.value { HTTPCookieStorage.shared.setCookie(web) }
+        saveToKeychain()
+    }
     /// Forget the session everywhere on this phone (native cookie store, Keychain, and the web view's copy).
     @MainActor static func clearEverywhere() async {
         for c in HTTPCookieStorage.shared.cookies(for: url) ?? [] where c.name == cookieName { HTTPCookieStorage.shared.deleteCookie(c) }
