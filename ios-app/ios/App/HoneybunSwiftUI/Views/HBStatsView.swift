@@ -62,7 +62,11 @@ struct HBStatsView: View {
         let carrots = store.members.count > 1 ? store.members.map { "\($0.name) \(HBProgress.weekXP($0)) 🥕" }.joined(separator: " · ") : "\(m.xp ?? 0) carrots"
         return VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 12) {
-                if let mm = store.member(store.myID) { HBMemberAvatar(member: mm, size: 52) }
+                ZStack(alignment: .bottomTrailing) {
+                    HBLevelBunny(level: li.level, width: 62)
+                    if let mm = store.member(store.myID) { HBMemberAvatar(member: mm, size: 26).overlay(Circle().stroke(Color(red: 0.13, green: 0.09, blue: 0.17), lineWidth: 2)).offset(x: 6, y: 4) }
+                }
+                .frame(width: 66)
                 VStack(alignment: .leading, spacing: 3) {
                     Text("Level \(li.level) · \(li.title)").font(.system(size: 18, weight: .bold)).foregroundColor(.white).lineLimit(1).minimumScaleFactor(0.8)
                     GeometryReader { g in ZStack(alignment: .leading) { Capsule().fill(Color.black.opacity(0.28)); Capsule().fill(HB.orange).frame(width: max(8, g.size.width * CGFloat(li.pct))) } }.frame(height: 8)

@@ -581,43 +581,95 @@ struct HBShoppingSheet: View {
 struct HBSearchSheet: View {
     @ObservedObject var store: HBAppStore
     @Environment(\.dismiss) private var dismiss
-    @State private var q = ""
-    @State private var type = ""
-    @State private var who = ""
+    @State private var filter = HBSearchFilter()
+    @State private var showMore = false
+    @State private var minText = ""
+    @State private var maxText = ""
     @State private var results: [HBEntry]?
     @State private var failure: String?
     @State private var loading = false
     @State private var shown = 20
 
-    private var active: Bool { !q.isEmpty || !type.isEmpty || !who.isEmpty }
+    private var active: Bool { filter.hasCriteria }
     private var rows: [HBEntry] { active ? (results ?? []) : store.entries }
+    private var q: Binding<String> { Binding(get: { filter.q }, set: { filter.q = $0 }) }
+
+    private func dateBinding(_ get: @escaping () -> String?, _ set: @escaping (String?) -> Void) -> Binding<Date> {
+        Binding(get: { get().flatMap { HBDay.parse($0) } ?? Date() }, set: { set(HBDay.string($0)) })
+    }
+    private func amountField(_ title: String, _ text: Binding<String>, _ id: String, _ apply: @escaping (Double?) -> Void) -> some View {
+        HStack(spacing: 4) {
+            Text("$").foregroundColor(HB.soft)
+            TextField(title, text: text).keyboardType(.decimalPad).foregroundColor(.white).accessibilityIdentifier(id)
+                .onChange(of: text.wrappedValue) { v in apply(Double(v.replacingOccurrences(of: ",", with: ".")).flatMap { $0 > 0 ? $0 : nil }) }
+        }
+        .padding(.horizontal, 12).frame(minHeight: 44)
+        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.white.opacity(0.05)))
+        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(Color.white.opacity(0.12), lineWidth: 1))
+    }
+    private func dateRow(_ title: String, _ value: String?, _ id: String, _ set: @escaping (String?) -> Void) -> some View {
+        HStack {
+            Text(title).font(.system(size: 15)).foregroundColor(HB.soft)
+            Spacer()
+            if value != nil {
+                DatePicker("", selection: dateBinding({ value }, set), displayedComponents: .date).labelsHidden().accessibilityIdentifier(id)
+                Button { set(nil) } label: { Image(systemName: "xmark.circle.fill").foregroundColor(HB.soft) }.accessibilityLabel("Clear \(title)")
+            } else {
+                Button("Any date") { set(HBDay.todayString) }.font(.system(size: 15, weight: .semibold)).foregroundColor(HB.orange).accessibilityIdentifier(id + "-set")
+            }
+        }
+        .frame(minHeight: 40)
+    }
+    private var categoryLabel: String { filter.category == "all" ? "Any category" : HBCatStyle.of(filter.category).label }
+    private var moreFilters: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Menu {
+                Button("Any category") { filter.category = "all" }
+                ForEach(HBCatStyle.all) { c in Button(c.label) { filter.category = c.id } }
+            } label: {
+                HStack { Text(categoryLabel).foregroundColor(.white); Spacer(); Image(systemName: "chevron.down").font(.system(size: 12, weight: .bold)).foregroundColor(HB.soft) }
+                    .padding(.horizontal, 12).frame(minHeight: 44)
+                    .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.white.opacity(0.05)))
+                    .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(Color.white.opacity(0.12), lineWidth: 1))
+            }
+            .accessibilityIdentifier("hb-search-category")
+            HStack(spacing: 10) {
+                amountField("From", $minText, "hb-search-min") { filter.minAmount = $0 }
+                amountField("To", $maxText, "hb-search-max") { filter.maxAmount = $0 }
+            }
+            dateRow("From date", filter.from, "hb-search-from") { filter.from = $0 }
+            dateRow("To date", filter.to, "hb-search-to") { filter.to = $0 }
+            if filter.rangeBackwards { Text("That range ends before it starts, so nothing can match.").font(.system(size: 13)).foregroundColor(HB.red) }
+        }
+        .padding(12).hbCard()
+    }
 
     var body: some View {
         HBSheetScaffold(title: "Everything", onBack: { dismiss() }) {
             HStack(spacing: 10) {
                 Image(systemName: "magnifyingglass").foregroundColor(HB.soft)
-                TextField("Search everything", text: $q).font(.system(size: 18)).foregroundColor(.white).submitLabel(.search).autocorrectionDisabled()
+                TextField("Search everything", text: q).font(.system(size: 18)).foregroundColor(.white).submitLabel(.search).autocorrectionDisabled()
                     .accessibilityIdentifier("hb-search-input")
-                if !q.isEmpty { Button { q = "" } label: { Image(systemName: "xmark.circle.fill").foregroundColor(HB.soft) }.accessibilityLabel("Clear search") }
+                if !filter.q.isEmpty { Button { filter.q = "" } label: { Image(systemName: "xmark.circle.fill").foregroundColor(HB.soft) }.accessibilityLabel("Clear search") }
             }
             .padding(.horizontal, 16).frame(minHeight: 52)
             .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Color.white.opacity(0.05)))
             .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Color.white.opacity(0.12), lineWidth: 1))
             HStack(spacing: 8) {
-                ForEach([("", "All"), ("expense", "Spent"), ("income", "Got paid")], id: \.0) { key, title in
-                    Button { type = key } label: {
-                        Text(title).font(.system(size: 15, weight: .semibold)).foregroundColor(type == key ? Color.black.opacity(0.85) : Color(red: 0.74, green: 0.69, blue: 0.9))
-                            .frame(maxWidth: .infinity, minHeight: 40).background(Capsule().fill(type == key ? HB.orange : Color.white.opacity(0.06)))
+                ForEach([("all", "All"), ("expense", "Spent"), ("income", "Got paid")], id: \.0) { key, title in
+                    Button { filter.type = key } label: {
+                        Text(title).font(.system(size: 15, weight: .semibold)).foregroundColor(filter.type == key ? Color.black.opacity(0.85) : Color(red: 0.74, green: 0.69, blue: 0.9))
+                            .frame(maxWidth: .infinity, minHeight: 40).background(Capsule().fill(filter.type == key ? HB.orange : Color.white.opacity(0.06)))
                     }
-                    .accessibilityIdentifier("hb-search-type-\(key.isEmpty ? "all" : key)")
+                    .accessibilityIdentifier("hb-search-type-\(key)")
                 }
                 if store.members.count > 1 {
                     Menu {
-                        Button("Anyone") { who = "" }
-                        ForEach(store.members) { m in Button(m.id == store.myID ? "You" : m.name) { who = m.id } }
+                        Button("Anyone") { filter.member = "all" }
+                        ForEach(store.members) { m in Button(m.id == store.myID ? "You" : m.name) { filter.member = m.id } }
                     } label: {
                         HStack(spacing: 4) {
-                            Text(who.isEmpty ? "Anyone" : (who == store.myID ? "You" : store.memberName(who))).lineLimit(1)
+                            Text(filter.member == "all" ? "Anyone" : (filter.member == store.myID ? "You" : store.memberName(filter.member))).lineLimit(1)
                             Image(systemName: "chevron.down").font(.system(size: 11, weight: .bold))
                         }
                         .font(.system(size: 15, weight: .semibold)).foregroundColor(Color(red: 1, green: 0.92, blue: 0.84)).padding(.horizontal, 12).frame(height: 40)
@@ -625,6 +677,23 @@ struct HBSearchSheet: View {
                     }
                 }
             }
+            HStack {
+                Button { withAnimation { showMore.toggle() } } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "slider.horizontal.3")
+                        Text(showMore ? "Fewer filters" : "More filters")
+                        Image(systemName: showMore ? "chevron.up" : "chevron.down").font(.system(size: 11, weight: .bold))
+                    }
+                    .font(.system(size: 15, weight: .semibold)).foregroundColor(HB.orange)
+                }
+                .accessibilityIdentifier("hb-search-more")
+                Spacer()
+                if !filter.isDefault {
+                    Button("Clear filters") { filter = HBSearchFilter(); minText = ""; maxText = "" }
+                        .font(.system(size: 15, weight: .semibold)).foregroundColor(HB.orange).accessibilityIdentifier("hb-search-clear")
+                }
+            }
+            if showMore { moreFilters }
             HStack {
                 Text(active ? "Search results" : "Everything this month").font(.system(size: 19, weight: .bold)).foregroundColor(.white)
                 Spacer()
@@ -656,16 +725,16 @@ struct HBSearchSheet: View {
                 .hbCard()
             }
         }
-        .task(id: "\(q)|\(type)|\(who)") { await runSearch() }
+        .task(id: filter) { await runSearch() }
     }
 
     private func runSearch() async {
         shown = 20
-        guard active else { results = nil; failure = nil; return }
+        guard active, !filter.rangeBackwards else { results = filter.rangeBackwards ? [] : nil; failure = nil; return }
         try? await Task.sleep(nanoseconds: 300_000_000)
         if Task.isCancelled { return }
         loading = true; defer { loading = false }
-        do { results = try await store.search(q: q.trimmingCharacters(in: .whitespaces), type: type, member: who); failure = nil }
+        do { results = try await store.search(filter); failure = nil }
         catch { if !Task.isCancelled { failure = error.localizedDescription } }
     }
 }

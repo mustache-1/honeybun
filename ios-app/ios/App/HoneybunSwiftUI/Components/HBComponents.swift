@@ -63,7 +63,10 @@ struct HBEntryRow: View {
             if entry.isIncome { HBCircleIcon(symbol: "arrow.down", tint: HB.green) } else { HBCatIcon(style: cat) }
             VStack(alignment: .leading, spacing: 2) {
                 Text(entry.label).font(.system(size: 16, weight: .semibold)).foregroundColor(.white).lineLimit(1)
-                Text([who, HBDay.short(entry.date)].compactMap { $0 }.joined(separator: " · ")).font(.system(size: 13)).foregroundColor(HB.soft)
+                HStack(spacing: 4) {
+                    if entry.pending { Image(systemName: "clock.arrow.circlepath").font(.system(size: 11, weight: .bold)).foregroundColor(HB.orange) }
+                    Text(([who, HBDay.short(entry.date)].compactMap { $0 } + (entry.pending ? ["Waiting to sync"] : [])).joined(separator: " · ")).font(.system(size: 13)).foregroundColor(entry.pending ? HB.orange : HB.soft)
+                }
             }
             Spacer(minLength: 8)
             Text((entry.isIncome ? "+" : "") + HBFormat.money(entry.amount)).font(.system(size: 16, weight: .semibold).monospacedDigit())

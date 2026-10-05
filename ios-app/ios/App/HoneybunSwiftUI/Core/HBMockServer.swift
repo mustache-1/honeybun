@@ -9,6 +9,11 @@ final class HBMockServer: URLProtocol {
     private static let lock = NSLock()
     private static var state: [String: Any] = [:]
     private static var clock = 1_791_200_000.0
+    /// test switches: no connection at all (every request fails the way a real one does), and the next N entry saves failing with a given status
+    static var offline = false
+    static var failEntryPosts: (count: Int, status: Int)? = nil
+    static var entryPostsReceived = 0
+    static var entryBodies: [[String: Any]] = []     // what each entry save carried, to prove nothing was dropped
 
     static var requestedSeed: String? {
         let a = ProcessInfo.processInfo.arguments
@@ -59,6 +64,7 @@ final class HBMockServer: URLProtocol {
     override func stopLoading() {}
 
     override func startLoading() {
+        if HBMockServer.offline { client?.urlProtocol(self, didFailWithError: URLError(.notConnectedToInternet)); return }
         var raw = request.httpBody
         if raw == nil, let stream = request.httpBodyStream {
             stream.open(); defer { stream.close() }
@@ -250,9 +256,22 @@ final class HBMockServer: URLProtocol {
         }
 
         if path == "/api/search" && method == "GET" {
-            let q = (query["q"] ?? "").lowercased(), type = query["type"] ?? "", who = query["member"] ?? ""
+            // the backend's own rules: text in the label, type, category, member, amount range (only positive numbers), date range (only real dates)
+            let q = (query["q"] ?? "").lowercased(), type = query["type"] ?? "", who = query["member"] ?? "", cat = query["cat"] ?? ""
+            let minC: Int? = { if let v = Double(query["min"] ?? ""), v > 0 { return Int((v * 100).rounded()) }; return nil }()
+            let maxC: Int? = { if let v = Double(query["max"] ?? ""), v > 0 { return Int((v * 100).rounded()) }; return nil }()
+            let from = HBDay.parse(query["from"] ?? "") != nil ? (query["from"] ?? "") : "", to = HBDay.parse(query["to"] ?? "") != nil ? (query["to"] ?? "") : ""
             let hits = entries.filter { e in
-                (q.isEmpty || ((e["label"] as? String) ?? "").lowercased().contains(q)) && (type.isEmpty || (e["type"] as? String) == type) && (who.isEmpty || (e["member_id"] as? String) == who)
+                let cents = e["amount_cents"] as? Int ?? 0, date = e["date"] as? String ?? ""
+                if !q.isEmpty && !((e["label"] as? String) ?? "").lowercased().contains(q) { return false }
+                if (type == "income" || type == "expense") && (e["type"] as? String) != type { return false }
+                if !cat.isEmpty && (e["category"] as? String) != cat { return false }
+                if !who.isEmpty && (e["member_id"] as? String) != who { return false }
+                if let m = minC, cents < m { return false }
+                if let m = maxC, cents > m { return false }
+                if !from.isEmpty && date < from { return false }
+                if !to.isEmpty && date > to { return false }
+                return true
             }
             return (200, ["entries": hits])
         }
@@ -537,12 +556,20 @@ final class HBMockServer: URLProtocol {
             let type = body["type"] as? String == "income" ? "income" : "expense"
             let cat = body["category"] as? String ?? "other"
             if type == "expense" && !isKnown(cat) { return (400, ["error": "Pick a category."]) }
+            Self.entryPostsReceived += 1; Self.entryBodies.append(body)
+            if let f = Self.failEntryPosts, f.count > 0 {
+                Self.failEntryPosts = f.count > 1 ? (f.count - 1, f.status) : nil
+                return (f.status, ["error": f.status >= 500 ? "Something went wrong." : "That entry isn't allowed."])
+            }
             var entries = state["entries"] as? [[String: Any]] ?? []
-            entries.insert(["id": "e-" + UUID().uuidString.lowercased(), "member_id": body["member_id"] as? String ?? "", "type": type, "amount_cents": amt, "label": clean(body["label"], 40),
+            // a retry carrying the same client_id is answered "duplicate" and adds nothing (the backend's own rule)
+            let cid = body["client_id"] as? String
+            if let c = cid, entries.contains(where: { ($0["id"] as? String) == c }) { return (200, ["ok": true, "id": c, "duplicate": true]) }
+            entries.insert(["id": cid ?? ("e-" + UUID().uuidString.lowercased()), "member_id": body["member_id"] as? String ?? "", "type": type, "amount_cents": amt, "label": clean(body["label"], 40),
                             "category": type == "income" ? NSNull() : cat, "shared": 0, "split_mode": NSNull(), "split_value": NSNull(), "shares": NSNull(), "private": 0,
                             "date": body["date"] as? String ?? "", "recurring_id": NSNull(), "occ_date": NSNull(), "created_at": 0], at: 0)
             state["entries"] = entries
-            return (201, ["ok": true])
+            return (201, ["ok": true, "id": cid ?? "", "reward": ["gained": 5, "leveled": false, "level": 1]])
         }
         // stats: the year's entries (the stand-in only has the one month of sample data)
         if path == "/api/year" && method == "GET" {

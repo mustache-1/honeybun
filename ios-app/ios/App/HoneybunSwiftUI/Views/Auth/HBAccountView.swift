@@ -92,12 +92,14 @@ struct HBAccountView: View {
         .confirmationDialog("Leave this budget?", isPresented: $confirmLeave, titleVisibility: .visible) {
             Button("Leave", role: .destructive) { leave() }
             Button("Stay", role: .cancel) {}
-        } message: { Text(store.members.count == 1 ? "You're the only one here, so the budget and everything in it will be deleted." : "You can rejoin later with an invite code.") }
+        } message: { Text((store.members.count == 1 ? "You're the only one here, so the budget and everything in it will be deleted." : "You can rejoin later with an invite code.") + (store.pending.isEmpty ? "" : " \(store.pending.count) saved \(store.pending.count == 1 ? "entry hasn't" : "entries haven't") synced yet; they stay on this iPhone and can't be added to another budget.")) }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in Task { await loadPush() } }
         .confirmationDialog("Log out of Honeybun?", isPresented: $confirmLogout, titleVisibility: .visible) {
             Button("Log out", role: .destructive) { Task { await store.logout() } }
             Button("Stay", role: .cancel) {}
-        } message: { Text("You can log back in with your username, a passkey or Apple.") }
+        } message: { Text(store.unsyncedTotal > 0
+            ? "\(store.unsyncedTotal) saved \(store.unsyncedTotal == 1 ? "entry hasn't" : "entries haven't") synced yet. They stay safe on this iPhone, only for this account, and sync when you log back in to it."
+            : "You can log back in with your username, a passkey or Apple.") }
         .confirmationDialog("Make a new recovery code?", isPresented: $confirmNewCode, titleVisibility: .visible) {
             Button("New code", role: .destructive) { makeCode() }
             Button("Keep my current code", role: .cancel) {}
@@ -381,6 +383,19 @@ struct HBAccountView: View {
     }
 
     private var sessionCard: some View {
+        VStack(spacing: 10) {
+            if store.heldElsewhere > 0 {
+                HStack {
+                    Text("\(store.heldElsewhere) saved \(store.heldElsewhere == 1 ? "entry is" : "entries are") waiting for a budget you're no longer in.").font(.footnote).foregroundColor(HB.soft)
+                    Spacer()
+                    Button("Discard") { Task { await store.discardHeldElsewhere() } }.font(.footnote.weight(.bold)).foregroundColor(HB.red).accessibilityIdentifier("hb-discard-held")
+                }
+                .padding(12).hbCard()
+            }
+            logoutButton
+        }
+    }
+    private var logoutButton: some View {
         HBPillButton(title: "Log out", symbol: "rectangle.portrait.and.arrow.right") { confirmLogout = true }.accessibilityIdentifier("hb-account-logout")
     }
 
@@ -516,7 +531,7 @@ struct HBDeleteAccountSheet: View {
         .confirmationDialog("Delete your Honeybun account?", isPresented: $confirm, titleVisibility: .visible) {
             Button("Delete forever", role: .destructive) { delete() }
             Button("Keep my account", role: .cancel) {}
-        }
+        } message: { Text(store.unsyncedTotal > 0 ? "\(store.unsyncedTotal) saved \(store.unsyncedTotal == 1 ? "entry hasn't" : "entries haven't") synced yet and will be deleted with the account." : "This can't be undone.") }
     }
 
     private var canDelete: Bool { passwordless ? (reauthed && typed == "DELETE") : !password.isEmpty }

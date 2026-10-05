@@ -56,3 +56,23 @@ enum HBProgress {
         return list.map { Badge(id: $0.0, emoji: $0.1, name: $0.2, hint: $0.3, unlocked: $0.4) }
     }
 }
+
+/// What the bunny wears at each level: the same rules as the website's gearSvg() / UNLOCKS in app.js. (The website draws the bunny in code; the
+/// native app draws the same shapes, see HBLevelBunny.)
+struct HBBunnyGear: Equatable {
+    let sprout: Bool, bow: Bool, scarf: Bool, flowerCrown: Bool, goldenCrown: Bool
+    static func forLevel(_ l: Int) -> HBBunnyGear {
+        HBBunnyGear(sprout: l >= 2 && l < 7, bow: l >= 3, scarf: l >= 5, flowerCrown: l >= 7 && l < 10, goldenCrown: l >= 10)
+    }
+    /// "a little sprout", "a pink bow"… for the levels that unlock something new (the level-up message)
+    static func unlock(_ l: Int) -> String? { [2: "a little sprout", 3: "a pink bow", 5: "a cozy scarf", 7: "a flower crown", 10: "a tiny golden crown"][l] }
+}
+
+/// the carrot reward the server sends back with most changes: only a level-up matters on screen
+enum HBCarrotReward {
+    static func leveledUp(in data: Data) -> Int? {
+        guard let o = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any], let r = o["reward"] as? [String: Any],
+              r["leveled"] as? Bool == true, let level = r["level"] as? Int else { return nil }
+        return level
+    }
+}

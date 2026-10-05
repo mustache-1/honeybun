@@ -66,6 +66,26 @@ enum HBTab: String, CaseIterable { case home = "Home", money = "Money", goals = 
     @Published var prevSpent: Double?   // last month's spending, for the Money insight card
     @Published var prevDaily: [Int: Double] = [:]   // last month's spending by day of month, for the chart
 
+    // MARK: offline (entries made with no connection wait on this iPhone, see HBPendingQueue)
+    @Published var pending: [HBPendingEntry] = []     // waiting for THIS account in THIS budget
+    @Published var heldElsewhere = 0                  // this account's entries waiting for a different budget
+    @Published var online = true                      // the phone has a connection
+    @Published var usingCache = false                 // what's on screen is the last answer saved on the phone
+    @Published var syncing = false
+    @Published var levelUp: Int?                      // a carrot reward just raised your level
+    @Published var verifyTick = 0                     // bumps when the "confirm your email" reminder is hidden
+    var queue = HBPendingQueue.shared
+    private let reach = HBReachability()
+    private var watching = false
+    var isOffline: Bool { !online || usingCache }
+    /// everything of this account that has not reached the server (this budget's and any other budget's)
+    var unsyncedTotal: Int { pending.count + heldElsewhere }
+    func discardHeldElsewhere() async {
+        guard let uid = account?.id ?? snapshot?.me?.id, let nid = snapshot?.nest.id else { return }
+        for item in await queue.all() where item.userID == uid && item.nestID != nid { await queue.remove(item.clientID) }
+        await reloadPending()
+    }
+
     init() {}
 
     /// Debug-only screenshots: a ready store with a fixed snapshot and no network (see HBPreview).
@@ -101,11 +121,16 @@ enum HBTab: String, CaseIterable { case home = "Home", money = "Money", goals = 
         if isPreview { return }
         phase = .checking
         HBSession.restore()                       // the Keychain copy, if the cookie store was emptied
+        watchConnection()
         do {
-            let me = try await HBAPI.shared.me()
+            let got = try await HBAPI.shared.meOrCached()
+            let me = got.me
             account = me.user
-            await HBSession.mirrorToWebView()     // keeps the Classic fallback signed in too
-            Task { await HoneybunDevice.ensureAppToken() }   // the widget and Siri need this phone's token
+            usingCache = got.cached
+            if !got.cached {
+                await HBSession.mirrorToWebView()     // keeps the Classic fallback signed in too
+                Task { await HoneybunDevice.ensureAppToken() }   // the widget and Siri need this phone's token
+            }
             if me.nest_id == nil { phase = .needsBudget; return }
             await refresh()
         } catch HBAPIError.notSignedIn {
@@ -115,13 +140,19 @@ enum HBTab: String, CaseIterable { case home = "Home", money = "Money", goals = 
         }
     }
 
-    func refresh() async {
+    func refresh(syncAfter: Bool = true) async {
         if isPreview { return }
         do {
-            let snap = try await HBAPI.shared.nest(month: month)
+            let got = try await HBAPI.shared.nestOrCached(month: month)
+            let snap = got.snapshot
             snapshot = snap
+            usingCache = got.cached
             if phase == .onboarding || (snap.setup_done == false && !onboardingDone) { phase = .onboarding } else { phase = .ready }
-            await loadPrevious()
+            await reloadPending()
+            if !got.cached {
+                await loadPrevious()
+                if syncAfter { await syncPending() }
+            }
         } catch HBAPIError.notSignedIn {
             // the session expired or was ended elsewhere: back to native sign-in
             resetAfterSignOut()
@@ -136,6 +167,8 @@ enum HBTab: String, CaseIterable { case home = "Home", money = "Money", goals = 
     private func householdChanged() async {
         sheet = nil; selectedTab = .home; month = HBDay.monthKey()
         snapshot = nil; inboxMessages = []; inboxState = .idle; shopping = []; shopState = .idle; prevSpent = nil; prevDaily = [:]
+        pending = []; heldElsewhere = 0
+        HBOfflineCache.shared.clear()
         onboardingDone = false
         await start()
     }
@@ -206,10 +239,13 @@ enum HBTab: String, CaseIterable { case home = "Home", money = "Money", goals = 
     /// The account was deleted: the server already ended the session.
     func accountDeleted() async {
         sheet = nil
+        if let id = account?.id { await queue.removeAll(user: id) }       // the account no longer exists, so nothing waiting for it can ever be delivered
         await HBSession.clearEverywhere()
         resetAfterSignOut()
     }
     func resetAfterSignOut() {
+        HBOfflineCache.shared.clear()          // the last-known numbers belong to the account that just left
+        pending = []; heldElsewhere = 0; usingCache = false; levelUp = nil
         HBAppLock.shared.reset()
         HoneybunDevice.clearLocal()
         snapshot = nil; account = nil; sheet = nil; selectedTab = .home; month = HBDay.monthKey()
@@ -247,7 +283,16 @@ enum HBTab: String, CaseIterable { case home = "Home", money = "Money", goals = 
 
     // MARK: derived (all from the snapshot)
 
-    var entries: [HBEntry] { snapshot?.entries ?? [] }
+    /// the month's entries, with anything saved on this phone but not yet synced (it counts in the totals, like the website's queue does)
+    var entries: [HBEntry] {
+        let real = snapshot?.entries ?? []
+        guard !pending.isEmpty else { return real }
+        let have = Set(real.map { $0.id })
+        let waiting = pending.filter { $0.draft.date.hasPrefix(month) && !have.contains($0.clientID) }.sorted { $0.createdAt > $1.createdAt }.map { $0.asEntry }
+        return waiting + real
+    }
+    func pendingItem(_ entryID: String) -> HBPendingEntry? { pending.first { $0.clientID == entryID } }
+    var waitingCount: Int { pending.count }
     var members: [HBMember] { snapshot?.members ?? [] }
     var myID: String { snapshot?.me?.id ?? "" }
     var isJoint: Bool { (snapshot?.nest.joint ?? 0) == 1 }
@@ -323,14 +368,103 @@ enum HBTab: String, CaseIterable { case home = "Home", money = "Money", goals = 
         try await work()
         await refresh()
     }
-    func addEntry(_ d: HBEntryDraft) async throws { try await run { try await HBAPI.shared.addEntry(d) } }
+    /// like run, for changes where the server answers with carrots earned (a level-up shows the celebration, like the website's rewardToast)
+    private func runRewarded(_ work: () async throws -> Data) async throws {
+        busy = true; defer { busy = false }
+        let data = try await work()
+        noteReward(data)
+        await refresh()
+    }
+    private func noteReward(_ data: Data) {
+        if let level = HBCarrotReward.leveledUp(in: data) { levelUp = level }
+    }
+
+    // MARK: offline queue
+
+    private func watchConnection() {
+        guard !watching, !isPreview else { return }
+        watching = true
+        reach.onChange = { [weak self] up in
+            guard let self = self else { return }
+            Task { @MainActor in
+                let was = self.online
+                self.online = up
+                if up && !was { await self.connectionBack() }
+            }
+        }
+        reach.start()
+    }
+    /// The phone is online again (or the app came back to the front): load fresh numbers, which also sends whatever is waiting.
+    func connectionBack() async {
+        guard !isPreview, phase == .ready else { return }
+        if usingCache { await refresh() } else { await syncPending() }
+    }
+    func reloadPending() async {
+        if isPreview { return }
+        guard let uid = account?.id ?? snapshot?.me?.id, let nid = snapshot?.nest.id else { pending = []; heldElsewhere = 0; return }
+        pending = await queue.items(user: uid, nest: nid)
+        heldElsewhere = await queue.count(user: uid) - pending.count
+    }
+    /// Send what is waiting for this account and budget (never anyone else's). Quiet when there is nothing to do.
+    func syncPending() async {
+        if isPreview || syncing { return }
+        guard let uid = account?.id ?? snapshot?.me?.id, let nid = snapshot?.nest.id else { return }
+        if let a = account?.id, let b = snapshot?.me?.id, a != b { return }       // never mix accounts
+        let waiting = await queue.items(user: uid, nest: nid).filter { $0.failure == nil }
+        guard !waiting.isEmpty else { return }
+        syncing = true
+        let result = await queue.flush(user: uid, nest: nid) { item in
+            _ = try await HBAPI.shared.addEntry(item.draft, clientID: item.clientID)
+        }
+        syncing = false
+        await reloadPending()
+        if result.sent > 0 {
+            notice = result.sent == 1 ? "Your saved entry synced." : "\(result.sent) saved entries synced."
+            await refresh(syncAfter: false)
+        }
+        if result.rejected > 0 { notice = "Honeybun couldn't accept \(result.rejected) saved \(result.rejected == 1 ? "entry" : "entries"). Open it to fix or discard it." }
+    }
+    /// "Try again" on an entry the server refused
+    func retryPending(_ item: HBPendingEntry) async {
+        await queue.clearFailure(item.clientID)
+        await reloadPending()
+        await syncPending()
+    }
+    /// the person's own choice to throw a saved entry away
+    func discardPending(_ item: HBPendingEntry) async {
+        await queue.remove(item.clientID)
+        await reloadPending()
+    }
+    /// how many entries of this account have not reached the server (for the warnings before log out / leave / delete)
+    func unsyncedCount() async -> Int {
+        guard let uid = account?.id ?? snapshot?.me?.id else { return 0 }
+        return await queue.count(user: uid)
+    }
+    /// Save online when possible; when there is no connection (or the server can't be reached) the entry is written to this iPhone and synced later,
+    /// exactly once (it carries a client_id the server uses to ignore a retry). A real refusal from the server (a 4xx) is shown, never queued.
+    func addEntry(_ d: HBEntryDraft) async throws {
+        busy = true; defer { busy = false }
+        let cid = UUID().uuidString.lowercased()
+        do {
+            let data = try await HBAPI.shared.addEntry(d, clientID: cid)
+            noteReward(data)
+        } catch {
+            guard HBPendingRules.shouldQueue(error), let uid = account?.id ?? snapshot?.me?.id, let nid = snapshot?.nest.id else { throw error }
+            do { try await queue.add(d, user: uid, nest: nid, clientID: cid) }
+            catch { throw HBAPIError.http(0, "Couldn't save this on your iPhone, so it was not added. Please try again.") }
+            await reloadPending()
+            notice = "Saved on this iPhone. It will sync when you're back online."
+            return
+        }
+        await refresh()
+    }
     func updateEntry(id: String, _ d: HBEntryDraft) async throws { try await run { try await HBAPI.shared.updateEntry(id: id, d) } }
     func deleteEntry(id: String) async throws { try await run { try await HBAPI.shared.deleteEntry(id: id) } }
-    func markPaid(_ u: HBUpcoming) async throws { try await run { try await HBAPI.shared.logOccurrence(recurringID: u.recurring.id, date: u.dateString) } }
+    func markPaid(_ u: HBUpcoming) async throws { try await runRewarded { try await HBAPI.shared.logOccurrence(recurringID: u.recurring.id, date: u.dateString) } }
     func addGoal(_ d: HBGoalDraft) async throws { try await run { try await HBAPI.shared.addGoal(d) } }
     func updateGoal(id: String, _ d: HBGoalDraft) async throws { try await run { try await HBAPI.shared.updateGoal(id: id, d) } }
     func deleteGoal(id: String) async throws { try await run { try await HBAPI.shared.deleteGoal(id: id) } }
-    func moveJar(goalID: String, amount: Double, out: Bool) async throws { try await run { try await HBAPI.shared.moveJar(goalID: goalID, amount: amount, out: out) } }
+    func moveJar(goalID: String, amount: Double, out: Bool) async throws { try await runRewarded { try await HBAPI.shared.moveJar(goalID: goalID, amount: amount, out: out) } }
     func deleteJarMove(id: String) async throws { try await run { try await HBAPI.shared.deleteJarMove(id: id) } }
     func addRecurring(_ d: HBRecurringDraft) async throws { try await run { try await HBAPI.shared.addRecurring(d) } }
     func updateRecurring(id: String, _ d: HBRecurringDraft) async throws { try await run { try await HBAPI.shared.updateRecurring(id: id, d) } }
@@ -384,7 +518,7 @@ enum HBTab: String, CaseIterable { case home = "Home", money = "Money", goals = 
     func renameNest(_ name: String) async throws { try await run { try await HBAPI.shared.patchNest(["name": name]) } }
     func newInviteCode() async throws { try await run { _ = try await HBAPI.shared.newInviteCode() } }
     func updateMe(name: String, emoji: String, color: String) async throws { try await run { try await HBAPI.shared.updateMe(name: name, emoji: emoji, color: color) } }
-    func search(q: String, type: String, member: String) async throws -> [HBEntry] { try await HBAPI.shared.search(q: q, type: type, member: member) }
+    func search(_ f: HBSearchFilter) async throws -> [HBEntry] { try await HBAPI.shared.search(f) }
 
     // MARK: Inbox actions
 
@@ -402,7 +536,7 @@ enum HBTab: String, CaseIterable { case home = "Home", money = "Money", goals = 
         do { try await HBAPI.shared.markInboxRead(); await refresh() } catch { notice = error.localizedDescription }
     }
     /// "Paid" / "Got it" on a bill or payday message: logs that occurrence exactly like Home's Coming Up does
-    func markOccurrencePaid(recurringID: String, date: String) async throws { try await run { try await HBAPI.shared.logOccurrence(recurringID: recurringID, date: date) } }
+    func markOccurrencePaid(recurringID: String, date: String) async throws { try await runRewarded { try await HBAPI.shared.logOccurrence(recurringID: recurringID, date: date) } }
     func decideCarry(accept: Bool, remember: Bool) async throws {
         try await run { try await HBAPI.shared.decideCarry(month: HBDay.monthKey(), accept: accept, remember: remember) }
         await loadInbox()

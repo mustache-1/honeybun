@@ -24,6 +24,7 @@ struct HBEntry: Decodable, Identifiable {
     let id: String; let member_id: String; let type: String; let amount_cents: Int; let label: String
     let category: String?; let shared: Int; let split_mode: String?; let split_value: Int?
     let isPrivate: Int; let date: String; let recurring_id: String?; let occ_date: String?
+    var pending: Bool = false      // saved on this iPhone, waiting to sync (never sent by the server)
     enum CodingKeys: String, CodingKey {
         case id, member_id, type, amount_cents, label, category, shared, split_mode, split_value, date, recurring_id, occ_date
         case isPrivate = "private"
@@ -36,6 +37,7 @@ struct HBRecurring: Decodable, Identifiable {
     let id: String; let type: String; let label: String; let amount_cents: Int; let category: String?
     let member_id: String; let shared: Int; let split_mode: String?; let split_value: Int?
     let freq: String; let anchor_date: String
+    var prev_amount_cents: Int? = nil; var price_changed_at: String? = nil     // set when the price of a bill or subscription changed
     var amount: Double { Double(amount_cents) / 100.0 }
     var isIncome: Bool { type == "income" }
 }
@@ -160,7 +162,7 @@ enum HBCategory: String, CaseIterable, Identifiable {
 struct HBInboxCount: Decodable { let unread: Int? }   // the badge number inside /api/nest
 
 // What the app sends to POST/PATCH /api/entries. Editing keeps the entry's own split so a save never silently changes how it was shared.
-struct HBEntryDraft {
+struct HBEntryDraft: Codable, Equatable {
     var type: String = "expense"
     var amount: Double = 0
     var label: String = ""

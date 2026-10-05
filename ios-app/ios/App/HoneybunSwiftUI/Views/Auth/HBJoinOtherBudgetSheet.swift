@@ -25,7 +25,7 @@ struct HBJoinOtherBudgetSheet: View {
         .confirmationDialog("Replace your budget?", isPresented: $confirm, titleVisibility: .visible) {
             Button("Delete my budget and join", role: .destructive) { join() }
             Button("Cancel", role: .cancel) {}
-        } message: { Text("Your current budget and everything in it will be deleted. This can't be undone.") }
+        } message: { Text("Your current budget and everything in it will be deleted. This can't be undone." + (store.pending.isEmpty ? "" : " \(store.pending.count) saved \(store.pending.count == 1 ? "entry hasn't" : "entries haven't") synced yet and won't be added to the new budget.")) }
     }
     private func join() {
         busy = true; error = nil

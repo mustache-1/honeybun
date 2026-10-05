@@ -32,6 +32,9 @@ struct HBRootView: View {
             }
         }
         .fullScreenCover(item: $store.sheet) { sheet in sheetView(sheet) }
+        .overlay {
+            if let l = store.levelUp, store.sheet == nil { HBLevelUpCard(level: l) { store.levelUp = nil }.transition(.opacity) }
+        }
         // Face ID lock: covers everything (sheets included) while locked, and the app-switcher snapshot while the lock is on
         .overlay {
             if (lock.locked && store.phase != .signedOut) || lock.covered { HBLockCover(lock: lock).transition(.opacity) }
@@ -39,6 +42,7 @@ struct HBRootView: View {
         .task { await store.start() }
         .onChange(of: store.phase) { _ in Task { await store.processPendingLink() } }
         .onChange(of: lock.locked) { isLocked in if isLocked { store.sheet = nil } }   // sheets sit above the cover, so close them when the lock engages
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in Task { await store.connectionBack() } }
         .onReceive(NotificationCenter.default.publisher(for: .hbClassicClosed)) { _ in Task { await store.returnedFromClassic() } }
         .preferredColorScheme(.dark)
     }
@@ -97,7 +101,7 @@ struct HBRootView: View {
     @ViewBuilder private func sheetView(_ sheet: HBSheet) -> some View {
         switch sheet {
         case let .newEntry(t): HBEntryForm(store: store, editing: nil, base: store.newEntryDraft(type: t))
-        case let .editEntry(e): HBEntryForm(store: store, editing: e, base: store.draft(from: e))
+        case let .editEntry(e): if e.pending { HBPendingEntrySheet(store: store, entryID: e.id) } else { HBEntryForm(store: store, editing: e, base: store.draft(from: e)) }
         case .newRecurring: HBRecurringForm(store: store, editing: nil, base: HBRecurringDraft(date: HBDay.todayString, memberID: store.myID))
         case let .editRecurring(r): HBRecurringForm(store: store, editing: r, base: store.draft(from: r))
         case .upcoming: HBUpcomingList(store: store)

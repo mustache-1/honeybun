@@ -62,7 +62,10 @@ struct HBHomeView: View {
                     topButtons
                     header(heroH: heroH, overlap: overlap)
                     summaryCard(hero: hero, heroH: heroH, overlap: overlap)
+                    HBOfflineBanner(store: store)
                     actions
+                    HBVerifyBanner(store: store)
+                    HBHeadsUpSection(store: store)
                     comingUp
                     streakCard
                     latest
