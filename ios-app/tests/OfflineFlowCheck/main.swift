@@ -361,14 +361,14 @@ func run() async {
     check("BEFORE PAYDAY: nothing to show when there are no bills or paydays at all", { if let s = snapshot({ d in d["recurring"] = [] as [Any] }) { return HBPlan.beforePayday(s, today: oct4) == nil }; return false }())
 
     // ---- split choices (Evenly / By % / Amount owed): the backend's own rules
-    func okv(_ o: HBSplitRules.Outcome) -> (String, Double?)? { if case let .ok(m, v) = o { return (m, v) }; return nil }
-    func bad(_ o: HBSplitRules.Outcome) -> String? { if case let .invalid(m) = o { return m }; return nil }
-    check("SPLIT: Evenly needs no number", okv(HBSplitRules.validate(mode: .equal, valueText: "", amount: 50))?.0 == "equal")
-    check("SPLIT: By % accepts 0 to 100 (70 → the payer covers 70)", okv(HBSplitRules.validate(mode: .percent, valueText: "70", amount: 50))?.1 == 70 && okv(HBSplitRules.validate(mode: .percent, valueText: "0", amount: 50))?.1 == 0 && okv(HBSplitRules.validate(mode: .percent, valueText: "100", amount: 50))?.1 == 100)
-    check("SPLIT: By % refuses over 100, negative, blank or text, with the website's message", ["101", "-1", "", "abc", "100.5x"].allSatisfy { bad(HBSplitRules.validate(mode: .percent, valueText: $0, amount: 50)) == "Enter a percent from 0 to 100." })
-    check("SPLIT: Amount owed must be more than $0 and no more than the total", okv(HBSplitRules.validate(mode: .owed, valueText: "12.5", amount: 50))?.1 == 12.5 && okv(HBSplitRules.validate(mode: .owed, valueText: "50", amount: 50))?.1 == 50)
-    check("SPLIT: Amount owed refuses $0, more than the total, blank or text", ["0", "50.01", "", "x", "-3"].allSatisfy { bad(HBSplitRules.validate(mode: .owed, valueText: $0, amount: 50)) == "The amount owed has to be more than $0 and no more than the total." })
-    check("SPLIT: a comma as decimal point and a $ sign are understood; the owed amount rounds to whole cents", okv(HBSplitRules.validate(mode: .owed, valueText: "$12,50", amount: 50))?.1 == 12.5 && okv(HBSplitRules.validate(mode: .owed, valueText: "12.345", amount: 50))?.1 == 12.35)
+    func splitOK(_ o: HBSplitRules.Outcome) -> (String, Double?)? { if case let .ok(m, v) = o { return (m, v) }; return nil }
+    func splitErr(_ o: HBSplitRules.Outcome) -> String? { if case let .invalid(m) = o { return m }; return nil }
+    check("SPLIT: Evenly needs no number", splitOK(HBSplitRules.validate(mode: .equal, valueText: "", amount: 50))?.0 == "equal")
+    check("SPLIT: By % accepts 0 to 100 (70 → the payer covers 70)", splitOK(HBSplitRules.validate(mode: .percent, valueText: "70", amount: 50))?.1 == 70 && splitOK(HBSplitRules.validate(mode: .percent, valueText: "0", amount: 50))?.1 == 0 && splitOK(HBSplitRules.validate(mode: .percent, valueText: "100", amount: 50))?.1 == 100)
+    check("SPLIT: By % refuses over 100, negative, blank or text, with the website's message", ["101", "-1", "", "abc", "100.5x"].allSatisfy { splitErr(HBSplitRules.validate(mode: .percent, valueText: $0, amount: 50)) == "Enter a percent from 0 to 100." })
+    check("SPLIT: Amount owed must be more than $0 and no more than the total", splitOK(HBSplitRules.validate(mode: .owed, valueText: "12.5", amount: 50))?.1 == 12.5 && splitOK(HBSplitRules.validate(mode: .owed, valueText: "50", amount: 50))?.1 == 50)
+    check("SPLIT: Amount owed refuses $0, more than the total, blank or text", ["0", "50.01", "", "x", "-3"].allSatisfy { splitErr(HBSplitRules.validate(mode: .owed, valueText: $0, amount: 50)) == "The amount owed has to be more than $0 and no more than the total." })
+    check("SPLIT: a comma as decimal point and a $ sign are understood; the owed amount rounds to whole cents", splitOK(HBSplitRules.validate(mode: .owed, valueText: "$12,50", amount: 50))?.1 == 12.5 && splitOK(HBSplitRules.validate(mode: .owed, valueText: "12.345", amount: 50))?.1 == 12.35)
     check("SPLIT: editing shows a stored split back as typed (70 → \"70\", $5.50 → \"5.50\")", HBSplitRules.text(mode: .percent, stored: 70) == "70" && HBSplitRules.text(mode: .owed, stored: 5.5) == "5.50" && HBSplitRules.text(mode: .equal, stored: nil) == "")
     var sharesOK = true
     for amount in [1, 2, 99, 100, 1001, 12345, 999_999] {
@@ -424,13 +424,13 @@ func run() async {
     _ = try? await qp.add(priv, user: "u1", nest: "n1", clientID: "off-2")
     _ = try? await qp.add(owe, user: "u1", nest: "n1", clientID: "off-3")
     qp = HBPendingQueue(fileURL: fileP)                // force-close and reopen
-    let back = await qp.items(user: "u1", nest: "n1")
-    check("OFFLINE: a split and a private entry made offline keep their split, value and privacy after a restart", back.count == 3 && back[0].draft.splitMode == "percent" && back[0].draft.splitValue == 70 && back[1].draft.isPrivate && back[2].draft.splitMode == "owed" && back[2].draft.splitValue == 12.5)
-    check("OFFLINE: the waiting copies show as split / private in the list (owed in cents, private flag)", back[0].asEntry.split_value == 70 && back[0].asEntry.shared == 1 && back[1].asEntry.isPrivate == 1 && back[2].asEntry.split_value == 1250)
+    let backItems = await qp.items(user: "u1", nest: "n1")
+    check("OFFLINE: a split and a private entry made offline keep their split, value and privacy after a restart", backItems.count == 3 && backItems[0].draft.splitMode == "percent" && backItems[0].draft.splitValue == 70 && backItems[1].draft.isPrivate && backItems[2].draft.splitMode == "owed" && backItems[2].draft.splitValue == 12.5)
+    check("OFFLINE: the waiting copies show as split / private in the list (owed in cents, private flag)", backItems[0].asEntry.split_value == 70 && backItems[0].asEntry.shared == 1 && backItems[1].asEntry.isPrivate == 1 && backItems[2].asEntry.split_value == 1250)
     HBMockServer.entryBodies = []
     let rr = await qp.flush(user: "u1", nest: "n1") { i in _ = try await api.addEntry(i.draft, clientID: i.clientID) }
-    let landed = (try? await api.nest(month: "2026-09"))?.entries ?? []
-    check("OFFLINE: when back online they sync once with the same split and privacy", rr.sent == 3 && landed.first { $0.id == "off-1" }?.split_value == 70 && landed.first { $0.id == "off-2" }?.isPrivate == 1 && landed.first { $0.id == "off-3" }?.split_value == 1250)
+    let landedOff = (try? await api.nest(month: "2026-09"))?.entries ?? []
+    check("OFFLINE: when back online they sync once with the same split and privacy", rr.sent == 3 && landedOff.first { $0.id == "off-1" }?.split_value == 70 && landedOff.first { $0.id == "off-2" }?.isPrivate == 1 && landedOff.first { $0.id == "off-3" }?.split_value == 1250)
     let cacheCopy = HBOfflineCache(fileURL: tmp("cache-private.json"))
     cacheCopy.save("/api/nest?month=2026-09", Data("{}".utf8), owner: "userA")
     check("PRIVACY: the saved offline copy belongs to one account and never survives another account's use", cacheCopy.owner == "userA" && { cacheCopy.save("/api/nest?month=2026-09", Data("{}".utf8), owner: "userB"); return cacheCopy.owner == "userB" }())
@@ -452,12 +452,12 @@ func run() async {
     var refusedMode = false
     do { try await api.patchNest(["carry_mode": "sometimes"]) } catch { refusedMode = true }
     try? await api.decideCarry(month: "2026-09", accept: true, remember: true)
-    let c2 = (try? await api.nest(month: "2026-09"))?.nest.carry_mode
+    let cm2 = (try? await api.nest(month: "2026-09"))?.nest.carry_mode
     try? await api.patchNest(["carry_mode": "ask"])
     let c3 = (try? await api.nest(month: "2026-09"))?.nest.carry_mode
     check("CARRY-OVER: the Settings choice is saved (Start fresh = never)", c1 == "never")
     check("CARRY-OVER: an unknown choice is refused", refusedMode)
-    check("CARRY-OVER: the Inbox \"remember\" choice changes the very same setting (Always carry)", c2 == "always")
+    check("CARRY-OVER: the Inbox \"remember\" choice changes the very same setting (Always carry)", cm2 == "always")
     check("CARRY-OVER: Settings can set it back to Ask me, and that is what the Inbox then sees", c3 == "ask")
     HBOfflineCache.shared.clear()
 }
