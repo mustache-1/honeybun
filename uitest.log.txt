@@ -1,0 +1,20 @@
+/Users/runner/work/honeybun/honeybun/ios-app/ios/App/HoneybunUITests/HoneybunGoalsUITests.swift:32: error: -[HoneybunUITests.HoneybunGoalsUITests testGoalsBottomMatrix] : XCTAssertTrue failed - native Goals never appeared (empty)
+/Users/runner/work/honeybun/honeybun/ios-app/ios/App/HoneybunUITests/HoneybunGoalsUITests.swift:47: error: -[HoneybunUITests.HoneybunGoalsUITests testGoalsBottomMatrix] : XCTAssertTrue failed - missing: filter active
+/Users/runner/work/honeybun/honeybun/ios-app/ios/App/HoneybunUITests/HoneybunGoalsUITests.swift:49: error: -[HoneybunUITests.HoneybunGoalsUITests testGoalsBottomMatrix] : Failed to tap "hb-filter-active" Button: No matches found for Elements matching predicate '"hb-filter-active" IN identifiers' from input {(
+Test Case '-[HoneybunUITests.HoneybunGoalsUITests testGoalsBottomMatrix]' failed (77.707 seconds).
+/Users/runner/work/honeybun/honeybun/ios-app/ios/App/HoneybunUITests/HoneybunGoalsUITests.swift:32: error: -[HoneybunUITests.HoneybunGoalsUITests testGoalsFlow] : XCTAssertTrue failed - native Goals never appeared (default)
+/Users/runner/work/honeybun/honeybun/ios-app/ios/App/HoneybunUITests/HoneybunGoalsUITests.swift:122: error: -[HoneybunUITests.HoneybunGoalsUITests testGoalsFlow] : XCTAssertTrue failed - seeded goals missing
+/Users/runner/work/honeybun/honeybun/ios-app/ios/App/HoneybunUITests/HoneybunGoalsUITests.swift:47: error: -[HoneybunUITests.HoneybunGoalsUITests testGoalsFlow] : XCTAssertTrue failed - missing: Create a new goal
+/Users/runner/work/honeybun/honeybun/ios-app/ios/App/HoneybunUITests/HoneybunGoalsUITests.swift:49: error: -[HoneybunUITests.HoneybunGoalsUITests testGoalsFlow] : Failed to tap "hb-goal-create" Button: No matches found for Elements matching predicate '"hb-goal-create" IN identifiers' from input {(
+Test Case '-[HoneybunUITests.HoneybunGoalsUITests testGoalsFlow]' failed (67.704 seconds).
+Test Case '-[HoneybunUITests.HoneybunScrollUITests testGoalsDragToBottom]' passed (36.899 seconds).
+Test Case '-[HoneybunUITests.HoneybunScrollUITests testHomeDragToBottom]' passed (35.246 seconds).
+Test Case '-[HoneybunUITests.HoneybunScrollUITests testHomeDragToBottomUnderBar]' passed (44.264 seconds).
+/Users/runner/work/honeybun/honeybun/ios-app/ios/App/HoneybunUITests/HoneybunScrollUITests.swift:49: error: -[HoneybunUITests.HoneybunScrollUITests testMoneyDragToBottom] : XCTAssertLessThanOrEqual failed: ("195.16666666666674") is greater than ("40.0") - money: too much empty space under the last card
+Test Case '-[HoneybunUITests.HoneybunScrollUITests testMoneyDragToBottom]' failed (35.730 seconds).
+/Users/runner/work/honeybun/honeybun/ios-app/ios/App/HoneybunUITests/HoneybunScrollUITests.swift:49: error: -[HoneybunUITests.HoneybunScrollUITests testMoneyDragToBottomUnderBar] : XCTAssertLessThanOrEqual failed: ("195.16666666666674") is greater than ("40.0") - moneyoverlay: too much empty space under the last card
+Test Case '-[HoneybunUITests.HoneybunScrollUITests testMoneyDragToBottomUnderBar]' failed (37.794 seconds).
+Test Case '-[HoneybunUITests.HoneybunScrollUITests testTogetherDragToBottom]' passed (35.843 seconds).
+Test Case '-[HoneybunUITests.HoneybunScrollUITests testTogetherFamilyDragToBottom]' passed (35.531 seconds).
+Test Case '-[HoneybunUITests.HoneybunScrollUITests testTogetherSoloDragToBottom]' passed (34.545 seconds).
+** TEST FAILED **
