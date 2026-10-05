@@ -88,6 +88,10 @@ func run() async {
     s = await snap()
     let after = s?.debts?.first
     check("DEBTS: a $100 payment leaves $900 and 10% paid, and is listed as a recent payment", abs((after?.remaining ?? 0) - 900) < 0.001 && abs((after?.progress ?? 0) - 0.1) < 0.001 && s?.debt_payments?.first?.amount_cents == 10000)
+    // Debt Center+: who paid what, all time (the server sends per-member totals; /api/nest only lists the latest payments)
+    check("DEBT CENTER: the server's per-member totals show my $100 on the Visa", s?.debt_paid_by?.contains(HBDebtContribution(debt_id: visa.id, member_id: me, paid_cents: 10000)) == true)
+    let mine = s.map { HBPlan.contributions(for: visa, snapshot: $0) } ?? []
+    check("DEBT CENTER: contributions(for:) lists the payer with their dollars, and nobody who has paid nothing", mine.count == 1 && mine.first?.memberID == me && abs((mine.first?.paid ?? 0) - 100) < 0.001)
     check("DEBTS: the payment is also filed as a 'Payment: …' expense in Debt, so it counts in the month", s?.entries.contains { $0.label == "Payment: Visa Platinum" && $0.category == "debt" && $0.amount_cents == 10000 } == true)
     check("DEBTS: a payment of $0 is refused", await refused { try await api.payDebt(id: visa.id, amount: 0, memberID: me, date: "2026-09-29") })
     try? await api.payDebt(id: visa.id, amount: 900, memberID: me, date: "2026-09-30")
@@ -134,6 +138,43 @@ func run() async {
     check("PAYOFF: the strategy defaults to Snowball and the extra to 0; both are remembered", HBDebtPrefs.strategy(ud) == .snowball && HBDebtPrefs.extra(ud) == 0)
     HBDebtPrefs.setStrategy(.avalanche, ud); HBDebtPrefs.setExtra(75.5, ud)
     check("PAYOFF: …after choosing Avalanche and $75.50 extra they come back, and a negative extra is 0", HBDebtPrefs.strategy(ud) == .avalanche && HBDebtPrefs.extra(ud) == 75.5 && { HBDebtPrefs.setExtra(-5, ud); return HBDebtPrefs.extra(ud) == 0 }())
+
+    // Debt Center+: every number on the new screen comes from the same payoffPlan() run (hand-checked against a literal port of the website's loop)
+    func near(_ x: Double?, _ y: Double, _ tol: Double = 0.01) -> Bool { abs((x ?? .infinity) - y) <= tol }
+    let flatRun = HBPlan.payoffPlan([flat], strategy: .snowball, extra: 0)
+    check("DEBT CENTER: with 0% interest the run costs $0 in interest and the balance falls $100 a month from $1,000 to $0 (11 points)",
+          flatRun.interest == 0 && flatRun.balances.count == 11 && flatRun.balances.first == 1000 && flatRun.balances.last == 0 && flatRun.balances[3] == 700)
+    let loanRun = HBPlan.payoffPlan([debt("loan", 1000, 12, 100)], strategy: .snowball, extra: 0)
+    check("DEBT CENTER: $1,000 at 12% APR, $100 a month: 11 months, $58.98 of interest, balances 1000 → 910 → 819.10 … 0",
+          loanRun.months == 11 && near(loanRun.interest, 58.98) && loanRun.balances.count == 12 && near(loanRun.balances[1], 910) && near(loanRun.balances[2], 819.10) && loanRun.balances.last == 0)
+    check("DEBT CENTER: the new read-outs change nothing about the plan itself (same months, order and payoff months as before)", snow.months == 58 && aval.months == 57 && snow.order == ["small", "mid", "big"] && aval.order == ["big", "small", "mid"])
+    check("DEBT CENTER: nothing owed, or no payment to plan with, gives no interest and a flat balance path", HBPlan.payoffPlan([], strategy: .snowball, extra: 0).balances == [0] && HBPlan.payoffPlan([noMin], strategy: .snowball, extra: 0).balances == [500] && HBPlan.payoffPlan([noMin], strategy: .snowball, extra: 0).interest == 0)
+
+    let sum = HBPlan.debtSummary([big, small, mid, debt("done", 100, 5, 10, paid: 100)])
+    check("DEBT CENTER: summary: 4 debts, 3 still open, $6,900 started, $100 paid, $6,700 left, $190 in minimums, ~$107.17 of interest a month, 1.4% paid",
+          sum.count == 4 && sum.openCount == 3 && near(sum.startTotal, 6900) && near(sum.paidTotal, 100) && near(sum.remaining, 6700) && near(sum.minimums, 190) && near(sum.interestPerMonth, 107.1667, 0.001) && near(sum.progress, 100.0 / 6900, 1e-9))
+    check("DEBT CENTER: summary of nothing is all zeros", HBPlan.debtSummary([]) == HBDebtSummary())
+
+    let cmp0 = HBPlan.compareStrategies([big, small, mid], extra: 0)
+    check("DEBT CENTER: each side of the comparison IS the real planner's answer for that strategy", cmp0.snowball == snow && cmp0.avalanche == aval && cmp0.plan(.avalanche) == aval)
+    check("DEBT CENTER: with the minimums only, Avalanche (57 months, $4,017.40) beats Snowball (58 months, $4,187.61): saves $170.21 and 1 month",
+          cmp0.better == .avalanche && snow.months == 58 && near(snow.interest, 4187.61) && near(aval.interest, 4017.40) && near(cmp0.interestSaved, 170.21) && cmp0.monthsSooner == 1)
+    let cmp200 = HBPlan.compareStrategies([big, small, mid], extra: 200)
+    check("DEBT CENTER: with $200 extra both finish in 21 months and Avalanche still saves $282.09 ($1,164.87 vs $1,446.96), 0 months sooner",
+          cmp200.better == .avalanche && cmp200.snowball.months == 21 && cmp200.avalanche.months == 21 && near(cmp200.interestSaved, 282.09) && cmp200.monthsSooner == 0)
+    let cmpFlat = HBPlan.compareStrategies([flat], extra: 0)
+    check("DEBT CENTER: one debt has nothing to compare (no 'better', nothing saved); a plan that never pays off has no 'better' either",
+          cmpFlat.better == nil && cmpFlat.interestSaved == 0 && cmpFlat.monthsSooner == 0 && HBPlan.compareStrategies([debt("trap", 10000, 36, 50)], extra: 0).better == nil)
+
+    let plus200 = HBPlan.extraImpact([big, small, mid], strategy: .snowball, extra: 0, adding: 200)
+    check("DEBT CENTER: 'what if +$200 a month' on the Snowball plan: debt-free in 21 months instead of 58 (37 sooner), $2,740.65 less interest, and it is exactly the planner's own $200 plan",
+          plus200.plan == HBPlan.payoffPlan([big, small, mid], strategy: .snowball, extra: 200) && plus200.plan.months == 21 && plus200.monthsSooner == 37 && near(plus200.interestSaved, 2740.65))
+    let plus0 = HBPlan.extraImpact([big, small, mid], strategy: .snowball, extra: 0, adding: 0)
+    check("DEBT CENTER: adding $0 changes nothing; adding on top of an existing extra is measured against that extra",
+          plus0.monthsSooner == 0 && plus0.interestSaved == 0 && HBPlan.extraImpact([big, small, mid], strategy: .snowball, extra: 200, adding: 50).plan == HBPlan.payoffPlan([big, small, mid], strategy: .snowball, extra: 250))
+    let giveDate = HBPlan.extraImpact([noMin], strategy: .snowball, extra: 0, adding: 25)
+    check("DEBT CENTER: a debt with no minimum has no date, but an extra amount gives it one (no 'sooner' claim is made)", giveDate.plan.months != nil && giveDate.monthsSooner == nil && giveDate.interestSaved == nil)
+    check("DEBT CENTER: lengths read like people say them (3 mo, 1 yr, 1 yr 2 mo, 2 yrs)", HBPlan.duration(months: 3) == "3 mo" && HBPlan.duration(months: 12) == "1 yr" && HBPlan.duration(months: 14) == "1 yr 2 mo" && HBPlan.duration(months: 24) == "2 yrs")
 
     // forecast
     let sep29 = HBDay.parse("2026-09-29")!, sep3 = HBDay.parse("2026-09-03")!

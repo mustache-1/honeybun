@@ -89,6 +89,7 @@
 		F2AD45AC1E0605CC745CAA86 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BDB5FC16DEF0F5D23CFC387 /* SceneDelegate.swift */; };
 		39C105FA33AB67D4E59AF4D6 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 62E3DA521F78C57F849D7056 /* PrivacyInfo.xcprivacy */; };
 		3E806FF04DA53E86E88DE4EF /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = A12A1B398A0100639370938D /* PrivacyInfo.xcprivacy */; };
+		F5B09F2CFDA133C78E2644E9 /* HBDebtCenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62942972E0CE4EED73F9258F /* HBDebtCenter.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -204,6 +205,7 @@
 		6BDB5FC16DEF0F5D23CFC387 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
 		62E3DA521F78C57F849D7056 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		A12A1B398A0100639370938D /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		62942972E0CE4EED73F9258F /* HBDebtCenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HBDebtCenter.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -411,6 +413,7 @@
 				CC1545042FCCB163D68D25D5 /* HBMoneyView.swift */,
 				73D5D1B408E5D4CE717D9D56 /* HBPlanForms.swift */,
 				775F701949D6DE9D8AFF97B1 /* HBPlanView.swift */,
+				62942972E0CE4EED73F9258F /* HBDebtCenter.swift */,
 				F113C69F6A9CDE59D825753C /* HBRecurringForm.swift */,
 				C0CD7D6653F88BB239A30444 /* HBReferralsView.swift */,
 				855F24945F0B7238AC964C07 /* HBRootView.swift */,
@@ -636,6 +639,7 @@
 				B1DD155ABB55478A47E7A1AC /* HBMoneyView.swift in Sources */,
 				54CC86A9BBC23AEC42415FE3 /* HBPlanForms.swift in Sources */,
 				457ED625189F684B15484AA8 /* HBPlanView.swift in Sources */,
+				F5B09F2CFDA133C78E2644E9 /* HBDebtCenter.swift in Sources */,
 				6FDDB3759E87D396D29F5C4B /* HBRecurringForm.swift in Sources */,
 				133BA0CB285DC2C901CCF723 /* HBReferralsView.swift in Sources */,
 				7C95193B5ABD4482523F686E /* HBRootView.swift in Sources */,

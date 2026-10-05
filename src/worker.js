@@ -1476,7 +1476,7 @@ async function handle(request, env, url) {
     const month = url.searchParams.get("month") || "";
     if (!/^\d{4}-\d{2}$/.test(month)) throw new HttpError("Bad month.");
     const since = new Date(Date.now() - 45 * 86400000).toISOString().slice(0, 10);
-    const [nest, members, entries, sharedAll, settlements, recurring, logged, jar, goals, budgets, debts, debtPays, mine] = await env.DB.batch([
+    const [nest, members, entries, sharedAll, settlements, recurring, logged, jar, goals, budgets, debts, debtPays, debtBy, mine] = await env.DB.batch([
       env.DB.prepare("SELECT id, name, invite_code, accent, kind, rollover, joint, carry_mode FROM nests WHERE id = ?").bind(nestId),
       env.DB.prepare("SELECT u.id, u.name, m.emoji, m.color, m.xp, m.streak, m.best_streak, m.last_day, m.week_key, m.week_xp, m.logs FROM members m JOIN users u ON u.id = m.user_id WHERE m.nest_id = ? ORDER BY m.joined_at").bind(nestId),
       env.DB.prepare(
@@ -1492,6 +1492,9 @@ async function handle(request, env, url) {
       env.DB.prepare("SELECT category, limit_cents FROM budgets WHERE nest_id = ?").bind(nestId),
       env.DB.prepare("SELECT d.id, d.name, d.start_cents, d.apr_bp, d.min_cents, COALESCE((SELECT SUM(p.amount_cents) FROM debt_payments p WHERE p.debt_id = d.id), 0) AS paid_cents FROM debts d WHERE d.nest_id = ? ORDER BY d.created_at").bind(nestId),
       env.DB.prepare("SELECT id, debt_id, member_id, amount_cents, date FROM debt_payments WHERE nest_id = ? ORDER BY date DESC, created_at DESC LIMIT 10").bind(nestId),
+      // who has paid how much toward each debt, over all time (the recent-payments list above is capped at 10). Debt payments are logged as ordinary,
+      // non-private expenses and the debts belong to the whole household, so this adds nothing the household cannot already see.
+      env.DB.prepare("SELECT debt_id, member_id, SUM(amount_cents) AS paid_cents FROM debt_payments WHERE nest_id = ? GROUP BY debt_id, member_id").bind(nestId),
       env.DB.prepare("SELECT setup_done FROM members WHERE user_id = ?").bind(user.id),
     ]);
 
@@ -1534,7 +1537,7 @@ async function handle(request, env, url) {
       me, nest: nest.results[0], members: members.results, entries: entries.results, categories, shopping_open, carry_in: carryRow ? { amount_cents: carryRow.amount_cents, accepted: !!carryRow.accepted } : null, carry_pending: carryPending, carry_prev: carryPrev,
       balances, settlements: settlements.results.slice(0, 10), recurring: recurring.results,
       logged: logged.results, jar: jar.results, goals: goals.results, budgets: budgets.results,
-      debts: debts.results, debt_payments: debtPays.results, setup_done: !!mine.results[0]?.setup_done,
+      debts: debts.results, debt_payments: debtPays.results, debt_paid_by: debtBy.results, setup_done: !!mine.results[0]?.setup_done,
       repeats: await topRepeats(env, nestId, user.id),
       carry: await budgetCarry(env, nestId, user.id, month),
       inbox: await env.DB.prepare("SELECT COUNT(*) AS unread, (SELECT id || '|' || kind || '|' || data FROM messages WHERE user_id = ?1 AND read_at IS NULL ORDER BY created_at DESC LIMIT 1) AS latest FROM messages WHERE user_id = ?1 AND read_at IS NULL").bind(user.id).first(),

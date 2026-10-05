@@ -302,4 +302,19 @@ ok("carry_in is set and the question is gone", r.json.carry_in?.accepted === tru
 r = await call("/api/carry", "POST", { month, accept: false, change: false, remember: false });
 ok("deciding again without 'change' keeps the first choice (already)", r.status === 200 && r.json?.already === true, JSON.stringify(r));
 
+// --- Debt Center+: per-member totals ("debt_paid_by") next to the existing debts / debt_payments
+r = await call("/api/debts", "POST", { name: "Contract Visa", balance: 1000, apr: 19.99, min: 35 });
+ok("POST /api/debts → 201 {id}", r.status === 201 && typeof r.json?.id === "string", JSON.stringify(r));
+const debtId = r.json?.id;
+for (let i = 0; i < 11; i++) await call(`/api/debts/${debtId}/pay`, "POST", { amount: 10, member_id: mid, date: dd(0) });
+r = await call("/api/nest?month=" + month);
+const dbt = (r.json.debts || []).find((d) => d.id === debtId);
+ok("debts[] still carries start/apr/min and paid_cents (11 × $10 = 11000)", dbt && dbt.start_cents === 100000 && dbt.apr_bp === 1999 && dbt.min_cents === 3500 && dbt.paid_cents === 11000, JSON.stringify(dbt));
+ok("debt_payments[] is still only the latest 10 (the old behaviour is unchanged)", (r.json.debt_payments || []).filter((p) => p.debt_id === debtId).length === 10);
+const by = (r.json.debt_paid_by || []).filter((c) => c.debt_id === debtId);
+ok("debt_paid_by[] has the all-time total for me on that debt (11000 > the 10 listed), shaped {debt_id, member_id, paid_cents}", by.length === 1 && by[0].member_id === mid && by[0].paid_cents === 11000 && Object.keys(by[0]).sort().join() === "debt_id,member_id,paid_cents", JSON.stringify(by));
+await call("/api/debts/" + debtId, "DELETE");
+r = await call("/api/nest?month=" + month);
+ok("deleting the debt removes its totals too", !(r.json.debt_paid_by || []).some((c) => c.debt_id === debtId) && !(r.json.debts || []).some((d) => d.id === debtId));
+
 console.log(out.join("\n"));

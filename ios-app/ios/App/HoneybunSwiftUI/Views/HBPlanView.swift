@@ -4,11 +4,12 @@ import SwiftUI
 // Opens from Money. Everything here is the account's real data (/api/nest); every change goes through the same endpoints Classic uses.
 
 private enum HBPlanSheet: Identifiable {
-    case budgets, editBill(HBRecurring), newBill(subscription: Bool), debt(HBDebt?), pay(HBDebt), rerunSetup
+    case budgets, editBill(HBRecurring), newBill(subscription: Bool), debt(HBDebt?), pay(HBDebt), rerunSetup, debtCenter
     var id: String {
         switch self {
         case .budgets: return "budgets"
         case .rerunSetup: return "rerun-setup"
+        case .debtCenter: return "debt-center"
         case let .editBill(r): return "bill-" + r.id
         case let .newBill(s): return s ? "new-sub" : "new-bill"
         case let .debt(d): return "debt-" + (d?.id ?? "new")
@@ -53,6 +54,7 @@ struct HBPlanView: View {
             case let .debt(d): HBDebtForm(store: store, debt: d)
             case let .pay(d): HBDebtPayForm(store: store, debt: d) { name in celebrate = name }
             case .rerunSetup: HBOnboardingView(store: store, rerun: true)
+            case .debtCenter: HBDebtCenterView(store: store)
             }
         }
         .alert("Remove this payment?", isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } })) {
@@ -255,6 +257,7 @@ struct HBPlanView: View {
                     HBPillButton(title: "Add a debt", symbol: "plus", filled: false) { sheet = .debt(nil) }.accessibilityIdentifier("hb-plan-add-debt")
                 } else {
                     planner(debts, left: left, paid: paid)
+                    HBPillButton(title: "Open Debt Center", symbol: "chart.bar.fill", filled: false) { sheet = .debtCenter }.accessibilityIdentifier("hb-plan-debt-center")
                     ForEach(Array(ordered.enumerated()), id: \.element.id) { i, d in debtRow(d, rank: d.paidOff ? nil : i + 1, paidOffBy: plan.done[d.id]) }
                     if !pays.isEmpty {
                         Divider().background(HB.line)

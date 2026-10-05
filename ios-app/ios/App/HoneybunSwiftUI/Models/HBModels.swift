@@ -105,6 +105,7 @@ struct HBNestSnapshot: Decodable {
     let balances: [String: Int]?; let settlements: [HBSettlement]?
     let carry_pending: HBCarryPrompt?; let carry_prev: HBCarryPrompt?; let categories: [HBCustomCategory]?; let setup_done: Bool?
     let budgets: [HBBudget]?; let debts: [HBDebt]?; let debt_payments: [HBDebtPayment]?
+    let debt_paid_by: [HBDebtContribution]?   // what each member has paid toward each debt, all time (older servers don't send it)
     let carry: [String: Int]?            // per-category budget roll-over from earlier months (cents)
     let repeats: [HBRepeat]?             // your most common expenses (one-tap repeats on the Add screen)
 }
@@ -130,6 +131,8 @@ struct HBDebt: Decodable, Identifiable {
     var progress: Double { start_cents > 0 ? min(1, Double(paid_cents) / Double(start_cents)) : 0 }
     var paidOff: Bool { remaining <= 0 }
 }
+/// what one household member has paid toward one debt, all time (from /api/nest "debt_paid_by")
+struct HBDebtContribution: Decodable, Equatable { let debt_id: String; let member_id: String; let paid_cents: Int }
 struct HBDebtPayment: Decodable, Identifiable { let id: String; let debt_id: String; let member_id: String; let amount_cents: Int; let date: String; var amount: Double { Double(amount_cents) / 100.0 } }
 
 enum HBCategory: String, CaseIterable, Identifiable {

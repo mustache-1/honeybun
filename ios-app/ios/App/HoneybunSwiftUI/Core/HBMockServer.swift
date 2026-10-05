@@ -708,7 +708,17 @@ final class HBMockServer: URLProtocol {
         func index(_ id: String) -> Int? { goals.firstIndex { ($0["id"] as? String) == id } }
         let last = path.split(separator: "/").last.map(String.init) ?? ""
 
-        if path == "/api/nest" && method == "GET" { var s = state; s["goals"] = goals; s["jar"] = jar; return (200, s) }
+        if path == "/api/nest" && method == "GET" {
+            var s = state; s["goals"] = goals; s["jar"] = jar
+            // what each member has paid toward each debt, all time (mirrors src/worker.js "debt_paid_by")
+            var by: [String: Int] = [:]
+            for p in (state["debt_payments"] as? [[String: Any]] ?? []) { by[(p["debt_id"] as? String ?? "") + "|" + (p["member_id"] as? String ?? ""), default: 0] += p["amount_cents"] as? Int ?? 0 }
+            s["debt_paid_by"] = by.keys.sorted().map { k -> [String: Any] in
+                let parts = k.components(separatedBy: "|")
+                return ["debt_id": parts[0], "member_id": parts.count > 1 ? parts[1] : "", "paid_cents": by[k] ?? 0]
+            }
+            return (200, s)
+        }
 
         if path == "/api/goals" && method == "POST" {
             let name = String((body["name"] as? String ?? "").trimmingCharacters(in: .whitespaces).prefix(30))

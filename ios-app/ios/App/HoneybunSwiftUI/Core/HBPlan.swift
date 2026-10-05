@@ -158,6 +158,9 @@ struct HBPayoffPlan: Equatable {
     let months: Int?                 // nil: no minimum payments to plan with, or not paid off within 50 years
     let order: [String]              // debt ids, the one to pay extra on first at the front (debts with a balance only)
     let done: [String: Int]          // debt id → the month (counting from now) it reaches $0
+    // Debt Center+: read-outs of the same month-by-month run (they never feed back into the plan itself)
+    var interest: Double = 0         // interest added over the whole run (only meaningful when `months` is not nil)
+    var balances: [Double] = []      // total still owed: [0] is today, [n] is the end of month n
 }
 
 extension HBPlan {
@@ -174,14 +177,16 @@ extension HBPlan {
             return x.offset < y.offset
         }
         let order = ranked.map { $0.element.id }
-        if ds.isEmpty { return HBPayoffPlan(months: 0, order: order, done: [:]) }
+        if ds.isEmpty { return HBPayoffPlan(months: 0, order: order, done: [:], interest: 0, balances: [0]) }
         let budget = ds.reduce(0) { $0 + $1.min } + extra
         var done: [String: Int] = [:]
-        if budget <= 0 { return HBPayoffPlan(months: nil, order: order, done: done) }
+        var interest = 0.0
+        var balances = [ds.reduce(0) { $0 + $1.bal }]
+        if budget <= 0 { return HBPayoffPlan(months: nil, order: order, done: done, interest: 0, balances: balances) }
         var m = 0
         while ds.contains(where: { $0.bal > 0.005 }) && m < 600 {
             m += 1
-            for i in ds.indices where ds[i].bal > 0.005 { ds[i].bal += ds[i].bal * ds[i].r }
+            for i in ds.indices where ds[i].bal > 0.005 { let add = ds[i].bal * ds[i].r; ds[i].bal += add; interest += add }
             var pool = budget
             for i in ds.indices where ds[i].bal > 0.005 { let p = Swift.min(ds[i].min, ds[i].bal, pool); ds[i].bal -= p; pool -= p }
             for id in order {
@@ -189,8 +194,9 @@ extension HBPlan {
                 if ds[i].bal > 0.005 && pool > 0 { let p = Swift.min(pool, ds[i].bal); ds[i].bal -= p; pool -= p }
             }
             for d in ds where d.bal <= 0.005 && done[d.id] == nil { done[d.id] = m }
+            balances.append(Swift.max(0, ds.reduce(0) { $0 + Swift.max(0, $1.bal) }))
         }
-        return HBPayoffPlan(months: m >= 600 ? nil : m, order: order, done: done)
+        return HBPayoffPlan(months: m >= 600 ? nil : m, order: order, done: done, interest: interest, balances: balances)
     }
 
     /// "Mar 2027": n months from `from`, the way the website's monthsOut() counts it (it adds months to the date, so the 31st can roll into the next month)
@@ -209,6 +215,94 @@ extension HBPlan {
             let ia = plan.order.firstIndex(of: x.element.id) ?? 999, ib = plan.order.firstIndex(of: y.element.id) ?? 999
             return ia != ib ? ia < ib : x.offset < y.offset
         }.map { $0.element }
+    }
+}
+
+// MARK: - Debt Center+ (read-outs built on payoffPlan above; nothing here is a second payoff engine)
+
+/// The headline numbers for the whole household's debts.
+struct HBDebtSummary: Equatable {
+    var count = 0, openCount = 0
+    var startTotal = 0.0, paidTotal = 0.0, remaining = 0.0
+    var minimums = 0.0                    // minimum payments per month, debts with a balance only
+    var interestPerMonth = 0.0            // roughly what the current balances cost in interest each month
+    /// 0…1 share of everything originally owed that has been paid
+    var progress: Double { startTotal > 0 ? Swift.min(1, paidTotal / startTotal) : 0 }
+}
+
+/// Snowball and Avalanche run side by side with the same extra payment.
+struct HBStrategyCompare: Equatable {
+    let snowball: HBPayoffPlan
+    let avalanche: HBPayoffPlan
+    /// the strategy that costs less interest (then finishes sooner); nil when they come out the same or one of them never pays off
+    let better: HBDebtStrategy?
+    var interestSaved: Double {      // what `better` saves over the other one
+        guard let b = better else { return 0 }
+        return Swift.max(0, b == .avalanche ? snowball.interest - avalanche.interest : avalanche.interest - snowball.interest)
+    }
+    var monthsSooner: Int {           // how many months sooner `better` is debt-free (0 when they finish together)
+        guard let b = better, let s = snowball.months, let a = avalanche.months else { return 0 }
+        return b == .avalanche ? Swift.max(0, s - a) : Swift.max(0, a - s)
+    }
+    func plan(_ s: HBDebtStrategy) -> HBPayoffPlan { s == .snowball ? snowball : avalanche }
+}
+
+/// "What if I put $X more toward my debt each month?", against what is planned now.
+struct HBExtraImpact: Equatable {
+    let add: Double                   // the additional monthly amount that was tried
+    let plan: HBPayoffPlan            // the plan with (current extra + add)
+    let monthsSooner: Int?            // nil unless both plans have a debt-free date
+    let interestSaved: Double?        // nil unless both plans have a debt-free date
+}
+
+extension HBPlan {
+    static func debtSummary(_ debts: [HBDebt]) -> HBDebtSummary {
+        var s = HBDebtSummary()
+        s.count = debts.count
+        for d in debts {
+            s.startTotal += d.start; s.paidTotal += Double(d.paid_cents) / 100.0; s.remaining += d.remaining
+            if !d.paidOff { s.openCount += 1; s.minimums += d.minimum; s.interestPerMonth += d.remaining * d.apr / 100.0 / 12.0 }
+        }
+        return s
+    }
+
+    static func compareStrategies(_ debts: [HBDebt], extra: Double) -> HBStrategyCompare {
+        let sn = payoffPlan(debts, strategy: .snowball, extra: extra), av = payoffPlan(debts, strategy: .avalanche, extra: extra)
+        var better: HBDebtStrategy? = nil
+        if let sm = sn.months, let am = av.months {
+            let diff = sn.interest - av.interest          // > 0: Avalanche costs less
+            if diff > 0.005 { better = .avalanche }
+            else if diff < -0.005 { better = .snowball }
+            else if am < sm { better = .avalanche }
+            else if sm < am { better = .snowball }
+        }
+        return HBStrategyCompare(snowball: sn, avalanche: av, better: better)
+    }
+
+    static func extraImpact(_ debts: [HBDebt], strategy: HBDebtStrategy, extra: Double, adding add: Double) -> HBExtraImpact {
+        let base = payoffPlan(debts, strategy: strategy, extra: extra)
+        let with = payoffPlan(debts, strategy: strategy, extra: extra + Swift.max(0, add))
+        if let bm = base.months, let wm = with.months { return HBExtraImpact(add: add, plan: with, monthsSooner: Swift.max(0, bm - wm), interestSaved: Swift.max(0, base.interest - with.interest)) }
+        return HBExtraImpact(add: add, plan: with, monthsSooner: nil, interestSaved: nil)
+    }
+
+    /// a short, human length of time: 14 → "1 yr 2 mo", 3 → "3 mo", 24 → "2 yrs"
+    static func duration(months n: Int) -> String {
+        if n < 12 { return "\(n) mo" }
+        let y = n / 12, m = n % 12
+        return (y == 1 ? "1 yr" : "\(y) yrs") + (m > 0 ? " \(m) mo" : "")
+    }
+
+    /// Who paid how much toward `debt` (all time). Uses the server's totals when it sends them; an older server falls back to the recent payments it does send.
+    static func contributions(for debt: HBDebt, snapshot s: HBNestSnapshot) -> [(memberID: String, paid: Double)] {
+        var by: [String: Int] = [:]
+        if let all = s.debt_paid_by { for c in all where c.debt_id == debt.id { by[c.member_id, default: 0] += c.paid_cents } }
+        else { for p in s.debt_payments ?? [] where p.debt_id == debt.id { by[p.member_id, default: 0] += p.amount_cents } }
+        // household order, then anyone who has since left
+        let order = s.members.map { $0.id }
+        let known = order.compactMap { id in by[id].map { (memberID: id, paid: Double($0) / 100.0) } }
+        let gone = by.keys.filter { !order.contains($0) }.sorted().map { (memberID: $0, paid: Double(by[$0] ?? 0) / 100.0) }
+        return (known + gone).filter { $0.paid > 0 }
     }
 }
 
