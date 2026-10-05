@@ -12,6 +12,8 @@ struct HBRecurringForm: View {
     @State private var amountText: String
     @State private var label: String
     @State private var category: String
+    @State private var showNewCategory = false
+    @State private var customCountBefore = 0
     @State private var freq: String
     @State private var date: Date
     @State private var error: String?
@@ -63,7 +65,17 @@ struct HBRecurringForm: View {
                                         .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(category == c.id ? HB.orange : Color.white.opacity(0.07)))
                                     }
                                 }
+                                if (store.snapshot?.categories?.count ?? 0) < 12 {
+                                    Button { customCountBefore = store.snapshot?.categories?.count ?? 0; showNewCategory = true } label: {
+                                        VStack(spacing: 5) { Image(systemName: "plus").font(.system(size: 18, weight: .semibold)); Text("New").font(.caption.weight(.semibold)) }
+                                            .frame(maxWidth: .infinity, minHeight: 58).foregroundColor(HB.orange)
+                                            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(HB.orange.opacity(0.5), style: StrokeStyle(lineWidth: 1, dash: [4, 3])))
+                                    }.accessibilityIdentifier("hb-recurring-new-category")
+                                }
                             }
+                            .sheet(isPresented: $showNewCategory, onDismiss: {
+                                if let cats = store.snapshot?.categories, cats.count > customCountBefore, let c = cats.last { category = c.id }
+                            }) { HBCategoryForm(store: store, existing: nil) }
                         }
                     }
                     if let error = error { Text(error).font(.footnote.weight(.semibold)).foregroundColor(HB.red) }

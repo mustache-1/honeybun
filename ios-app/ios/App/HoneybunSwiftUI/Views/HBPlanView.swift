@@ -4,10 +4,11 @@ import SwiftUI
 // Opens from Money. Everything here is the account's real data (/api/nest); every change goes through the same endpoints Classic uses.
 
 private enum HBPlanSheet: Identifiable {
-    case budgets, editBill(HBRecurring), newBill(subscription: Bool), debt(HBDebt?), pay(HBDebt)
+    case budgets, editBill(HBRecurring), newBill(subscription: Bool), debt(HBDebt?), pay(HBDebt), rerunSetup
     var id: String {
         switch self {
         case .budgets: return "budgets"
+        case .rerunSetup: return "rerun-setup"
         case let .editBill(r): return "bill-" + r.id
         case let .newBill(s): return s ? "new-sub" : "new-bill"
         case let .debt(d): return "debt-" + (d?.id ?? "new")
@@ -51,6 +52,7 @@ struct HBPlanView: View {
                 HBRecurringForm(store: store, editing: nil, base: { var d = HBRecurringDraft(date: HBDay.todayString, memberID: store.myID); if sub { d.category = "subs" }; return d }())
             case let .debt(d): HBDebtForm(store: store, debt: d)
             case let .pay(d): HBDebtPayForm(store: store, debt: d) { name in celebrate = name }
+            case .rerunSetup: HBOnboardingView(store: store, rerun: true)
             }
         }
         .alert("Remove this payment?", isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } })) {
@@ -202,6 +204,7 @@ struct HBPlanView: View {
                 }
             }
             .hbCard()
+            Button { sheet = .rerunSetup } label: { Text("Run the quick paydays & bills setup again").font(.footnote.weight(.semibold)).foregroundColor(HB.orange) }.accessibilityIdentifier("hb-plan-rerun-setup")
             if !showSubs && !subs.rows.isEmpty {
                 Button { showSubs = true } label: { Text("\(subs.rows.count) subscription\(subs.rows.count == 1 ? "" : "s") in the Subscriptions tab ›").font(.footnote.weight(.semibold)).foregroundColor(HB.orange) }
             }

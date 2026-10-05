@@ -71,6 +71,9 @@ struct HBSetupView: View {
 @available(iOS 15.0, *)
 struct HBOnboardingView: View {
     @ObservedObject var store: HBAppStore
+    /// "Run the quick setup again" (Settings / Plan): just paydays and bills, then close. It adds to what is there, it never replaces it.
+    var rerun = false
+    @Environment(\.dismiss) private var dismiss
     @State private var step = 0
     @State private var error: String?
     @State private var busy = false
@@ -86,7 +89,8 @@ struct HBOnboardingView: View {
     @State private var billCategory = HBCategory.bills
     @State private var sharing = false
 
-    private var steps: [String] { ["buddy"] + ((store.kind != "solo" && store.members.count < 2) ? ["invite"] : []) + ["paydays", "bills", "done"] }
+    private var steps: [String] { rerun ? ["paydays", "bills", "done"] : ["buddy"] + ((store.kind != "solo" && store.members.count < 2) ? ["invite"] : []) + ["paydays", "bills", "done"] }
+    private func finish() { if rerun { Task { await store.refresh(); dismiss() } } else { Task { await store.finishOnboarding() } } }
     private var current: String { steps[min(step, steps.count - 1)] }
     private var me: HBMember? { store.member(store.myID) }
 
@@ -103,7 +107,7 @@ struct HBOnboardingView: View {
                             Capsule().fill(HB.orange).frame(width: g.size.width * CGFloat(step) / CGFloat(max(1, steps.count - 1)))
                         }
                     }.frame(height: 8)
-                    Button("Skip") { Task { await store.finishOnboarding() } }.foregroundColor(HB.soft).opacity(current == "done" ? 0 : 1).accessibilityIdentifier("hb-onboard-skip")
+                    Button(rerun ? "Close" : "Skip") { finish() }.foregroundColor(HB.soft).opacity(current == "done" ? 0 : 1).accessibilityIdentifier("hb-onboard-skip")
                 }
                 .padding(.horizontal, HB.gutter).padding(.top, 8)
                 ScrollView {
@@ -125,7 +129,7 @@ struct HBOnboardingView: View {
 
     private func next() {
         hbHideKeyboard(); error = nil
-        if current == "done" { Task { await store.finishOnboarding() }; return }
+        if current == "done" { finish(); return }
         step += 1
     }
 

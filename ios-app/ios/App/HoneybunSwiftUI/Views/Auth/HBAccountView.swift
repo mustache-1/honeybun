@@ -35,6 +35,7 @@ struct HBAccountView: View {
     @State private var showUpdates = false
     @State private var showTips = false
     @State private var showShortcut = false
+    @State private var showRerunSetup = false
     @State private var confirmLeave = false
     @State private var pushStatus: UNAuthorizationStatus = .notDetermined
     @State private var mailBills = true
@@ -55,6 +56,7 @@ struct HBAccountView: View {
             sectionTitle("Account")
             profileCard
             if let r = user?.ref { referralRow(r) }
+            rerunSetupRow
             if hasEmail { emailCard }
             sectionTitle("Security")
             securityCard
@@ -86,6 +88,7 @@ struct HBAccountView: View {
         .sheet(isPresented: $showUpdates) { HBUpdatesView() }
         .sheet(isPresented: $showTips) { HBTipsView() }
         .sheet(isPresented: $showShortcut) { HBShortcutView(store: store) }
+        .sheet(isPresented: $showRerunSetup) { HBOnboardingView(store: store, rerun: true) }
         .confirmationDialog("Leave this budget?", isPresented: $confirmLeave, titleVisibility: .visible) {
             Button("Leave", role: .destructive) { leave() }
             Button("Stay", role: .cancel) {}
@@ -107,6 +110,11 @@ struct HBAccountView: View {
 
     // MARK: pieces
 
+    /// the website's "Paydays & bills: run the quick setup again"
+    private var rerunSetupRow: some View {
+        Button { showRerunSetup = true } label: { linkRow("Paydays & bills", "Run the quick setup again", "calendar.badge.plus").padding(.horizontal, 14).hbCard() }
+            .accessibilityIdentifier("hb-settings-rerun-setup")
+    }
     private func referralRow(_ r: HBRefSummary) -> some View {
         Button { store.sheet = .referrals } label: {
             HStack(spacing: 12) {

@@ -70,6 +70,8 @@ struct HBEntryForm: View {
     @State private var error: String?
     @State private var saving = false
     @State private var confirmDelete = false
+    @State private var showNewCategory = false
+    @State private var customCountBefore = 0
 
     init(store: HBAppStore, editing: HBEntry?, base: HBEntryDraft) {
         self.store = store; self.editing = editing; self.base = base
@@ -206,7 +208,26 @@ struct HBEntryForm: View {
                 .accessibilityLabel(t.label)
                 .accessibilityAddTraits(on ? .isSelected : [])
             }
+            if !isIncome && (store.snapshot?.categories?.count ?? 0) < 12 { newCategoryTile }
         }
+        .sheet(isPresented: $showNewCategory, onDismiss: pickNewCategory) { HBCategoryForm(store: store, existing: nil) }
+    }
+
+    /// "+ New": make your own category right here (the same editor as Plan → Budget → Your categories); the new one is picked
+    private var newCategoryTile: some View {
+        Button { customCountBefore = store.snapshot?.categories?.count ?? 0; showNewCategory = true } label: {
+            VStack(spacing: 6) {
+                Image(systemName: "plus").font(.system(size: 22, weight: .semibold)).foregroundColor(HB.orange)
+                    .frame(width: 58, height: 58).background(Circle().fill(HB.orange.opacity(0.12)))
+                    .overlay(Circle().stroke(HB.orange.opacity(0.5), style: StrokeStyle(lineWidth: 1, dash: [4, 3])))
+                Text("New").font(.system(size: 12, weight: .medium)).foregroundColor(Color(red: 0.8, green: 0.76, blue: 0.9))
+            }.frame(maxWidth: .infinity)
+        }
+        .accessibilityLabel("New category").accessibilityIdentifier("hb-entry-new-category")
+    }
+    private func pickNewCategory() {
+        guard let cats = store.snapshot?.categories, cats.count > customCountBefore, let c = cats.last else { return }
+        pick = c.id; category = c.id
     }
 
     private var details: some View {
