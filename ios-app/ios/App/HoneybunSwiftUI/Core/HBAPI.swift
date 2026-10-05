@@ -27,6 +27,7 @@ actor HBAPI {
         r.timeoutInterval = 20
         r.setValue("application/json", forHTTPHeaderField: "Accept")
         r.setValue("https://honeybun.me", forHTTPHeaderField: "Origin")
+        r.setValue(HBDevice.id(), forHTTPHeaderField: "x-hb-device")
         if let body = body {
             r.httpBody = try JSONSerialization.data(withJSONObject: body)
             r.setValue("application/json", forHTTPHeaderField: "Content-Type")

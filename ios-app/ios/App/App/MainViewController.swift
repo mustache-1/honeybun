@@ -18,6 +18,9 @@ class MainViewController: CAPBridgeViewController, UITabBarDelegate {
         // hand the website the Halloween Honeybun switch before it loads, so its first paint is already right (one stored value, owned here)
         let flag = WKUserScript(source: "window.__hbHH = \(HalloweenPref.enabled ? "true" : "false");", injectionTime: .atDocumentStart, forMainFrameOnly: true)
         bridge?.webView?.configuration.userContentController.addUserScript(flag)
+        // Classic and native Honeybun are the same phone: give the website this install's device id (the backend uses it to tell when a "new friend" is on the referrer's own phone)
+        let dev = WKUserScript(source: "try { localStorage.setItem('hb-device', '\(HBDevice.id())'); } catch (e) {}", injectionTime: .atDocumentStart, forMainFrameOnly: true)
+        bridge?.webView?.configuration.userContentController.addUserScript(dev)
         bridge?.registerPluginInstance(BiometricLockPlugin())
         bridge?.registerPluginInstance(HoneybunNativePlugin())
     }

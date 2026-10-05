@@ -29,8 +29,8 @@ await new Promise((res, rej) => {
 
 // ---- tiny client (one cookie jar per "device")
 const jar = () => ({ cookie: "" });
-async function call(j, path, method = "GET", body, { origin = true } = {}) {
-  const h = { accept: "application/json" };
+async function call(j, path, method = "GET", body, { origin = true, headers = {} } = {}) {
+  const h = { accept: "application/json", ...headers };
   if (origin) h.origin = ORIGIN;
   if (j.cookie) h.cookie = j.cookie;
   let payload;
@@ -296,7 +296,66 @@ const aasa = await r.json().catch(() => null);
 ok("/.well-known/apple-app-site-association → JSON with webcredentials for TEAMID.me.honeybun.app (so passkeys work in the iPhone app)", r.status === 200 && /application\/json/.test(r.headers.get("content-type") || "") && aasa?.webcredentials?.apps?.[0] === "TEAM123456.me.honeybun.app", JSON.stringify(aasa));
 
 const comps = (aasa?.applinks?.details?.[0]?.components || []).map((c) => c["/"]);
-ok("…and Universal Links for only the email / invite links (/verify/*, /reset/*, /join/*), so the rest of the site stays in Safari", aasa?.applinks?.details?.[0]?.appIDs?.[0] === "TEAM123456.me.honeybun.app" && JSON.stringify(comps) === JSON.stringify(["/verify/*", "/reset/*", "/join/*"]), JSON.stringify(aasa));
+ok("…and Universal Links for only the email / invite links (/verify/*, /reset/*, /join/*, /r/*), so the rest of the site stays in Safari", aasa?.applinks?.details?.[0]?.appIDs?.[0] === "TEAM123456.me.honeybun.app" && JSON.stringify(comps) === JSON.stringify(["/verify/*", "/reset/*", "/join/*", "/r/*"]), JSON.stringify(aasa));
+
+// ===== 10. referral links: the code travels with the native sign-up, and the phone's device id is honoured =====
+const devId = () => Array.from({ length: 22 }, () => "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"[Math.floor(Math.random() * 64)]).join("");
+resetLimits();
+const DEV_R = devId(), DEV_G = devId();
+const R1 = jar(), uR = uname("rf");
+r = await call(R1, "/api/signup", "POST", { name: "Referrer", username: uR, password: PW }, { headers: { "x-hb-device": DEV_R } });
+ok("a referrer signs up (from their phone, sending its x-hb-device id)", r.status === 201);
+r = await call(R1, "/api/referrals");
+const refCode = r.json?.code || "";
+ok("GET /api/referrals gives the referrer a code and a link /r/CODE (what the Universal Link carries)", r.status === 200 && /^[A-Z0-9]{7}$/.test(refCode) && /\/r\/[A-Z0-9]{7}$/.test(r.json.link || "") && r.json.people.length === 0, JSON.stringify(r.json));
+const G1 = jar(), uG = uname("rg");
+r = await call(G1, "/api/signup", "POST", { name: "Friend", username: uG, password: PW, ref: refCode.toLowerCase() }, { headers: { "x-hb-device": DEV_G } });
+ok("a friend signs up natively with the code in the body (`ref`, any case) → 201", r.status === 201);
+r = await call(R1, "/api/referrals");
+ok("the referrer now has that friend, pending (credit starts counting)", r.json?.people?.length === 1 && r.json.people[0].status === "pending" && r.json.pending === 1, JSON.stringify(r.json?.people));
+const S1 = jar(), uS = uname("rs");
+r = await call(S1, "/api/signup", "POST", { name: "Same Phone", username: uS, password: PW, ref: refCode }, { headers: { "x-hb-device": DEV_R } });
+r = await call(R1, "/api/referrals");
+ok("someone signing up from the REFERRER'S OWN phone (same x-hb-device) is recorded but rejected: same_device", r.json?.people?.length === 2 && r.json.people.some((p) => p.status === "rejected" && p.reason === "same_device") && r.json.rejected === 1, JSON.stringify(r.json?.people));
+const N1 = jar(), uN = uname("rn");
+r = await call(N1, "/api/signup", "POST", { name: "No Ref", username: uN, password: PW }, { headers: { "x-hb-device": devId() } });
+r = await call(R1, "/api/referrals");
+ok("a normal sign-up with no code adds nothing to the referrer", r.status === 200 && r.json.people.length === 2);
+const U1 = jar(), uU = uname("ru");
+r = await call(U1, "/api/signup", "POST", { name: "Bad Ref", username: uU, password: PW, ref: "ZZZZZZZZ" }, { headers: { "x-hb-device": devId() } });
+ok("an unknown referral code never blocks a sign-up (account is still made)", r.status === 201);
+r = await call(R1, "/api/referrals");
+ok("…and credits nobody", r.json.people.length === 2);
+// a friend who signs in with Apple carries the code too (new accounts only)
+resetLimits();
+r = await apple(jar(), { sub: "apple-ref-" + Date.now() }, { name: "Apple Friend", ref: refCode });
+r = await call(R1, "/api/referrals");
+ok("Sign in with Apple creating a new account with `ref` credits the referrer too (3 people now)", r.json?.people?.length === 3 && r.json.people.filter((p) => p.status === "pending").length === 2, JSON.stringify(r.json?.people?.map((p) => p.status)));
+
+// ===== 11. widget + Siri token isolation between accounts (what a native logout / login relies on) =====
+resetLimits();
+const WA = jar(), wA = uname("wa"), WB = jar(), wB = uname("wb");
+await call(WA, "/api/signup", "POST", { name: "Alice", username: wA, password: PW });
+await call(WA, "/api/nests", "POST", { kind: "solo", name: "Alice Hive" });
+await call(WB, "/api/signup", "POST", { name: "Bob", username: wB, password: PW });
+await call(WB, "/api/nests", "POST", { kind: "solo", name: "Bob Hive" });
+r = await call(WA, "/api/app/token", "POST");
+const tokA = r.json?.token || "";
+ok("account A login → POST /api/app/token returns this phone's token (hb_app_…)", r.status === 201 && /^hb_app_/.test(tokA));
+const bearer = (t) => ({ headers: { authorization: "Bearer " + t }, origin: false });
+r = await call(jar(), "/api/app/summary", "GET", undefined, bearer(tokA));
+ok("the widget/Siri token A shows account A's budget only (Alice Hive)", r.status === 200 && r.json?.name === "Alice Hive", JSON.stringify(r.json));
+await call(WA, "/api/app/token", "DELETE");
+await call(WA, "/api/logout", "POST");
+r = await call(jar(), "/api/app/summary", "GET", undefined, bearer(tokA));
+ok("account A logs out (token revoked on the server first) → the old token shows NOTHING (401), even if a copy were still on the phone", r.status === 401, JSON.stringify([r.status, r.json]));
+r = await call(WB, "/api/app/token", "POST");
+const tokB = r.json?.token || "";
+ok("account B login → a new, different token", r.status === 201 && /^hb_app_/.test(tokB) && tokB !== tokA);
+r = await call(jar(), "/api/app/summary", "GET", undefined, bearer(tokB));
+ok("the widget/Siri token B shows account B's budget only (Bob Hive), never A's", r.status === 200 && r.json?.name === "Bob Hive" && !/Alice/.test(r.text));
+r = await call(jar(), "/api/app/summary", "GET", undefined, bearer(tokA));
+ok("…and A's old token still gets nothing after B signed in", r.status === 401);
 
 // ===== 9. Google sign-in is gone =====
 r = await call(jar(), "/api/auth/google", "POST", { credential: "x".repeat(200) });

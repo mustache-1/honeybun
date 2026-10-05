@@ -179,6 +179,75 @@ func run() async {
     _ = try? await api.send("/api/push/apns", method: "DELETE", body: ["token": "abcd"])
     let msg2 = (try? await api.sendTestPush()) ?? "threw"
     check("SETTINGS: a registered phone gets the test; removing its token (what log out does) stops it", msg1 == "Sent!" && msg2.contains("No phone"))
+    // referral links: Universal Link → remembered → sent with the native sign-up → the referrer is credited
+    let rdef = UserDefaults(suiteName: "hb-test-ref")!; rdef.removePersistentDomain(forName: "hb-test-ref")
+    check("REFERRAL: honeybun.me/r/CODE is a referral link (4–16 letters/numbers, any case → upper); other paths and other sites are not",
+          HBReferral.code(from: URL(string: "https://honeybun.me/r/abc234x")!) == "ABC234X" && HBReferral.code(from: URL(string: "https://honeybun.me/r/ab")!) == nil && HBReferral.code(from: URL(string: "https://honeybun.me/r/")!) == nil
+          && HBReferral.code(from: URL(string: "https://honeybun.me/privacy.html")!) == nil && HBReferral.code(from: URL(string: "https://evil.example/r/ABC234X")!) == nil)
+    check("REFERRAL: HBDeepLink knows it too, and it does not disturb the other links", HBDeepLink.parse(URL(string: "https://honeybun.me/r/ABC234X")!) == .referral("ABC234X") && HBDeepLink.parse(URL(string: "https://honeybun.me/join/ABCD-EFGH")!) == .join("ABCD-EFGH"))
+    let t0 = Date(timeIntervalSince1970: 1_790_000_000)
+    check("REFERRAL: nothing is remembered to begin with", HBReferral.pending(now: t0, rdef) == nil)
+    HBReferral.remember("abc234x", now: t0, rdef)
+    check("REFERRAL: the code is remembered for 60 days (59 days later it is still there, 61 days later it is gone)", HBReferral.pending(now: t0.addingTimeInterval(59 * 86400), rdef) == "ABC234X" && HBReferral.pending(now: t0.addingTimeInterval(61 * 86400), rdef) == nil)
+    HBReferral.clear(rdef)
+    check("REFERRAL: it is cleared once used", HBReferral.pending(now: t0, rdef) == nil)
+    HBReferral.remember("no", now: t0, rdef)
+    check("REFERRAL: a too-short code is never remembered", HBReferral.pending(now: t0, rdef) == nil)
+    var dRef = HBSignupDraft(); dRef.name = "Referrer"; dRef.id = .username("ref_r1"); dRef.password = "Passw0rd!xyzzy"
+    _ = try? await api.signup(dRef)
+    let refInfo = try? await api.referrals()
+    let myCode = refInfo?.code ?? ""
+    _ = try? await api.logout(); clearCookies()
+    HBReferral.remember(myCode)                                             // the friend taps the Universal Link …
+    var dFriend = HBSignupDraft(); dFriend.name = "Friend"; dFriend.id = .username("ref_f1"); dFriend.password = "Passw0rd!xyzzy"
+    dFriend.ref = HBReferral.pending()                                      // … the sign-up screen sends the remembered code …
+    check("REFERRAL: the sign-up body carries `ref` only when there is a code; a normal sign-up has none", (dFriend.json["ref"] as? String) == myCode.uppercased() && HBSignupDraft().json["ref"] == nil)
+    _ = try? await api.signup(dFriend)
+    HBReferral.clear()
+    _ = try? await api.logout(); clearCookies()
+    _ = try? await api.login(who: "ref_r1", password: "Passw0rd!xyzzy")
+    let after = try? await api.referrals()
+    check("REFERRAL: link → sign-up → the referrer's list (the existing /api/referrals) shows the friend as pending; the code is cleared after use",
+          after?.people.count == 1 && after?.people.first?.name == "Friend" && after?.people.first?.status == "pending" && HBReferral.pending() == nil)
+    _ = try? await api.logout(); clearCookies()
+    var dNo = HBSignupDraft(); dNo.name = "Plain"; dNo.id = .username("ref_n1"); dNo.password = "Passw0rd!xyzzy"
+    _ = try? await api.signup(dNo)
+    _ = try? await api.logout(); clearCookies()
+    _ = try? await api.login(who: "ref_r1", password: "Passw0rd!xyzzy")
+    check("REFERRAL: a normal sign-up (no link) adds nobody to the referrer", (try? await api.referrals())?.people.count == 1)
+    _ = try? await api.logout(); clearCookies()
+    check("DEVICE: every request carries a stable x-hb-device id for this phone (22 letters/numbers/-/_), the same one each time", HBDevice.isValid(HBDevice.id()) && HBDevice.id() == HBDevice.id() && HBDevice.id().count == 22)
+
+    // the widget / Siri token follows the session (Account A → logout → Account B)
+    var tokenReloads = 0
+    HBDeviceToken.onChange = { tokenReloads += 1 }
+    Honeybun.token = nil
+    var dA = HBSignupDraft(); dA.name = "Alice"; dA.id = .username("alice_w1"); dA.password = "Passw0rd!xyzzy"
+    _ = try? await api.signup(dA)
+    await HBDeviceToken.ensure()
+    let tokA = Honeybun.token ?? ""
+    let sumA = try? await HoneybunAPI.summary()
+    check("TOKEN: signing in as A makes this phone a widget/Siri token, and it shows A's budget only", tokA.hasPrefix("hb_app_") && sumA?.name == "Alice Hive" && tokenReloads == 1)
+    await HBDeviceToken.ensure()
+    check("TOKEN: signing in again keeps the same token (no new one is made while the phone has one)", Honeybun.token == tokA && tokenReloads == 1)
+    await HBDeviceToken.revokeOnServer()
+    _ = try? await api.logout(); clearCookies()
+    HBDeviceToken.clearLocal()
+    var staleErr = ""
+    do { _ = try await HoneybunAPI.summary() } catch { staleErr = "\(error)" }
+    check("TOKEN: after A logs out the phone has no token, so the widget/Siri ask for nothing and get 'not signed in'; the widget is told to redraw", Honeybun.token == nil && staleErr == "notSignedIn" && tokenReloads == 2)
+    Honeybun.token = tokA        // even if a stale copy of A's token were put back on the phone…
+    var revokedErr = ""
+    do { _ = try await HoneybunAPI.summary() } catch { revokedErr = "\(error)" }
+    check("TOKEN: …the server already revoked it at log out, so it shows nothing of A (not signed in)", revokedErr == "notSignedIn")
+    Honeybun.token = nil
+    var dB = HBSignupDraft(); dB.name = "Bob"; dB.id = .username("bob_w1"); dB.password = "Passw0rd!xyzzy"
+    _ = try? await api.signup(dB)
+    await HBDeviceToken.ensure()
+    let sumB = try? await HoneybunAPI.summary()
+    check("TOKEN: B signs in on the same phone → a new token that shows B's budget only, never A's", (Honeybun.token ?? "").hasPrefix("hb_app_") && Honeybun.token != tokA && sumB?.name == "Bob Hive" && !(sumB?.name.contains("Alice") ?? true))
+    _ = try? await api.logout(); clearCookies(); Honeybun.token = nil
+
     // Apple Pay auto-logging key
     let keyA = (try? await api.makeShortcutKey()) ?? ""
     let meK = await me()

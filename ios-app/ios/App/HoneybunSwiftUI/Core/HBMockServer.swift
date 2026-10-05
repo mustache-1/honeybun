@@ -19,7 +19,7 @@ final class HBMockServer: URLProtocol {
     static func install(seed: String) {
         lock.lock(); defer { lock.unlock() }
         authMode = seed == "auth"
-        users = []; sessions = [:]; passkeyStore = []; apnsTokens = []
+        users = []; sessions = [:]; passkeyStore = []; apnsTokens = []; appTokens = [:]; referrals = [:]
         if authMode { state = [:]; URLProtocol.registerClass(HBMockServer.self); return }
         let together = ["solo", "partner", "family", "joint", "inbox", "inboxempty"].contains(seed)
         var s = together ? HBPreviewVariants.make(seed) : ((try? JSONSerialization.jsonObject(with: Data(HBPreviewData.json.utf8))) as? [String: Any] ?? [:])
@@ -262,6 +262,8 @@ final class HBMockServer: URLProtocol {
     // MARK: sign-in stand-in (seed "auth"): the backend's real rules for accounts, sessions, recovery codes and passkeys, in memory
     private static var authMode = false
     private static var apnsTokens = Set<String>()
+    private static var referrals: [String: [String]] = [:]    // referrer's account id → the friends (names) who signed up with their code
+    private static var appTokens: [String: String] = [:]      // the widget / Siri token → the account it belongs to
     private static var users: [[String: Any]] = []
     private static var sessions: [String: String] = [:]          // session token -> user id
     private static var passkeyStore: [[String: Any]] = []        // {id, user, name, created}
@@ -301,6 +303,13 @@ final class HBMockServer: URLProtocol {
         users[i]["setupDone"] = false
     }
 
+    /// the existing referral system: a new account that arrives with a friend's code is credited to that friend (the real rules live in src/worker.js recordReferral)
+    private static func recordReferral(newID: String, name: String, code: Any?) {
+        let c = (code as? String ?? "").uppercased().filter { $0.isLetter || $0.isNumber }
+        guard c.count >= 4, let ref = users.first(where: { ($0["refCode"] as? String) == c }), let rid = ref["id"] as? String, rid != newID else { return }
+        referrals[rid, default: []].append(name)
+    }
+
     private static func handleAuth(_ method: String, _ path: String, _ body: [String: Any], _ request: URLRequest) -> (Int, Any, String?)? {
         lock.lock(); defer { lock.unlock() }
         func err(_ m: String, _ code: Int = 400) -> (Int, Any, String?) { (code, ["error": m], nil) }
@@ -328,6 +337,7 @@ final class HBMockServer: URLProtocol {
             if userIndex(key: email) != nil { return err(username.isEmpty ? "An account with that email already exists. Log in instead." : "That username is taken. Try another one.", 409) }
             let id = UUID().uuidString.lowercased(), code = username.isEmpty ? nil : randomCode()
             users.append(["id": id, "name": name, "email": email, "pw": passkey ? UUID().uuidString : (body["password"] as? String ?? ""), "pwKnown": !passkey, "recovery": code as Any, "verified": false, "nestID": NSNull(), "setupDone": false])
+            recordReferral(newID: id, name: name, code: body["ref"])
             var extra: [String: Any] = [:]; if let c = code { extra["recovery_code"] = c }
             return ok(extra, 201, cookie: newSession(id))
         }
@@ -347,6 +357,7 @@ final class HBMockServer: URLProtocol {
             if let i = users.firstIndex(where: { ($0["appleSub"] as? String) == parts[1] }) { return ok(["created": false], 200, cookie: newSession(users[i]["id"] as? String ?? "")) }
             let id = UUID().uuidString.lowercased()
             users.append(["id": id, "name": clean(body["name"], 24).isEmpty ? "Friend" : clean(body["name"], 24), "email": "a_\(parts[1])@u.honeybun.invalid", "pw": UUID().uuidString, "pwKnown": false, "appleSub": parts[1], "verified": false, "nestID": NSNull(), "setupDone": false])
+            recordReferral(newID: id, name: clean(body["name"], 24).isEmpty ? "Friend" : clean(body["name"], 24), code: body["ref"])
             return ok(["created": true], 201, cookie: newSession(id))
         }
         if path == "/api/password/forgot" && method == "POST" {
@@ -380,6 +391,15 @@ final class HBMockServer: URLProtocol {
             return ok([:], 200, cookie: newSession(pk["user"] as? String ?? ""))
         }
 
+        // the widget and Siri ask with their own token, no cookie: it only ever answers for the account that token belongs to
+        if path == "/api/app/summary" && method == "GET" {
+            let h = request.value(forHTTPHeaderField: "Authorization") ?? ""
+            let tok = h.hasPrefix("Bearer ") ? String(h.dropFirst(7)) : ""
+            guard let owner = appTokens[tok], let i = users.firstIndex(where: { ($0["id"] as? String) == owner }) else { return err("Not signed in.", 401) }
+            let name = (users[i]["name"] as? String ?? "") + " Hive"
+            return (200, ["month": "2026-10", "name": name, "kind": "solo", "income": 1000.0, "spent": 250.0, "left": 750.0, "next": NSNull()], nil)
+        }
+
         // ----- everything below needs the session cookie -----
         guard let u = currentUserIndex() else { return path.hasPrefix("/api/") ? err("Please log in.", 401) : nil }
         let uid = users[u]["id"] as? String ?? ""
@@ -389,11 +409,21 @@ final class HBMockServer: URLProtocol {
             return ok(["ok": true])
         }
         // Apple Pay auto-logging key (shown once; the account only remembers that it has one)
+        if path == "/api/referrals" && method == "GET" {
+            if users[u]["refCode"] == nil { users[u]["refCode"] = "R" + String(UUID().uuidString.replacingOccurrences(of: "-", with: "").uppercased().prefix(6)) }
+            let people = (referrals[uid] ?? []).map { ["name": $0, "status": "pending", "reason": NSNull(), "created_at": 1791000000, "active_days": 0] as [String: Any] }
+            return (200, ["code": users[u]["refCode"] as? String ?? "", "goal": 10, "reward_cents": 1000, "qualified": 0, "pending": people.count, "rejected": 0, "link": "https://honeybun.me/r/" + (users[u]["refCode"] as? String ?? ""),
+                          "days_needed": 7, "active_days_needed": 4, "people": people, "rewards": []], nil)
+        }
         if path == "/api/shortcut/key" && method == "POST" { users[u]["shortcut"] = ["created_at": 1790000000, "last_used": NSNull(), "uses": 0]; return (201, ["ok": true, "key": "hb_" + String(UUID().uuidString.replacingOccurrences(of: "-", with: "").lowercased().prefix(24)), "url": "https://honeybun.me/api/log"], nil) }
         if path == "/api/shortcut/key" && method == "DELETE" { users[u]["shortcut"] = nil; return ok([:]) }
         // this phone's own token for the widget and Siri
-        if path == "/api/app/token" && method == "POST" { return (201, ["ok": true, "token": "hb_app_" + String(UUID().uuidString.replacingOccurrences(of: "-", with: "").lowercased().prefix(20))], nil) }
-        if path == "/api/app/token" && method == "DELETE" { return ok([:]) }
+        if path == "/api/app/token" && method == "POST" {
+            let tok = "hb_app_" + String(UUID().uuidString.replacingOccurrences(of: "-", with: "").lowercased().prefix(20))
+            appTokens[tok] = uid
+            return (201, ["ok": true, "token": tok], nil)
+        }
+        if path == "/api/app/token" && method == "DELETE" { appTokens = appTokens.filter { $0.value != uid }; return ok([:]) }
         // push notification tokens (the phone registers / removes itself), and the test button
         if path == "/api/push/apns" && method == "POST" { if let t = body["token"] as? String, !t.isEmpty { apnsTokens.insert(uid + ":" + t) }; return ok(["ok": true]) }
         if path == "/api/push/apns" && method == "DELETE" { if let t = body["token"] as? String { apnsTokens.remove(uid + ":" + t) }; return ok(["ok": true]) }

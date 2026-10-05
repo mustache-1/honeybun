@@ -160,6 +160,7 @@ enum HBTab: String, CaseIterable { case home = "Home", money = "Money", goals = 
         case let .verify(t):
             do { try await HBAPI.shared.verifyEmail(token: t); if let me = try? await HBAPI.shared.me() { account = me.user } }
             catch { notice = error.localizedDescription }
+        case .referral: break                                // already signed in: nothing to sign up for
         case .reset: notice = "You're signed in. To reset a password, log out first."
         case let .join(c):
             if phase == .needsBudget { joinPrefill = c } else { notice = "You're already in a budget." }

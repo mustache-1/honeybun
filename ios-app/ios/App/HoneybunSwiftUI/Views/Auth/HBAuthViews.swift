@@ -168,6 +168,7 @@ struct HBAuthFlowView: View {
                     }
                     Spacer(minLength: 16)
                     VStack(spacing: 12) {
+                        if HBReferral.pending() != nil { referralBanner }
                         HBAppleButton(model: model)
                         if HBPasskeyService.isAvailable {
                             Button { Task { await model.passkeyLogin() } } label: {
@@ -210,8 +211,21 @@ struct HBAuthFlowView: View {
 
     // MARK: Create account
 
+    /// shown when a friend's link opened the app (the code is sent with the sign-up)
+    private var referralBanner: some View {
+        HStack(spacing: 10) {
+            Text("🎁").font(.system(size: 22))
+            Text("A friend invited you to Honeybun! Create your free account to get started.").font(.system(size: 14, weight: .semibold)).foregroundColor(Color(red: 1, green: 0.83, blue: 0.48)).fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(14).frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(HB.orange.opacity(0.14)))
+        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(HB.orange.opacity(0.4), lineWidth: 1))
+        .accessibilityIdentifier("hb-referral-banner")
+    }
+
     private var signup: some View {
         HBAuthScaffold(title: "Create account", subtitle: "Start your budget. It takes about a minute.", onBack: { model.go(.welcome) }) {
+            if HBReferral.pending() != nil { referralBanner }
             HBAuthField(label: "Your name", placeholder: "What should we call you?", text: $model.name, contentType: .givenName, capitalize: true, id: "hb-signup-name")
             HStack(spacing: 0) {
                 ForEach([HBAuthModel.IDMode.username, .email], id: \.self) { m in

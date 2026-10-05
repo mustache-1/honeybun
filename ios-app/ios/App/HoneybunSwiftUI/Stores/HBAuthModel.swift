@@ -46,6 +46,7 @@ import AuthenticationServices
         guard let link = link else { return }
         store.pendingLink = nil
         switch link {
+        case .referral: go(.signup); info = nil          // the code is already remembered; the sign-up screen says a friend invited them
         case let .reset(t): resetLink = t; go(.reset)
         case let .join(c): inviteCode = c; go(.signup); info = "Invite code added. Create an account to join."
         case let .verify(t):
@@ -89,9 +90,11 @@ import AuthenticationServices
 
     func signup(passkeyOnly: Bool = false) async {
         var d = signupDraft; d.passkeyOnly = passkeyOnly
+        d.ref = HBReferral.pending()                          // a friend's link: the code goes with the sign-up
         if let p = HBAuthText.signupProblem(d) { error = p; return }
         await run {
             let code = try await HBAPI.shared.signup(d)
+            HBReferral.clear()                                // used: the account exists now
             signupPassword = ""
             if passkeyOnly { await addPasskeyRightAfterSignup() }
             await afterAccountCreated(recoveryCode: code)
@@ -134,7 +137,8 @@ import AuthenticationServices
         case let .success(auth):
             guard let cred = auth.credential as? ASAuthorizationAppleIDCredential, let apple = HBAppleCredential(cred, rawNonce: appleNonce) else { error = "Sign in with Apple didn't return what Honeybun needs. Try again."; return }
             await run {
-                _ = try await HBAPI.shared.appleSignIn(identityToken: apple.identityToken, rawNonce: apple.rawNonce, name: apple.fullName)
+                let r = try await HBAPI.shared.appleSignIn(identityToken: apple.identityToken, rawNonce: apple.rawNonce, name: apple.fullName, ref: HBReferral.pending())
+                if r.created { HBReferral.clear() }               // a new account used the friend's code (an existing one ignores it)
                 await signedIn()
             }
         }

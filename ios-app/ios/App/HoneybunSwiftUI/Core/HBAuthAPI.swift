@@ -13,6 +13,7 @@ struct HBSignupDraft {
     var id: HBSignupID = .username("")
     var password = ""
     var passkeyOnly = false
+    var ref: String? = nil           // a friend's referral code, sent with the sign-up so the existing referral system credits them
     var json: [String: Any] {
         var d: [String: Any] = ["name": name, "lang": "en"]
         switch id {
@@ -20,6 +21,7 @@ struct HBSignupDraft {
         case let .email(e): d["email"] = e.trimmingCharacters(in: .whitespaces)
         }
         if passkeyOnly { d["passkey"] = true } else { d["password"] = password }
+        if let r = ref, !r.isEmpty { d["ref"] = r }
         return d
     }
 }
@@ -38,8 +40,9 @@ extension HBAPI {
         let data = try await send("/api/signup", method: "POST", body: d.json, unauth: true)
         return ((try? JSONSerialization.jsonObject(with: data)) as? [String: Any])?["recovery_code"] as? String
     }
-    func appleSignIn(identityToken: String, rawNonce: String, name: String?) async throws -> HBAppleSignInResult {
+    func appleSignIn(identityToken: String, rawNonce: String, name: String?, ref: String? = nil) async throws -> HBAppleSignInResult {
         var body: [String: Any] = ["identity_token": identityToken, "nonce": rawNonce, "lang": "en"]
+        if let r = ref, !r.isEmpty { body["ref"] = r }
         if let n = name, !n.isEmpty { body["name"] = n }
         let data = try await send("/api/auth/apple", method: "POST", body: body, unauth: true)
         let created = (((try? JSONSerialization.jsonObject(with: data)) as? [String: Any])?["created"] as? Bool) ?? false
