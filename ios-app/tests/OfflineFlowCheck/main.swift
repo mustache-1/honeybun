@@ -44,7 +44,8 @@ func run() async {
     check("OFFLINE: saving with no connection fails with a connection error, which the app treats as queue-it", offlineError is URLError && HBPendingRules.shouldQueue(offlineError!))
     var sentWhileOffline = 0
     let offlineRun = await q.flush(user: "userA", nest: "nestN") { i in sentWhileOffline += 1; _ = try await api.addEntry(i.draft, clientID: i.clientID) }
-    check("OFFLINE: a sync attempt with no connection stops cleanly and keeps the entry waiting (nothing lost)", offlineRun.stoppedOffline && offlineRun.sent == 0 && sentWhileOffline == 1 && (await q.items(user: "userA", nest: "nestN")).count == 1)
+    let _aw0 = await q.items(user: "userA", nest: "nestN")
+    check("OFFLINE: a sync attempt with no connection stops cleanly and keeps the entry waiting (nothing lost)", offlineRun.stoppedOffline && offlineRun.sent == 0 && sentWhileOffline == 1 && _aw0.count == 1)
     var cachedWhileOffline = false
     HBMockServer.offline = false
     // ---- the last-known cache: online answers are kept; with no connection the same numbers come back (marked as cached)
@@ -69,7 +70,8 @@ func run() async {
     let online = await q.flush(user: "userA", nest: "nestN") { i in _ = try await api.addEntry(i.draft, clientID: i.clientID) }
     let after = await serverEntries()
     let landed = after.filter { $0.id == reopened[0].clientID }
-    check("SYNC: back online, the waiting entry is sent and removed from the queue", online.sent == 1 && (await q.items(user: "userA", nest: "nestN")).isEmpty)
+    let _aw1 = await q.items(user: "userA", nest: "nestN")
+    check("SYNC: back online, the waiting entry is sent and removed from the queue", online.sent == 1 && _aw1.isEmpty)
     check("SYNC: it reaches the server exactly once, under its client id", landed.count == 1 && after.count == baseline + 1)
     let body = HBMockServer.entryBodies.last ?? [:]
     check("SYNC: nothing was dropped on the way (type, amount, label, category, date, member, shared, split, private, client_id)",
@@ -80,12 +82,17 @@ func run() async {
     HBMockServer.entryBodies = []
     _ = try? await api.addEntry(d, clientID: reopened[0].clientID)
     _ = try? await api.addEntry(d, clientID: reopened[0].clientID)
-    check("DUPLICATES: sending the same entry again (answer lost, app restarted) does not add it twice", (await serverEntries()).filter { $0.id == reopened[0].clientID }.count == 1 && (await serverEntries()).count == baseline + 1)
+    let _aw2 = await serverEntries()
+    let _aw3 = await serverEntries()
+    check("DUPLICATES: sending the same entry again (answer lost, app restarted) does not add it twice", _aw2.filter { $0.id == reopened[0].clientID }.count == 1 && _aw3.count == baseline + 1)
     _ = try? await q.add(d, user: "userA", nest: "nestN", clientID: reopened[0].clientID)
     let dup = await q.flush(user: "userA", nest: "nestN") { i in _ = try await api.addEntry(i.draft, clientID: i.clientID) }
-    check("DUPLICATES: a queued copy of an entry the server already has is recognised and cleared, not added again", dup.sent == 1 && (await serverEntries()).count == baseline + 1 && (await q.all()).isEmpty)
+    let _aw4 = await serverEntries()
+    let _aw5 = await q.all()
+    check("DUPLICATES: a queued copy of an entry the server already has is recognised and cleared, not added again", dup.sent == 1 && _aw4.count == baseline + 1 && _aw5.isEmpty)
     let again = try? await q.add(d, user: "userA", nest: "nestN", clientID: "fixed-id"); let again2 = try? await q.add(d, user: "userA", nest: "nestN", clientID: "fixed-id")
-    check("DUPLICATES: queueing the same client id twice keeps one copy", again?.clientID == again2?.clientID && (await q.items(user: "userA", nest: "nestN")).count == 1)
+    let _aw6 = await q.items(user: "userA", nest: "nestN")
+    check("DUPLICATES: queueing the same client id twice keeps one copy", again?.clientID == again2?.clientID && _aw6.count == 1)
     await q.remove("fixed-id")
 
     // ---- a failed server request stays retryable
@@ -97,7 +104,9 @@ func run() async {
     let kept = (await q.all()).first
     check("RETRY: a server error (503) stops the run, keeps the entry, and counts the attempt", r1.stoppedOffline && r1.sent == 0 && kept?.attempts == 1 && kept?.failure == nil)
     let r2 = await q.flush(user: "userA", nest: "nestN") { i in _ = try await api.addEntry(i.draft, clientID: i.clientID) }
-    check("RETRY: the next try sends it", r2.sent == 1 && (await q.all()).isEmpty && (await serverEntries()).filter { $0.id == "retry-1" }.count == 1)
+    let _aw7 = await q.all()
+    let _aw8 = await serverEntries()
+    check("RETRY: the next try sends it", r2.sent == 1 && _aw7.isEmpty && _aw8.filter { $0.id == "retry-1" }.count == 1)
     _ = try? await q.add(d2, user: "userA", nest: "nestN", clientID: "refused-1")
     HBMockServer.failEntryPosts = (1, 422)
     let r3 = await q.flush(user: "userA", nest: "nestN") { i in _ = try await api.addEntry(i.draft, clientID: i.clientID) }
@@ -108,7 +117,8 @@ func run() async {
     check("REFUSED: it is not retried automatically over and over", r4.sent == 0 && HBMockServer.entryPostsReceived == sentBefore)
     await q.clearFailure("refused-1")
     let r5 = await q.flush(user: "userA", nest: "nestN") { i in _ = try await api.addEntry(i.draft, clientID: i.clientID) }
-    check("REFUSED: after \"Try again\" it is sent", r5.sent == 1 && (await q.all()).isEmpty)
+    let _aw9 = await q.all()
+    check("REFUSED: after \"Try again\" it is sent", r5.sent == 1 && _aw9.isEmpty)
     check("CLASSIFY: connection problems, timeouts, 408/429/5xx and an expired sign-in are retried later; other 4xx are refusals",
           HBPendingRules.classify(URLError(.notConnectedToInternet)) == .retryLater && HBPendingRules.classify(URLError(.timedOut)) == .retryLater
           && HBPendingRules.classify(HBAPIError.http(503, "x")) == .retryLater && HBPendingRules.classify(HBAPIError.http(429, "x")) == .retryLater && HBPendingRules.classify(HBAPIError.http(408, "x")) == .retryLater
@@ -119,45 +129,62 @@ func run() async {
     var leaked = 0
     let asB = await q.flush(user: "userB", nest: "nestN") { _ in leaked += 1 }
     let otherNest = await q.flush(user: "userA", nest: "nestOther") { _ in leaked += 1 }
-    check("ISOLATION: another account signing in on this phone sends nothing of the first account's, and never sees it", asB.sent == 0 && leaked == 0 && (await q.items(user: "userB", nest: "nestN")).isEmpty && (await q.count(user: "userB")) == 0)
+    let _aw10 = await q.items(user: "userB", nest: "nestN")
+    let _aw11 = await q.count(user: "userB")
+    check("ISOLATION: another account signing in on this phone sends nothing of the first account's, and never sees it", asB.sent == 0 && leaked == 0 && _aw10.isEmpty && _aw11 == 0)
     check("ISOLATION: the same account in a different budget does not send it either", otherNest.sent == 0 && leaked == 0)
-    check("ISOLATION: logging out keeps it (nothing destroyed), and it is still there for the owner", (await q.items(user: "userA", nest: "nestN")).count == 1 && (await q.count(user: "userA")) == 1)
+    let _aw12 = await q.items(user: "userA", nest: "nestN")
+    let _aw13 = await q.count(user: "userA")
+    check("ISOLATION: logging out keeps it (nothing destroyed), and it is still there for the owner", _aw12.count == 1 && _aw13 == 1)
     let ownFile = HBPendingQueue(fileURL: file)
-    check("ISOLATION: it survives a restart for the owner", (await ownFile.items(user: "userA", nest: "nestN")).first?.clientID == "iso-1")
+    let _aw14 = await ownFile.items(user: "userA", nest: "nestN")
+    check("ISOLATION: it survives a restart for the owner", _aw14.first?.clientID == "iso-1")
     await q.removeAll(user: "userB")
-    check("DELETE ACCOUNT: removing one account's entries leaves other accounts' alone", (await q.count(user: "userA")) == 1)
+    let _aw15 = await q.count(user: "userA")
+    check("DELETE ACCOUNT: removing one account's entries leaves other accounts' alone", _aw15 == 1)
     await q.removeAll(user: "userA")
-    check("DELETE ACCOUNT: removing the account's own entries empties them", (await q.all()).isEmpty)
+    let _aw16 = await q.all()
+    check("DELETE ACCOUNT: removing the account's own entries empties them", _aw16.isEmpty)
     let corrupt = tmp("bad.json"); try? Data("not json".utf8).write(to: corrupt)
     let cq = HBPendingQueue(fileURL: corrupt)
-    check("QUEUE: an unreadable file is set aside (not deleted) and the queue starts empty", (await cq.all()).isEmpty && !FileManager.default.fileExists(atPath: corrupt.path))
+    let _aw17 = await cq.all()
+    check("QUEUE: an unreadable file is set aside (not deleted) and the queue starts empty", _aw17.isEmpty && !FileManager.default.fileExists(atPath: corrupt.path))
     let unwritable = HBPendingQueue(fileURL: URL(fileURLWithPath: "/nonexistent-dir-hb/x/pending.json"))
     var writeFailed = false
     do { _ = try await unwritable.add(d, user: "u", nest: "n") } catch { writeFailed = true }
-    check("QUEUE: if the phone cannot write the entry to disk, adding FAILS (the app never claims it is safe when it is not)", writeFailed && (await unwritable.all()).isEmpty)
+    let _aw18 = await unwritable.all()
+    check("QUEUE: if the phone cannot write the entry to disk, adding FAILS (the app never claims it is safe when it is not)", writeFailed && _aw18.isEmpty)
 
     // ---- search filters against the backend's own rules
     func found(_ f: HBSearchFilter) async -> [HBEntry] { (try? await api.search(f)) ?? [] }
     var f = HBSearchFilter(); f.category = "food"
     let foodN = (await found(f)).count
-    check("FILTERS: category alone (Eating out) finds only that category (10 of them)", foodN == 10 && (await found(f)).allSatisfy { $0.category == "food" })
+    let _aw19 = await found(f)
+    check("FILTERS: category alone (Eating out) finds only that category (10 of them)", foodN == 10 && _aw19.allSatisfy { $0.category == "food" })
     f.minAmount = 50; f.maxAmount = 90
     let ranged = await found(f)
     check("FILTERS: category + $50–$90 finds Bakery, Farmers market, Sushi night, Dinner out", Set(ranged.map { $0.label }) == ["Bakery", "Farmers market", "Sushi night", "Dinner out"])
     f.from = "2026-09-10"; f.to = "2026-09-27"
-    check("FILTERS: category + amount range + date range (Sep 10–27) narrows to Bakery, Farmers market, Sushi night", Set((await found(f)).map { $0.label }) == ["Bakery", "Farmers market", "Sushi night"])
+    let _aw20 = await found(f)
+    check("FILTERS: category + amount range + date range (Sep 10–27) narrows to Bakery, Farmers market, Sushi night", Set(_aw20.map { $0.label }) == ["Bakery", "Farmers market", "Sushi night"])
     f.q = "sushi"
-    check("FILTERS: text + category + amount + dates all apply together (Sushi night only)", (await found(f)).map { $0.label } == ["Sushi night"])
+    let _aw21 = await found(f)
+    check("FILTERS: text + category + amount + dates all apply together (Sushi night only)", _aw21.map { $0.label } == ["Sushi night"])
     var onlyDates = HBSearchFilter(); onlyDates.from = "2026-09-28"; onlyDates.to = "2026-09-29"
-    check("FILTERS: a date range alone works (Sep 28–29 has Repairs and Insurance)", Set((await found(onlyDates)).map { $0.label }) == ["Repairs", "Insurance"])
+    let _aw22 = await found(onlyDates)
+    check("FILTERS: a date range alone works (Sep 28–29 has Repairs and Insurance)", Set(_aw22.map { $0.label }) == ["Repairs", "Insurance"])
     var onlyMin = HBSearchFilter(); onlyMin.minAmount = 120
-    check("FILTERS: a minimum alone works (≥ $120: Misc, Concert, Target, Paycheck)", Set((await found(onlyMin)).map { $0.label }) == ["Misc", "Concert", "Target", "Paycheck"])
+    let _aw23 = await found(onlyMin)
+    check("FILTERS: a minimum alone works (≥ $120: Misc, Concert, Target, Paycheck)", Set(_aw23.map { $0.label }) == ["Misc", "Concert", "Target", "Paycheck"])
     var onlyMax = HBSearchFilter(); onlyMax.maxAmount = 20
-    check("FILTERS: a maximum alone works (≤ $20: Chipotle)", (await found(onlyMax)).map { $0.label } == ["Chipotle"])
+    let _aw24 = await found(onlyMax)
+    check("FILTERS: a maximum alone works (≤ $20: Chipotle)", _aw24.map { $0.label } == ["Chipotle"])
     var typed = HBSearchFilter(); typed.type = "income"
-    check("FILTERS: the existing type filter still works", (await found(typed)).map { $0.label } == ["Paycheck"])
+    let _aw25 = await found(typed)
+    check("FILTERS: the existing type filter still works", _aw25.map { $0.label } == ["Paycheck"])
     var who = HBSearchFilter(); who.member = me; who.q = "pizza"
-    check("FILTERS: the existing person + text filters still work", (await found(who)).map { $0.label } == ["Pizza"])
+    let _aw26 = await found(who)
+    check("FILTERS: the existing person + text filters still work", _aw26.map { $0.label } == ["Pizza"])
     check("FILTERS: Clear filters puts everything back to the defaults (nothing active)", { var x = f; x = HBSearchFilter(); return x.isDefault && x.activeCount == 0 && !x.hasCriteria && !f.isDefault && f.activeCount == 7 }())
     var bad = HBSearchFilter(); bad.minAmount = -5; bad.maxAmount = 0; bad.from = "not-a-date"; bad.category = "food"
     let names = bad.queryItems.map { $0.name }
