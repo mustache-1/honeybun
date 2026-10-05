@@ -39,9 +39,10 @@ func run() async {
     check("YEAR: /api/year totals match the entries (earned and spent land in September, 8 other months are empty)", abs(t.totalIn - income) < 0.001 && abs(t.totalOut - spent) < 0.001 && t.income[8] == t.totalIn && t.spent[0] == 0 && t.monthsWithEntries == 1)
     check("YEAR: Kept is the whole percent of income that was not spent", t.keptPct == Int(((income - spent) / income * 100).rounded()))
     check("YEAR: a year with no entries has no Kept percentage (shown as –)", HBStats.year(HBYearData(entries: [])).keptPct == nil)
-    check("YEAR: a different year is empty", ((try? await api.year(2025))?.entries.count ?? -1) == 0)
+    let y25 = (try? await api.year(2025))?.entries.count ?? -1
+    check("YEAR: a different year is empty", y25 == 0)
     let w = HBStats.whereItWent(t.byCategory)
-    check("WHERE IT WENT: the five biggest categories, biggest first, then everything else together", w.rows.count == 5 && w.rows == w.rows.sorted { $0.amount > $1.amount } && abs(w.rows.reduce(0) { $0 + $1.amount } + w.rest - spent) < 0.001)
+    check("WHERE IT WENT: the five biggest categories, biggest first, then everything else together", w.rows.count == 5 && w.rows.map { $0.amount } == w.rows.map { $0.amount }.sorted(by: >) && abs(w.rows.reduce(0) { $0 + $1.amount } + w.rest - spent) < 0.001)
 
     // 50 / 30 / 20
     if let r = HBStats.rule(s0) {
@@ -94,12 +95,14 @@ func run() async {
 
     // changing household
     let bad = await refused { try await api.switchBudget(code: "NOPE") }
-    check("HOUSEHOLD: an unknown invite code is refused with the backend's message and nothing changes", bad != nil && (await snap())?.entries.isEmpty == false)
+    let unchanged = (await snap())?.entries.isEmpty == false
+    check("HOUSEHOLD: an unknown invite code is refused with the backend's message and nothing changes", bad != nil && unchanged)
     try? await api.switchBudget(code: "join-me01")
     let after = await snap()
     check("HOUSEHOLD: a good code (dashes and case ignored) joins that budget: new name, and none of the old household's data is left", after?.nest.name == "Joined Hive" && after?.entries.isEmpty == true && after?.goals.isEmpty == true && (after?.recurring.isEmpty ?? false))
     try? await api.leaveBudget()
-    check("HOUSEHOLD: leaving clears the household's data on the backend", (await snap())?.entries.isEmpty == true)
+    let cleared = (await snap())?.entries.isEmpty == true
+    check("HOUSEHOLD: leaving clears the household's data on the backend", cleared)
 }
 
 let done = DispatchSemaphore(value: 0)

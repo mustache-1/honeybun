@@ -186,7 +186,8 @@ func run() async {
     let keyB = (try? await api.makeShortcutKey()) ?? ""
     check("SHORTCUT: a new key replaces the old one (a different value)", keyB.hasPrefix("hb_") && keyB != keyA)
     try? await api.revokeShortcutKey()
-    check("SHORTCUT: turning it off removes it from the account", (await me())?.user?.shortcut == nil)
+    let meOff = await me()
+    check("SHORTCUT: turning it off removes it from the account", meOff?.user?.shortcut == nil)
     _ = try? await api.logout(); clearCookies()
     let afterOut = await refused { _ = try await api.me() }
     check("LOG OUT: the session cookie is gone and the next request is told to log in", !HBSession.hasSessionCookie && afterOut == HBAPIError.notSignedIn.errorDescription)
