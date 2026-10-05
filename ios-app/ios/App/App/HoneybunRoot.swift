@@ -34,10 +34,10 @@ final class HoneybunRoot {
         #endif
         storeBox = store
         #if DEBUG
-        // CI only: prove the Native → Classic → Native round trip in the simulator (open Classic after 4 s, come back after 16 s)
+        // CI only: prove the Native → Classic → Native round trip in the simulator (open Classic after 4 s, come back after 40 s)
         if ProcessInfo.processInfo.arguments.contains("-HBClassicDemo") {
             DispatchQueue.main.asyncAfter(deadline: .now() + 4) { HoneybunRoot.shared.openClassic() }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 16) { HoneybunRoot.shared.closeClassic() }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 40) { HoneybunRoot.shared.closeClassic() }
         }
         #endif
         let h = UIHostingController(rootView: HBRootView(store: store, onClose: { HoneybunRoot.shared.openClassic() }))

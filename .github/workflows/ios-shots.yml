@@ -105,9 +105,10 @@ jobs:
               case "$screen" in fresh) args=();; freshearly) args=();; classicdemo) args=(-HBClassicDemo);; esac
               run_to 60 xcrun simctl launch --terminate-running-process "$udid" me.honeybun.app ${args[@]+"${args[@]}"} > /dev/null || log "launch $screen failed"
               if [ "$screen" = "freshearly" ]; then sleep 1; elif [ "$screen" = "classicdemo" ]; then
-                sleep 3; run_to 60 xcrun simctl io "$udid" screenshot "$PUB/${tag}_classicdemo_1_native.png" || true
-                sleep 9; run_to 60 xcrun simctl io "$udid" screenshot "$PUB/${tag}_classicdemo_2_classic.png" || true
-                sleep 9; run_to 60 xcrun simctl io "$udid" screenshot "$PUB/${tag}_classicdemo_3_back.png" || true
+                sleep 3; run_to 60 xcrun simctl io "$udid" screenshot "$PUB/${tag}_classicdemo_1_native.png" || true; echo "1 $(date +%T)" > "$PUB/times_${tag}.txt"
+                sleep 8; run_to 60 xcrun simctl io "$udid" screenshot "$PUB/${tag}_classicdemo_2_classic.png" || true; echo "2 $(date +%T)" >> "$PUB/times_${tag}.txt"
+                sleep 12; run_to 60 xcrun simctl io "$udid" screenshot "$PUB/${tag}_classicdemo_3_classic.png" || true; echo "3 $(date +%T)" >> "$PUB/times_${tag}.txt"
+                sleep 28; run_to 60 xcrun simctl io "$udid" screenshot "$PUB/${tag}_classicdemo_4_back.png" || true; echo "4 $(date +%T)" >> "$PUB/times_${tag}.txt"
                 xcrun simctl spawn "$udid" log show --last 3m --style compact --predicate 'eventMessage CONTAINS "HBROOT"' 2>/dev/null | tail -30 > "$PUB/log_${tag}_classicdemo.txt" || true
                 ( cd "$PUB" && publish "${tag} classicdemo" )
               else sleep 6; fi
