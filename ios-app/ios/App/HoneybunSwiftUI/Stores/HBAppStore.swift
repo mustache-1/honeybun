@@ -73,6 +73,7 @@ enum HBTab: String, CaseIterable { case home = "Home", money = "Money", goals = 
     @Published var usingCache = false                 // what's on screen is the last answer saved on the phone
     @Published var syncing = false
     @Published var levelUp: Int?                      // a carrot reward just raised your level
+    @Published var toast: HBToast?                    // the small message at the bottom ("Added Coffee · $4  +5 🥕", with Undo)
     @Published var verifyTick = 0                     // bumps when the "confirm your email" reminder is hidden
     var queue = HBPendingQueue.shared
     private let reach = HBReachability()
@@ -256,9 +257,10 @@ enum HBTab: String, CaseIterable { case home = "Home", money = "Money", goals = 
     /// first-run setup finished (or skipped)
     func finishOnboarding() async {
         onboardingDone = true
-        try? await HBAPI.shared.finishSetup()
+        let data = try? await HBAPI.shared.finishSetup()
         phase = .ready
         await refresh()
+        if let d = data { celebrate(d, "Setup complete") }
     }
 
     func shiftMonth(_ n: Int) { setMonth(HBDay.shiftMonth(month, by: n)) }
@@ -369,15 +371,25 @@ enum HBTab: String, CaseIterable { case home = "Home", money = "Money", goals = 
         await refresh()
     }
     /// like run, for changes where the server answers with carrots earned (a level-up shows the celebration, like the website's rewardToast)
-    private func runRewarded(_ work: () async throws -> Data) async throws {
+    private func runRewarded(_ message: String, _ work: () async throws -> Data) async throws {
         busy = true; defer { busy = false }
         let data = try await work()
-        noteReward(data)
         await refresh()
+        celebrate(data, message)
     }
-    private func noteReward(_ data: Data) {
-        if let level = HBCarrotReward.leveledUp(in: data) { levelUp = level }
+    /// A level-up shows the dialog (after a beat, like the website); otherwise the toast carries the carrots and, rarely, a streak line.
+    private func celebrate(_ data: Data?, _ base: String, undoTitle: String? = nil, undo: (() -> Void)? = nil) {
+        let ev = data.flatMap { HBRewardEvent.parse($0) }
+        showToast(ev?.toastText(base) ?? base, detail: ev?.streakLine, actionTitle: undo == nil ? nil : (undoTitle ?? "Undo"), action: undo)
+        if let ev = ev, ev.leveled { Task { try? await Task.sleep(nanoseconds: 700_000_000); self.levelUp = ev.level } }
     }
+    func showToast(_ text: String, detail: String? = nil, actionTitle: String? = nil, action: (() -> Void)? = nil) {
+        let t = HBToast(text: text, detail: detail, actionTitle: actionTitle, action: action)
+        toast = t
+        let secs: Double = action != nil ? 6 : (detail != nil ? 3.4 : 2.4)
+        Task { try? await Task.sleep(nanoseconds: UInt64(secs * 1_000_000_000)); if self.toast?.id == t.id { self.toast = nil } }
+    }
+    func dismissToast() { toast = nil }
 
     // MARK: offline queue
 
@@ -445,28 +457,70 @@ enum HBTab: String, CaseIterable { case home = "Home", money = "Money", goals = 
     func addEntry(_ d: HBEntryDraft) async throws {
         busy = true; defer { busy = false }
         let cid = UUID().uuidString.lowercased()
+        let data: Data
         do {
-            let data = try await HBAPI.shared.addEntry(d, clientID: cid)
-            noteReward(data)
+            data = try await HBAPI.shared.addEntry(d, clientID: cid)
         } catch {
             guard HBPendingRules.shouldQueue(error), let uid = account?.id ?? snapshot?.me?.id, let nid = snapshot?.nest.id else { throw error }
             do { try await queue.add(d, user: uid, nest: nid, clientID: cid) }
             catch { throw HBAPIError.http(0, "Couldn't save this on your iPhone, so it was not added. Please try again.") }
             await reloadPending()
-            notice = "Saved on this iPhone. It will sync when you're back online."
+            if d.type == "expense" { HBAddDefaults.remember(d.category) }
+            showToast("Saved on this iPhone. It will sync when you're back online.", actionTitle: "Undo") { Task { await self.queue.remove(cid); await self.reloadPending() } }
             return
         }
+        if d.type == "expense" { HBAddDefaults.remember(d.category) }
         await refresh()
+        let id = ((try? JSONSerialization.jsonObject(with: data)) as? [String: Any])?["id"] as? String ?? cid
+        let name = d.label.isEmpty ? HBCatStyle.of(d.category).label : d.label
+        celebrate(data, "\(name) · \(HBFormat.money(d.amount))", undo: { Task { await self.undoAdd(id) } })
+    }
+    /// "Undo" on the toast after an add
+    func undoAdd(_ id: String) async {
+        do { try await HBAPI.shared.deleteEntry(id: id); await refresh(); showToast("Undone") } catch { notice = error.localizedDescription }
+    }
+    /// One tap on a "your usual" expense: logs it again with the same amount, category and split, dated today.
+    func logRepeat(_ r: HBRepeat) async throws {
+        var d = HBEntryDraft(type: "expense", amount: r.amount, label: r.label, category: r.category ?? "other", shared: false, date: HBDay.todayString, memberID: myID)
+        d.shared = r.shared == 1 && members.count > 1 && !isJoint
+        if d.shared, let m = r.split_mode {
+            d.splitMode = m
+            if let v = r.split_value { d.splitValue = m == "owed" ? Double(v) / 100.0 : Double(v) }
+        }
+        d.isPrivate = r.isPrivate == 1
+        try await addEntry(d)
+    }
+    /// Delete with the website's safety net: it happens at once and an Undo button puts the same entry back. A saved-offline entry is simply removed from the phone.
+    func deleteWithUndo(_ e: HBEntry) async {
+        if e.pending {
+            guard let item = pendingItem(e.id) else { return }
+            await queue.remove(item.clientID); await reloadPending()
+            showToast("Removed", actionTitle: "Undo") { Task { _ = try? await self.queue.add(item.draft, user: item.userID, nest: item.nestID, clientID: item.clientID); await self.reloadPending() } }
+            return
+        }
+        do {
+            try await HBAPI.shared.deleteEntry(id: e.id)
+            await refresh()
+            showToast("Deleted \(e.label)", actionTitle: "Undo") { Task { await self.undoDelete(e) } }
+        } catch { notice = error.localizedDescription }
+    }
+    func undoDelete(_ e: HBEntry) async {
+        do { try await HBAPI.shared.restoreEntry(e); await refresh(); showToast("Restored") } catch { notice = error.localizedDescription }
     }
     func updateEntry(id: String, _ d: HBEntryDraft) async throws { try await run { try await HBAPI.shared.updateEntry(id: id, d) } }
     func deleteEntry(id: String) async throws { try await run { try await HBAPI.shared.deleteEntry(id: id) } }
-    func markPaid(_ u: HBUpcoming) async throws { try await runRewarded { try await HBAPI.shared.logOccurrence(recurringID: u.recurring.id, date: u.dateString) } }
+    func markPaid(_ u: HBUpcoming) async throws {
+        try await runRewarded(u.recurring.isIncome ? "Payday logged" : u.recurring.label + " marked paid") { try await HBAPI.shared.logOccurrence(recurringID: u.recurring.id, date: u.dateString) }
+    }
     func addGoal(_ d: HBGoalDraft) async throws { try await run { try await HBAPI.shared.addGoal(d) } }
     func updateGoal(id: String, _ d: HBGoalDraft) async throws { try await run { try await HBAPI.shared.updateGoal(id: id, d) } }
     func deleteGoal(id: String) async throws { try await run { try await HBAPI.shared.deleteGoal(id: id) } }
-    func moveJar(goalID: String, amount: Double, out: Bool) async throws { try await runRewarded { try await HBAPI.shared.moveJar(goalID: goalID, amount: amount, out: out) } }
+    func moveJar(goalID: String, amount: Double, out: Bool) async throws {
+        let name = goal(goalID)?.name ?? "your goal"
+        try await runRewarded(out ? "Taken out" : "Added to " + name) { try await HBAPI.shared.moveJar(goalID: goalID, amount: amount, out: out) }
+    }
     func deleteJarMove(id: String) async throws { try await run { try await HBAPI.shared.deleteJarMove(id: id) } }
-    func addRecurring(_ d: HBRecurringDraft) async throws { try await run { try await HBAPI.shared.addRecurring(d) } }
+    func addRecurring(_ d: HBRecurringDraft) async throws { try await runRewarded(d.type == "income" ? "Payday added" : "Bill added") { try await HBAPI.shared.addRecurring(d) } }
     func updateRecurring(id: String, _ d: HBRecurringDraft) async throws { try await run { try await HBAPI.shared.updateRecurring(id: id, d) } }
     func deleteRecurring(id: String) async throws { try await run { try await HBAPI.shared.deleteRecurring(id: id) } }
 
@@ -476,7 +530,7 @@ enum HBTab: String, CaseIterable { case home = "Home", money = "Money", goals = 
     func updateDebt(id: String, _ d: HBDebtDraft) async throws { try await run { try await HBAPI.shared.updateDebt(id: id, d) } }
     func deleteDebt(id: String) async throws { try await run { try await HBAPI.shared.deleteDebt(id: id) } }
     func payDebt(_ debt: HBDebt, amount: Double, memberID: String) async throws {
-        try await run { try await HBAPI.shared.payDebt(id: debt.id, amount: amount, memberID: memberID, date: HBDay.todayString) }
+        try await runRewarded("Payment logged") { try await HBAPI.shared.payDebt(id: debt.id, amount: amount, memberID: memberID, date: HBDay.todayString) }
     }
     func deleteDebtPayment(id: String) async throws { try await run { try await HBAPI.shared.deleteDebtPayment(id: id) } }
     func createCategory(name: String, emoji: String) async throws { try await run { try await HBAPI.shared.createCategory(name: name, emoji: emoji) } }
@@ -511,7 +565,7 @@ enum HBTab: String, CaseIterable { case home = "Home", money = "Money", goals = 
         try await run { try await HBAPI.shared.shopCheckout(amount: amount, date: HBDay.todayString) }
         await loadShopping()
     }
-    func settle(from: String, to: String, amount: Double) async throws { try await run { try await HBAPI.shared.settle(from: from, to: to, amount: amount, date: HBDay.todayString) } }
+    func settle(from: String, to: String, amount: Double) async throws { try await runRewarded("Marked as paid ♡") { try await HBAPI.shared.settle(from: from, to: to, amount: amount, date: HBDay.todayString) } }
     func deleteSettlement(id: String) async throws { try await run { try await HBAPI.shared.deleteSettlement(id: id) } }
     func setJoint(_ on: Bool) async throws { try await run { try await HBAPI.shared.patchNest(["joint": on]) } }
     func setKind(_ kind: String) async throws { try await run { try await HBAPI.shared.patchNest(["kind": kind]) } }
@@ -536,7 +590,10 @@ enum HBTab: String, CaseIterable { case home = "Home", money = "Money", goals = 
         do { try await HBAPI.shared.markInboxRead(); await refresh() } catch { notice = error.localizedDescription }
     }
     /// "Paid" / "Got it" on a bill or payday message: logs that occurrence exactly like Home's Coming Up does
-    func markOccurrencePaid(recurringID: String, date: String) async throws { try await runRewarded { try await HBAPI.shared.logOccurrence(recurringID: recurringID, date: date) } }
+    func markOccurrencePaid(recurringID: String, date: String) async throws {
+        let r = snapshot?.recurring.first { $0.id == recurringID }
+        try await runRewarded((r?.isIncome ?? false) ? "Payday logged" : (r?.label ?? "Bill") + " marked paid") { try await HBAPI.shared.logOccurrence(recurringID: recurringID, date: date) }
+    }
     func decideCarry(accept: Bool, remember: Bool) async throws {
         try await run { try await HBAPI.shared.decideCarry(month: HBDay.monthKey(), accept: accept, remember: remember) }
         await loadInbox()

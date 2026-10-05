@@ -68,11 +68,32 @@ struct HBBunnyGear: Equatable {
     static func unlock(_ l: Int) -> String? { [2: "a little sprout", 3: "a pink bow", 5: "a cozy scarf", 7: "a flower crown", 10: "a tiny golden crown"][l] }
 }
 
-/// the carrot reward the server sends back with most changes: only a level-up matters on screen
-enum HBCarrotReward {
-    static func leveledUp(in data: Data) -> Int? {
-        guard let o = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any], let r = o["reward"] as? [String: Any],
-              r["leveled"] as? Bool == true, let level = r["level"] as? Int else { return nil }
-        return level
+/// The carrot reward the server sends back with most changes (src/worker.js award()): what the toast, the streak line and the level-up
+/// dialog are built from, with the website's own rules (rewardToast / showLevelUp in app.js).
+struct HBRewardEvent: Equatable {
+    let gained: Int, level: Int, leveled: Bool, streak: Int, streakUp: Bool, firstToday: Bool
+
+    static func parse(_ data: Data) -> HBRewardEvent? {
+        guard let o = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any], let r = o["reward"] as? [String: Any] else { return nil }
+        func int(_ k: String) -> Int { (r[k] as? NSNumber)?.intValue ?? 0 }
+        func flag(_ k: String) -> Bool { (r[k] as? NSNumber)?.boolValue ?? false }
+        return HBRewardEvent(gained: int("gained"), level: max(1, int("level")), leveled: flag("leveled"), streak: int("streak"), streakUp: flag("streak_up"), firstToday: flag("first_today"))
     }
+    /// "Added Coffee · $4.00  +5 🥕"
+    func toastText(_ base: String) -> String { gained > 0 ? "\(base)  +\(gained) 🥕" : base }
+    /// the small second line: only when there is no level-up dialog (the website shows one or the other)
+    var streakLine: String? {
+        if leveled { return nil }
+        if streakUp { return "🐾 \(streak)-day hop streak!" }
+        if firstToday && streak == 1 { return "🐾 Streak started. Come back tomorrow!" }
+        return nil
+    }
+    /// the level-up dialog's body (UNLOCKS in app.js): what the new level unlocked, or encouragement
+    static func levelUpText(_ level: Int) -> String {
+        if let u = HBBunnyGear.unlock(level) { return "Your bunny unlocked \(u)!" }
+        return level >= 2 ? "Keep hopping. Your bunny is proud of you." : "Keep logging to grow your bunny."
+    }
+}
+enum HBCarrotReward {
+    static func leveledUp(in data: Data) -> Int? { HBRewardEvent.parse(data).flatMap { $0.leveled ? $0.level : nil } }
 }

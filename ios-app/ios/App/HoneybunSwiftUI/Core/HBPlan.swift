@@ -225,3 +225,36 @@ enum HBPlanText {
     /// 5 → "5", 5.25 → "5.25"  (the website trims a trailing .00)
     static func percent(_ v: Double) -> String { let s = String(format: "%.2f", v); return s.hasSuffix(".00") ? String(s.dropLast(3)) : s }
 }
+
+
+/// "Before payday": the website's upcoming() + renderDue footer. Bills still unpaid until the day before the next payday (or 30 days when there is no
+/// payday), including late ones from the last month; paydays on that same day; and what is left after those bills.
+struct HBBeforePayday: Equatable {
+    var payday: Date?
+    var bills: [(label: String, date: Date, late: Bool, amount: Double)]
+    var paydays: [(label: String, date: Date, amount: Double)]
+    var due: Double { bills.reduce(0) { $0 + $1.amount } }
+    static func == (a: HBBeforePayday, b: HBBeforePayday) -> Bool { a.payday == b.payday && a.bills.count == b.bills.count && a.paydays.count == b.paydays.count && a.due == b.due }
+}
+extension HBPlan {
+    static func beforePayday(_ s: HBNestSnapshot, today: Date = HBDay.startOfToday()) -> HBBeforePayday? {
+        guard !s.recurring.isEmpty else { return nil }
+        let logged = Set(s.logged.map { $0.recurring_id + "|" + $0.occ_date })
+        var payday: Date? = nil
+        var pays: [(label: String, date: Date, amount: Double)] = []
+        for r in s.recurring where r.isIncome {
+            guard let d = HBRecur.occurrences(r, from: today, to: HBDay.addDays(today, 62)).first(where: { !logged.contains(r.id + "|" + HBDay.string($0)) }) else { continue }
+            if payday == nil || d < payday! { payday = d; pays = [(r.label, d, r.amount)] }
+            else if d == payday! { pays.append((r.label, d, r.amount)) }
+        }
+        let until = payday.map { HBDay.addDays($0, -1) } ?? HBDay.addDays(today, 30)
+        var bills: [(label: String, date: Date, late: Bool, amount: Double)] = []
+        for r in s.recurring where !r.isIncome {
+            for d in HBRecur.occurrences(r, from: HBDay.addDays(today, -31), to: until) where !logged.contains(r.id + "|" + HBDay.string(d)) {
+                bills.append((r.label, d, d < today, r.amount))
+            }
+        }
+        bills.sort { $0.date < $1.date }
+        return HBBeforePayday(payday: payday, bills: bills, paydays: pays)
+    }
+}

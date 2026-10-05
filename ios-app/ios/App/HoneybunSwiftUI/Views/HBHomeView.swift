@@ -66,6 +66,8 @@ struct HBHomeView: View {
                     actions
                     HBVerifyBanner(store: store)
                     HBHeadsUpSection(store: store)
+                    shoppingShortcut
+                    beforePayday
                     comingUp
                     streakCard
                     latest
@@ -185,6 +187,58 @@ struct HBHomeView: View {
         }
     }
 
+    /// "N things to get": the shared shopping list, only when something is on it (the website hides it when empty)
+    @ViewBuilder private var shoppingShortcut: some View {
+        let n = store.snapshot?.shopping_open ?? 0
+        if n > 0 {
+            Button { store.sheet = .shopping } label: {
+                HStack(spacing: 12) {
+                    HBCircleIcon(symbol: "cart.fill", tint: HB.orange, size: 40)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("\(n) \(n == 1 ? "thing" : "things") to get").font(.system(size: 16, weight: .semibold)).foregroundColor(.white)
+                        Text("Shopping list").font(.system(size: 13)).foregroundColor(HB.soft)
+                    }
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.right").font(.system(size: 13, weight: .bold)).foregroundColor(HB.soft)
+                }
+                .padding(.horizontal, 14).padding(.vertical, 10).frame(maxWidth: .infinity, alignment: .leading).hbCard()
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain).accessibilityIdentifier("hb-home-shopping")
+        }
+    }
+
+    /// "Before payday": what is due until the next payday and what is left once it is paid (the website's Bills & paydays summary)
+    @ViewBuilder private var beforePayday: some View {
+        if let s = store.snapshot, let b = HBPlan.beforePayday(s) {
+            let day: String = b.payday.map { HBDay.dayName($0) } ?? "next 30 days"
+            let left = store.left - b.due
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text(b.payday != nil ? "Before payday" : "Due soon").font(.system(size: 17, weight: .bold)).foregroundColor(.white)
+                    Spacer()
+                    Text(day).font(.system(size: 14)).foregroundColor(HB.soft)
+                }
+                if b.bills.isEmpty {
+                    Text(b.payday != nil ? "Nothing due before payday ♡" : "Nothing due soon ♡").font(.system(size: 14)).foregroundColor(HB.soft)
+                } else {
+                    HStack {
+                        Text("Due \(HBFormat.money(b.due))").font(.system(size: 15, weight: .semibold)).foregroundColor(.white)
+                        Text("· \(b.bills.count) \(b.bills.count == 1 ? "bill" : "bills")").font(.system(size: 14)).foregroundColor(HB.soft)
+                        Spacer()
+                        Text("Left after bills \(HBFormat.money(left))").font(.system(size: 14, weight: .semibold)).foregroundColor(left < 0 ? HB.red : HB.green)
+                            .minimumScaleFactor(0.8).lineLimit(1)
+                    }
+                    if b.bills.contains(where: { $0.late }) {
+                        Text("Some are overdue.").font(.system(size: 13)).foregroundColor(HB.red)
+                    }
+                }
+            }
+            .padding(14).frame(maxWidth: .infinity, alignment: .leading).hbCard()
+            .accessibilityElement(children: .contain).accessibilityIdentifier("hb-before-payday")
+        }
+    }
+
     private var comingUp: some View {
         let items = store.upcoming
         return VStack(alignment: .leading, spacing: 8) {
@@ -237,8 +291,7 @@ struct HBHomeView: View {
                 } else {
                     ForEach(Array(recent.enumerated()), id: \.element.id) { i, e in
                         if i > 0 { Divider().background(HB.line).padding(.leading, 66) }
-                        Button { store.sheet = .editEntry(e) } label: { HBEntryRow(entry: e, who: store.members.count > 1 ? store.memberName(e.member_id) : nil) }
-                            .buttonStyle(.plain)
+                        HBSwipeEntryRow(store: store, entry: e, who: store.members.count > 1 ? store.memberName(e.member_id) : nil)
                     }
                 }
             }

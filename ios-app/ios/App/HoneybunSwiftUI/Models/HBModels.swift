@@ -106,6 +106,16 @@ struct HBNestSnapshot: Decodable {
     let carry_pending: HBCarryPrompt?; let categories: [HBCustomCategory]?; let setup_done: Bool?
     let budgets: [HBBudget]?; let debts: [HBDebt]?; let debt_payments: [HBDebtPayment]?
     let carry: [String: Int]?            // per-category budget roll-over from earlier months (cents)
+    let repeats: [HBRepeat]?             // your most common expenses (one-tap repeats on the Add screen)
+}
+
+/// one of your most common expenses of the last 90 days, from /api/nest "repeats"
+struct HBRepeat: Decodable, Identifiable {
+    let label: String; let category: String?; let amount_cents: Int
+    let shared: Int?; let split_mode: String?; let split_value: Int?; let isPrivate: Int?; let count: Int?
+    enum CodingKeys: String, CodingKey { case label, category, amount_cents, shared, split_mode, split_value, count; case isPrivate = "private" }
+    var id: String { label.lowercased() + "|" + (category ?? "other") }
+    var amount: Double { Double(amount_cents) / 100.0 }
 }
 
 /// a monthly limit for one category (built-in id or a custom "c_…" id)

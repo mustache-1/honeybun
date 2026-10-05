@@ -186,3 +186,54 @@ struct HBPeekBun: View {
         .accessibilityHidden(true)
     }
 }
+
+// Swipe a row right to Edit, left to Delete (the website's attachSwipe). Delete happens at once with an Undo toast, never silently.
+// Only a clearly sideways drag counts, so scrolling up and down is never hijacked.
+@available(iOS 15.0, *)
+struct HBSwipeActions: ViewModifier {
+    let onEdit: () -> Void
+    let onDelete: () -> Void
+    @State private var dx: CGFloat = 0
+    private let trigger: CGFloat = 84
+
+    func body(content: Content) -> some View {
+        content
+            .offset(x: dx)
+            .overlay(alignment: .leading) { hint("Edit", "pencil", HB.green, show: dx > 12).offset(x: min(0, dx - 96)) }
+            .overlay(alignment: .trailing) { hint("Delete", "trash", HB.red, show: dx < -12).offset(x: max(0, dx + 96)) }
+            .clipped()
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 18)
+                    .onChanged { g in
+                        guard abs(g.translation.width) > abs(g.translation.height) * 1.6 else { return }
+                        dx = max(-130, min(130, g.translation.width))
+                    }
+                    .onEnded { g in
+                        let w = g.translation.width, sideways = abs(g.translation.width) > abs(g.translation.height) * 1.6
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) { dx = 0 }
+                        guard sideways else { return }
+                        if w > trigger { onEdit() } else if w < -trigger { onDelete() }
+                    }
+            )
+            .accessibilityAction(named: "Edit") { onEdit() }
+            .accessibilityAction(named: "Delete") { onDelete() }
+    }
+    private func hint(_ text: String, _ symbol: String, _ tint: Color, show: Bool) -> some View {
+        Label(text, systemImage: symbol).font(.system(size: 14, weight: .bold)).foregroundColor(tint)
+            .padding(.horizontal, 12).frame(height: 34).background(Capsule().fill(tint.opacity(0.18)))
+            .padding(.horizontal, 8).opacity(show ? 1 : 0).allowsHitTesting(false)
+    }
+}
+
+/// One entry in a list: tap to open it, swipe right to edit, swipe left to delete (with Undo)
+@available(iOS 15.0, *)
+struct HBSwipeEntryRow: View {
+    @ObservedObject var store: HBAppStore
+    let entry: HBEntry
+    var who: String? = nil
+    var body: some View {
+        Button { store.sheet = .editEntry(entry) } label: { HBEntryRow(entry: entry, who: who) }
+            .buttonStyle(.plain)
+            .modifier(HBSwipeActions(onEdit: { store.sheet = .editEntry(entry) }, onDelete: { Task { await store.deleteWithUndo(entry) } }))
+    }
+}

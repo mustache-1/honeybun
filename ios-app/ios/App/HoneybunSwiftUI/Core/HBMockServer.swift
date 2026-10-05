@@ -551,6 +551,12 @@ final class HBMockServer: URLProtocol {
         }
 
         // adding an entry (Money): the category must be a built-in one or one of the account's own
+        if path.hasPrefix("/api/entries/") && method == "DELETE" {
+            var entries = state["entries"] as? [[String: Any]] ?? []
+            guard let i = entries.firstIndex(where: { ($0["id"] as? String) == String(path.dropFirst("/api/entries/".count)) }) else { return (404, ["error": "Not found."]) }
+            entries.remove(at: i); state["entries"] = entries
+            return (200, ["ok": true])
+        }
         if path == "/api/entries" && method == "POST" {
             guard let amt = cents(body["amount"]) else { return (400, ["error": "Enter an amount more than $0."]) }
             let type = body["type"] as? String == "income" ? "income" : "expense"
@@ -567,7 +573,7 @@ final class HBMockServer: URLProtocol {
             if let c = cid, entries.contains(where: { ($0["id"] as? String) == c }) { return (200, ["ok": true, "id": c, "duplicate": true]) }
             entries.insert(["id": cid ?? ("e-" + UUID().uuidString.lowercased()), "member_id": body["member_id"] as? String ?? "", "type": type, "amount_cents": amt, "label": clean(body["label"], 40),
                             "category": type == "income" ? NSNull() : cat, "shared": 0, "split_mode": NSNull(), "split_value": NSNull(), "shares": NSNull(), "private": 0,
-                            "date": body["date"] as? String ?? "", "recurring_id": NSNull(), "occ_date": NSNull(), "created_at": 0], at: 0)
+                            "date": body["date"] as? String ?? "", "recurring_id": (body["restore"] as? Bool == true ? body["recurring_id"] : nil) ?? NSNull(), "occ_date": (body["restore"] as? Bool == true ? body["occ_date"] : nil) ?? NSNull(), "created_at": 0], at: 0)
             state["entries"] = entries
             return (201, ["ok": true, "id": cid ?? "", "reward": ["gained": 5, "leveled": false, "level": 1]])
         }

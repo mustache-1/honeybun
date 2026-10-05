@@ -284,6 +284,81 @@ func run() async {
     check("LEVEL-UP: a reward that levels you up carries the new level", HBCarrotReward.leveledUp(in: Data(#"{"ok":true,"reward":{"gained":5,"leveled":true,"level":4}}"#.utf8)) == 4)
     check("LEVEL-UP: no dialog without a level-up, a reward, or valid data", HBCarrotReward.leveledUp(in: Data(#"{"ok":true,"reward":{"gained":5,"leveled":false,"level":4}}"#.utf8)) == nil && HBCarrotReward.leveledUp(in: Data(#"{"ok":true,"reward":null}"#.utf8)) == nil && HBCarrotReward.leveledUp(in: Data("nope".utf8)) == nil)
 
+
+    // ---- Undo, one-tap repeats, last category
+    HBMockServer.install(seed: "default")
+    var u = HBEntryDraft(type: "expense", amount: 4, label: "Undo me", category: "food", date: "2026-09-21", memberID: me)
+    u.shared = true; u.splitMode = "owed"; u.splitValue = 1.25; u.isPrivate = false
+    let undoBase = await serverEntries().count
+    let addData = try? await api.addEntry(u, clientID: "undo-1")
+    let addedID = (addData.flatMap { try? JSONSerialization.jsonObject(with: $0) } as? [String: Any])?["id"] as? String
+    check("UNDO ADD: the server tells the app the new entry's id (so Undo can remove it)", addedID == "undo-1")
+    try? await api.deleteEntry(id: "undo-1")
+    let afterUndo = await serverEntries()
+    check("UNDO ADD: tapping Undo removes exactly that entry", afterUndo.count == undoBase && !afterUndo.contains { $0.id == "undo-1" })
+    let victim = afterUndo.first { $0.label == "Pizza" }
+    if let v = victim {
+        try? await api.deleteEntry(id: v.id)
+        let gone = await serverEntries()
+        check("UNDO DELETE: a deleted entry is gone", !gone.contains { $0.id == v.id })
+        HBMockServer.entryBodies = []
+        try? await api.restoreEntry(v)
+        let back = await serverEntries().first { $0.label == "Pizza" && $0.amount_cents == v.amount_cents && $0.date == v.date && $0.category == v.category }
+        let rb = HBMockServer.entryBodies.last ?? [:]
+        let pizzas = await serverEntries().filter { $0.label == "Pizza" }.count
+        check("UNDO DELETE: Undo puts back the same entry (label, amount, category, date, member) exactly once", back != nil && pizzas == 1)
+        check("UNDO DELETE: the restore carries the website's restore flag and every field", rb["restore"] as? Bool == true && rb["label"] as? String == "Pizza" && rb["amount"] as? Double == 29.4 && rb["category"] as? String == "food" && rb["date"] as? String == v.date && rb["member_id"] as? String == v.member_id && rb["private"] as? Bool == false)
+    } else { check("UNDO DELETE: test data has Pizza", false) }
+    let shared = HBEntry(id: "x", member_id: me, type: "expense", amount_cents: 1000, label: "Split dinner", category: "food", shared: 1, split_mode: "owed", split_value: 250, isPrivate: 1, date: "2026-09-21", recurring_id: "rec-1", occ_date: "2026-09-20")
+    HBMockServer.entryBodies = []
+    try? await api.restoreEntry(shared)
+    let sb = HBMockServer.entryBodies.last ?? [:]
+    check("UNDO DELETE: a split, private entry that came from a bill keeps its split, privacy and bill (owed is sent in dollars)", sb["shared"] as? Bool == true && sb["split_mode"] as? String == "owed" && sb["split_value"] as? Double == 2.5 && sb["private"] as? Bool == true && sb["recurring_id"] as? String == "rec-1" && sb["occ_date"] as? String == "2026-09-20")
+    if let s = snapshot({ d in d["repeats"] = [["label": "Coffee", "category": "food", "amount_cents": 450, "shared": 1, "split_mode": "owed", "split_value": 225, "private": 0, "count": 6], ["label": "Gas", "category": "car", "amount_cents": 4000, "shared": 0, "split_mode": NSNull(), "split_value": NSNull(), "private": 1, "count": 3]] }) {
+        let r = s.repeats ?? []
+        check("REPEATS: your usual expenses come with the snapshot (label, category, amount, split, privacy)", r.count == 2 && r[0].label == "Coffee" && r[0].amount == 4.5 && r[0].shared == 1 && r[0].split_mode == "owed" && r[0].split_value == 225 && r[1].isPrivate == 1 && r[1].category == "car")
+    } else { check("REPEATS: snapshot with repeats decodes", false) }
+    check("REPEATS: a snapshot without them still decodes (none shown)", (snapshot { _ in }?.repeats ?? []).isEmpty)
+    let defs = UserDefaults(suiteName: "hb-last-\(UUID().uuidString)")!
+    check("LAST CATEGORY: nothing remembered at first", HBAddDefaults.lastCategory(valid: ["food", "groc"], defs) == nil)
+    HBAddDefaults.remember("food", defs)
+    check("LAST CATEGORY: the next Add opens on the category used last", HBAddDefaults.lastCategory(valid: ["food", "groc"], defs) == "food")
+    check("LAST CATEGORY: a category that no longer exists is forgotten", HBAddDefaults.lastCategory(valid: ["groc"], defs) == nil)
+    HBAddDefaults.remember("c_abc", defs)
+    check("LAST CATEGORY: your own categories are remembered too", HBAddDefaults.lastCategory(valid: ["food", "c_abc"], defs) == "c_abc")
+
+    // ---- reward toasts and level-ups
+    let big = Data(#"{"ok":true,"id":"1","reward":{"gained":5,"xp":55,"level":2,"leveled":true,"streak":3,"streak_up":true,"first_today":true}}"#.utf8)
+    let ev = HBRewardEvent.parse(big)
+    check("REWARDS: the toast shows the carrots (\"+5 🥕\")", ev?.toastText("Coffee · $4.00") == "Coffee · $4.00  +5 🥕")
+    check("REWARDS: no carrots, no suffix", HBRewardEvent(gained: 0, level: 1, leveled: false, streak: 1, streakUp: false, firstToday: false).toastText("Done") == "Done")
+    check("REWARDS: a level-up replaces the streak line (the dialog shows instead)", ev?.leveled == true && ev?.level == 2 && ev?.streakLine == nil)
+    check("REWARDS: a longer streak says \"N-day hop streak!\"", HBRewardEvent(gained: 5, level: 2, leveled: false, streak: 4, streakUp: true, firstToday: true).streakLine == "🐾 4-day hop streak!")
+    check("REWARDS: the first log of a streak says it started", HBRewardEvent(gained: 5, level: 2, leveled: false, streak: 1, streakUp: false, firstToday: true).streakLine == "🐾 Streak started. Come back tomorrow!")
+    check("REWARDS: an ordinary extra add the same day has no streak line", HBRewardEvent(gained: 5, level: 2, leveled: false, streak: 3, streakUp: false, firstToday: false).streakLine == nil)
+    check("REWARDS: a null reward (a restore) shows nothing extra", HBRewardEvent.parse(Data(#"{"ok":true,"reward":null}"#.utf8)) == nil)
+    check("LEVEL-UP: the dialog text says what unlocked (level 3 = pink bow) or encourages", HBRewardEvent.levelUpText(3) == "Your bunny unlocked a pink bow!" && HBRewardEvent.levelUpText(4) == "Keep hopping. Your bunny is proud of you.")
+
+    // ---- Before payday
+    let oct4 = HBDay.parse("2026-10-04")!
+    if let s = snapshot({ _ in }), let b = HBPlan.beforePayday(s, today: oct4) {
+        check("BEFORE PAYDAY: with no payday it looks 30 days ahead (Netflix, Discord, Rent = $875.98)", b.payday == nil && b.bills.map { $0.label } == ["Netflix", "Discord Nitro", "Rent"] && abs(b.due - 875.98) < 0.001)
+    } else { check("BEFORE PAYDAY: sample data", false) }
+    if let s = snapshot({ d in
+        var r = d["recurring"] as? [[String: Any]] ?? []
+        r.append(["id": "pay1", "type": "income", "label": "Paycheck", "amount_cents": 200000, "category": NSNull(), "member_id": me, "shared": 0, "split_mode": NSNull(), "split_value": NSNull(), "freq": "biweekly", "anchor_date": "2026-10-10"])
+        r.append(["id": "gym", "type": "expense", "label": "Gym", "amount_cents": 3000, "category": "fun", "member_id": me, "shared": 0, "split_mode": NSNull(), "split_value": NSNull(), "freq": "monthly", "anchor_date": "2026-09-20"])
+        d["recurring"] = r }), let b = HBPlan.beforePayday(s, today: oct4) {
+        check("BEFORE PAYDAY: with a payday it counts only bills until the day before it (and the overdue one)", HBDay.string(b.payday ?? oct4) == "2026-10-10" && b.bills.map { $0.label } == ["Gym", "Netflix", "Discord Nitro"] && b.bills[0].late && !b.bills[1].late)
+        check("BEFORE PAYDAY: due adds those bills up ($30 + $15.99 + $9.99)", abs(b.due - 55.98) < 0.001 && b.paydays.map { $0.label } == ["Paycheck"])
+    }
+    if let s = snapshot({ d in
+        var r = d["recurring"] as? [[String: Any]] ?? []
+        r.append(["id": "pay1", "type": "income", "label": "Paycheck", "amount_cents": 200000, "category": NSNull(), "member_id": me, "shared": 0, "split_mode": NSNull(), "split_value": NSNull(), "freq": "biweekly", "anchor_date": "2026-10-10"])
+        d["recurring"] = r; d["logged"] = [["recurring_id": "6c662d78-450f-434f-8429-bf060cc32dac", "occ_date": "2026-10-05"]] }), let b = HBPlan.beforePayday(s, today: oct4) {
+        check("BEFORE PAYDAY: a bill already marked paid is not counted", b.bills.map { $0.label } == ["Discord Nitro"] && abs(b.due - 9.99) < 0.001)
+    }
+    check("BEFORE PAYDAY: nothing to show when there are no bills or paydays at all", { if let s = snapshot({ d in d["recurring"] = [] as [Any] }) { return HBPlan.beforePayday(s, today: oct4) == nil }; return false }())
     HBOfflineCache.shared.clear()
 }
 

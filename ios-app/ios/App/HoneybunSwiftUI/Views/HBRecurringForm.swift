@@ -190,11 +190,10 @@ struct HBTransactionsList: View {
                             VStack(spacing: 0) {
                                 ForEach(Array(group.items.enumerated()), id: \.element.id) { i, e in
                                     if i > 0 { Divider().background(HB.line).padding(.leading, 62) }
-                                    Button { store.sheet = .editEntry(e) } label: { HBEntryRow(entry: e, who: store.members.count > 1 ? store.memberName(e.member_id) : nil) }
-                                        .buttonStyle(.plain)
+                                    HBSwipeEntryRow(store: store, entry: e, who: store.members.count > 1 ? store.memberName(e.member_id) : nil)
                                         .contextMenu {
                                             Button { store.sheet = .editEntry(e) } label: { Label("Edit", systemImage: "pencil") }
-                                            Button(role: .destructive) { Task { do { try await store.deleteEntry(id: e.id) } catch { store.notice = error.localizedDescription } } } label: { Label("Delete", systemImage: "trash") }
+                                            Button(role: .destructive) { Task { await store.deleteWithUndo(e) } } label: { Label("Delete", systemImage: "trash") }
                                         }
                                 }
                             }

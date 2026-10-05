@@ -32,6 +32,12 @@ struct HBRootView: View {
             }
         }
         .fullScreenCover(item: $store.sheet) { sheet in sheetView(sheet) }
+        .overlay(alignment: .bottom) {
+            if let t = store.toast, store.phase == .ready, store.sheet == nil {
+                HBToastView(toast: t) { store.dismissToast() }.padding(.bottom, 88).transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+        .animation(.easeOut(duration: 0.2), value: store.toast?.id)
         .overlay {
             if let l = store.levelUp, store.sheet == nil { HBLevelUpCard(level: l) { store.levelUp = nil }.transition(.opacity) }
         }

@@ -28,6 +28,7 @@ actor HBAPI {
         r.setValue("application/json", forHTTPHeaderField: "Accept")
         r.setValue("https://honeybun.me", forHTTPHeaderField: "Origin")
         r.setValue(HBDevice.id(), forHTTPHeaderField: "x-hb-device")
+        r.setValue(HBDay.todayString, forHTTPHeaderField: "x-local-date")      // so the carrot streak counts the phone's own day, like the website
         if let body = body {
             r.httpBody = try JSONSerialization.data(withJSONObject: body)
             r.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -88,6 +89,15 @@ actor HBAPI {
     }
     func updateEntry(id: String, _ d: HBEntryDraft) async throws { _ = try await send("/api/entries/\(id)", method: "PATCH", body: d.json) }
     func deleteEntry(id: String) async throws { _ = try await send("/api/entries/\(id)", method: "DELETE", body: nil) }
+    /// "Undo" after a delete: the same entry again, with its split, privacy and any bill it came from (the website's entryPayload + restore)
+    func restoreEntry(_ e: HBEntry) async throws {
+        var b: [String: Any] = ["type": e.type, "amount": e.amount, "label": e.label, "member_id": e.member_id, "shared": e.shared == 1, "private": e.isPrivate == 1, "date": e.date, "restore": true]
+        if let c = e.category { b["category"] = c }
+        if let m = e.split_mode, e.shared == 1 { b["split_mode"] = m; if let v = e.split_value { b["split_value"] = m == "owed" ? Double(v) / 100.0 : Double(v) } }
+        if let r = e.recurring_id { b["recurring_id"] = r }
+        if let o = e.occ_date { b["occ_date"] = o }
+        _ = try await send("/api/entries", method: "POST", body: b)
+    }
 
     func addGoal(_ d: HBGoalDraft) async throws { _ = try await send("/api/goals", method: "POST", body: d.json) }
     func updateGoal(id: String, _ d: HBGoalDraft) async throws { _ = try await send("/api/goals/\(id)", method: "PATCH", body: d.json) }
@@ -104,8 +114,9 @@ actor HBAPI {
     func deleteShopItem(id: String) async throws { _ = try await send("/api/shopping/\(id)", method: "DELETE", body: nil) }
     func clearShopDone() async throws { _ = try await send("/api/shopping/clear", method: "POST", body: nil) }
     func shopCheckout(amount: Double, date: String) async throws { _ = try await send("/api/shopping/checkout", method: "POST", body: ["amount": amount, "date": date]) }
-    func settle(from: String, to: String, amount: Double, date: String) async throws {
-        _ = try await send("/api/settlements", method: "POST", body: ["from_id": from, "to_id": to, "amount": amount, "date": date])
+    @discardableResult
+    func settle(from: String, to: String, amount: Double, date: String) async throws -> Data {
+        try await send("/api/settlements", method: "POST", body: ["from_id": from, "to_id": to, "amount": amount, "date": date])
     }
     func deleteSettlement(id: String) async throws { _ = try await send("/api/settlements/\(id)", method: "DELETE", body: nil) }
     func patchNest(_ body: [String: Any]) async throws { _ = try await send("/api/nest", method: "PATCH", body: body) }
@@ -135,6 +146,7 @@ actor HBAPI {
     @discardableResult
     func logOccurrence(recurringID: String, date: String) async throws -> Data { try await send("/api/recurring/\(recurringID)/log", method: "POST", body: ["occ_date": date]) }
     func updateRecurring(id: String, _ d: HBRecurringDraft) async throws { _ = try await send("/api/recurring/\(id)", method: "PATCH", body: d.json) }
-    func addRecurring(_ d: HBRecurringDraft) async throws { _ = try await send("/api/recurring", method: "POST", body: d.json) }
+    @discardableResult
+    func addRecurring(_ d: HBRecurringDraft) async throws -> Data { try await send("/api/recurring", method: "POST", body: d.json) }
     func deleteRecurring(id: String) async throws { _ = try await send("/api/recurring/\(id)", method: "DELETE", body: nil) }
 }

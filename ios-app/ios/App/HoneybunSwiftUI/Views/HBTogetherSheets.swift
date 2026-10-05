@@ -384,7 +384,7 @@ struct HBHouseholdSheet: View {
     }
 }
 
-// Pick your own name, buddy and colour (PATCH /api/me, the same call as the website's "Edit yourself").
+// Pick your own name and buddy (PATCH /api/me, the same call as the website's "Edit yourself").
 @available(iOS 15.0, *)
 struct HBEditMeSheet: View {
     @ObservedObject var store: HBAppStore
@@ -417,17 +417,6 @@ struct HBEditMeSheet: View {
                             .overlay(RoundedRectangle(cornerRadius: 19, style: .continuous).stroke(emoji == e ? HB.orange : (Color(hex: color) ?? Color.white.opacity(0.18)), lineWidth: emoji == e ? 4 : 2))
                         }
                         .accessibilityLabel("Buddy").accessibilityAddTraits(emoji == e ? .isSelected : [])
-                    }
-                }
-            }
-            HBField(title: "Colour") {
-                HStack(spacing: 12) {
-                    ForEach(HBTogether.colors, id: \.self) { c in
-                        Button { color = c } label: {
-                            Circle().fill(Color(hex: c) ?? HB.orange).frame(width: 40, height: 40)
-                                .overlay(Circle().stroke(color == c ? HB.orange : Color.white.opacity(0.18), lineWidth: color == c ? 3 : 1))
-                        }
-                        .accessibilityLabel("Colour").accessibilityAddTraits(color == c ? .isSelected : [])
                     }
                 }
             }
@@ -714,8 +703,8 @@ struct HBSearchSheet: View {
                 VStack(spacing: 0) {
                     ForEach(Array(rows.prefix(shown).enumerated()), id: \.element.id) { i, e in
                         if i > 0 { Divider().background(HB.line).padding(.leading, 62) }
-                        Button { store.sheet = .editEntry(e) } label: { HBEntryRow(entry: e, who: store.members.count > 1 ? (e.member_id == store.myID ? "You" : store.memberName(e.member_id)) : nil) }
-                            .buttonStyle(.plain).accessibilityIdentifier("hb-search-row")
+                        HBSwipeEntryRow(store: store, entry: e, who: store.members.count > 1 ? (e.member_id == store.myID ? "You" : store.memberName(e.member_id)) : nil)
+                            .accessibilityIdentifier("hb-search-row")
                     }
                     if rows.count > shown {
                         Divider().background(HB.line)

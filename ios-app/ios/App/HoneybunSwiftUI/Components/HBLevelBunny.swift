@@ -75,7 +75,7 @@ struct HBLevelUpCard: View {
     let onClose: () -> Void
     var body: some View {
         let title = HBProgress.titles[min(level, HBProgress.titles.count) - 1]
-        let text = HBBunnyGear.unlock(level).map { "Your bunny unlocked \($0)!" } ?? (level >= 2 ? "Keep hopping. Your bunny is proud of you." : "Keep logging to grow your bunny.")
+        let text = HBRewardEvent.levelUpText(level)
         return ZStack {
             Color.black.opacity(0.55).ignoresSafeArea().onTapGesture(perform: onClose)
             VStack(spacing: 10) {
@@ -95,5 +95,39 @@ struct HBLevelUpCard: View {
             .padding(24)
         }
         .accessibilityElement(children: .contain)
+    }
+}
+
+/// One small message at the bottom of the screen: what just happened, the carrots earned, and sometimes Undo. Only one is ever shown at a time.
+struct HBToast: Identifiable {
+    let id = UUID()
+    let text: String
+    var detail: String? = nil
+    var actionTitle: String? = nil
+    var action: (() -> Void)? = nil
+}
+
+@available(iOS 15.0, *)
+struct HBToastView: View {
+    let toast: HBToast
+    let onDismiss: () -> Void
+    var body: some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(toast.text).font(.system(size: 15, weight: .semibold)).foregroundColor(.white).fixedSize(horizontal: false, vertical: true)
+                if let d = toast.detail { Text(d).font(.system(size: 13)).foregroundColor(Color(red: 1, green: 0.83, blue: 0.48)) }
+            }
+            Spacer(minLength: 4)
+            if let title = toast.actionTitle, let act = toast.action {
+                Button { onDismiss(); act() } label: { Text(title).font(.system(size: 15, weight: .bold)).foregroundColor(HB.orange).padding(.horizontal, 6).frame(minHeight: 36) }
+                    .accessibilityIdentifier("hb-toast-action")
+            }
+        }
+        .padding(.horizontal, 16).padding(.vertical, 10)
+        .background(Capsule().fill(Color(red: 0.16, green: 0.11, blue: 0.2)))
+        .overlay(Capsule().stroke(HB.orange.opacity(0.35), lineWidth: 1))
+        .shadow(color: .black.opacity(0.45), radius: 12, y: 4)
+        .padding(.horizontal, 16)
+        .accessibilityElement(children: .contain).accessibilityIdentifier("hb-toast")
     }
 }

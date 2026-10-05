@@ -78,10 +78,12 @@ struct HBEntryForm: View {
         _type = State(initialValue: base.type)
         _amountText = State(initialValue: editing == nil ? "" : String(format: "%.2f", base.amount))
         _label = State(initialValue: base.label)
-        _category = State(initialValue: base.category)
+        // a new expense opens on the category you used last (the website's "hb-last-cat")
+        let last: String? = (editing == nil && base.type == "expense") ? HBAddDefaults.lastCategory(valid: HBCatStyle.all.map { $0.id }) : nil
+        _category = State(initialValue: last ?? base.category)
         _pick = State(initialValue: base.type == "income"
             ? (hbIncomeTiles.first { $0.id == base.label }?.id ?? (editing == nil ? "Paycheck" : ""))
-            : (editing == nil ? "" : (hbExpenseTiles.first { $0.backend == base.category }?.id ?? "")))
+            : (editing == nil ? (last ?? "") : (hbExpenseTiles.first { $0.backend == base.category }?.id ?? "")))
         _date = State(initialValue: HBDay.parse(base.date) ?? Date())
         _memberID = State(initialValue: base.memberID)
         _shared = State(initialValue: base.shared)
@@ -101,6 +103,7 @@ struct HBEntryForm: View {
                     VStack(alignment: .leading, spacing: 16) {
                         header
                         typeSwitch
+                        repeatsSection
                         amountCard
                         tiles
                         details
@@ -165,6 +168,45 @@ struct HBEntryForm: View {
                 .background(Capsule().fill(on ? color : Color.clear).shadow(color: on ? color.opacity(0.5) : .clear, radius: 8))
         }
         .accessibilityAddTraits(on ? .isSelected : [])
+    }
+
+    /// "Your usual": your most common expenses of the last 90 days. One tap logs it again (same amount, category and split, dated today).
+    @ViewBuilder private var repeatsSection: some View {
+        let list = store.snapshot?.repeats ?? []
+        if !isIncome && editing == nil && !list.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Your usual").font(.footnote.weight(.semibold)).foregroundColor(HB.soft)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 10) {
+                        ForEach(list) { r in
+                            Button { logAgain(r) } label: {
+                                HStack(spacing: 10) {
+                                    HBCatIcon(style: HBCatStyle.of(r.category), size: 34)
+                                    VStack(alignment: .leading, spacing: 1) {
+                                        Text(r.label).font(.system(size: 15, weight: .semibold)).foregroundColor(.white).lineLimit(1)
+                                        Text(HBFormat.money(r.amount) + (r.shared == 1 ? " · split" : "")).font(.system(size: 12)).foregroundColor(HB.soft)
+                                    }
+                                }
+                                .padding(.horizontal, 12).padding(.vertical, 8)
+                                .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(Color.white.opacity(0.05)))
+                                .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(HB.orange.opacity(0.3), lineWidth: 1))
+                            }
+                            .disabled(saving)
+                            .accessibilityLabel("Log \(r.label) \(HBFormat.money(r.amount))").accessibilityIdentifier("hb-repeat")
+                        }
+                    }
+                }
+            }
+            .accessibilityElement(children: .contain).accessibilityIdentifier("hb-repeats")
+        }
+    }
+    private func logAgain(_ r: HBRepeat) {
+        guard !saving else { return }
+        hbHideKeyboard(); error = nil; saving = true
+        Task {
+            do { try await store.logRepeat(r); dismiss() } catch { self.error = error.localizedDescription }
+            saving = false
+        }
     }
 
     private var amountCard: some View {
@@ -332,7 +374,7 @@ struct HBEntryForm: View {
         guard let e = editing else { return }
         saving = true
         Task {
-            do { try await store.deleteEntry(id: e.id); dismiss() } catch { self.error = error.localizedDescription }
+            await store.deleteWithUndo(e); dismiss()
             saving = false
         }
     }

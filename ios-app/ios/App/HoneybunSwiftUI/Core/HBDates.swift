@@ -26,6 +26,7 @@ enum HBDay {
         guard let d = parse(s) else { return s }
         let f = DateFormatter(); f.dateFormat = "MMM d"; return f.string(from: d)
     }
+    static func dayName(_ d: Date) -> String { let f = DateFormatter(); f.dateFormat = "EEEE"; return f.string(from: d) }
     static func addDays(_ d: Date, _ n: Int) -> Date { cal.date(byAdding: .day, value: n, to: d) ?? d }
     static func startOfToday() -> Date { cal.startOfDay(for: Date()) }
 }

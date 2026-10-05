@@ -113,7 +113,8 @@ extension HBAPI {
 
     func createBudget(name: String, kind: String) async throws { _ = try await send("/api/nests", method: "POST", body: ["name": name, "kind": kind]) }
     func joinBudget(code: String) async throws { _ = try await send("/api/nests/join", method: "POST", body: ["code": code]) }
-    func finishSetup() async throws { _ = try await send("/api/setup/done", method: "POST", body: nil) }
+    @discardableResult
+    func finishSetup() async throws -> Data { try await send("/api/setup/done", method: "POST", body: nil) }
     func authConfigApple() async -> Bool {
         guard let d = try? await send("/api/auth/config", method: "GET", body: nil, unauth: true) else { return false }
         return (((try? JSONSerialization.jsonObject(with: d)) as? [String: Any])?["apple"] as? Bool) ?? false

@@ -107,3 +107,14 @@ enum HBVerifyRules {
     }
     static func hide(defaults: UserDefaults = .standard, now: Date = Date()) { defaults.set(now.timeIntervalSince1970 + hideSeconds, forKey: hideKey) }
 }
+
+/// Remembers what you last filed an expense under, so the Add screen opens on it (the website's "hb-last-cat").
+enum HBAddDefaults {
+    static let key = "hb-last-cat"
+    static func remember(_ category: String, _ defaults: UserDefaults = .standard) { defaults.set(category, forKey: key) }
+    /// the remembered category, only if it still exists (a deleted own category is forgotten)
+    static func lastCategory(valid: [String], _ defaults: UserDefaults = .standard) -> String? {
+        guard let c = defaults.string(forKey: key), valid.contains(c) else { return nil }
+        return c
+    }
+}
