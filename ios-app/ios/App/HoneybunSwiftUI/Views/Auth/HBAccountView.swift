@@ -30,6 +30,8 @@ struct HBAccountView: View {
     @State private var showShare = false
     @State private var showEditMe = false
     @State private var showHousehold = false
+    @State private var showJoinOther = false
+    @State private var confirmLeave = false
     @State private var pushStatus: UNAuthorizationStatus = .notDetermined
     @State private var mailBills = true
     @State private var mailStreak = true
@@ -48,6 +50,7 @@ struct HBAccountView: View {
         HBSheetScaffold(title: "Settings", onBack: { dismiss() }) {
             sectionTitle("Account")
             profileCard
+            if let r = user?.ref { referralRow(r) }
             if hasEmail { emailCard }
             sectionTitle("Security")
             securityCard
@@ -72,6 +75,11 @@ struct HBAccountView: View {
         .sheet(isPresented: $showShare) { if let u = exportURL { HBActivityView(items: [u]) } }
         .sheet(isPresented: $showEditMe) { HBEditMeSheet(store: store) }
         .sheet(isPresented: $showHousehold) { HBHouseholdSheet(store: store, focusInvite: false) }
+        .sheet(isPresented: $showJoinOther) { HBJoinOtherBudgetSheet(store: store) }
+        .confirmationDialog("Leave this budget?", isPresented: $confirmLeave, titleVisibility: .visible) {
+            Button("Leave", role: .destructive) { leave() }
+            Button("Stay", role: .cancel) {}
+        } message: { Text(store.members.count == 1 ? "You're the only one here, so the budget and everything in it will be deleted." : "You can rejoin later with an invite code.") }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in Task { await loadPush() } }
         .confirmationDialog("Log out of Honeybun?", isPresented: $confirmLogout, titleVisibility: .visible) {
             Button("Log out", role: .destructive) { Task { await store.logout() } }
@@ -88,6 +96,20 @@ struct HBAccountView: View {
     }
 
     // MARK: pieces
+
+    private func referralRow(_ r: HBRefSummary) -> some View {
+        Button { store.sheet = .referrals } label: {
+            HStack(spacing: 12) {
+                Text("🎁").font(.system(size: 24))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Invite friends, earn \(HBFormat.money(Double(r.reward_cents) / 100.0).replacingOccurrences(of: ".00", with: ""))").font(.system(size: 16, weight: .semibold)).foregroundColor(.white)
+                    Text("\(r.qualified % max(1, r.goal)) of \(r.goal) friends toward your next gift card").font(.system(size: 13)).foregroundColor(HB.soft)
+                }
+                Spacer(minLength: 6); Image(systemName: "chevron.right").foregroundColor(HB.soft)
+            }
+            .padding(14).frame(maxWidth: .infinity, alignment: .leading).hbCard().contentShape(Rectangle())
+        }.accessibilityIdentifier("hb-settings-referrals")
+    }
 
     private func sectionTitle(_ t: String) -> some View {
         Text(t.uppercased()).font(.system(size: 12, weight: .bold)).tracking(1.2).foregroundColor(HB.soft).padding(.leading, 6).padding(.top, 6)
@@ -273,6 +295,11 @@ struct HBAccountView: View {
                 Spacer(minLength: 0)
             }
             HBPillButton(title: "Members & invite", symbol: "person.2", filled: false) { showHousehold = true }.accessibilityIdentifier("hb-settings-household")
+            if store.members.count == 1 {
+                HBPillButton(title: "Join a different budget", symbol: "arrow.left.arrow.right", filled: false) { showJoinOther = true }.accessibilityIdentifier("hb-settings-join-other")
+            }
+            Button { confirmLeave = true } label: { Text("Leave this budget").font(.system(size: 15, weight: .semibold)).foregroundColor(HB.red).frame(maxWidth: .infinity, minHeight: 44) }
+                .accessibilityIdentifier("hb-settings-leave")
         }
         .padding(16).frame(maxWidth: .infinity, alignment: .leading).hbCard()
     }
@@ -346,6 +373,7 @@ struct HBAccountView: View {
             await loadPush()
         }
     }
+    private func leave() { run { try await store.leaveBudget() } }
     private func testPush() { run { info = try await HBAPI.shared.sendTestPush() } }
     private func run(_ work: @escaping () async throws -> Void) {
         busy = true; error = nil; info = nil

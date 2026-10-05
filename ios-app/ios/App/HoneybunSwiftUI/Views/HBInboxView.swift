@@ -267,7 +267,9 @@ struct HBInboxView: View {
         case let .openMoney(l): actionButton(l, filled: false) { store.selectedTab = .money }
         case let .openGoals(l): actionButton(l, filled: false) { store.selectedTab = .goals }
         case let .openTogether(l): actionButton(l, filled: false) { store.selectedTab = .together }
-        case let .classic(l): actionButton(l, filled: false) { onClose() }
+        case let .openPlan(l): actionButton(l, filled: false) { store.sheet = .plan }
+        case let .openStats(l): actionButton(l, filled: false) { store.sheet = .stats }
+        case let .openReferrals(l): actionButton(l, filled: false) { store.sheet = .referrals }
         }
     }
 

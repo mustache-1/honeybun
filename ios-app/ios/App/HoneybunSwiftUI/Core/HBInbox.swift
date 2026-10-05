@@ -5,18 +5,18 @@ import Foundation
 
 enum HBInboxTab: String, CaseIterable { case bills = "Bills", shared = "Shared", updates = "Updates" }
 
-/// What a message's button does. The native screen carries each one out (or hands over to Classic Honeybun when the destination has no native screen yet).
+/// What a message's button does. Every one is carried out by a native screen.
 enum HBInboxAction: Equatable {
     case markPaid(rid: String, occ: String, label: String)   // "Paid" / "Got it": logs that bill or payday through the backend
     case logSomething                                         // opens the native Add Expense form
     case openHome(String), openMoney(String), openGoals(String), openTogether(String)   // switch to that native tab (the String is the button label)
     case decideCarry                                          // the native carry-over sheet
-    case classic(String)                                      // no native screen for this yet: open Classic Honeybun
+    case openPlan(String), openStats(String), openReferrals(String)   // Plan (budgets, debts…), Stats (year, bunny, badges), Invite friends
     var label: String {
         switch self {
         case let .markPaid(_, _, l): return l
         case .logSomething: return "Log something"
-        case let .openHome(l), let .openMoney(l), let .openGoals(l), let .openTogether(l), let .classic(l): return l
+        case let .openHome(l), let .openMoney(l), let .openGoals(l), let .openTogether(l), let .openPlan(l), let .openStats(l), let .openReferrals(l): return l
         case .decideCarry: return "Decide"
         }
     }
@@ -153,15 +153,15 @@ enum HBInbox {
         case "payday":
             return recurringExists(m.str("rid")) ? .markPaid(rid: m.str("rid"), occ: m.str("occ"), label: "Got it") : nil
         case "streak_risk": return .logSomething
-        case "budget_warn", "budget_over": return .openMoney("See Money")
+        case "budget_warn", "budget_over": return .openPlan("See budgets")
         case "goal_done": return .openGoals("See goals")
-        case "debt_done": return .classic("See Plan")
-        case "week": return .openMoney("See stats")
-        case "level", "streak_milestone": return .openHome("See my bunny")
+        case "debt_done": return .openPlan("See Plan")
+        case "week": return .openStats("See stats")
+        case "level", "streak_milestone": return .openStats("See my bunny")
         case "carry_ask": return carryPending ? .decideCarry : nil
         case "shared_expense", "joint_entry", "settled", "joint", "joined", "carry_done": return .openTogether("Open Together")
-        case "ref_intro", "ref_nudge": return .classic("Get my link")
-        case "ref_signup", "ref_qualified", "reward_earned", "reward_sent": return .classic("See referrals")
+        case "ref_intro", "ref_nudge": return .openReferrals("Get my link")
+        case "ref_signup", "ref_qualified", "reward_earned", "reward_sent": return .openReferrals("See referrals")
         default: return nil
         }
     }

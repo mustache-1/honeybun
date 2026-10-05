@@ -3,7 +3,7 @@ import SwiftUI
 
 enum HBSheet: Identifiable {
     case newEntry(String), editEntry(HBEntry), editRecurring(HBRecurring), newRecurring, upcoming, allTransactions, goalDetail(String), goalForm(String?)
-    case settle(String, String), fairShare, household(Bool), shopping, search, editMe, carry, account, plan
+    case settle(String, String), fairShare, household(Bool), shopping, search, editMe, carry, account, plan, stats, referrals
     var id: String {
         switch self {
         case let .newEntry(t): return "new-" + t
@@ -23,6 +23,8 @@ enum HBSheet: Identifiable {
         case .carry: return "carry"
         case .account: return "account"
         case .plan: return "plan"
+        case .stats: return "stats"
+        case .referrals: return "referrals"
         }
     }
 }
@@ -125,6 +127,25 @@ enum HBTab: String, CaseIterable { case home = "Home", money = "Money", goals = 
         } catch {
             if snapshot == nil { phase = .failed(error.localizedDescription) } else { notice = error.localizedDescription }
         }
+    }
+
+    // MARK: changing household (join another budget with a code / leave this one)
+
+    /// Everything from the old household is dropped before the new state loads, so none of it can show up on screen (you stay signed in).
+    private func householdChanged() async {
+        sheet = nil; selectedTab = .home; month = HBDay.monthKey()
+        snapshot = nil; inboxMessages = []; inboxState = .idle; shopping = []; shopState = .idle; prevSpent = nil; prevDaily = [:]
+        onboardingDone = false
+        await start()
+    }
+    /// Join another budget by its invite code. Classic's rule: only when you are alone in yours, and it REPLACES yours.
+    func joinAnotherBudget(code: String) async throws {
+        try await HBAPI.shared.switchBudget(code: code)
+        await householdChanged()
+    }
+    func leaveBudget() async throws {
+        try await HBAPI.shared.leaveBudget()
+        await householdChanged()
     }
 
     // MARK: links and the Classic fallback

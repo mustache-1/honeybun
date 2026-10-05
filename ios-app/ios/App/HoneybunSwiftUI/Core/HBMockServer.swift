@@ -444,7 +444,8 @@ final class HBMockServer: URLProtocol {
 
     // Plan: budgets, debts and your own categories. Mirrors src/worker.js (same rules and messages).
     // (called with the lock already held)
-    private static func handlePlan(_ method: String, _ path: String, _ body: [String: Any]) -> (Int, Any)? {
+    private static func handlePlan(_ method: String, _ path: String, _ body: [String: Any], _ query: [String: String]) -> (Int, Any)? {
+        let queryYear = query["year"]
         let builtIn = ["home", "groc", "food", "date", "bills", "subs", "car", "fun", "pets", "debt", "other"]
         var customs = state["categories"] as? [[String: Any]] ?? []
         func isKnown(_ c: String) -> Bool { builtIn.contains(c) || customs.contains { ($0["id"] as? String) == c } }
@@ -490,6 +491,46 @@ final class HBMockServer: URLProtocol {
                 state["budgets"] = (state["budgets"] as? [[String: Any]] ?? []).filter { ($0["category"] as? String) != id }
             }
             state["categories"] = customs
+            return (200, ["ok": true])
+        }
+
+        // adding an entry (Money): the category must be a built-in one or one of the account's own
+        if path == "/api/entries" && method == "POST" {
+            guard let amt = cents(body["amount"]) else { return (400, ["error": "Enter an amount more than $0."]) }
+            let type = body["type"] as? String == "income" ? "income" : "expense"
+            let cat = body["category"] as? String ?? "other"
+            if type == "expense" && !isKnown(cat) { return (400, ["error": "Pick a category."]) }
+            var entries = state["entries"] as? [[String: Any]] ?? []
+            entries.insert(["id": "e-" + UUID().uuidString.lowercased(), "member_id": body["member_id"] as? String ?? "", "type": type, "amount_cents": amt, "label": clean(body["label"], 40),
+                            "category": type == "income" ? NSNull() : cat, "shared": 0, "split_mode": NSNull(), "split_value": NSNull(), "shares": NSNull(), "private": 0,
+                            "date": body["date"] as? String ?? "", "recurring_id": NSNull(), "occ_date": NSNull(), "created_at": 0], at: 0)
+            state["entries"] = entries
+            return (201, ["ok": true])
+        }
+        // stats: the year's entries (the stand-in only has the one month of sample data)
+        if path == "/api/year" && method == "GET" {
+            let year = queryYear ?? ""
+            let all = state["entries"] as? [[String: Any]] ?? []
+            return (200, ["entries": all.filter { (($0["date"] as? String) ?? "").hasPrefix(year) }, "jar": []])
+        }
+        if path == "/api/referrals" && method == "GET" {
+            return (200, ["code": "ABC123", "goal": 3, "reward_cents": 1000, "qualified": 4, "pending": 1, "rejected": 1, "link": "https://honeybun.me/r/ABC123", "days_needed": 7, "active_days_needed": 4,
+                          "people": [["name": "Alex", "status": "qualified", "reason": NSNull(), "created_at": 1790000000, "active_days": 7], ["name": "Jo", "status": "pending", "reason": NSNull(), "created_at": 1791000000, "active_days": 2]],
+                          "rewards": [["amount_cents": 1000, "status": "sent", "created_at": 1790500000, "sent_at": 1790600000]]])
+        }
+        // changing household: Classic's rules (join only when alone; it replaces your budget; leaving an empty budget deletes it)
+        if path == "/api/nests/switch" && method == "POST" {
+            if body["confirm"] as? Bool != true { return (400, ["error": "Please confirm first."]) }
+            let code = (body["code"] as? String ?? "").uppercased().filter { $0.isLetter || $0.isNumber }
+            guard code == "JOINME01" else { return (404, ["error": "That invite code doesn't match any budget. Check it and try again."]) }
+            if (state["members"] as? [[String: Any]] ?? []).count > 1 { return (409, ["error": "Your budget has other people in it. Leave it in Settings first, then join this one."]) }
+            var nest = state["nest"] as? [String: Any] ?? [:]; nest["name"] = "Joined Hive"; nest["invite_code"] = "JOINME01"; state["nest"] = nest
+            for k in ["entries", "goals", "jar", "recurring", "debts", "debt_payments", "budgets", "categories", "settlements"] { state[k] = [] as [Any] }
+            return (200, ["ok": true, "nest_id": "joined"])
+        }
+        if path == "/api/nest/leave" && method == "POST" {
+            for k in ["entries", "goals", "jar", "recurring", "debts", "debt_payments", "budgets", "categories", "settlements"] { state[k] = [] as [Any] }
+            state["left"] = true
             return (200, ["ok": true])
         }
 
@@ -561,7 +602,7 @@ final class HBMockServer: URLProtocol {
     private static func handle(_ method: String, _ path: String, _ body: [String: Any], _ query: [String: String]) -> (Int, Any) {
         lock.lock(); defer { lock.unlock() }
         if let r = handleTogether(method, path, body, query) { return r }
-        if let r = handlePlan(method, path, body) { return r }
+        if let r = handlePlan(method, path, body, query) { return r }
         var goals = state["goals"] as? [[String: Any]] ?? []
         var jar = state["jar"] as? [[String: Any]] ?? []
         defer { state["goals"] = goals; state["jar"] = jar }

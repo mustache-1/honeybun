@@ -80,6 +80,17 @@ enum HBStats {
                        level: li.level, levelTitle: li.title, budgetsKept: under, budgetsTotal: budgets.count, message: msg)
     }
 
+    /// why a friend did not count, in plain words
+    static func referralReason(_ reason: String?) -> String {
+        switch reason ?? "" {
+        case "same_device": return "Signed up on your device"
+        case "same_household": return "Joined your own budget"
+        case "unverified": return "Never confirmed their email"
+        case "left": return "Deleted their account"
+        default: return "Didn't stick around for a week"
+        }
+    }
+
     /// the spreadsheet of the whole year: Date, Type, Category, Description, Who, Amount, Split, Private
     static func csv(_ d: HBYearData, memberName: (String) -> String, categoryName: (String?) -> String) -> String {
         func q(_ v: String) -> String { "\"" + v.replacingOccurrences(of: "\"", with: "\"\"") + "\"" }

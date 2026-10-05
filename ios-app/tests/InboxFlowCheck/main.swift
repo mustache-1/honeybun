@@ -50,10 +50,15 @@ func run() async {
 
     // buttons that route
     func act(_ kind: String) -> HBInboxAction? { msgs.first { $0.kind == kind }.flatMap { HBInbox.action(for: $0, recurringExists: exists, carryPending: s?.carry_pending != nil) } }
-    check("ROUTING: budget → Money, week → Money, goal reached → Goals, level → Home, shared → Together, streak → Add Expense",
-          act("budget_warn") == .openMoney("See Money") && act("week") == .openMoney("See stats") && act("goal_done") == .openGoals("See goals") && act("level") == .openHome("See my bunny")
+    check("ROUTING: budget → Plan, week → Stats, goal reached → Goals, level → Stats, shared → Together, streak → Add Expense",
+          act("budget_warn") == .openPlan("See budgets") && act("week") == .openStats("See stats") && act("goal_done") == .openGoals("See goals") && act("level") == .openStats("See my bunny")
           && act("shared_expense") == .openTogether("Open Together") && act("settled") == .openTogether("Open Together") && act("streak_risk") == .logSomething)
-    check("ROUTING: only gift-card messages hand over to Classic (no native Refer screen yet)", act("ref_intro") == .classic("Get my link") && act("welcome") == nil)
+    check("ROUTING: gift-card messages open the native Invite friends screen (nothing in the Inbox opens Classic any more)", act("ref_intro") == .openReferrals("Get my link") && act("welcome") == nil)
+    func msg(_ kind: String) -> HBInboxMessage? { try? JSONDecoder().decode(HBInboxMessage.self, from: Data("{\"id\":\"x\",\"kind\":\"\(kind)\",\"data\":{},\"created_at\":1,\"read_at\":null}".utf8)) }
+    func route(_ kind: String) -> HBInboxAction? { msg(kind).flatMap { HBInbox.action(for: $0, recurringExists: exists, carryPending: false) } }
+    check("ROUTING: debt paid off → Plan; every gift-card message → Invite friends; level/streak milestones → Stats",
+          route("debt_done") == .openPlan("See Plan") && route("ref_nudge") == .openReferrals("Get my link") && route("ref_signup") == .openReferrals("See referrals")
+          && route("ref_qualified") == .openReferrals("See referrals") && route("reward_earned") == .openReferrals("See referrals") && route("reward_sent") == .openReferrals("See referrals") && route("streak_milestone") == .openStats("See my bunny"))
     check("ROUTING: the carry-over question opens the native sheet while it is pending", act("carry_ask") == .decideCarry)
 
     // carry over

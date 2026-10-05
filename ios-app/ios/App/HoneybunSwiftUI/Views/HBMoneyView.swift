@@ -166,6 +166,8 @@ struct HBMoneyView: View {
     private var moreCard: some View {
         VStack(spacing: 0) {
             moreRow("Plan", "Budgets, calendar, bills, subscriptions and debts", "calendar", id: "hb-money-plan") { store.sheet = .plan }
+            Divider().background(HB.line).padding(.leading, 64)
+            moreRow("Stats & year", "Your year, 50/30/20, badges and your monthly recap", "chart.pie.fill", id: "hb-money-stats") { store.sheet = .stats }
         }.hbCard()
     }
     private func moreRow(_ title: String, _ sub: String, _ symbol: String, id: String, action: @escaping () -> Void) -> some View {
