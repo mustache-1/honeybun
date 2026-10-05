@@ -248,6 +248,7 @@ func run() async {
     check("TOKEN: B signs in on the same phone → a new token that shows B's budget only, never A's", (Honeybun.token ?? "").hasPrefix("hb_app_") && Honeybun.token != tokA && sumB?.name == "Bob Hive" && !(sumB?.name.contains("Alice") ?? true))
     _ = try? await api.logout(); clearCookies(); Honeybun.token = nil
 
+    _ = try? await api.login(who: "pip_01", password: "Passw0rd!xyzzy")      // back to the Settings account for the shortcut key checks
     // Apple Pay auto-logging key
     let keyA = (try? await api.makeShortcutKey()) ?? ""
     let meK = await me()
