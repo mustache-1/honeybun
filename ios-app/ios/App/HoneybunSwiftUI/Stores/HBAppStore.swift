@@ -148,7 +148,7 @@ enum HBTab: String, CaseIterable { case home = "Home", money = "Money", goals = 
             let snap = got.snapshot
             snapshot = snap
             usingCache = got.cached
-            if phase == .onboarding || (snap.setup_done == false && !onboardingDone) { phase = .onboarding } else { phase = .ready }
+            if phase == .onboarding || (snap.setup_done == false && !onboardingDone) { phase = .onboarding } else { phase = .ready; askPushOnce() }
             await reloadPending()
             if !got.cached {
                 await loadPrevious()
@@ -374,6 +374,7 @@ enum HBTab: String, CaseIterable { case home = "Home", money = "Money", goals = 
     private func runRewarded(_ message: String, _ work: () async throws -> Data) async throws {
         busy = true; defer { busy = false }
         let data = try await work()
+        HBHaptics.success()
         await refresh()
         celebrate(data, message)
     }
@@ -381,7 +382,7 @@ enum HBTab: String, CaseIterable { case home = "Home", money = "Money", goals = 
     private func celebrate(_ data: Data?, _ base: String, undoTitle: String? = nil, undo: (() -> Void)? = nil) {
         let ev = data.flatMap { HBRewardEvent.parse($0) }
         showToast(ev?.toastText(base) ?? base, detail: ev?.streakLine, actionTitle: undo == nil ? nil : (undoTitle ?? "Undo"), action: undo)
-        if let ev = ev, ev.leveled { Task { try? await Task.sleep(nanoseconds: 700_000_000); self.levelUp = ev.level } }
+        if let ev = ev, ev.leveled { Task { try? await Task.sleep(nanoseconds: 700_000_000); HBHaptics.success(); self.levelUp = ev.level } }
     }
     func showToast(_ text: String, detail: String? = nil, actionTitle: String? = nil, action: (() -> Void)? = nil) {
         let t = HBToast(text: text, detail: detail, actionTitle: actionTitle, action: action)
@@ -393,6 +394,16 @@ enum HBTab: String, CaseIterable { case home = "Home", money = "Money", goals = 
 
     // MARK: offline queue
 
+    private var pushAsked = false
+    /// The first time Home is ready, ask iOS about notifications once (never in previews / UI tests). If iOS says no, Settings offers "Open iPhone Settings".
+    private func askPushOnce() {
+        guard !pushAsked, !isPreview else { return }
+        #if DEBUG
+        if HBMockServer.requestedSeed != nil || HBPreview.requestedScreen != nil { return }
+        #endif
+        pushAsked = true
+        Task { try? await Task.sleep(nanoseconds: 2_500_000_000); HoneybunPush.askOnceIfNeeded() }
+    }
     private func watchConnection() {
         guard !watching, !isPreview else { return }
         watching = true
@@ -466,10 +477,12 @@ enum HBTab: String, CaseIterable { case home = "Home", money = "Money", goals = 
             catch { throw HBAPIError.http(0, "Couldn't save this on your iPhone, so it was not added. Please try again.") }
             await reloadPending()
             if d.type == "expense" { HBAddDefaults.remember(d.category) }
+            HBHaptics.light()
             showToast("Saved on this iPhone. It will sync when you're back online.", actionTitle: "Undo") { Task { await self.queue.remove(cid); await self.reloadPending() } }
             return
         }
         if d.type == "expense" { HBAddDefaults.remember(d.category) }
+        HBHaptics.success()
         await refresh()
         let id = ((try? JSONSerialization.jsonObject(with: data)) as? [String: Any])?["id"] as? String ?? cid
         let name = d.label.isEmpty ? HBCatStyle.of(d.category).label : d.label
@@ -477,7 +490,7 @@ enum HBTab: String, CaseIterable { case home = "Home", money = "Money", goals = 
     }
     /// "Undo" on the toast after an add
     func undoAdd(_ id: String) async {
-        do { try await HBAPI.shared.deleteEntry(id: id); await refresh(); showToast("Undone") } catch { notice = error.localizedDescription }
+        do { try await HBAPI.shared.deleteEntry(id: id); HBHaptics.light(); await refresh(); showToast("Undone") } catch { notice = error.localizedDescription }
     }
     /// One tap on a "your usual" expense: logs it again with the same amount, category and split, dated today.
     func logRepeat(_ r: HBRepeat) async throws {
@@ -495,17 +508,19 @@ enum HBTab: String, CaseIterable { case home = "Home", money = "Money", goals = 
         if e.pending {
             guard let item = pendingItem(e.id) else { return }
             await queue.remove(item.clientID); await reloadPending()
+            HBHaptics.warning()
             showToast("Removed", actionTitle: "Undo") { Task { _ = try? await self.queue.add(item.draft, user: item.userID, nest: item.nestID, clientID: item.clientID); await self.reloadPending() } }
             return
         }
         do {
             try await HBAPI.shared.deleteEntry(id: e.id)
+            HBHaptics.warning()
             await refresh()
             showToast("Deleted \(e.label)", actionTitle: "Undo") { Task { await self.undoDelete(e) } }
         } catch { notice = error.localizedDescription }
     }
     func undoDelete(_ e: HBEntry) async {
-        do { try await HBAPI.shared.restoreEntry(e); await refresh(); showToast("Restored") } catch { notice = error.localizedDescription }
+        do { try await HBAPI.shared.restoreEntry(e); HBHaptics.light(); await refresh(); showToast("Restored") } catch { notice = error.localizedDescription }
     }
     func updateEntry(id: String, _ d: HBEntryDraft) async throws { try await run { try await HBAPI.shared.updateEntry(id: id, d) } }
     func deleteEntry(id: String) async throws { try await run { try await HBAPI.shared.deleteEntry(id: id) } }
@@ -567,6 +582,9 @@ enum HBTab: String, CaseIterable { case home = "Home", money = "Money", goals = 
     }
     func settle(from: String, to: String, amount: Double) async throws { try await runRewarded("Marked as paid ♡") { try await HBAPI.shared.settle(from: from, to: to, amount: amount, date: HBDay.todayString) } }
     func deleteSettlement(id: String) async throws { try await run { try await HBAPI.shared.deleteSettlement(id: id) } }
+    /// Monthly carry-over (Ask me / Always carry / Start fresh): the same setting the Inbox "remember" choice writes (nests.carry_mode)
+    var carryMode: String { snapshot?.nest.carry_mode ?? "ask" }
+    func setCarryMode(_ mode: String) async throws { try await run { try await HBAPI.shared.patchNest(["carry_mode": mode]) } }
     func setJoint(_ on: Bool) async throws { try await run { try await HBAPI.shared.patchNest(["joint": on]) } }
     func setKind(_ kind: String) async throws { try await run { try await HBAPI.shared.patchNest(["kind": kind]) } }
     func renameNest(_ name: String) async throws { try await run { try await HBAPI.shared.patchNest(["name": name]) } }

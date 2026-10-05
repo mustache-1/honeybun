@@ -60,8 +60,10 @@ struct HBAccountView: View {
             if hasEmail { emailCard }
             sectionTitle("Security")
             securityCard
-            sectionTitle("Notifications")
-            notificationsCard
+            if showNotifications {
+                sectionTitle("Notifications")
+                notificationsCard
+            }
             sectionTitle("Household")
             householdCard
             sectionTitle("Apple Pay & Siri")
@@ -257,43 +259,35 @@ struct HBAccountView: View {
         return lock.available
     }
 
+    /// Notifications: only what is real. The three email reminders are saved on the server and sent by its daily job, but only to a confirmed email,
+    /// so they show only for an account with an email. If iOS blocked notifications there is a way to open iPhone Settings (Honeybun asks iOS once, never again).
+    private var showNotifications: Bool { hasEmail || pushStatus == .denied || pushAllowed }
+    private var pushAllowed: Bool { pushStatus == .authorized || pushStatus == .provisional || pushStatus == .ephemeral }
     private var notificationsCard: some View {
-        let allowed = pushStatus == .authorized || pushStatus == .provisional || pushStatus == .ephemeral
-        let on = allowed && !HoneybunPush.userTurnedOff
-        return VStack(alignment: .leading, spacing: 12) {
-            Toggle(isOn: Binding(get: { on }, set: { want in setPush(want) })) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Notifications on this iPhone").font(.system(size: 16, weight: .semibold)).foregroundColor(.white)
-                    Text("Bills due, shared expenses and Bun's nudges").font(.system(size: 13)).foregroundColor(HB.soft)
-                }
-            }.tint(HB.orange).accessibilityIdentifier("hb-settings-push")
-            HStack(spacing: 6) {
-                Image(systemName: pushStatus == .denied ? "bell.slash" : "checkmark.circle").foregroundColor(pushStatus == .denied ? HB.red : HB.soft)
-                Text(pushStatusText).font(.footnote).foregroundColor(pushStatus == .denied ? HB.red : HB.soft)
-            }
+        VStack(alignment: .leading, spacing: 12) {
             if pushStatus == .denied {
+                HStack(spacing: 8) {
+                    Image(systemName: "bell.slash").foregroundColor(HB.red)
+                    Text("Notifications are blocked for Honeybun in iOS.").font(.footnote).foregroundColor(HB.soft)
+                }
                 HBPillButton(title: "Open iPhone Settings", symbol: "gearshape", filled: false) {
                     if let u = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(u) }
                 }.accessibilityIdentifier("hb-settings-open-ios")
             }
-            if on { HBPillButton(title: busy ? "Sending…" : "Send me a test notification", symbol: "bell.badge", filled: false) { testPush() }.disabled(busy) }
             if hasEmail {
-                Divider().background(HB.line)
+                if pushStatus == .denied { Divider().background(HB.line) }
                 Text("Email reminders").font(.system(size: 15, weight: .semibold)).foregroundColor(Color(red: 0.86, green: 0.82, blue: 0.95))
                 mailToggle("Bills due soon", "A heads-up at 9am, 3 days ahead", $mailBills, "mail_bills")
                 mailToggle("Streak reminder", "At 7pm if you haven't logged yet", $mailStreak, "mail_streak")
                 mailToggle("Weekly recap", "Sunday evenings", $mailWeekly, "mail_weekly")
                 if user?.verified != true { Text("Confirm your email above to receive these.").font(.footnote).foregroundColor(HB.orange) }
             }
+            if pushAllowed {
+                if hasEmail { Divider().background(HB.line) }
+                HBPillButton(title: busy ? "Sending…" : "Send me a test notification", symbol: "bell.badge", filled: false) { testPush() }.disabled(busy)
+            }
         }
         .padding(16).frame(maxWidth: .infinity, alignment: .leading).hbCard()
-    }
-    private var pushStatusText: String {
-        switch pushStatus {
-        case .denied: return "Blocked in iOS. Turn Honeybun on in iPhone Settings → Notifications."
-        case .notDetermined: return "iOS hasn't been asked yet. Turning this on will ask once."
-        default: return HoneybunPush.userTurnedOff ? "Allowed in iOS, but off for Honeybun." : "Allowed in iOS."
-        }
     }
     private func mailToggle(_ title: String, _ sub: String, _ value: Binding<Bool>, _ key: String) -> some View {
         Toggle(isOn: Binding(get: { value.wrappedValue }, set: { on in
@@ -315,6 +309,7 @@ struct HBAccountView: View {
                 Spacer(minLength: 0)
             }
             HBPillButton(title: "Members & invite", symbol: "person.2", filled: false) { showHousehold = true }.accessibilityIdentifier("hb-settings-household")
+            carryControl
             if store.members.count == 1 {
                 HBPillButton(title: "Join a different budget", symbol: "arrow.left.arrow.right", filled: false) { showJoinOther = true }.accessibilityIdentifier("hb-settings-join-other")
             }
@@ -322,6 +317,29 @@ struct HBAccountView: View {
                 .accessibilityIdentifier("hb-settings-leave")
         }
         .padding(16).frame(maxWidth: .infinity, alignment: .leading).hbCard()
+    }
+
+    /// Monthly carry-over: what happens to last month's balance on the 1st. The same setting the Inbox "remember" choice sets.
+    private var carryControl: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Monthly carry-over").font(.system(size: 15, weight: .semibold)).foregroundColor(.white)
+            Text("What happens to last month's balance on the 1st.").font(.footnote).foregroundColor(HB.soft)
+            HStack(spacing: 8) {
+                ForEach([("ask", "Ask me"), ("always", "Always carry"), ("never", "Start fresh")], id: \.0) { id, title in
+                    let on = store.carryMode == id
+                    Button { setCarry(id) } label: {
+                        Text(title).font(.system(size: 14, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.8)
+                            .foregroundColor(on ? Color.black.opacity(0.85) : Color(red: 0.74, green: 0.69, blue: 0.9))
+                            .frame(maxWidth: .infinity, minHeight: 38).background(Capsule().fill(on ? HB.orange : Color.white.opacity(0.06)))
+                    }
+                    .disabled(busy).accessibilityAddTraits(on ? .isSelected : []).accessibilityIdentifier("hb-carry-\(id)")
+                }
+            }
+        }
+    }
+    private func setCarry(_ mode: String) {
+        guard mode != store.carryMode else { return }
+        run { try await store.setCarryMode(mode); await store.showToast("Saved") }
     }
 
     private var shortcutsCard: some View {
@@ -420,12 +438,6 @@ struct HBAccountView: View {
         await loadPush()
     }
     private func loadPush() async { pushStatus = await HoneybunPush.authorization() }
-    private func setPush(_ want: Bool) {
-        Task {
-            if want { error = await HoneybunPush.enable() } else { await HoneybunPush.disable() }
-            await loadPush()
-        }
-    }
     private func leave() { run { try await store.leaveBudget() } }
     private func testPush() { run { info = try await HBAPI.shared.sendTestPush() } }
     private func run(_ work: @escaping () async throws -> Void) {

@@ -19,6 +19,10 @@ struct HBRecurringForm: View {
     @State private var error: String?
     @State private var saving = false
     @State private var confirmDelete = false
+    @State private var paidNow: Bool
+    @State private var shared: Bool
+    @State private var splitMode: HBSplitMode
+    @State private var splitText: String
 
     init(store: HBAppStore, editing: HBRecurring?, base: HBRecurringDraft) {
         self.store = store; self.editing = editing; self.base = base
@@ -28,9 +32,18 @@ struct HBRecurringForm: View {
         _category = State(initialValue: base.category)
         _freq = State(initialValue: base.freq)
         _date = State(initialValue: HBDay.parse(base.date) ?? Date())
+        // "Already paid this one": on by default when the first date is today or earlier (the website's rule)
+        _paidNow = State(initialValue: editing == nil && base.date <= HBDay.todayString)
+        _shared = State(initialValue: base.shared)
+        let mode = HBSplitMode(rawValue: base.splitMode ?? "equal") ?? .equal
+        _splitMode = State(initialValue: mode)
+        _splitText = State(initialValue: HBSplitRules.text(mode: mode, stored: base.splitValue))
     }
 
     private var isIncome: Bool { type == "income" }
+    private var canShare: Bool { !isIncome && store.members.count > 1 && !store.isJoint }
+    private var payerName: String { store.memberName(store.myID) }
+    private var otherNames: [String] { store.members.filter { $0.id != store.myID }.map { $0.name } }
 
     var body: some View {
         NavigationView {
@@ -50,6 +63,30 @@ struct HBRecurringForm: View {
                     HBField(title: "Next date") {
                         DatePicker("Next date", selection: $date, displayedComponents: .date).labelsHidden().datePickerStyle(.compact)
                             .padding(10).frame(maxWidth: .infinity, alignment: .leading).hbCard()
+                    }
+                    if editing == nil {
+                        Toggle(isOn: $paidNow) {
+                            Text(isIncome ? "Already got this one" : "Already paid this one").font(.system(size: 16, weight: .semibold)).foregroundColor(.white)
+                        }
+                        .tint(isIncome ? HB.green : HB.orange).padding(14).hbCard().accessibilityIdentifier("hb-recurring-paid-now")
+                        .onChange(of: date) { d in paidNow = HBDay.string(d) <= HBDay.todayString }
+                    }
+                    if canShare {
+                        HBField(title: "Shared with") {
+                            VStack(spacing: 0) {
+                                HStack(spacing: 8) {
+                                    ForEach([(false, "Just me"), (true, "Everyone")], id: \.0) { on, title in
+                                        Button { shared = on } label: {
+                                            Text(title).font(.system(size: 15, weight: .semibold)).foregroundColor(shared == on ? Color.black.opacity(0.85) : Color(red: 0.74, green: 0.69, blue: 0.9))
+                                                .frame(maxWidth: .infinity, minHeight: 40).background(Capsule().fill(shared == on ? HB.orange : Color.white.opacity(0.06)))
+                                        }
+                                    }
+                                }
+                                .padding(12)
+                                if shared { Divider().background(HB.line); HBSplitPicker(mode: $splitMode, text: $splitText, payer: payerName, others: otherNames, tint: HB.orange, onChange: { error = nil }) }
+                            }
+                            .hbCard()
+                        }
                     }
                     if !isIncome {
                         HBField(title: "Category") {
@@ -116,6 +153,17 @@ struct HBRecurringForm: View {
         var d = base
         d.type = type; d.amount = amount; d.label = label.trimmingCharacters(in: .whitespaces); d.category = category; d.freq = freq; d.date = HBDay.string(date)
         if d.memberID.isEmpty { d.memberID = store.myID }
+        if canShare {                                   // otherwise (joint account, income) the bill keeps what it already had
+            d.shared = shared
+            d.splitMode = nil; d.splitValue = nil
+            if shared {
+                switch HBSplitRules.validate(mode: splitMode, valueText: splitText, amount: amount) {
+                case let .invalid(msg): error = msg; return
+                case let .ok(mode, value): d.splitMode = mode; d.splitValue = value
+                }
+            }
+        }
+        d.logNow = editing == nil && paidNow
         saving = true
         Task {
             do {

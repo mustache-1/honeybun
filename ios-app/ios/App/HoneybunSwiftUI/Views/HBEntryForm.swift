@@ -67,6 +67,9 @@ struct HBEntryForm: View {
     @State private var showDate = false
     @State private var memberID: String
     @State private var shared: Bool
+    @State private var splitMode: HBSplitMode
+    @State private var splitText: String
+    @State private var isPrivate: Bool
     @State private var error: String?
     @State private var saving = false
     @State private var confirmDelete = false
@@ -87,11 +90,20 @@ struct HBEntryForm: View {
         _date = State(initialValue: HBDay.parse(base.date) ?? Date())
         _memberID = State(initialValue: base.memberID)
         _shared = State(initialValue: base.shared)
+        // an existing entry keeps its own split and privacy; a new one starts evenly and shared with nobody
+        let mode = HBSplitMode(rawValue: base.splitMode ?? "equal") ?? .equal
+        _splitMode = State(initialValue: mode)
+        _splitText = State(initialValue: HBSplitRules.text(mode: mode, stored: base.splitValue))
+        _isPrivate = State(initialValue: base.isPrivate)
     }
 
     private var isIncome: Bool { type == "income" }
     private var canShare: Bool { !isIncome && store.members.count > 1 && !store.isJoint }
     private var tint: Color { isIncome ? HB.green : HB.orange }
+    /// the website's rule: private only for your own entry that is not split with anyone, and never in a joint account
+    private var canBePrivate: Bool { !store.isJoint && memberID == store.myID && !(canShare && shared && !isIncome) }
+    private var payerName: String { store.memberName(memberID.isEmpty ? store.myID : memberID) }
+    private var otherNames: [String] { store.members.filter { $0.id != memberID }.map { $0.name } }
     private var title: String { editing == nil ? (isIncome ? "Add Income" : "Add Expense") : "Edit " + (isIncome ? "Income" : "Expense") }
     private static let dayFmt: DateFormatter = { let f = DateFormatter(); f.dateFormat = "MMM d, yyyy"; return f }()
 
@@ -324,10 +336,22 @@ struct HBEntryForm: View {
                         Text(store.isJoint ? "Joint account" : "Just me").font(.system(size: 17)).foregroundColor(Color(red: 0.74, green: 0.69, blue: 0.9))
                     }
                 }
+                if canShare && shared { splitRows }
+            }
+            if canBePrivate {
+                Divider().background(HB.line)
+                HBDetailRow(title: "Only I can see this") {
+                    Toggle("", isOn: $isPrivate).labelsHidden().tint(tint).accessibilityIdentifier("hb-entry-private")
+                }
             }
         }
         .background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(Color.white.opacity(0.04)))
         .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).stroke(Color.white.opacity(0.09), lineWidth: 1))
+    }
+
+    @ViewBuilder private var splitRows: some View {
+        Divider().background(HB.line)
+        HBSplitPicker(mode: $splitMode, text: $splitText, payer: payerName, others: otherNames, tint: tint, onChange: { error = nil })
     }
 
     private var saveButton: some View {
@@ -352,8 +376,15 @@ struct HBEntryForm: View {
         d.date = HBDay.string(date)
         d.memberID = memberID.isEmpty ? store.myID : memberID
         d.shared = canShare && shared
-        if !d.shared { d.splitMode = nil; d.splitValue = nil }
+        d.splitMode = nil; d.splitValue = nil
+        if d.shared {
+            switch HBSplitRules.validate(mode: splitMode, valueText: splitText, amount: amount) {
+            case let .invalid(msg): error = msg; return nil
+            case let .ok(mode, value): d.splitMode = mode; d.splitValue = value
+            }
+        }
         if isIncome { d.shared = false; d.splitMode = nil; d.splitValue = nil }
+        d.isPrivate = canBePrivate && isPrivate && !d.shared
         return d
     }
 
@@ -377,5 +408,47 @@ struct HBEntryForm: View {
             await store.deleteWithUndo(e); dismiss()
             saving = false
         }
+    }
+}
+
+
+/// How a shared expense is divided: evenly, by percent, or an amount owed (the website's three choices). Used by the Add form and the bill form.
+@available(iOS 15.0, *)
+struct HBSplitPicker: View {
+    @Binding var mode: HBSplitMode
+    @Binding var text: String
+    let payer: String
+    let others: [String]
+    let tint: Color
+    var onChange: () -> Void = {}
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                ForEach(HBSplitMode.allCases) { m in
+                    Button { mode = m; text = ""; onChange() } label: {
+                        Text(m.title).font(.system(size: 14, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.8)
+                            .foregroundColor(mode == m ? Color.black.opacity(0.85) : Color(red: 0.74, green: 0.69, blue: 0.9))
+                            .frame(maxWidth: .infinity, minHeight: 38).background(Capsule().fill(mode == m ? tint : Color.white.opacity(0.06)))
+                    }
+                    .accessibilityAddTraits(mode == m ? .isSelected : []).accessibilityIdentifier("hb-split-\(m.rawValue)")
+                }
+            }
+            if mode != .equal {
+                HStack(spacing: 6) {
+                    Text(HBSplitRules.prefix(mode: mode, payer: payer, others: others)).font(.system(size: 15)).foregroundColor(.white)
+                    if mode == .owed { Text("$").foregroundColor(HB.soft) }
+                    TextField(mode == .percent ? "70" : "40", text: $text).keyboardType(.decimalPad).foregroundColor(.white)
+                        .multilineTextAlignment(.trailing).frame(minWidth: 60, maxWidth: 110).padding(.horizontal, 10).frame(minHeight: 38)
+                        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.white.opacity(0.07)))
+                        .accessibilityIdentifier("hb-split-value")
+                    Text(HBSplitRules.suffix(mode: mode, others: others)).foregroundColor(HB.soft)
+                    Spacer(minLength: 0)
+                }
+            }
+            let hint = HBSplitRules.hint(mode: mode, valueText: text, payer: payer, others: others)
+            if !hint.isEmpty { Text(hint).font(.footnote).foregroundColor(HB.soft) }
+        }
+        .padding(.horizontal, 16).padding(.vertical, 12)
     }
 }

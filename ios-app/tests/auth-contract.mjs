@@ -383,6 +383,102 @@ ok("an ordinary entry without client_id still works exactly as before (201, a fr
 r = await call(OQ1, "/api/entries", "POST", entryBody({ client_id: "not-a-uuid", label: "Bad id" }));
 ok("a malformed client_id is ignored (the entry is still created with a normal id)", r.status === 201 && r.json?.id && r.json.id !== "not-a-uuid");
 
+// ===== 13. splits, privacy, carry-over mode and "already paid" on the real backend (two people in one budget) =====
+resetLimits();
+const PA = jar(), pA = uname("pa"), PB = jar(), pB = uname("pb"), PX = jar(), pX = uname("px");
+await call(PA, "/api/signup", "POST", { name: "Pat", username: pA, password: PW });
+await call(PA, "/api/nests", "POST", { kind: "couple", name: "Pair Hive" });
+const inviteP = (await call(PA, "/api/nest")).json.nest.invite_code;
+await call(PB, "/api/signup", "POST", { name: "Quinn", username: pB, password: PW });
+r = await call(PB, "/api/nests/join", "POST", { code: inviteP });
+ok("two people share one budget (a couple)", r.status === 200, JSON.stringify(r.json));
+await call(PX, "/api/signup", "POST", { name: "Stranger", username: pX, password: PW });
+await call(PX, "/api/nests", "POST", { kind: "solo", name: "Stranger Hive" });
+const idPA = (await call(PA, "/api/me")).json.user.id, idPB = (await call(PB, "/api/me")).json.user.id;
+const dayP = new Date().toISOString().slice(0, 10), monthP = dayP.slice(0, 7);
+const eb = (extra = {}) => ({ type: "expense", amount: 40, label: "Plain", category: "food", member_id: idPA, shared: false, date: dayP, ...extra });
+const listFor = async (j, label) => ((await call(j, "/api/nest?month=" + monthP)).json.entries || []).find((e) => e.label === label);
+
+// privacy
+r = await call(PA, "/api/entries", "POST", eb({ label: "Secret gift", private: true }));
+const secretId = r.json?.id;
+ok("a private entry is created (201)", r.status === 201 && secretId, JSON.stringify(r.json));
+ok("the owner sees it, marked private", (await listFor(PA, "Secret gift"))?.private === 1);
+ok("the other person in the budget does NOT see it in their month", (await listFor(PB, "Secret gift")) === undefined);
+r = await call(PB, "/api/search?q=Secret");
+ok("…nor in search", r.status === 200 && !(r.json.entries || []).some((e) => e.label === "Secret gift"));
+r = await call(PB, "/api/year?year=" + dayP.slice(0, 4));
+ok("…nor in the year view / exports", r.status === 200 && !(r.json.entries || []).some((e) => e.label === "Secret gift"));
+r = await call(PB, "/api/account/export");
+ok("…nor in their downloaded data", r.status === 200 && !/Secret gift/.test(r.text));
+r = await call(PB, "/api/entries/" + secretId, "DELETE");
+ok("…and they can't delete it (it does not exist for them)", (await listFor(PA, "Secret gift")) !== undefined, JSON.stringify([r.status, r.json]));
+r = await call(PB, "/api/entries/" + secretId, "PATCH", eb({ label: "Hijack", member_id: idPB }));
+ok("…or edit it", (await listFor(PA, "Secret gift")) !== undefined && (await listFor(PA, "Hijack")) === undefined, JSON.stringify([r.status, r.json]));
+const tA = (await call(PA, "/api/app/token", "POST")).json.token, tB = (await call(PB, "/api/app/token", "POST")).json.token;
+const sumA = (await call(jar(), "/api/app/summary", "GET", undefined, bearer(tA))).json, sumB = (await call(jar(), "/api/app/summary", "GET", undefined, bearer(tB))).json;
+ok("the widget / Siri total counts the owner's private spending ($40)", sumA.spent >= 40, JSON.stringify(sumA));
+ok("…and the other person's widget / Siri total does NOT include it", sumB.spent === sumA.spent - 40, JSON.stringify([sumA.spent, sumB.spent]));
+const nestStranger = (await call(PX, "/api/nest?month=" + monthP)).json;
+ok("a stranger's account sees nothing of it", !(nestStranger.entries || []).some((e) => e.label === "Secret gift"));
+r = await call(PA, "/api/entries", "POST", eb({ label: "Shared and private", shared: true, private: true }));
+ok("an entry split with someone can never be private (the flag is ignored)", (await listFor(PB, "Shared and private"))?.private === 0, JSON.stringify(r.json));
+r = await call(PB, "/api/entries", "POST", eb({ label: "For Pat", member_id: idPA, private: true }));
+ok("you can't make an entry private on someone else's behalf", (await listFor(PA, "For Pat"))?.private === 0, JSON.stringify(r.json));
+r = await call(PA, "/api/entries", "POST", { type: "income", amount: 20, label: "Side cash", member_id: idPA, date: dayP, private: true });
+ok("income can be private too", (await listFor(PA, "Side cash"))?.private === 1 && (await listFor(PB, "Side cash")) === undefined);
+
+// splits
+r = await call(PA, "/api/entries", "POST", eb({ label: "By percent", amount: 100, shared: true, split_mode: "percent", split_value: 70 }));
+let e1 = await listFor(PB, "By percent");
+ok("By %: stored as the payer's percent (70) and both people see it", r.status === 201 && e1?.split_mode === "percent" && e1?.split_value === 70);
+ok("By %: the shares add up ($70 payer, $30 other)", (() => { const s = JSON.parse(e1?.shares || "{}"); return s[idPA] === 7000 && s[idPB] === 3000; })(), e1?.shares);
+r = await call(PA, "/api/entries", "POST", eb({ label: "Amount owed", amount: 40, shared: true, split_mode: "owed", split_value: 12.5 }));
+e1 = await listFor(PB, "Amount owed");
+ok("Amount owed: dollars in, cents stored ($12.50 → 1250), the other person owes $12.50", r.status === 201 && e1?.split_mode === "owed" && e1?.split_value === 1250 && JSON.parse(e1?.shares || "{}")[idPB] === 1250 && JSON.parse(e1?.shares || "{}")[idPA] === 2750, e1?.shares);
+r = await call(PA, "/api/entries", "POST", eb({ label: "Evenly", amount: 10.01, shared: true, split_mode: "equal" }));
+e1 = await listFor(PB, "Evenly");
+ok("Evenly: no cent lost ($5.01 + $5.00)", (() => { const s = JSON.parse(e1?.shares || "{}"); return s[idPA] + s[idPB] === 1001; })(), e1?.shares);
+r = await call(PA, "/api/entries", "POST", eb({ label: "Bad pct", shared: true, split_mode: "percent", split_value: 101 }));
+ok("a percent over 100 is refused (400) with the message", r.status === 400 && /percent from 0 to 100/.test(r.json?.error || ""), JSON.stringify(r.json));
+r = await call(PA, "/api/entries", "POST", eb({ label: "Bad owed", amount: 40, shared: true, split_mode: "owed", split_value: 41 }));
+ok("an owed amount above the total is refused (400)", r.status === 400 && /amount owed/.test(r.json?.error || ""), JSON.stringify(r.json));
+r = await call(PA, "/api/entries", "POST", eb({ label: "Zero owed", shared: true, split_mode: "owed", split_value: 0 }));
+ok("an owed amount of $0 is refused (400)", r.status === 400);
+ok("…and none of the refused entries were stored", (await listFor(PA, "Bad pct")) === undefined && (await listFor(PA, "Bad owed")) === undefined && (await listFor(PA, "Zero owed")) === undefined);
+const pctId = (await listFor(PA, "By percent")).id;
+r = await call(PA, "/api/entries/" + pctId, "PATCH", eb({ label: "By percent", amount: 100, shared: true, split_mode: "owed", split_value: 25, member_id: idPA }));
+e1 = await listFor(PB, "By percent");
+ok("editing an existing entry can change its split (percent → amount owed)", r.status === 200 && e1?.split_mode === "owed" && e1?.split_value === 2500);
+
+// a shared bill with "already paid this one"
+r = await call(PA, "/api/recurring", "POST", { type: "expense", label: "Gym", amount: 30, category: "bills", member_id: idPA, shared: true, split_mode: "percent", split_value: 60, freq: "monthly", date: dayP, log_now: true });
+let nestP = (await call(PA, "/api/nest?month=" + monthP)).json;
+ok("a new bill with log_now logs its first occurrence as already paid (an entry linked to the bill)", r.status === 201 && nestP.entries.some((e) => e.label === "Gym" && e.recurring_id === r.json.id && e.occ_date === dayP));
+ok("…and that occurrence is marked done, so it isn't shown as due", nestP.logged.some((l) => l.recurring_id === r.json.id && l.occ_date === dayP));
+ok("…and the bill keeps its split (60%)", nestP.recurring.find((x) => x.label === "Gym")?.split_mode === "percent" && nestP.recurring.find((x) => x.label === "Gym")?.split_value === 60);
+r = await call(PA, "/api/recurring", "POST", { type: "expense", label: "Phone", amount: 20, category: "bills", member_id: idPA, shared: false, freq: "monthly", date: dayP });
+nestP = (await call(PA, "/api/nest?month=" + monthP)).json;
+ok("without log_now nothing is logged (the bill shows up as due)", !nestP.entries.some((e) => e.label === "Phone") && !nestP.logged.some((l) => l.recurring_id === r.json.id));
+
+// monthly carry-over mode: one setting, written by Settings and by the Inbox "remember" choice
+ok("carry-over starts at Ask me", (await call(PA, "/api/nest?month=" + monthP)).json.nest.carry_mode === "ask");
+r = await call(PA, "/api/nest", "PATCH", { carry_mode: "never" });
+ok("Settings: Start fresh is saved and the other person sees it too", r.status === 200 && (await call(PB, "/api/nest?month=" + monthP)).json.nest.carry_mode === "never");
+r = await call(PA, "/api/nest", "PATCH", { carry_mode: "sometimes" });
+ok("an unknown choice is refused (400)", r.status === 400 && /Unknown carry-over choice/.test(r.json?.error || ""));
+r = await call(PA, "/api/carry", "POST", { month: monthP, accept: true, change: false, remember: true });
+ok("the Inbox \"Carry it over + remember\" changes the SAME setting (Always carry)", r.status === 200 && (await call(PA, "/api/nest?month=" + monthP)).json.nest.carry_mode === "always");
+await call(PA, "/api/nest", "PATCH", { carry_mode: "ask" });
+ok("Settings can put it back to Ask me", (await call(PA, "/api/nest?month=" + monthP)).json.nest.carry_mode === "ask");
+
+// joint account: privacy folds into the shared pot
+r = await call(PA, "/api/nest", "PATCH", { joint: true });
+ok("a joint account is switched on", r.status === 200, JSON.stringify(r.json));
+ok("…the owner's earlier private entries join the shared pot (the other person now sees them)", (await listFor(PB, "Secret gift"))?.private === 0);
+r = await call(PA, "/api/entries", "POST", eb({ label: "Private in joint", private: true }));
+ok("…and nothing can be private in a joint account", (await listFor(PB, "Private in joint"))?.private === 0, JSON.stringify(r.json));
+
 // ===== 9. Google sign-in is gone =====
 r = await call(jar(), "/api/auth/google", "POST", { credential: "x".repeat(200) });
 ok("POST /api/auth/google no longer signs anyone in (no session cookie, an error)", r.status >= 400 && !/__Host-hb=/.test(r.setCookie || ""), JSON.stringify([r.status, r.json]));

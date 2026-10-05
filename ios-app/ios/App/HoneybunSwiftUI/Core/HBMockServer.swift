@@ -165,6 +165,10 @@ final class HBMockServer: URLProtocol {
                 if !["solo", "couple", "family"].contains(k) { return (400, ["error": "Unknown budget type."]) }
                 nest["kind"] = k
             }
+            if let cm = body["carry_mode"] {
+                guard let m = cm as? String, ["ask", "always", "never"].contains(m) else { return (400, ["error": "Unknown carry-over choice."]) }
+                nest["carry_mode"] = m
+            }
             if let j = body["joint"] {
                 let on = (j as? Bool) ?? ((j as? NSNumber)?.boolValue ?? false)
                 if on && (nest["kind"] as? String) != "couple" { return (400, ["error": "Joint account is for couples."]) }
@@ -567,12 +571,29 @@ final class HBMockServer: URLProtocol {
                 Self.failEntryPosts = f.count > 1 ? (f.count - 1, f.status) : nil
                 return (f.status, ["error": f.status >= 500 ? "Something went wrong." : "That entry isn't allowed."])
             }
+            // the backend's rules for splitting and privacy (readSplit / readEntry): the percent is the payer's share, "owed" arrives in dollars and is stored in cents;
+            // private only counts when the entry is not split
+            let members = (state["members"] as? [[String: Any]] ?? []).count
+            let sharedFlag = (type == "expense" && (body["shared"] as? Bool) == true && members > 1) ? 1 : 0
+            var splitMode: Any? = nil, splitValue: Any? = nil
+            if sharedFlag == 1 {
+                let m = ["equal", "percent", "owed"].contains(body["split_mode"] as? String ?? "") ? (body["split_mode"] as? String ?? "equal") : "equal"
+                splitMode = m
+                if m == "percent" {
+                    guard let v = (body["split_value"] as? NSNumber)?.doubleValue, v >= 0, v <= 100 else { return (400, ["error": "Enter a percent from 0 to 100."]) }
+                    splitValue = Int(v.rounded())
+                } else if m == "owed" {
+                    guard let v = (body["split_value"] as? NSNumber)?.doubleValue, Int((v * 100).rounded()) > 0, Int((v * 100).rounded()) <= amt else { return (400, ["error": "The amount owed has to be more than $0 and no more than the total."]) }
+                    splitValue = Int((v * 100).rounded())
+                }
+            }
+            let privateFlag = (sharedFlag == 0 && (body["private"] as? Bool) == true) ? 1 : 0
             var entries = state["entries"] as? [[String: Any]] ?? []
             // a retry carrying the same client_id is answered "duplicate" and adds nothing (the backend's own rule)
             let cid = body["client_id"] as? String
             if let c = cid, entries.contains(where: { ($0["id"] as? String) == c }) { return (200, ["ok": true, "id": c, "duplicate": true]) }
             entries.insert(["id": cid ?? ("e-" + UUID().uuidString.lowercased()), "member_id": body["member_id"] as? String ?? "", "type": type, "amount_cents": amt, "label": clean(body["label"], 40),
-                            "category": type == "income" ? NSNull() : cat, "shared": 0, "split_mode": NSNull(), "split_value": NSNull(), "shares": NSNull(), "private": 0,
+                            "category": type == "income" ? NSNull() : cat, "shared": sharedFlag, "split_mode": splitMode ?? NSNull(), "split_value": splitValue ?? NSNull(), "shares": NSNull(), "private": privateFlag,
                             "date": body["date"] as? String ?? "", "recurring_id": (body["restore"] as? Bool == true ? body["recurring_id"] : nil) ?? NSNull(), "occ_date": (body["restore"] as? Bool == true ? body["occ_date"] : nil) ?? NSNull(), "created_at": 0], at: 0)
             state["entries"] = entries
             return (201, ["ok": true, "id": cid ?? "", "reward": ["gained": 5, "leveled": false, "level": 1]])

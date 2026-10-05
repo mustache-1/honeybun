@@ -56,7 +56,7 @@ struct HBJarMove: Decodable, Identifiable {
     var amount: Double { Double(amount_cents) / 100.0 }
     var date: Date { Date(timeIntervalSince1970: created_at) }
 }
-struct HBNest: Decodable { let id: String; let name: String; let kind: String?; let joint: Int?; let invite_code: String?; let accent: String?; let rollover: Int? }
+struct HBNest: Decodable { let id: String; let name: String; let kind: String?; let joint: Int?; let invite_code: String?; let accent: String?; let rollover: Int?; let carry_mode: String? }
 /// one "X paid Y back" from /api/nest "settlements" (the latest 10)
 struct HBSettlement: Decodable, Identifiable {
     let id: String; let from_id: String; let to_id: String; let amount_cents: Int; let date: String
@@ -202,10 +202,12 @@ struct HBRecurringDraft {
     var shared: Bool = false
     var splitMode: String? = nil
     var splitValue: Double? = nil
+    var logNow = false          // "Already paid this one": also log the first occurrence as done (new bills and paydays only)
     var json: [String: Any] {
         var d: [String: Any] = ["type": type, "amount": amount, "label": label, "freq": freq, "date": date, "member_id": memberID, "shared": shared]
         if type == "expense" { d["category"] = category }
         if shared, let m = splitMode { d["split_mode"] = m; if let v = splitValue { d["split_value"] = v } }
+        if logNow { d["log_now"] = true }
         return d
     }
 }

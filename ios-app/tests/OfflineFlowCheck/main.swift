@@ -359,6 +359,106 @@ func run() async {
         check("BEFORE PAYDAY: a bill already marked paid is not counted", b.bills.map { $0.label } == ["Discord Nitro"] && abs(b.due - 9.99) < 0.001)
     }
     check("BEFORE PAYDAY: nothing to show when there are no bills or paydays at all", { if let s = snapshot({ d in d["recurring"] = [] as [Any] }) { return HBPlan.beforePayday(s, today: oct4) == nil }; return false }())
+
+    // ---- split choices (Evenly / By % / Amount owed): the backend's own rules
+    func okv(_ o: HBSplitRules.Outcome) -> (String, Double?)? { if case let .ok(m, v) = o { return (m, v) }; return nil }
+    func bad(_ o: HBSplitRules.Outcome) -> String? { if case let .invalid(m) = o { return m }; return nil }
+    check("SPLIT: Evenly needs no number", okv(HBSplitRules.validate(mode: .equal, valueText: "", amount: 50))?.0 == "equal")
+    check("SPLIT: By % accepts 0 to 100 (70 → the payer covers 70)", okv(HBSplitRules.validate(mode: .percent, valueText: "70", amount: 50))?.1 == 70 && okv(HBSplitRules.validate(mode: .percent, valueText: "0", amount: 50))?.1 == 0 && okv(HBSplitRules.validate(mode: .percent, valueText: "100", amount: 50))?.1 == 100)
+    check("SPLIT: By % refuses over 100, negative, blank or text, with the website's message", ["101", "-1", "", "abc", "100.5x"].allSatisfy { bad(HBSplitRules.validate(mode: .percent, valueText: $0, amount: 50)) == "Enter a percent from 0 to 100." })
+    check("SPLIT: Amount owed must be more than $0 and no more than the total", okv(HBSplitRules.validate(mode: .owed, valueText: "12.5", amount: 50))?.1 == 12.5 && okv(HBSplitRules.validate(mode: .owed, valueText: "50", amount: 50))?.1 == 50)
+    check("SPLIT: Amount owed refuses $0, more than the total, blank or text", ["0", "50.01", "", "x", "-3"].allSatisfy { bad(HBSplitRules.validate(mode: .owed, valueText: $0, amount: 50)) == "The amount owed has to be more than $0 and no more than the total." })
+    check("SPLIT: a comma as decimal point and a $ sign are understood; the owed amount rounds to whole cents", okv(HBSplitRules.validate(mode: .owed, valueText: "$12,50", amount: 50))?.1 == 12.5 && okv(HBSplitRules.validate(mode: .owed, valueText: "12.345", amount: 50))?.1 == 12.35)
+    check("SPLIT: editing shows a stored split back as typed (70 → \"70\", $5.50 → \"5.50\")", HBSplitRules.text(mode: .percent, stored: 70) == "70" && HBSplitRules.text(mode: .owed, stored: 5.5) == "5.50" && HBSplitRules.text(mode: .equal, stored: nil) == "")
+    var sharesOK = true
+    for amount in [1, 2, 99, 100, 1001, 12345, 999_999] {
+        for n in 2...4 {
+            let ids = (0..<n).map { "m\($0)" }
+            for (mode, v) in [(HBSplitMode.equal, nil), (.percent, 0), (.percent, 33), (.percent, 70), (.percent, 100), (.owed, 0.01), (.owed, Double(amount) / 100.0), (.owed, Double(amount) / 200.0)] as [(HBSplitMode, Double?)] {
+                if mode == .owed, let x = v, Int((x * 100).rounded()) < 1 || Int((x * 100).rounded()) > amount { continue }
+                let s = HBSplitRules.shares(amountCents: amount, mode: mode, value: v, payer: "m0", members: ids)
+                if s.values.reduce(0, +) != amount || s.values.contains(where: { $0 < 0 }) || s.count != n { sharesOK = false }
+            }
+        }
+    }
+    check("SPLIT: for every mode, amount and household size the shares always add up to the exact total (no cent lost or invented)", sharesOK)
+    let sh = HBSplitRules.shares(amountCents: 10000, mode: .percent, value: 70, payer: "a", members: ["a", "b"])
+    check("SPLIT: 70% covered by the payer on $100 → payer $70, the other $30", sh["a"] == 7000 && sh["b"] == 3000)
+    let sh2 = HBSplitRules.shares(amountCents: 4000, mode: .owed, value: 25, payer: "a", members: ["a", "b", "c"])
+    check("SPLIT: $25 owed on $40 with two others → payer $15, each other $12.50", sh2["a"] == 1500 && sh2["b"] == 1250 && sh2["c"] == 1250)
+    check("SPLIT: the wording matches the website (\"Riley covers\", \"Sam owes $\", \"Everyone else owe $ total\")", HBSplitRules.prefix(mode: .percent, payer: "Riley", others: ["Sam"]) == "Riley covers" && HBSplitRules.prefix(mode: .owed, payer: "Riley", others: ["Sam"]) == "Sam owes" && HBSplitRules.prefix(mode: .owed, payer: "Riley", others: ["A", "B"]) == "Everyone else owe" && HBSplitRules.suffix(mode: .owed, others: ["A", "B"]) == "total")
+    check("SPLIT: the hint says what the other person covers", HBSplitRules.hint(mode: .percent, valueText: "70", payer: "Riley", others: ["Sam"]) == "Sam covers 30%." && HBSplitRules.hint(mode: .equal, valueText: "", payer: "R", others: ["S"]) == "Each of you covers half.")
+
+    // ---- split + privacy through the real request path, online and offline (a household of two)
+    HBMockServer.install(seed: "partner")
+    let partnerSnap = try? await api.nest(month: "2026-09")
+    let myID = partnerSnap?.me?.id ?? ""
+    var pct = HBEntryDraft(type: "expense", amount: 80, label: "Split by percent", category: "food", shared: true, date: "2026-09-22", memberID: myID)
+    pct.splitMode = "percent"; pct.splitValue = 70
+    var owe = HBEntryDraft(type: "expense", amount: 40, label: "Split owed", category: "food", shared: true, date: "2026-09-22", memberID: myID)
+    owe.splitMode = "owed"; owe.splitValue = 12.5
+    var priv = HBEntryDraft(type: "expense", amount: 9, label: "Surprise gift", category: "fun", date: "2026-09-22", memberID: myID)
+    priv.isPrivate = true
+    var privIncome = HBEntryDraft(type: "income", amount: 25, label: "Side cash", date: "2026-09-22", memberID: myID)
+    privIncome.isPrivate = true
+    var splitPrivate = HBEntryDraft(type: "expense", amount: 10, label: "Split but private?", category: "food", shared: true, date: "2026-09-22", memberID: myID)
+    splitPrivate.isPrivate = true; splitPrivate.splitMode = "equal"
+    for (d, id) in [(pct, "sp-1"), (owe, "sp-2"), (priv, "sp-3"), (privIncome, "sp-4"), (splitPrivate, "sp-5")] { _ = try? await api.addEntry(d, clientID: id) }
+    let stored = (try? await api.nest(month: "2026-09"))?.entries ?? []
+    func e(_ id: String) -> HBEntry? { stored.first { $0.id == id } }
+    check("ONLINE: a percent split is stored as the payer's percent (70)", e("sp-1")?.shared == 1 && e("sp-1")?.split_mode == "percent" && e("sp-1")?.split_value == 70)
+    check("ONLINE: an amount-owed split is stored in cents ($12.50 → 1250)", e("sp-2")?.shared == 1 && e("sp-2")?.split_mode == "owed" && e("sp-2")?.split_value == 1250)
+    check("ONLINE: a private entry is stored private (expense and income)", e("sp-3")?.isPrivate == 1 && e("sp-3")?.shared == 0 && e("sp-4")?.isPrivate == 1)
+    check("ONLINE: an entry that is split with someone can never be private", e("sp-5")?.shared == 1 && e("sp-5")?.isPrivate == 0)
+    var refusedPct = false, refusedOwed = false
+    var badPct = pct; badPct.splitValue = 150
+    var badOwed = owe; badOwed.splitValue = 99
+    do { _ = try await api.addEntry(badPct, clientID: "sp-6") } catch { refusedPct = true }
+    do { _ = try await api.addEntry(badOwed, clientID: "sp-7") } catch { refusedOwed = true }
+    let afterRefusals = (try? await api.nest(month: "2026-09"))?.entries ?? []
+    check("ONLINE: the server refuses a percent over 100 and an owed amount above the total, and stores nothing", refusedPct && refusedOwed && !afterRefusals.contains { $0.id == "sp-6" || $0.id == "sp-7" })
+    // editing: the draft made from a stored entry carries its split and privacy back
+    let fileP = tmp("split.json"); var qp = HBPendingQueue(fileURL: fileP)
+    var offPct = pct; offPct.isPrivate = false
+    _ = try? await qp.add(offPct, user: "u1", nest: "n1", clientID: "off-1")
+    _ = try? await qp.add(priv, user: "u1", nest: "n1", clientID: "off-2")
+    _ = try? await qp.add(owe, user: "u1", nest: "n1", clientID: "off-3")
+    qp = HBPendingQueue(fileURL: fileP)                // force-close and reopen
+    let back = await qp.items(user: "u1", nest: "n1")
+    check("OFFLINE: a split and a private entry made offline keep their split, value and privacy after a restart", back.count == 3 && back[0].draft.splitMode == "percent" && back[0].draft.splitValue == 70 && back[1].draft.isPrivate && back[2].draft.splitMode == "owed" && back[2].draft.splitValue == 12.5)
+    check("OFFLINE: the waiting copies show as split / private in the list (owed in cents, private flag)", back[0].asEntry.split_value == 70 && back[0].asEntry.shared == 1 && back[1].asEntry.isPrivate == 1 && back[2].asEntry.split_value == 1250)
+    HBMockServer.entryBodies = []
+    let rr = await qp.flush(user: "u1", nest: "n1") { i in _ = try await api.addEntry(i.draft, clientID: i.clientID) }
+    let landed = (try? await api.nest(month: "2026-09"))?.entries ?? []
+    check("OFFLINE: when back online they sync once with the same split and privacy", rr.sent == 3 && landed.first { $0.id == "off-1" }?.split_value == 70 && landed.first { $0.id == "off-2" }?.isPrivate == 1 && landed.first { $0.id == "off-3" }?.split_value == 1250)
+    let cacheCopy = HBOfflineCache(fileURL: tmp("cache-private.json"))
+    cacheCopy.save("/api/nest?month=2026-09", Data("{}".utf8), owner: "userA")
+    check("PRIVACY: the saved offline copy belongs to one account and never survives another account's use", cacheCopy.owner == "userA" && { cacheCopy.save("/api/nest?month=2026-09", Data("{}".utf8), owner: "userB"); return cacheCopy.owner == "userB" }())
+    let otherAccountItems = await qp.items(user: "u2", nest: "n1")
+    check("PRIVACY: another account never sees (or sends) the first account's waiting private entry", otherAccountItems.isEmpty)
+
+    // ---- "Already paid this one"
+    var rd = HBRecurringDraft(type: "expense", amount: 15, label: "Gym", category: "bills", freq: "monthly", date: "2026-10-01", memberID: myID)
+    check("PAID NOW: off by default → the request does not carry log_now", rd.json["log_now"] == nil)
+    rd.logNow = true
+    check("PAID NOW: on → the request carries log_now (the backend then logs that first occurrence)", rd.json["log_now"] as? Bool == true)
+    rd.shared = true; rd.splitMode = "percent"; rd.splitValue = 60
+    check("BILL SPLIT: a shared bill sends its split like the website", rd.json["shared"] as? Bool == true && rd.json["split_mode"] as? String == "percent" && rd.json["split_value"] as? Double == 60)
+
+    // ---- Monthly carry-over (one setting, also written by the Inbox "remember" choice)
+    HBMockServer.install(seed: "inbox")
+    try? await api.patchNest(["carry_mode": "never"])
+    let c1 = (try? await api.nest(month: "2026-09"))?.nest.carry_mode
+    var refusedMode = false
+    do { try await api.patchNest(["carry_mode": "sometimes"]) } catch { refusedMode = true }
+    try? await api.decideCarry(month: "2026-09", accept: true, remember: true)
+    let c2 = (try? await api.nest(month: "2026-09"))?.nest.carry_mode
+    try? await api.patchNest(["carry_mode": "ask"])
+    let c3 = (try? await api.nest(month: "2026-09"))?.nest.carry_mode
+    check("CARRY-OVER: the Settings choice is saved (Start fresh = never)", c1 == "never")
+    check("CARRY-OVER: an unknown choice is refused", refusedMode)
+    check("CARRY-OVER: the Inbox \"remember\" choice changes the very same setting (Always carry)", c2 == "always")
+    check("CARRY-OVER: Settings can set it back to Ask me, and that is what the Inbox then sees", c3 == "ask")
     HBOfflineCache.shared.clear()
 }
 

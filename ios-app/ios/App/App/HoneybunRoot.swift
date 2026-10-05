@@ -104,14 +104,16 @@ final class HoneybunRoot {
 // Permission is asked only when you flip the switch on, once; if iOS says no, the screen points to iOS Settings instead of asking again.
 enum HoneybunPush {
     static let prefKey = "hb-native-push", tokenKey = "hb-native-apns-token"
-    static var userTurnedOff: Bool { UserDefaults.standard.string(forKey: prefKey) == "off" }
+    // The switch that used to live in Settings is gone: notifications follow iOS. A phone that had switched it off is brought back in line.
+    static var userTurnedOff: Bool { false }
+    static let askedKey = "hb-native-push-asked"
     static var savedToken: String? { UserDefaults.standard.string(forKey: tokenKey) }
 
     static func authorization() async -> UNAuthorizationStatus { await UNUserNotificationCenter.current().notificationSettings().authorizationStatus }
 
     /// Launch / after sign-in: if iOS already allows notifications and you haven't turned them off here, make sure this phone's token is registered.
     static func refreshIfAllowed() {
-        guard !userTurnedOff else { return }
+        UserDefaults.standard.removeObject(forKey: prefKey)
         Task {
             let s = await authorization()
             guard s == .authorized || s == .provisional || s == .ephemeral else { return }
@@ -119,7 +121,17 @@ enum HoneybunPush {
         }
     }
 
-    /// Settings switch ON. Returns an error message, or nil when notifications are on.
+    /// Once, the first time Home opens: ask iOS for permission. Never again (if iOS says no, Settings offers "Open iPhone Settings").
+    static func askOnceIfNeeded() {
+        guard !UserDefaults.standard.bool(forKey: askedKey) else { return }
+        Task {
+            guard await authorization() == .notDetermined else { UserDefaults.standard.set(true, forKey: askedKey); return }
+            UserDefaults.standard.set(true, forKey: askedKey)
+            _ = await enable()
+        }
+    }
+
+    /// Asks iOS (only if it has never been asked) and registers this phone. Returns an error message, or nil when notifications are on.
     static func enable() async -> String? {
         var s = await authorization()
         if s == .notDetermined {
