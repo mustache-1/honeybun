@@ -87,6 +87,8 @@
 		4B8BDBD38BD3BAE888ABB469 /* HoneybunRoot.swift in Sources */ = {isa = PBXBuildFile; fileRef = E160CA821EB1DC900D9D391E /* HoneybunRoot.swift */; };
 		499D95DB99DEBAFFFA8AD703 /* HalloweenSplash.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DC4EE75500D76E2E486B95F /* HalloweenSplash.swift */; };
 		F2AD45AC1E0605CC745CAA86 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BDB5FC16DEF0F5D23CFC387 /* SceneDelegate.swift */; };
+		39C105FA33AB67D4E59AF4D6 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 62E3DA521F78C57F849D7056 /* PrivacyInfo.xcprivacy */; };
+		3E806FF04DA53E86E88DE4EF /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = A12A1B398A0100639370938D /* PrivacyInfo.xcprivacy */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -200,6 +202,8 @@
 		E160CA821EB1DC900D9D391E /* HoneybunRoot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HoneybunRoot.swift; sourceTree = "<group>"; };
 		5DC4EE75500D76E2E486B95F /* HalloweenSplash.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HalloweenSplash.swift; sourceTree = "<group>"; };
 		6BDB5FC16DEF0F5D23CFC387 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
+		62E3DA521F78C57F849D7056 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		A12A1B398A0100639370938D /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -270,6 +274,7 @@
 				F35DB03D472B673EF846B623 /* HoneybunNative.swift */,
 				BB7C4C003F9E581D6C42A753 /* HoneybunIntents.swift */,
 				674058568043B14FEECCD583 /* App.entitlements */,
+				62E3DA521F78C57F849D7056 /* PrivacyInfo.xcprivacy */,
 				E160CA821EB1DC900D9D391E /* HoneybunRoot.swift */,
 				5DC4EE75500D76E2E486B95F /* HalloweenSplash.swift */,
 			);
@@ -299,6 +304,7 @@
 				B383C33A316ECAF91FF319E3 /* HoneybunWidget.swift */,
 				6F51520EAA12EBC44BE62404 /* Info.plist */,
 				DD534A12B03B46FA4AE087DC /* HoneybunWidget.entitlements */,
+				A12A1B398A0100639370938D /* PrivacyInfo.xcprivacy */,
 			);
 			name = HoneybunWidget;
 			path = HoneybunWidget;
@@ -510,6 +516,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				504EC3121FED79650016851F /* LaunchScreen.storyboard in Resources */,
+				39C105FA33AB67D4E59AF4D6 /* PrivacyInfo.xcprivacy in Resources */,
 				50B271D11FEDC1A000F3C39B /* public in Resources */,
 				504EC30F1FED79650016851F /* Assets.xcassets in Resources */,
 				50379B232058CBB4000EE86E /* capacitor.config.json in Resources */,
@@ -522,6 +529,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				3E806FF04DA53E86E88DE4EF /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

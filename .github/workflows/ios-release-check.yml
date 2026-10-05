@@ -83,6 +83,9 @@ jobs:
           if /usr/libexec/PlistBuddy -c "Print :UIApplicationSceneManifest:UISceneConfigurations:UIWindowSceneSessionRoleApplication:0:UISceneDelegateClassName" "$APP/Info.plist" 2>/dev/null | grep -q "SceneDelegate"; then echo "scene manifest names SceneDelegate (good)"; else echo "::error::UIApplicationSceneManifest / SceneDelegate is missing from the built Info.plist"; bad=1; fi
           n=$(grep -c "SceneDelegate" "$RUNNER_TEMP/bin.strings" || true); echo "SceneDelegate in binary: $n"
           [ "${n:-0}" = "0" ] && { echo "::error::SceneDelegate is missing from the Release binary"; bad=1; }
+          echo "--- privacy manifests ---"
+          [ -f "$APP/PrivacyInfo.xcprivacy" ] && echo "app PrivacyInfo.xcprivacy present" || { echo "::error::PrivacyInfo.xcprivacy is missing from App.app"; bad=1; }
+          [ -f "$APP/PlugIns/HoneybunWidget.appex/PrivacyInfo.xcprivacy" ] && echo "widget PrivacyInfo.xcprivacy present" || { echo "::error::PrivacyInfo.xcprivacy is missing from the widget"; bad=1; }
           echo "--- the Google sign-in is gone ---"
           n=$(grep -ci "accounts.google.com\|google_client\|GIDSignIn" "$RUNNER_TEMP/bin.strings" || true); echo "google references: $n"
           [ "${n:-0}" != "0" ] && { echo "::error::Google sign-in references remain in the Release binary"; bad=1; }

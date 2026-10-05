@@ -4,6 +4,7 @@
 # Catches the mistakes that broke fresh clones before: Swift files on disk but not in the App target,
 # duplicate or dangling file references, a missing shared App scheme / workspace entry, and a missing UIScene manifest.
 require 'xcodeproj'
+Encoding.default_external = Encoding::UTF_8
 
 root = File.expand_path('../ios/App', __dir__)
 errors = []
@@ -39,6 +40,30 @@ ids.select { |i| ids.count(i) > 1 }.uniq.each { |i| fail_with.("duplicate object
 project.groups.each do |g|
   paths = g.files.map(&:path)
   paths.select { |p| paths.count(p) > 1 }.uniq.each { |p| fail_with.("group #{g.display_name} references #{p} twice") }
+end
+
+# App Store privacy manifests: present on disk and shipped as a resource by both the app and the widget
+[[app, 'App'], [widget, 'HoneybunWidget']].each do |t, dir|
+  next unless t
+  fail_with.("#{dir}/PrivacyInfo.xcprivacy is missing") unless File.exist?(File.join(root, dir, 'PrivacyInfo.xcprivacy'))
+  shipped = t.resources_build_phase.files.any? { |f| f.file_ref&.path == 'PrivacyInfo.xcprivacy' }
+  fail_with.("#{t.name} does not copy PrivacyInfo.xcprivacy as a resource") unless shipped
+end
+
+# Release must compile: code outside #if DEBUG may not touch the symbols declared in whole-file #if DEBUG files
+debug_files = disk.select { |p| File.read(p).lstrip.start_with?('#if DEBUG') }
+debug_syms = debug_files.flat_map { |p| File.read(p).scan(/\b(?:enum|struct|class|actor|func)\s+([A-Z]\w*)/).flatten }.uniq
+(disk - debug_files).each do |path|
+  active = []
+  File.readlines(path).each_with_index do |line, i|
+    t = line.strip
+    if t.start_with?('#if') then active.push(t.start_with?('#if DEBUG'))
+    elsif t.start_with?('#else') || t.start_with?('#elseif') then active[-1] = false if active.any?
+    elsif t.start_with?('#endif') then active.pop
+    elsif active.none? && !t.start_with?('//')
+      debug_syms.each { |s| fail_with.("#{path.sub(root + '/', '')}:#{i + 1} uses debug-only #{s} outside #if DEBUG (breaks the Release build)") if t =~ /\b#{s}\b/ }
+    end
+  end
 end
 
 # deployment targets: every target at least iOS 15, the app and Pods at exactly the Podfile's value

@@ -43,6 +43,12 @@ if Dir.exist?(swiftui_dir)
     add_source(app, ensure_file(g, parts.last))
   end
 end
+# App Store privacy manifest (required-reason API use: UserDefaults), shipped as a resource in the app and in the widget
+def add_resource(target, ref)
+  return if target.resources_build_phase.files_references.include?(ref)
+  target.resources_build_phase.add_file_reference(ref)
+end
+add_resource(app, ensure_file(app_group, 'PrivacyInfo.xcprivacy'))
 shared_ref = ensure_file(shared_group, 'HoneybunShared.swift')
 add_source(app, shared_ref)
 ensure_file(app_group, 'App.entitlements')
@@ -57,6 +63,7 @@ unless widget
   widget = project.new_target(:app_extension, 'HoneybunWidget', :ios, '16.0', nil, :swift)
   add_source(widget, ensure_file(widget_group, 'HoneybunWidget.swift'))
   add_source(widget, shared_ref)
+  add_resource(widget, ensure_file(widget_group, 'PrivacyInfo.xcprivacy'))
   ensure_file(widget_group, 'Info.plist')
   ensure_file(widget_group, 'HoneybunWidget.entitlements')
   widget.build_configurations.each do |c|
