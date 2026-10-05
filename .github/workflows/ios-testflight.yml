@@ -39,6 +39,9 @@ jobs:
         with:
           node-version: 20
 
+      - name: Static Xcode project checks (gate - fails here, before any build, signing or upload)
+        run: ruby scripts/check_project.rb
+
       - name: Use the newest Xcode (Apple requires the iOS 26 SDK or later for uploads)
         working-directory: .
         run: |
