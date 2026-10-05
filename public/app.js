@@ -359,6 +359,7 @@
         document.querySelectorAll("[data-support]").forEach((b) => (b.onclick = openSupport));
       }
       if (i && i.demo && $("demoRow")) { $("demoRow").hidden = false; $("demoRow").onclick = () => HBN.openNativePreview().catch((e) => toast(e.message)); }
+      if (i && i.nativeBeta && $("nativeAuthRow")) { $("nativeAuthRow").hidden = false; $("nativeAuthLink").onclick = () => HBN.openNativeApp().catch((e) => toast(e.message)); }
       if (i && i.nativeBeta && $("nativeAppRow")) { $("nativeAppRow").hidden = false; $("nativeAppRow").onclick = () => HBN.openNativeApp().catch((e) => toast(e.message)); }
       if (!i || !i.nativeTabs) return;
       if (window.innerWidth >= 900) return; // iPad: the website's own sidebar layout is used, no phone-style tab bar
