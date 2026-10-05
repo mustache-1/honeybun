@@ -260,7 +260,8 @@ extension HBPlan {
         var s = HBDebtSummary()
         s.count = debts.count
         for d in debts {
-            s.startTotal += d.start; s.paidTotal += Double(d.paid_cents) / 100.0; s.remaining += d.remaining
+            // paid is counted up to what was owed, so start − paid = remaining holds even if a debt was overpaid (the website's 'remaining' stops at $0 too)
+            s.startTotal += d.start; s.paidTotal += Double(min(d.paid_cents, d.start_cents)) / 100.0; s.remaining += d.remaining
             if !d.paidOff { s.openCount += 1; s.minimums += d.minimum; s.interestPerMonth += d.remaining * d.apr / 100.0 / 12.0 }
         }
         return s

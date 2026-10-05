@@ -151,8 +151,13 @@ func run() async {
     check("DEBT CENTER: nothing owed, or no payment to plan with, gives no interest and a flat balance path", HBPlan.payoffPlan([], strategy: .snowball, extra: 0).balances == [0] && HBPlan.payoffPlan([noMin], strategy: .snowball, extra: 0).balances == [500] && HBPlan.payoffPlan([noMin], strategy: .snowball, extra: 0).interest == 0)
 
     let sum = HBPlan.debtSummary([big, small, mid, debt("done", 100, 5, 10, paid: 100)])
-    check("DEBT CENTER: summary: 4 debts, 3 still open, $6,900 started, $100 paid, $6,700 left, $190 in minimums, ~$107.17 of interest a month, 1.4% paid",
-          sum.count == 4 && sum.openCount == 3 && near(sum.startTotal, 6900) && near(sum.paidTotal, 100) && near(sum.remaining, 6700) && near(sum.minimums, 190) && near(sum.interestPerMonth, 107.1667, 0.001) && near(sum.progress, 100.0 / 6900, 1e-9))
+    // 4 debts: $5,000 + $500 + $1,200 + $100 (already paid off) = $6,800 started; the $100 one is the only payment; 3 are still open
+    check("DEBT CENTER: summary: 4 debts, 3 still open, $6,800 started, $100 paid, $6,700 left, $190 in minimums, ~$107.17 of interest a month, ~1.47% paid",
+          sum.count == 4 && sum.openCount == 3 && near(sum.startTotal, 6800) && near(sum.paidTotal, 100) && near(sum.remaining, 6700) && near(sum.minimums, 190) && near(sum.interestPerMonth, 107.1667, 0.001) && near(sum.progress, 100.0 / 6800, 1e-9)
+          && near(sum.startTotal - sum.paidTotal, sum.remaining))
+    let over = HBPlan.debtSummary([debt("over", 100, 0, 10, paid: 150), small])
+    check("DEBT CENTER: an overpaid debt counts as paid only up to what was owed ($100, not $150), so started − paid = left and progress stays honest (100 of 600)",
+          near(over.startTotal, 600) && near(over.paidTotal, 100) && near(over.remaining, 500) && near(over.startTotal - over.paidTotal, over.remaining) && near(over.progress, 100.0 / 600, 1e-9) && over.openCount == 1)
     check("DEBT CENTER: summary of nothing is all zeros", HBPlan.debtSummary([]) == HBDebtSummary())
 
     let cmp0 = HBPlan.compareStrategies([big, small, mid], extra: 0)
