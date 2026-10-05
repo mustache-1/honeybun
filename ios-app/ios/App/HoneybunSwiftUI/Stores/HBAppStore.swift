@@ -148,7 +148,7 @@ enum HBTab: String, CaseIterable { case home = "Home", money = "Money", goals = 
         if isPreview { return }
         do {
             let me = try await HBAPI.shared.me()
-            if let mine = account?.id, mine != me.user.id { resetAfterSignOut(); await start(); return }
+            if let mine = account?.id, let now = me.user?.id, mine != now { resetAfterSignOut(); await start(); return }
             account = me.user
             if me.nest_id == nil { phase = .needsBudget; return }
             await refresh()
