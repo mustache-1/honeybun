@@ -357,6 +357,32 @@ ok("the widget/Siri token B shows account B's budget only (Bob Hive), never A's"
 r = await call(jar(), "/api/app/summary", "GET", undefined, bearer(tokA));
 ok("…and A's old token still gets nothing after B signed in", r.status === 401);
 
+// ===== 12. retry-safe entry creation (the offline queue's client_id) =====
+resetLimits();
+const OQ1 = jar(), oq1 = uname("oq"), OQ2 = jar(), oq2 = uname("oq");
+await call(OQ1, "/api/signup", "POST", { name: "Queue A", username: oq1, password: PW });
+await call(OQ1, "/api/nests", "POST", { kind: "solo", name: "Queue Hive" });
+await call(OQ2, "/api/signup", "POST", { name: "Queue B", username: oq2, password: PW });
+await call(OQ2, "/api/nests", "POST", { kind: "solo", name: "Other Hive" });
+const meQ = (await call(OQ1, "/api/me")).json.user.id;
+const cidA = "9b2f5a1e-3c4d-4e6f-8a7b-1c2d3e4f5a6b", dayQ = new Date().toISOString().slice(0, 10), monthQ = dayQ.slice(0, 7);
+const entryBody = (extra = {}) => ({ type: "expense", amount: 12.34, label: "Offline coffee", category: "food", member_id: meQ, shared: false, date: dayQ, ...extra });
+r = await call(OQ1, "/api/entries", "POST", entryBody({ client_id: cidA }));
+ok("an entry saved with a client_id is created (201) and gets exactly that id", r.status === 201 && r.json?.id === cidA, JSON.stringify(r.json));
+r = await call(OQ1, "/api/entries", "POST", entryBody({ client_id: cidA }));
+ok("sending the SAME entry again (a retry after a lost response) → success, flagged duplicate, nothing new is made", r.status === 200 && r.json?.duplicate === true && r.json?.id === cidA, JSON.stringify([r.status, r.json]));
+await Promise.all([1, 2, 3].map(() => call(OQ1, "/api/entries", "POST", entryBody({ client_id: "1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d", label: "Race" }))));
+r = await call(OQ1, "/api/nest?month=" + monthQ);
+ok("…and three retries at once also leave exactly one entry (the original 'Offline coffee' once, 'Race' once)", r.json.entries.filter((e) => e.label === "Offline coffee").length === 1 && r.json.entries.filter((e) => e.label === "Race").length === 1, JSON.stringify(r.json.entries.map((e) => e.label)));
+r = await call(OQ2, "/api/entries", "POST", { type: "expense", amount: 5, label: "Stolen id", category: "food", member_id: (await call(OQ2, "/api/me")).json.user.id, shared: false, date: dayQ, client_id: cidA });
+ok("another account can't use someone else's entry id (409) — a queued entry can never land in another account", r.status === 409 && /already used/.test(r.json?.error || ""), JSON.stringify([r.status, r.json]));
+r = await call(OQ2, "/api/nest?month=" + monthQ);
+ok("…and the other account has no such entry", !r.json.entries.some((e) => e.label === "Stolen id" || e.label === "Offline coffee"));
+r = await call(OQ1, "/api/entries", "POST", entryBody({ label: "No id" }));
+ok("an ordinary entry without client_id still works exactly as before (201, a fresh id)", r.status === 201 && r.json?.id && r.json.id !== cidA);
+r = await call(OQ1, "/api/entries", "POST", entryBody({ client_id: "not-a-uuid", label: "Bad id" }));
+ok("a malformed client_id is ignored (the entry is still created with a normal id)", r.status === 201 && r.json?.id && r.json.id !== "not-a-uuid");
+
 // ===== 9. Google sign-in is gone =====
 r = await call(jar(), "/api/auth/google", "POST", { credential: "x".repeat(200) });
 ok("POST /api/auth/google no longer signs anyone in (no session cookie, an error)", r.status >= 400 && !/__Host-hb=/.test(r.setCookie || ""), JSON.stringify([r.status, r.json]));

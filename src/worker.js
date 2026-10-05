@@ -723,8 +723,8 @@ async function readEntry(env, nestId, user, body) {
     date: isDate(body.date) ? body.date : todayStr(),
   };
 }
-async function insertEntry(env, nestId, user, e, recurringId = null, occDate = null) {
-  const id = crypto.randomUUID();
+async function insertEntry(env, nestId, user, e, recurringId = null, occDate = null, forcedId = null) {
+  const id = forcedId || crypto.randomUUID();
   await env.DB.prepare(
     `INSERT INTO entries (id, nest_id, member_id, type, amount_cents, label, category, shared, split_mode, split_value, shares, private, date, recurring_id, occ_date, created_by, created_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
@@ -1900,13 +1900,26 @@ async function handle(request, env, url) {
 
   // ----- entries -----
   if (path === "/api/entries" && method === "POST") {
+    // Retry-safe creation (the iPhone app's offline queue): an optional `client_id` (a UUID the app made when the entry was first saved) becomes the entry's id,
+    // so sending the same entry again — after a lost response, a retry, a reconnect — never makes a second one. The same account in the same budget gets
+    // {ok, duplicate:true}; anybody else using that id is refused. Without `client_id` nothing changes.
+    const cid = typeof body.client_id === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(body.client_id) ? body.client_id : null;
+    const already = async () => {
+      const ex = await env.DB.prepare("SELECT nest_id, created_by FROM entries WHERE id = ?").bind(cid).first();
+      if (!ex) return null;
+      if (ex.nest_id === nestId && ex.created_by === user.id) return json({ ok: true, id: cid, duplicate: true });
+      throw new HttpError("That entry id is already used.", 409);
+    };
+    if (cid) { const dup = await already(); if (dup) return dup; }
     const e = await readEntry(env, nestId, user, body);
     let rid = null, occ = null;
     if (body.recurring_id) {
       const r = await env.DB.prepare("SELECT id FROM recurring WHERE id = ? AND nest_id = ?").bind(String(body.recurring_id), nestId).first();
       if (r && isDate(body.occ_date)) { rid = r.id; occ = body.occ_date; }
     }
-    const id = await insertEntry(env, nestId, user, e, rid, occ);
+    let id;
+    try { id = await insertEntry(env, nestId, user, e, rid, occ, cid); }
+    catch (err) { if (cid && /UNIQUE|constraint/i.test(String(err.message))) { const dup = await already(); if (dup) return dup; } throw err; } // two retries at once: the loser sees the winner's entry
     if (e.type === "expense") await env.DB.prepare("UPDATE members SET inbox_gen_at = 0 WHERE nest_id = ?").bind(nestId).run();
     if (e.shared && !body.restore) await postToOthers(env, nestId, user.id, "shared_expense", { name: user.name, label: e.label, amount: e.amount }, `shared:${id}`);
     else if (!body.restore && !e.priv && (await isJoint(env, nestId))) {
