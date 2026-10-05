@@ -3,6 +3,7 @@ import SwiftUI
 import Capacitor
 import WebKit
 import UserNotifications
+import WidgetKit
 
 extension Notification.Name { static let hbClassicClosed = Notification.Name("hbClassicClosed") }
 
@@ -149,5 +150,28 @@ enum HoneybunPush {
         UserDefaults.standard.set(hex, forKey: tokenKey)
         guard #available(iOS 15.0, *), HBSession.hasSessionCookie, !userTurnedOff else { return }
         Task { _ = try? await HBAPI.shared.send("/api/push/apns", method: "POST", body: ["token": hex]) }
+    }
+}
+
+// The widget and Siri shortcuts read this phone's own token (made by honeybun.me for this phone) from the App Group. Classic's web page used to
+// create it when you opened the app and remove it when you logged out; native Honeybun now does both, so a different person logging in on this
+// phone never leaves the previous account's widget data behind, and a new login always gets a working widget and Siri.
+enum HoneybunDevice {
+    static func ensureAppToken() async {
+        guard #available(iOS 15.0, *), Honeybun.token == nil else { return }
+        guard let data = try? await HBAPI.shared.send("/api/app/token", method: "POST", body: [:]),
+              let tok = ((try? JSONSerialization.jsonObject(with: data)) as? [String: Any])?["token"] as? String, !tok.isEmpty else { return }
+        Honeybun.token = tok
+        WidgetCenter.shared.reloadAllTimelines()
+    }
+    /// log out: remove this account's phone token on the server too (needs the session, so call before the session ends)
+    static func revokeAppToken() async {
+        guard #available(iOS 15.0, *) else { return }
+        _ = try? await HBAPI.shared.send("/api/app/token", method: "DELETE", body: nil)
+    }
+    /// nothing of the previous account stays on the phone
+    static func clearLocal() {
+        Honeybun.token = nil
+        WidgetCenter.shared.reloadAllTimelines()
     }
 }

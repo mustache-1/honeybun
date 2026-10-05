@@ -166,17 +166,17 @@ check("inbox: streak, level, goal and gift-card texts", txt(msg("streak_risk", #
 check("inbox: tabs — bills / shared / updates", HBInbox.tab(for: "bill_late") == .bills && HBInbox.tab(for: "carry_ask") == .bills && HBInbox.tab(for: "budget_over") == .bills && HBInbox.tab(for: "shared_expense") == .shared
       && HBInbox.tab(for: "settled") == .shared && HBInbox.tab(for: "streak_risk") == .updates && HBInbox.tab(for: "week") == .updates && HBInbox.tab(for: "ref_intro") == .updates)
 let ex = { (_: String) in true }
-check("inbox: buttons route to the right native screen (or Classic only when there is none)",
+check("inbox: buttons route to the right native screen (nothing opens Classic)",
       HBInbox.action(for: msg("streak_risk", "{}"), recurringExists: ex, carryPending: false) == .logSomething
-      && HBInbox.action(for: msg("budget_warn", "{}"), recurringExists: ex, carryPending: false) == .openMoney("See Money")
-      && HBInbox.action(for: msg("week", "{}"), recurringExists: ex, carryPending: false) == .openMoney("See stats")
+      && HBInbox.action(for: msg("budget_warn", "{}"), recurringExists: ex, carryPending: false) == .openPlan("See budgets")
+      && HBInbox.action(for: msg("week", "{}"), recurringExists: ex, carryPending: false) == .openStats("See stats")
       && HBInbox.action(for: msg("goal_done", "{}"), recurringExists: ex, carryPending: false) == .openGoals("See goals")
-      && HBInbox.action(for: msg("level", "{}"), recurringExists: ex, carryPending: false) == .openHome("See my bunny")
+      && HBInbox.action(for: msg("level", "{}"), recurringExists: ex, carryPending: false) == .openStats("See my bunny")
       && HBInbox.action(for: msg("shared_expense", "{}"), recurringExists: ex, carryPending: false) == .openTogether("Open Together")
       && HBInbox.action(for: msg("carry_ask", "{}"), recurringExists: ex, carryPending: true) == .decideCarry
       && HBInbox.action(for: msg("carry_ask", "{}"), recurringExists: ex, carryPending: false) == nil
-      && HBInbox.action(for: msg("ref_intro", "{}"), recurringExists: ex, carryPending: false) == .classic("Get my link")
-      && HBInbox.action(for: msg("debt_done", "{}"), recurringExists: ex, carryPending: false) == .classic("See Plan")
+      && HBInbox.action(for: msg("ref_intro", "{}"), recurringExists: ex, carryPending: false) == .openReferrals("Get my link")
+      && HBInbox.action(for: msg("debt_done", "{}"), recurringExists: ex, carryPending: false) == .openPlan("See Plan")
       && HBInbox.action(for: msg("welcome", "{}"), recurringExists: ex, carryPending: false) == nil)
 let nowTs = Date().timeIntervalSince1970
 let grp = HBInbox.groups([msg("welcome", "{}", at: nowTs - 86400), msg("week", "{}", at: nowTs - 86401)], now: Date())

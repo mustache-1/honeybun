@@ -105,6 +105,7 @@ enum HBTab: String, CaseIterable { case home = "Home", money = "Money", goals = 
             let me = try await HBAPI.shared.me()
             account = me.user
             await HBSession.mirrorToWebView()     // keeps the Classic fallback signed in too
+            Task { await HoneybunDevice.ensureAppToken() }   // the widget and Siri need this phone's token
             if me.nest_id == nil { phase = .needsBudget; return }
             await refresh()
         } catch HBAPIError.notSignedIn {
@@ -196,6 +197,7 @@ enum HBTab: String, CaseIterable { case home = "Home", money = "Money", goals = 
         sheet = nil
         phase = .checking
         await HoneybunPush.removeTokenFromBackend()
+        await HoneybunDevice.revokeAppToken()
         try? await HBAPI.shared.logout()
         await HBSession.clearEverywhere()
         resetAfterSignOut()
@@ -208,6 +210,7 @@ enum HBTab: String, CaseIterable { case home = "Home", money = "Money", goals = 
     }
     func resetAfterSignOut() {
         HBAppLock.shared.reset()
+        HoneybunDevice.clearLocal()
         snapshot = nil; account = nil; sheet = nil; selectedTab = .home; month = HBDay.monthKey()
         inboxMessages = []; inboxState = .idle; shopping = []; shopState = .idle; prevSpent = nil; prevDaily = [:]
         onboardingDone = false
