@@ -179,6 +179,14 @@ func run() async {
     _ = try? await api.send("/api/push/apns", method: "DELETE", body: ["token": "abcd"])
     let msg2 = (try? await api.sendTestPush()) ?? "threw"
     check("SETTINGS: a registered phone gets the test; removing its token (what log out does) stops it", msg1 == "Sent!" && msg2.contains("No phone"))
+    // Apple Pay auto-logging key
+    let keyA = (try? await api.makeShortcutKey()) ?? ""
+    let meK = await me()
+    check("SHORTCUT: making a key returns it once (hb_…) and the account then shows auto-logging as on", keyA.hasPrefix("hb_") && keyA.count > 10 && meK?.user?.shortcut != nil && meK?.user?.shortcut?.uses == 0)
+    let keyB = (try? await api.makeShortcutKey()) ?? ""
+    check("SHORTCUT: a new key replaces the old one (a different value)", keyB.hasPrefix("hb_") && keyB != keyA)
+    try? await api.revokeShortcutKey()
+    check("SHORTCUT: turning it off removes it from the account", (await me())?.user?.shortcut == nil)
     _ = try? await api.logout(); clearCookies()
     let afterOut = await refused { _ = try await api.me() }
     check("LOG OUT: the session cookie is gone and the next request is told to log in", !HBSession.hasSessionCookie && afterOut == HBAPIError.notSignedIn.errorDescription)

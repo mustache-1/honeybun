@@ -27,6 +27,8 @@ jobs:
           node-version: 20
       - name: Install Capacitor
         run: npm install
+      - name: Help and What's new match the website
+        run: node scripts/gen-content.mjs --check
       - name: Native SwiftUI check (models + Coming Up logic against a real /api/nest response)
         working-directory: ios-app
         run: |
@@ -64,7 +66,7 @@ jobs:
       - name: Stats, levels and badges, referrals and household changes through the real API path
         working-directory: ios-app
         run: |
-          (swiftc -D DEBUG -o /tmp/hbstats ios/App/HoneybunSwiftUI/Models/HBModels.swift ios/App/HoneybunSwiftUI/Core/HBDates.swift ios/App/HoneybunSwiftUI/Core/HBGoalStyle.swift ios/App/HoneybunSwiftUI/Core/HBTogether.swift ios/App/HoneybunSwiftUI/Core/HBInbox.swift ios/App/HoneybunSwiftUI/Core/HBCatStyle.swift ios/App/HoneybunSwiftUI/Core/HBPlan.swift ios/App/HoneybunSwiftUI/Core/HBPlanAPI.swift ios/App/HoneybunSwiftUI/Core/HBProgress.swift ios/App/HoneybunSwiftUI/Core/HBStats.swift ios/App/HoneybunSwiftUI/Core/HBPasskeyKit.swift ios/App/HoneybunSwiftUI/Core/HBPreviewData.swift ios/App/HoneybunSwiftUI/Core/HBPreviewVariants.swift ios/App/HoneybunSwiftUI/Core/HBMockServer.swift ios/App/HoneybunSwiftUI/Core/HBAPI.swift tests/StatsFlowCheck/main.swift) > /tmp/stats-build.txt 2>&1 || { grep -E "error" /tmp/stats-build.txt | head -25 | while IFS= read -r l; do echo "::error::${l:0:400}"; done; exit 1; }
+          (swiftc -D DEBUG -o /tmp/hbstats ios/App/HoneybunSwiftUI/Models/HBModels.swift ios/App/HoneybunSwiftUI/Core/HBDates.swift ios/App/HoneybunSwiftUI/Core/HBGoalStyle.swift ios/App/HoneybunSwiftUI/Core/HBTogether.swift ios/App/HoneybunSwiftUI/Core/HBInbox.swift ios/App/HoneybunSwiftUI/Core/HBCatStyle.swift ios/App/HoneybunSwiftUI/Core/HBPlan.swift ios/App/HoneybunSwiftUI/Core/HBPlanAPI.swift ios/App/HoneybunSwiftUI/Core/HBProgress.swift ios/App/HoneybunSwiftUI/Core/HBStats.swift ios/App/HoneybunSwiftUI/Core/HBHelp.swift ios/App/HoneybunSwiftUI/Core/HBContent.swift ios/App/HoneybunSwiftUI/Core/HBPasskeyKit.swift ios/App/HoneybunSwiftUI/Core/HBPreviewData.swift ios/App/HoneybunSwiftUI/Core/HBPreviewVariants.swift ios/App/HoneybunSwiftUI/Core/HBMockServer.swift ios/App/HoneybunSwiftUI/Core/HBAPI.swift tests/StatsFlowCheck/main.swift) > /tmp/stats-build.txt 2>&1 || { grep -E "error" /tmp/stats-build.txt | head -25 | while IFS= read -r l; do echo "::error::${l:0:400}"; done; exit 1; }
           /tmp/hbstats > /tmp/stats-run.txt 2>&1 || { grep -E "FAIL|rror" /tmp/stats-run.txt | head -25 | while IFS= read -r l; do echo "::error::${l:0:400}"; done; tail -5 /tmp/stats-run.txt; exit 1; }
           tail -4 /tmp/stats-run.txt
       - name: Sync the native project

@@ -284,7 +284,8 @@ final class HBMockServer: URLProtocol {
         let email = u["email"] as? String ?? ""
         return ["id": u["id"] as? String ?? "", "email": email, "name": u["name"] as? String ?? "", "verified": u["verified"] as? Bool ?? false, "has_email": !email.hasSuffix("@u.honeybun.invalid"),
                 "has_password": u["pwKnown"] as? Bool ?? true, "apple": (u["appleSub"] as? String) != nil,
-                "mail": ["bills": u["mail_bills"] as? Bool ?? true, "streak": u["mail_streak"] as? Bool ?? true, "weekly": u["mail_weekly"] as? Bool ?? true]]
+                "mail": ["bills": u["mail_bills"] as? Bool ?? true, "streak": u["mail_streak"] as? Bool ?? true, "weekly": u["mail_weekly"] as? Bool ?? true],
+                "shortcut": (u["shortcut"] as? [String: Any]) ?? NSNull()]
     }
     /// the snapshot the app reads once a budget exists (built from the preview fixture for this user)
     private static func startBudget(_ i: Int, kind: String, name: String) {
@@ -387,6 +388,12 @@ final class HBMockServer: URLProtocol {
             for k in ["mail_bills", "mail_streak", "mail_weekly"] { if let v = body[k] as? Bool { users[u][k] = v } }
             return ok(["ok": true])
         }
+        // Apple Pay auto-logging key (shown once; the account only remembers that it has one)
+        if path == "/api/shortcut/key" && method == "POST" { users[u]["shortcut"] = ["created_at": 1790000000, "last_used": NSNull(), "uses": 0]; return (201, ["ok": true, "key": "hb_" + String(UUID().uuidString.replacingOccurrences(of: "-", with: "").lowercased().prefix(24)), "url": "https://honeybun.me/api/log"], nil) }
+        if path == "/api/shortcut/key" && method == "DELETE" { users[u]["shortcut"] = nil; return ok([:]) }
+        // this phone's own token for the widget and Siri
+        if path == "/api/app/token" && method == "POST" { return (201, ["ok": true, "token": "hb_app_" + String(UUID().uuidString.replacingOccurrences(of: "-", with: "").lowercased().prefix(20))], nil) }
+        if path == "/api/app/token" && method == "DELETE" { return ok([:]) }
         // push notification tokens (the phone registers / removes itself), and the test button
         if path == "/api/push/apns" && method == "POST" { if let t = body["token"] as? String, !t.isEmpty { apnsTokens.insert(uid + ":" + t) }; return ok(["ok": true]) }
         if path == "/api/push/apns" && method == "DELETE" { if let t = body["token"] as? String { apnsTokens.remove(uid + ":" + t) }; return ok(["ok": true]) }

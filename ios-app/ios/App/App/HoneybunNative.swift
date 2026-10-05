@@ -19,7 +19,6 @@ public class HoneybunNativePlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "setIcon", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "getTips", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "buyTip", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "openNativePreview", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "openNativeApp", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "setHalloween", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "splashDone", returnType: CAPPluginReturnPromise)
@@ -39,18 +38,6 @@ public class HoneybunNativePlugin: CAPPlugin, CAPBridgedPlugin {
     @objc func splashDone(_ call: CAPPluginCall) {
         DispatchQueue.main.async {
             NativeChrome.shared.splashDone()
-            call.resolve()
-        }
-    }
-
-    // opens the hands-on SwiftUI demo (sample data only) over the app
-    @objc func openNativePreview(_ call: CAPPluginCall) {
-        guard #available(iOS 15.0, *) else { call.reject("The preview needs iOS 15 or newer."); return }
-        DispatchQueue.main.async {
-            guard let vc = NativeChrome.shared.vc else { call.reject("Not ready yet."); return }
-            let host = UIHostingController(rootView: DemoRoot(onClose: { [weak vc] in vc?.dismiss(animated: true, completion: nil) }))
-            host.modalPresentationStyle = .fullScreen
-            vc.present(host, animated: true, completion: nil)
             call.resolve()
         }
     }

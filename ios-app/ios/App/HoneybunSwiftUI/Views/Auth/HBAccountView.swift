@@ -31,6 +31,10 @@ struct HBAccountView: View {
     @State private var showEditMe = false
     @State private var showHousehold = false
     @State private var showJoinOther = false
+    @State private var showHelp = false
+    @State private var showUpdates = false
+    @State private var showTips = false
+    @State private var showShortcut = false
     @State private var confirmLeave = false
     @State private var pushStatus: UNAuthorizationStatus = .notDetermined
     @State private var mailBills = true
@@ -58,6 +62,8 @@ struct HBAccountView: View {
             notificationsCard
             sectionTitle("Household")
             householdCard
+            sectionTitle("Apple Pay & Siri")
+            shortcutsCard
             sectionTitle("Data & Privacy")
             dataCard
             sectionTitle("About")
@@ -76,6 +82,10 @@ struct HBAccountView: View {
         .sheet(isPresented: $showEditMe) { HBEditMeSheet(store: store) }
         .sheet(isPresented: $showHousehold) { HBHouseholdSheet(store: store, focusInvite: false) }
         .sheet(isPresented: $showJoinOther) { HBJoinOtherBudgetSheet(store: store) }
+        .sheet(isPresented: $showHelp) { HBHelpView(store: store) }
+        .sheet(isPresented: $showUpdates) { HBUpdatesView() }
+        .sheet(isPresented: $showTips) { HBTipsView() }
+        .sheet(isPresented: $showShortcut) { HBShortcutView(store: store) }
         .confirmationDialog("Leave this budget?", isPresented: $confirmLeave, titleVisibility: .visible) {
             Button("Leave", role: .destructive) { leave() }
             Button("Stay", role: .cancel) {}
@@ -304,6 +314,20 @@ struct HBAccountView: View {
         .padding(16).frame(maxWidth: .infinity, alignment: .leading).hbCard()
     }
 
+    private var shortcutsCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Button { showShortcut = true } label: {
+                linkRow("Apple Pay auto-logging", user?.shortcut.map { "On · \($0.uses ?? 0) logged" } ?? "Log every tap-to-pay with an iPhone Shortcut", "creditcard")
+            }.accessibilityIdentifier("hb-settings-shortcut")
+            Divider().background(HB.line)
+            VStack(alignment: .leading, spacing: 4) {
+                Label("Siri & Shortcuts", systemImage: "waveform").font(.system(size: 16, weight: .semibold)).foregroundColor(.white)
+                Text("Try: \"Hey Siri, how much is left in Honeybun?\" or \"Hey Siri, log an expense in Honeybun\".").font(.system(size: 13)).foregroundColor(HB.soft)
+            }
+        }
+        .padding(16).frame(maxWidth: .infinity, alignment: .leading).hbCard()
+    }
+
     private var dataCard: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Your data").font(.system(size: 18, weight: .bold)).foregroundColor(.white)
@@ -334,6 +358,12 @@ struct HBAccountView: View {
         let b = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "?"
         return VStack(alignment: .leading, spacing: 12) {
             HStack { Text("Honeybun").foregroundColor(.white); Spacer(); Text("Version \(v) (build \(b))").foregroundColor(HB.soft).accessibilityIdentifier("hb-settings-version") }.font(.system(size: 16, weight: .semibold))
+            Divider().background(HB.line)
+            Button { showHelp = true } label: { linkRow("Help", "Answers, Ask Bun, email support", "questionmark.circle") }.accessibilityIdentifier("hb-settings-help")
+            Divider().background(HB.line)
+            Button { showUpdates = true } label: { linkRow("What's new", "Everything we've shipped", "sparkles") }.accessibilityIdentifier("hb-settings-updates")
+            Divider().background(HB.line)
+            Button { showTips = true } label: { linkRow("Support Honeybun 💛", "Honeybun is free. A tip helps keep it going.", "heart") }.accessibilityIdentifier("hb-settings-tips")
             Divider().background(HB.line)
             Link(destination: URL(string: "https://honeybun.me/terms.html")!) { linkRow("Terms of Service", "The simple rules", "doc.text") }
             Divider().background(HB.line)

@@ -57,7 +57,7 @@ jobs:
           bad=0
           strings -a "$APP/App" > "$RUNNER_TEMP/bin.strings"
           echo "--- code that must be in the Release binary ---"
-          for sym in HoneybunRoot HBRootView HBAuthFlowView HBAuthModel HBAccountView HBSetupView HBOnboardingView HBPasskeyService HBAppleButton HBHomeView HBMoneyView HBGoalsView HBTogetherView HBInboxView; do
+          for sym in HoneybunRoot HBRootView HBAuthFlowView HBAuthModel HBAccountView HBSetupView HBOnboardingView HBPasskeyService HBAppleButton HBHomeView HBMoneyView HBGoalsView HBTogetherView HBInboxView HBPlanView HBStatsView HBReferralsView HBHelpView HBTipsView HBShortcutView HBBudgetEditor HBDebtForm; do
             n=$(grep -c "$sym" "$RUNNER_TEMP/bin.strings" || true); echo "$sym: $n"
             [ "${n:-0}" = "0" ] && { echo "::error::$sym is missing from the Release binary"; bad=1; }
           done
@@ -66,7 +66,7 @@ jobs:
             [ "${n:-0}" = "0" ] && { echo "::error::session/passkey code ($lit) is missing from the Release binary"; bad=1; }
           done
           echo "--- debug-only code that must NOT be in the Release binary ---"
-          for sym in HBMockServer HBPreviewData HBPreviewVariants "mock.sub"; do
+          for sym in HBMockServer HBPreviewData HBPreviewVariants "mock.sub" DemoRoot DemoStore NativeDemo; do
             n=$(grep -c "$sym" "$RUNNER_TEMP/bin.strings" || true); echo "$sym: $n"
             [ "${n:-0}" != "0" ] && { echo "::error::$sym (debug-only) is in the Release binary"; bad=1; }
           done

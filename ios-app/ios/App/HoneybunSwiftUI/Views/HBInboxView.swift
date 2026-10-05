@@ -22,6 +22,7 @@ struct HBInboxView: View {
                     header
                     tabBar
                     content.accessibilityElement(children: .contain).accessibilityIdentifier("hb-last-card")
+                    askBun
                 }
                 .frame(maxWidth: 560)
                 .padding(.horizontal, HB.gutter).padding(.top, 8)
@@ -39,6 +40,49 @@ struct HBInboxView: View {
         .onAppear { if let t = store.previewInboxTab, let v = HBInboxTab.allCases.first(where: { $0.rawValue.lowercased() == t }) { tab = v } }
         .onAppear { if store.previewScrollToEnd { DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { proxy.scrollTo("hb-end", anchor: .bottom) } } }
         #endif
+        }
+    }
+
+    // MARK: Ask Bun: the quick questions and "where you are" card from the website's Bun chat (answers open the real screens)
+
+    private var askBun: some View {
+        let me = store.members.first { $0.id == store.myID }
+        let streak = me.map { HBProgress.streak($0) } ?? 0
+        let done = me?.last_day == HBDay.todayString
+        let li = HBProgress.levelInfo(me?.xp ?? 0)
+        let ref = store.account?.ref
+        return VStack(alignment: .leading, spacing: 12) {
+            HBSectionHeader(title: "Ask Bun 🐰")
+            HStack(spacing: 8) {
+                askChip("What's due?") { store.sheet = .plan }
+                askChip("My streak") { store.sheet = .stats }
+                askChip("Add spend") { store.sheet = .newEntry("expense") }
+            }
+            VStack(spacing: 0) {
+                askRow("🐾", streak == 1 ? "1 day" : "\(streak) days", done ? "hop streak" : "Log today to hop", todo: !done) { store.sheet = .stats }
+                Divider().background(HB.line).padding(.leading, 56)
+                askRow("🥕", "Level \(li.level)", "\(me?.xp ?? 0) carrots · \(max(0, li.hi - (me?.xp ?? 0))) to next level") { store.sheet = .stats }
+                if let r = ref {
+                    Divider().background(HB.line).padding(.leading, 56)
+                    askRow("🎁", "Get a \(HBFormat.money(Double(r.reward_cents) / 100.0).replacingOccurrences(of: ".00", with: "")) gift card", r.qualified == 0 && r.pending == 0 ? "Invite \(r.goal) friends who stick around for a week" : "\(r.qualified % max(1, r.goal)) of \(r.goal) counted" + (r.pending > 0 ? " · \(r.pending) on the way" : "")) { store.sheet = .referrals }
+                }
+            }.hbCard()
+        }
+        .padding(.top, 8)
+    }
+    private func askChip(_ title: String, _ action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title).font(.system(size: 14, weight: .semibold)).foregroundColor(HB.orange).lineLimit(1).minimumScaleFactor(0.8)
+                .padding(.horizontal, 12).frame(height: 38).frame(maxWidth: .infinity).overlay(Capsule().stroke(HB.orange.opacity(0.6), lineWidth: 1))
+        }.accessibilityIdentifier("hb-askbun-" + title)
+    }
+    private func askRow(_ emoji: String, _ title: String, _ sub: String, todo: Bool = false, _ action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                Text(emoji).font(.system(size: 22)).frame(width: 32)
+                VStack(alignment: .leading, spacing: 1) { Text(title).font(.system(size: 16, weight: .semibold)).foregroundColor(.white); Text(sub).font(.system(size: 13)).foregroundColor(todo ? HB.orange : HB.soft).lineLimit(2) }
+                Spacer(minLength: 6); Image(systemName: "chevron.right").font(.system(size: 12, weight: .bold)).foregroundColor(HB.soft)
+            }.padding(.horizontal, 14).padding(.vertical, 10).contentShape(Rectangle())
         }
     }
 

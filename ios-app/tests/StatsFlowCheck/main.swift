@@ -74,6 +74,24 @@ func run() async {
     } else { check("REFERRALS: load", false) }
     check("REFERRALS: the reasons a friend did not count read in plain words", HBStats.referralReason("same_device") == "Signed up on your device" && HBStats.referralReason("inactive") == "Didn't stick around for a week")
 
+    // help and what's new (generated from the website's own lists)
+    check("HELP: the website's four topics with their questions load", HBHelp.topics.count == 4 && HBHelp.topics.allSatisfy { !$0.faqs.isEmpty } && HBHelp.topics.map { $0.t }.contains("Getting started"))
+    let all = HBHelp.faqs(topic: nil, query: "")
+    check("HELP: search matches the question or the answer, case-insensitively; a topic narrows the list; nonsense finds nothing",
+          all.count == HBHelp.topics.reduce(0) { $0 + $1.faqs.count } && !HBHelp.faqs(topic: nil, query: "INVITE").isEmpty && HBHelp.faqs(topic: 0, query: "").count == HBHelp.topics[0].faqs.count && HBHelp.faqs(topic: nil, query: "zzzqqqxx").isEmpty)
+    check("WHAT'S NEW: releases load newest first, each with items and tags that have names", !HBHelp.releases.isEmpty && HBHelp.releases[0].v == "3.0" && !HBHelp.releases[0].items.isEmpty && HBHelp.releases[0].items.allSatisfy { !$0.tags.isEmpty && HBHelp.tagNames[$0.tags[0]] != nil })
+
+    // hop calendar (September 2026 starts on a Tuesday; weeks start on Monday)
+    if let hop = HBStats.hopCalendar(s0.entries, month: "2026-09", today: HBDay.parse("2026-10-04")!) {
+        let spendDays = Set(s0.entries.filter { !$0.isIncome }.map { $0.date }).count
+        check("HOP CALENDAR: 30 days, 1 blank cell before Tuesday the 1st, a past month has every day done", hop.days.count == 30 && hop.lead == 1 && hop.days.allSatisfy { $0.done })
+        check("HOP CALENDAR: no-spend days are the days with no expenses; the biggest day is the one with the most spending", hop.noSpendDays == 30 - spendDays && hop.biggest != nil && hop.biggest!.amount >= hop.days.map { $0.spend }.max()! - 0.001)
+        check("HOP CALENDAR: the dot rank runs 0 (smallest) to 1 (biggest) and a calmest full week is found", hop.days.filter { $0.spend > 0 }.map { $0.rank }.max() == 1 && hop.calmest != nil && hop.calmest!.to - hop.calmest!.from == 6)
+    } else { check("HOP CALENDAR: builds", false) }
+    if let cur = HBStats.hopCalendar(s0.entries, month: "2026-10", today: HBDay.parse("2026-10-04")!) {
+        check("HOP CALENDAR: in the current month only days up to today are done (future days stay empty)", cur.days.filter { $0.done }.count == 4 && cur.days[3].isToday && !cur.days[4].done)
+    } else { check("HOP CALENDAR: current month builds", false) }
+
     // changing household
     let bad = await refused { try await api.switchBudget(code: "NOPE") }
     check("HOUSEHOLD: an unknown invite code is refused with the backend's message and nothing changes", bad != nil && (await snap())?.entries.isEmpty == false)

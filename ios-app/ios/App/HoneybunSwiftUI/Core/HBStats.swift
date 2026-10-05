@@ -102,4 +102,39 @@ enum HBStats {
         }
         return "\u{FEFF}" + rows.map { $0.map(q).joined(separator: ",") }.joined(separator: "\r\n")
     }
+
+    // MARK: hop calendar (the month day by day: dots sized by spending, paws on no-spend days)
+
+    struct HopDay: Identifiable { let day: Int; let date: String; let spend: Double; let done: Bool; let isToday: Bool; let rank: Double; var id: Int { day }; var noSpend: Bool { done && spend <= 0 } }
+    struct HopCalendar { let lead: Int; let days: [HopDay]; let noSpendDays: Int; let calmest: (from: Int, to: Int)?; let biggest: (day: Int, amount: Double)? }
+
+    static func hopCalendar(_ entries: [HBEntry], month: String, today: Date = HBDay.startOfToday()) -> HopCalendar? {
+        guard let first = HBDay.parse(month + "-01"), let span = HBDay.cal.range(of: .day, in: .month, for: first) else { return nil }
+        let days = span.count, t = HBDay.string(today), thisMonth = String(t.prefix(7))
+        let lead = (HBDay.cal.component(.weekday, from: first) + 5) % 7          // Monday first
+        let isNow = month == thisMonth, past = month < thisMonth
+        var spend: [String: Double] = [:]
+        for e in entries where !e.isIncome { spend[e.date, default: 0] += e.amount }
+        let sorted = spend.values.filter { $0 > 0 }.sorted()
+        func rank(_ v: Double) -> Double { sorted.count < 2 ? 1 : Double(sorted.firstIndex(of: v) ?? 0) / Double(sorted.count - 1) }
+        func ds(_ n: Int) -> String { String(format: "%@-%02d", month, n) }
+        var cells: [HopDay] = []; var noSpend = 0; var big: (day: Int, amount: Double)? = nil
+        for n in 1...days {
+            let d = ds(n), sp = spend[d] ?? 0, done = past || (isNow && d <= t)
+            cells.append(HopDay(day: n, date: d, spend: sp, done: done, isToday: d == t, rank: sp > 0 ? rank(sp) : 0))
+            if done && sp <= 0 { noSpend += 1 }
+            if sp > 0, sp > (big?.amount ?? 0) { big = (day: n, amount: sp) }
+        }
+        // the calmest full week (Monday to Sunday) so far this month
+        var calm: (from: Int, to: Int, total: Double)? = nil
+        var s0 = 1 - lead
+        while s0 <= days {
+            let a = max(1, s0), z = min(days, s0 + 6)
+            defer { s0 += 7 }
+            if z - a < 6 || (!past && !(isNow && ds(z) <= t)) { continue }
+            var tot = 0.0; for d in a...z { tot += spend[ds(d)] ?? 0 }
+            if calm == nil || tot < calm!.total { calm = (from: a, to: z, total: tot) }
+        }
+        return HopCalendar(lead: lead, days: cells, noSpendDays: noSpend, calmest: calm.map { (from: $0.from, to: $0.to) }, biggest: big)
+    }
 }

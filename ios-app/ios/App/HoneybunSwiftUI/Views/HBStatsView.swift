@@ -25,6 +25,7 @@ struct HBStatsView: View {
         HBSheetScaffold(title: "Stats", onBack: { dismiss() }) {
             if let m = me, let s = store.snapshot { burrowCard(m, s) }
             if let s = store.snapshot { ruleCard(s) }
+            hopCard
             yearCard
             whereCard
             VStack(spacing: 10) {
@@ -74,6 +75,58 @@ struct HBStatsView: View {
             }.accessibilityIdentifier("hb-stats-badges")
         }
         .padding(16).frame(maxWidth: .infinity, alignment: .leading).hbCard()
+    }
+
+    // MARK: hop calendar
+
+    @State private var hopSel: String?
+    private var hopCard: some View {
+        let cal = store.snapshot.flatMap { HBStats.hopCalendar($0.entries, month: store.month) }
+        return VStack(alignment: .leading, spacing: 10) {
+            HBSectionHeader(title: "Hop calendar")
+            if let cal = cal {
+                VStack(spacing: 8) {
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: 7), spacing: 4) {
+                        ForEach(["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"], id: \.self) { Text($0).font(.system(size: 11, weight: .semibold)).foregroundColor(HB.soft) }
+                        ForEach(0..<cal.lead, id: \.self) { _ in Color.clear.frame(height: 46) }
+                        ForEach(cal.days) { d in hopCell(d) }
+                    }
+                    hopDetail(cal)
+                    HStack {
+                        hopSummary("\(cal.noSpendDays)", "no-spend days")
+                        hopSummary(cal.calmest.map { "\(HBDay.short(String(format: "%@-%02d", store.month, $0.from)))–\($0.to)" } ?? "–", "calmest week")
+                        hopSummary(cal.biggest.map { HBFormat.money($0.amount).replacingOccurrences(of: ".00", with: "") } ?? "–", cal.biggest.map { "biggest day, " + HBDay.short(String(format: "%@-%02d", store.month, $0.day)) } ?? "biggest day")
+                    }
+                }
+                .padding(14).frame(maxWidth: .infinity, alignment: .leading).hbCard()
+            }
+        }
+    }
+    private func hopCell(_ d: HBStats.HopDay) -> some View {
+        let tappable = d.done || d.spend > 0
+        return Button { hopSel = hopSel == d.date ? nil : d.date } label: {
+            VStack(spacing: 2) {
+                Text("\(d.day)").font(.system(size: 12, weight: d.isToday ? .heavy : .medium)).foregroundColor(d.isToday ? HB.orange : .white.opacity(d.done || d.spend > 0 ? 1 : 0.4))
+                if d.noSpend { Image(systemName: "pawprint.fill").font(.system(size: 11)).foregroundColor(HB.green) }
+                else if d.spend > 0 {
+                    Circle().fill(HB.orange.opacity(0.55 + d.rank * 0.45)).frame(width: 8 + CGFloat(d.rank) * 12, height: 8 + CGFloat(d.rank) * 12)
+                    Text(HBFormat.money(d.spend).replacingOccurrences(of: ".00", with: "").components(separatedBy: ".").first ?? "").font(.system(size: 8, weight: .semibold)).foregroundColor(HB.soft).lineLimit(1).minimumScaleFactor(0.6)
+                } else { Spacer(minLength: 0) }
+            }
+            .frame(maxWidth: .infinity, minHeight: 46)
+            .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(hopSel == d.date ? HB.orange.opacity(0.2) : Color.white.opacity(0.04)))
+            .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).stroke(d.isToday ? HB.orange.opacity(0.8) : Color.clear, lineWidth: 1))
+        }.disabled(!tappable)
+    }
+    @ViewBuilder private func hopDetail(_ cal: HBStats.HopCalendar) -> some View {
+        if let sel = hopSel, let d = cal.days.first(where: { $0.date == sel }) {
+            let list = (store.snapshot?.entries ?? []).filter { $0.date == sel && !$0.isIncome }
+            Text(list.isEmpty ? "\(HBDay.short(sel)): no spending 🐾" : "\(HBDay.short(sel)): " + list.prefix(3).map { $0.label }.joined(separator: ", ") + (list.count > 3 ? " +\(list.count - 3)" : "") + " · " + HBFormat.money(d.spend))
+                .font(.footnote).foregroundColor(Color(red: 0.86, green: 0.82, blue: 0.95)).frame(maxWidth: .infinity, alignment: .leading)
+        } else { Text("Tap a day to see what you spent. A paw means a no-spend day.").font(.footnote).foregroundColor(HB.soft).frame(maxWidth: .infinity, alignment: .leading) }
+    }
+    private func hopSummary(_ big: String, _ small: String) -> some View {
+        VStack(spacing: 2) { Text(big).font(.system(size: 17, weight: .bold).monospacedDigit()).foregroundColor(.white).lineLimit(1).minimumScaleFactor(0.6); Text(small).font(.system(size: 11)).foregroundColor(HB.soft).lineLimit(2).multilineTextAlignment(.center) }.frame(maxWidth: .infinity)
     }
 
     // MARK: 50 / 30 / 20

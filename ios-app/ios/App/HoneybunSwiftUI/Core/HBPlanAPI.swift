@@ -44,3 +44,13 @@ extension HBAPI {
     /// Leave your budget (if you were the only one in it, it is deleted).
     func leaveBudget() async throws { _ = try await send("/api/nest/leave", method: "POST", body: nil) }
 }
+
+// Apple Pay auto-logging: a key for an iPhone Shortcut (POST /api/log with "Authorization: Bearer <key>").
+extension HBAPI {
+    /// makes a new key (the old one stops working) and returns it; it is only shown this once
+    func makeShortcutKey() async throws -> String {
+        let data = try await send("/api/shortcut/key", method: "POST", body: [:])
+        return ((try? JSONSerialization.jsonObject(with: data)) as? [String: Any])?["key"] as? String ?? ""
+    }
+    func revokeShortcutKey() async throws { _ = try await send("/api/shortcut/key", method: "DELETE", body: nil) }
+}
