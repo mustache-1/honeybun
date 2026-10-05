@@ -128,12 +128,21 @@ enum HBPlan {
         var pts: [(Int, Double)] = []; var run = carryIn
         for d in 1...day { run += byDay[d]; pts.append((d, run)) }
         let by = spentByCategory(s.entries)
-        let risky = (s.budgets ?? []).map { b -> (String, Double, Double) in (b.category, (by[b.category] ?? 0) / Double(day) * Double(dim), Double(b.limit_cents) / 100.0) }
-            .filter { $0.2 > 0 && $0.1 > $0.2 * 1.05 }.sorted { $0.1 / $0.2 > $1.1 / $1.2 }.first
+        // a category that is on pace to blow past its budget (the worst one)
+        var risky: (category: String, projected: Double, limit: Double)? = nil
+        var worst = 0.0
+        for b in s.budgets ?? [] {
+            let limit = Double(b.limit_cents) / 100.0
+            guard limit > 0 else { continue }
+            let projected = (by[b.category] ?? 0) / Double(day) * Double(dim)
+            guard projected > limit * 1.05 else { continue }
+            let ratio = projected / limit
+            if ratio > worst { worst = ratio; risky = (category: b.category, projected: projected, limit: limit) }
+        }
         var vs: Int? = nil
         if let last = lastMonthSpent, last > 0 { vs = Int((((spent + perDay * Double(daysLeft) + bills) / last - 1) * 100).rounded()) }
         return .ready(HBForecast(day: day, dim: dim, daysLeft: daysLeft, endLeft: endLeft, leftNow: leftNow, pays: pays, bills: bills, ahead: perDay * Double(daysLeft),
-                                 points: pts.map { (day: $0.0, left: $0.1) }, risky: risky.map { (category: $0.0, projected: $0.1, limit: $0.2) },
+                                 points: pts.map { (day: $0.0, left: $0.1) }, risky: risky,
                                  saveEach: 5, saveEnd: endLeft + 5 * Double(daysLeft), vsLastMonthPct: vs))
     }
 }
