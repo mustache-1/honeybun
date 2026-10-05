@@ -57,13 +57,17 @@ final class HoneybunRoot {
 
     /// Shows the Classic app over native Honeybun. The session cookie is copied into the web view first, so Classic opens already signed in.
     func openClassic() {
-        guard #available(iOS 15.0, *), let top = nativeVC else { return }
+        guard #available(iOS 15.0, *), let top = nativeVC else { NSLog("HBROOT openClassic: no native root"); return }
+        NSLog("HBROOT openClassic: start")
         Task { @MainActor in
             await HBSession.mirrorToWebView()
+            NSLog("HBROOT openClassic: session mirrored, building Classic")
             let c = self.classic ?? self.makeClassic()
-            guard c.presentingViewController == nil else { return }
+            guard c.presentingViewController == nil else { NSLog("HBROOT openClassic: already showing"); return }
             c.modalPresentationStyle = .fullScreen
+            NSLog("HBROOT openClassic: presenting from %@ (in window: %d)", String(describing: type(of: top)), top.view.window != nil ? 1 : 0)
             top.present(c, animated: true) {
+                NSLog("HBROOT openClassic: presented")
                 // after the first time, reload so Classic shows what changed natively (and the right account)
                 if self.classicShownBefore { c.webView?.reload() }
                 self.classicShownBefore = true
@@ -73,8 +77,9 @@ final class HoneybunRoot {
 
     /// Back to native Honeybun. If someone signed in as another account inside Classic, native follows that session.
     func closeClassic() {
-        guard #available(iOS 15.0, *), let c = classic, c.presentingViewController != nil else { return }
+        guard #available(iOS 15.0, *), let c = classic, c.presentingViewController != nil else { NSLog("HBROOT closeClassic: Classic is not showing"); return }
         Task { @MainActor in
+            NSLog("HBROOT closeClassic: closing")
             await HBSession.adoptFromWebView()
             c.dismiss(animated: true) { NotificationCenter.default.post(name: .hbClassicClosed, object: nil) }
         }

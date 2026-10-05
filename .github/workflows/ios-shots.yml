@@ -108,6 +108,7 @@ jobs:
                 sleep 3; run_to 60 xcrun simctl io "$udid" screenshot "$PUB/${tag}_classicdemo_1_native.png" || true
                 sleep 9; run_to 60 xcrun simctl io "$udid" screenshot "$PUB/${tag}_classicdemo_2_classic.png" || true
                 sleep 9; run_to 60 xcrun simctl io "$udid" screenshot "$PUB/${tag}_classicdemo_3_back.png" || true
+                xcrun simctl spawn "$udid" log show --last 3m --style compact --predicate 'eventMessage CONTAINS "HBROOT"' 2>/dev/null | tail -30 > "$PUB/log_${tag}_classicdemo.txt" || true
                 ( cd "$PUB" && publish "${tag} classicdemo" )
               else sleep 6; fi
               run_to 60 xcrun simctl io "$udid" screenshot "$RUNNER_TEMP/${tag}_${screen}.png" || log "screenshot $screen failed"
