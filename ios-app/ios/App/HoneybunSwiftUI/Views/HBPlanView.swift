@@ -290,11 +290,6 @@ struct HBPlanView: View {
     }
 }
 
-enum HBPlanText {
-    /// 5 → "5", 5.25 → "5.25"  (the website trims a trailing .00)
-    static func percent(_ v: Double) -> String { let s = String(format: "%.2f", v); return s.hasSuffix(".00") ? String(s.dropLast(3)) : s }
-}
-
 // MARK: - month-end forecast card
 
 @available(iOS 15.0, *)

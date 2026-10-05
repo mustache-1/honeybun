@@ -5,7 +5,11 @@ struct HBUser: Decodable, Identifiable {
     let id: String; var name: String; var email: String?
     var verified: Bool?; var has_email: Bool?; var has_password: Bool?; var apple: Bool?   // how this account signs in (from /api/me)
     var mail: HBMailPrefs?                                                                   // the email reminders this account has switched on
+    var ref: HBRefSummary?                                                                   // referral progress (nil if the account has none)
+    var shortcut: HBShortcutInfo?                                                            // the Apple Pay / Shortcuts key, if one was made
 }
+struct HBRefSummary: Decodable { let code: String; let goal: Int; let reward_cents: Int; let qualified: Int; let pending: Int; let rejected: Int }
+struct HBShortcutInfo: Decodable { let created_at: Double?; let last_used: Double?; let uses: Int? }
 struct HBMailPrefs: Decodable { var bills: Bool?; var streak: Bool?; var weekly: Bool? }
 struct HBPasskeyInfo: Decodable, Identifiable { let id: String; let name: String; let created_at: Double?; let last_used: Double? }
 struct HBPasskeyList: Decodable { let passkeys: [HBPasskeyInfo] }
@@ -13,6 +17,7 @@ struct HBMeEnvelope: Decodable { let user: HBUser?; let nest_id: String? }
 
 struct HBMember: Decodable, Identifiable {
     let id: String; let name: String; let emoji: String?; let color: String?; let streak: Int?; let xp: Int?
+    var best_streak: Int? = nil; var last_day: String? = nil; var week_key: String? = nil; var week_xp: Int? = nil; var logs: Int? = nil   // progression (levels, streaks, badges)
 }
 
 struct HBEntry: Decodable, Identifiable {
@@ -199,4 +204,24 @@ struct HBGoalDraft {
     var target: Double = 0
     var emoji: String = HBGoalStyle.emojis[0]
     var json: [String: Any] { ["name": name, "target": target, "emoji": emoji] }
+}
+
+// MARK: - Stats (/api/year), referrals (/api/referrals)
+
+struct HBYearEntry: Decodable {
+    let type: String; let amount_cents: Int; let category: String?; let label: String; let member_id: String; let date: String
+    let shared: Int?; let isPrivate: Int?
+    enum CodingKeys: String, CodingKey { case type, amount_cents, category, label, member_id, date, shared; case isPrivate = "private" }
+    var isIncome: Bool { type == "income" }
+    var amount: Double { Double(amount_cents) / 100.0 }
+}
+struct HBYearData: Decodable { let entries: [HBYearEntry] }
+
+struct HBReferralPerson: Decodable { let name: String?; let status: String; let reason: String?; let created_at: Double; let active_days: Int }
+struct HBReward: Decodable { let amount_cents: Int; let status: String?; let created_at: Double; let sent_at: Double? }
+struct HBReferrals: Decodable {
+    let code: String; let goal: Int; let reward_cents: Int; let qualified: Int; let pending: Int; let rejected: Int
+    let link: String; let days_needed: Int; let active_days_needed: Int
+    let people: [HBReferralPerson]; let rewards: [HBReward]
+    var inCycle: Int { goal > 0 ? qualified % goal : 0 }
 }

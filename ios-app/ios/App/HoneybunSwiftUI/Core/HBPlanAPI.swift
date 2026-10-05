@@ -34,3 +34,13 @@ extension HBAPI {
     func updateCategory(id: String, name: String, emoji: String) async throws { _ = try await send("/api/categories/" + id, method: "PATCH", body: ["name": name, "emoji": emoji]) }
     func deleteCategory(id: String) async throws { _ = try await send("/api/categories/" + id, method: "DELETE", body: nil) }
 }
+
+// Stats, referrals and household changes: the same endpoints Classic uses.
+extension HBAPI {
+    func year(_ y: Int) async throws -> HBYearData { try decode(try await send("/api/year?year=\(y)", method: "GET", body: nil)) }
+    func referrals() async throws -> HBReferrals { try decode(try await send("/api/referrals", method: "GET", body: nil)) }
+    /// Join another budget with its invite code. Only allowed when you are the only member of yours, and it REPLACES yours (the backend deletes the old one).
+    func switchBudget(code: String) async throws { _ = try await send("/api/nests/switch", method: "POST", body: ["code": code, "confirm": true]) }
+    /// Leave your budget (if you were the only one in it, it is deleted).
+    func leaveBudget() async throws { _ = try await send("/api/nest/leave", method: "POST", body: nil) }
+}
