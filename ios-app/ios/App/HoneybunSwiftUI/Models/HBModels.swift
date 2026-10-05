@@ -4,7 +4,9 @@ import Foundation
 struct HBUser: Decodable, Identifiable {
     let id: String; var name: String; var email: String?
     var verified: Bool?; var has_email: Bool?; var has_password: Bool?; var apple: Bool?   // how this account signs in (from /api/me)
+    var mail: HBMailPrefs?                                                                   // the email reminders this account has switched on
 }
+struct HBMailPrefs: Decodable { var bills: Bool?; var streak: Bool?; var weekly: Bool? }
 struct HBPasskeyInfo: Decodable, Identifiable { let id: String; let name: String; let created_at: Double?; let last_used: Double? }
 struct HBPasskeyList: Decodable { let passkeys: [HBPasskeyInfo] }
 struct HBMeEnvelope: Decodable { let user: HBUser?; let nest_id: String? }

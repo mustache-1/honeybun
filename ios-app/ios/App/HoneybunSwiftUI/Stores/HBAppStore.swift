@@ -165,18 +165,27 @@ enum HBTab: String, CaseIterable { case home = "Home", money = "Money", goals = 
     func didAuthenticate() async {
         await HBSession.didSignIn()
         await start()
+        HBAppLock.shared.signedIn()           // you just proved who you are
+        HoneybunPush.refreshIfAllowed()       // this phone now belongs to the account that signed in
     }
+    /// Log out: the screen goes to the splash straight away (no account data stays visible), this phone stops getting the account's
+    /// notifications, the server ends the session, every local copy of the session is cleared, then native Welcome. Server data is untouched.
     func logout() async {
+        sheet = nil
+        phase = .checking
+        await HoneybunPush.removeTokenFromBackend()
         try? await HBAPI.shared.logout()
         await HBSession.clearEverywhere()
         resetAfterSignOut()
     }
     /// The account was deleted: the server already ended the session.
     func accountDeleted() async {
+        sheet = nil
         await HBSession.clearEverywhere()
         resetAfterSignOut()
     }
     func resetAfterSignOut() {
+        HBAppLock.shared.reset()
         snapshot = nil; account = nil; sheet = nil; selectedTab = .home; month = HBDay.monthKey()
         inboxMessages = []; inboxState = .idle; shopping = []; shopState = .idle; prevSpent = nil; prevDaily = [:]
         onboardingDone = false

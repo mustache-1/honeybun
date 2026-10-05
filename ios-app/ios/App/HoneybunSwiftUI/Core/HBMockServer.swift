@@ -19,7 +19,7 @@ final class HBMockServer: URLProtocol {
     static func install(seed: String) {
         lock.lock(); defer { lock.unlock() }
         authMode = seed == "auth"
-        users = []; sessions = [:]; passkeyStore = []
+        users = []; sessions = [:]; passkeyStore = []; apnsTokens = []
         if authMode { state = [:]; URLProtocol.registerClass(HBMockServer.self); return }
         let together = ["solo", "partner", "family", "joint", "inbox", "inboxempty"].contains(seed)
         var s = together ? HBPreviewVariants.make(seed) : ((try? JSONSerialization.jsonObject(with: Data(HBPreviewData.json.utf8))) as? [String: Any] ?? [:])
@@ -261,6 +261,7 @@ final class HBMockServer: URLProtocol {
 
     // MARK: sign-in stand-in (seed "auth"): the backend's real rules for accounts, sessions, recovery codes and passkeys, in memory
     private static var authMode = false
+    private static var apnsTokens = Set<String>()
     private static var users: [[String: Any]] = []
     private static var sessions: [String: String] = [:]          // session token -> user id
     private static var passkeyStore: [[String: Any]] = []        // {id, user, name, created}
@@ -282,7 +283,8 @@ final class HBMockServer: URLProtocol {
     private static func me(_ u: [String: Any]) -> [String: Any] {
         let email = u["email"] as? String ?? ""
         return ["id": u["id"] as? String ?? "", "email": email, "name": u["name"] as? String ?? "", "verified": u["verified"] as? Bool ?? false, "has_email": !email.hasSuffix("@u.honeybun.invalid"),
-                "has_password": u["pwKnown"] as? Bool ?? true, "apple": (u["appleSub"] as? String) != nil]
+                "has_password": u["pwKnown"] as? Bool ?? true, "apple": (u["appleSub"] as? String) != nil,
+                "mail": ["bills": u["mail_bills"] as? Bool ?? true, "streak": u["mail_streak"] as? Bool ?? true, "weekly": u["mail_weekly"] as? Bool ?? true]]
     }
     /// the snapshot the app reads once a budget exists (built from the preview fixture for this user)
     private static func startBudget(_ i: Int, kind: String, name: String) {
@@ -381,6 +383,17 @@ final class HBMockServer: URLProtocol {
         guard let u = currentUserIndex() else { return path.hasPrefix("/api/") ? err("Please log in.", 401) : nil }
         let uid = users[u]["id"] as? String ?? ""
         if path == "/api/me" && method == "GET" { return (200, ["user": me(users[u]), "nest_id": users[u]["nestID"] ?? NSNull()], nil) }
+        if path == "/api/me" && method == "PATCH" && body.keys.contains(where: { $0.hasPrefix("mail_") }) {
+            for k in ["mail_bills", "mail_streak", "mail_weekly"] { if let v = body[k] as? Bool { users[u][k] = v } }
+            return ok(["ok": true])
+        }
+        // push notification tokens (the phone registers / removes itself), and the test button
+        if path == "/api/push/apns" && method == "POST" { if let t = body["token"] as? String, !t.isEmpty { apnsTokens.insert(uid + ":" + t) }; return ok(["ok": true]) }
+        if path == "/api/push/apns" && method == "DELETE" { if let t = body["token"] as? String { apnsTokens.remove(uid + ":" + t) }; return ok(["ok": true]) }
+        if path == "/api/push/test" && method == "POST" {
+            let has = apnsTokens.contains { $0.hasPrefix(uid + ":") }
+            return ok(has ? ["ok": true, "message": "Sent!"] : ["ok": false, "step": "phone", "message": "No phone has signed up for notifications yet. Allow notifications for Honeybun in your iPhone Settings, then reopen the app."])
+        }
         if path == "/api/nests" && method == "POST" {
             if !(users[u]["nestID"] is NSNull) { return err("You're already in a budget.", 409) }
             let kind = ["solo", "couple", "family"].contains(body["kind"] as? String ?? "") ? (body["kind"] as? String ?? "couple") : "couple"

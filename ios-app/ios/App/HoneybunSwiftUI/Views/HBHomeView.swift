@@ -59,7 +59,7 @@ struct HBHomeView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                 VStack(alignment: .leading, spacing: 11) {
-                    Color.clear.frame(height: 17)     // where the beta "Classic" link used to be: keeps the approved layout
+                    topButtons
                     header(heroH: heroH, overlap: overlap)
                     summaryCard(hero: hero, heroH: heroH, overlap: overlap)
                     actions
@@ -83,14 +83,18 @@ struct HBHomeView: View {
         }
     }
 
-    private func header(heroH: CGFloat, overlap: CGFloat) -> some View {
-        HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: 4) {
-                HBWordmark(size: 34)
-                Text("A happier way to manage\nmoney together.").font(.system(size: 15, weight: .medium)).foregroundColor(Color(red: 0.74, green: 0.69, blue: 0.9))
-                    .fixedSize(horizontal: false, vertical: true)
-            }
+    // top-right: Settings (your buddy) and the messages bell, in their own slim row so neither sits on the hero artwork
+    private var topButtons: some View {
+        HStack(spacing: 10) {
             Spacer(minLength: 0)
+            Button { store.sheet = .account } label: {
+                Group {
+                    if let m = store.member(store.myID) { HBMemberAvatar(member: m, size: 32) }
+                    else { Image(systemName: "person.fill").font(.system(size: 17, weight: .medium)).foregroundColor(.white) }
+                }
+                .frame(width: 44, height: 44).background(Circle().fill(Color.white.opacity(0.08))).overlay(Circle().stroke(Color.white.opacity(0.1), lineWidth: 1))
+            }
+            .accessibilityLabel("Settings").accessibilityIdentifier("hb-home-settings")
             Button { store.selectedTab = .inbox } label: {
                 ZStack(alignment: .topTrailing) {
                     Image(systemName: "bell").font(.system(size: 18, weight: .medium)).foregroundColor(.white)
@@ -99,7 +103,18 @@ struct HBHomeView: View {
                 }
             }
             .accessibilityLabel("Messages from Bun")
-            .zIndex(2)
+        }
+        .zIndex(2)
+    }
+
+    private func header(heroH: CGFloat, overlap: CGFloat) -> some View {
+        HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 4) {
+                HBWordmark(size: 34)
+                Text("A happier way to manage\nmoney together.").font(.system(size: 15, weight: .medium)).foregroundColor(Color(red: 0.74, green: 0.69, blue: 0.9))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
         }
         // room above the card so the hero's hat rises beside the wordmark instead of off the screen
         .padding(.bottom, max(0, heroH - overlap - 82))

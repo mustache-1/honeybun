@@ -13,13 +13,19 @@ struct HBSheetScaffold<Content: View>: View {
         NavigationView {
             ZStack {
                 HBBackground(glow: false, scene: false)
+                ScrollViewReader { proxy in
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
                         HBSheetTitle(title: title, onBack: onBack)
                         content
+                        Color.clear.frame(height: 1).id("hb-sheet-end")
                     }
                     .frame(maxWidth: 560).padding(.horizontal, HB.gutter).padding(.top, 6).padding(.bottom, 28)
                     .frame(maxWidth: .infinity)
+                }
+                #if DEBUG
+                .onAppear { if ProcessInfo.processInfo.arguments.contains("-HBSheetEnd") { DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { proxy.scrollTo("hb-sheet-end", anchor: .bottom) } } }
+                #endif
                 }
             }
             .navigationBarHidden(true)

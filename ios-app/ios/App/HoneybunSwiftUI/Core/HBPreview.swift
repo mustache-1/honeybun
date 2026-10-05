@@ -48,8 +48,8 @@ enum HBPreview {
         case let a where a.hasPrefix("account"):
             let kind = String(a.dropFirst(7))     // "", "apple", "email", "delete", "deleteapple"
             let apple = kind.contains("apple"), email = kind == "email"
-            s.account = HBUser(id: s.myID, name: s.members.first?.name ?? "Sam", email: email ? "sam@example.com" : "sam@u.honeybun.invalid", verified: email ? false : nil, has_email: email, has_password: !apple, apple: apple)
-            s.selectedTab = .together; s.sheet = .account; s.previewAuthScreen = kind
+            s.account = HBUser(id: s.myID, name: s.members.first?.name ?? "Sam", email: email ? "sam@example.com" : "sam@u.honeybun.invalid", verified: email ? false : nil, has_email: email, has_password: !apple, apple: apple, mail: email ? HBMailPrefs(bills: true, streak: false, weekly: true) : nil)
+            s.selectedTab = .home; s.sheet = .account; s.previewAuthScreen = kind
         case "inbox": s.selectedTab = .inbox; s.seedPreviewInbox("mixed")
         case "inboxupdates": s.selectedTab = .inbox; s.seedPreviewInbox("mixed"); s.previewInboxTab = "updates"
         case "inboxshared": s.selectedTab = .inbox; s.seedPreviewInbox("mixed"); s.previewInboxTab = "shared"

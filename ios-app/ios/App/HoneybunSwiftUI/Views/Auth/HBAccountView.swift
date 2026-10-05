@@ -1,7 +1,9 @@
 import SwiftUI
 import AuthenticationServices
+import UserNotifications
+import UIKit
 
-// MARK: - Account & security (opens from Together → Household → Account & security)
+// MARK: - Settings (the profile button on Home): account, security, notifications, household, data & privacy, about, log out
 
 @available(iOS 15.0, *)
 struct HBAccountView: View {
@@ -26,6 +28,13 @@ struct HBAccountView: View {
     @State private var showVerifyLink = false
     @State private var exportURL: URL?
     @State private var showShare = false
+    @State private var showEditMe = false
+    @State private var showHousehold = false
+    @State private var pushStatus: UNAuthorizationStatus = .notDetermined
+    @State private var mailBills = true
+    @State private var mailStreak = true
+    @State private var mailWeekly = true
+    @ObservedObject private var lock = HBAppLock.shared
 
     private var user: HBUser? { store.account }
     /// the username part of username@u.honeybun.invalid, or the real email
@@ -36,13 +45,23 @@ struct HBAccountView: View {
     private var hasEmail: Bool { user?.has_email ?? false }
 
     var body: some View {
-        HBSheetScaffold(title: "Account", onBack: { dismiss() }) {
+        HBSheetScaffold(title: "Settings", onBack: { dismiss() }) {
+            sectionTitle("Account")
             profileCard
             if hasEmail { emailCard }
+            sectionTitle("Security")
             securityCard
+            sectionTitle("Notifications")
+            notificationsCard
+            sectionTitle("Household")
+            householdCard
+            sectionTitle("Data & Privacy")
             dataCard
+            sectionTitle("About")
+            aboutCard
             HBAuthNote(error: error, info: info)
             sessionCard
+            classicFallback
         }
         .task { await load() }
         #if DEBUG
@@ -51,6 +70,9 @@ struct HBAccountView: View {
         .sheet(isPresented: $showChangePassword) { HBChangePasswordSheet() }
         .sheet(isPresented: $showDelete) { HBDeleteAccountSheet(store: store) }
         .sheet(isPresented: $showShare) { if let u = exportURL { HBActivityView(items: [u]) } }
+        .sheet(isPresented: $showEditMe) { HBEditMeSheet(store: store) }
+        .sheet(isPresented: $showHousehold) { HBHouseholdSheet(store: store, focusInvite: false) }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in Task { await loadPush() } }
         .confirmationDialog("Log out of Honeybun?", isPresented: $confirmLogout, titleVisibility: .visible) {
             Button("Log out", role: .destructive) { Task { await store.logout() } }
             Button("Stay", role: .cancel) {}
@@ -67,6 +89,10 @@ struct HBAccountView: View {
 
     // MARK: pieces
 
+    private func sectionTitle(_ t: String) -> some View {
+        Text(t.uppercased()).font(.system(size: 12, weight: .bold)).tracking(1.2).foregroundColor(HB.soft).padding(.leading, 6).padding(.top, 6)
+    }
+
     private var profileCard: some View {
         HStack(spacing: 14) {
             if let m = store.member(store.myID) { HBMemberAvatar(member: m, size: 64) }
@@ -76,7 +102,7 @@ struct HBAccountView: View {
                 Text(signInMethod).font(.system(size: 13)).foregroundColor(HB.orange)
             }
             Spacer(minLength: 6)
-            Button { store.sheet = .editMe } label: {
+            Button { showEditMe = true } label: {
                 Text("Edit").font(.system(size: 14, weight: .semibold)).foregroundColor(HB.orange).padding(.horizontal, 14).frame(height: 34).overlay(Capsule().stroke(HB.orange.opacity(0.55), lineWidth: 1))
             }
         }
@@ -112,7 +138,6 @@ struct HBAccountView: View {
 
     private var securityCard: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Security").font(.system(size: 18, weight: .bold)).foregroundColor(.white)
             // passkeys
             VStack(alignment: .leading, spacing: 8) {
                 Text("Passkeys").font(.system(size: 15, weight: .semibold)).foregroundColor(Color(red: 0.86, green: 0.82, blue: 0.95))
@@ -121,6 +146,8 @@ struct HBAccountView: View {
                 ForEach(passkeys) { p in passkeyRow(p) }
                 if HBPasskeyService.isAvailable { HBPillButton(title: busy ? "Adding…" : "Add a passkey", symbol: "plus", filled: false) { addPasskey() }.disabled(busy).accessibilityIdentifier("hb-account-add-passkey") }
             }
+            Divider().background(HB.line)
+            lockRow
             Divider().background(HB.line)
             if user?.has_password != false {
                 Button { showChangePassword = true } label: {
@@ -172,34 +199,154 @@ struct HBAccountView: View {
     #endif
     private static let dayFmt: DateFormatter = { let f = DateFormatter(); f.dateFormat = "MMM d, yyyy"; return f }()
 
+    private var lockRow: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Toggle(isOn: Binding(get: { lock.enabled }, set: { on in Task { error = on ? await lock.enable() : await lock.disable() } })) {
+                Text("Lock with \(lock.methodName)").font(.system(size: 16, weight: .semibold)).foregroundColor(.white)
+            }.tint(HB.orange).disabled(!lockAvailable && !lock.enabled).accessibilityIdentifier("hb-settings-lock")
+            Text(lockAvailable || lock.enabled ? "Ask for \(lock.methodName) whenever you open Honeybun. It only locks the app: you stay signed in." : "Set up Face ID or a passcode in your iPhone's Settings to use this.")
+                .font(.footnote).foregroundColor(HB.soft)
+        }
+    }
+    private var lockAvailable: Bool {
+        #if DEBUG
+        if store.isPreview { return true }
+        #endif
+        return lock.available
+    }
+
+    private var notificationsCard: some View {
+        let allowed = pushStatus == .authorized || pushStatus == .provisional || pushStatus == .ephemeral
+        let on = allowed && !HoneybunPush.userTurnedOff
+        return VStack(alignment: .leading, spacing: 12) {
+            Toggle(isOn: Binding(get: { on }, set: { want in setPush(want) })) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Notifications on this iPhone").font(.system(size: 16, weight: .semibold)).foregroundColor(.white)
+                    Text("Bills due, shared expenses and Bun's nudges").font(.system(size: 13)).foregroundColor(HB.soft)
+                }
+            }.tint(HB.orange).accessibilityIdentifier("hb-settings-push")
+            HStack(spacing: 6) {
+                Image(systemName: pushStatus == .denied ? "bell.slash" : "checkmark.circle").foregroundColor(pushStatus == .denied ? HB.red : HB.soft)
+                Text(pushStatusText).font(.footnote).foregroundColor(pushStatus == .denied ? HB.red : HB.soft)
+            }
+            if pushStatus == .denied {
+                HBPillButton(title: "Open iPhone Settings", symbol: "gearshape", filled: false) {
+                    if let u = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(u) }
+                }.accessibilityIdentifier("hb-settings-open-ios")
+            }
+            if on { HBPillButton(title: busy ? "Sending…" : "Send me a test notification", symbol: "bell.badge", filled: false) { testPush() }.disabled(busy) }
+            if hasEmail {
+                Divider().background(HB.line)
+                Text("Email reminders").font(.system(size: 15, weight: .semibold)).foregroundColor(Color(red: 0.86, green: 0.82, blue: 0.95))
+                mailToggle("Bills due soon", "A heads-up at 9am, 3 days ahead", $mailBills, "mail_bills")
+                mailToggle("Streak reminder", "At 7pm if you haven't logged yet", $mailStreak, "mail_streak")
+                mailToggle("Weekly recap", "Sunday evenings", $mailWeekly, "mail_weekly")
+                if user?.verified != true { Text("Confirm your email above to receive these.").font(.footnote).foregroundColor(HB.orange) }
+            }
+        }
+        .padding(16).frame(maxWidth: .infinity, alignment: .leading).hbCard()
+    }
+    private var pushStatusText: String {
+        switch pushStatus {
+        case .denied: return "Blocked in iOS. Turn Honeybun on in iPhone Settings → Notifications."
+        case .notDetermined: return "iOS hasn't been asked yet. Turning this on will ask once."
+        default: return HoneybunPush.userTurnedOff ? "Allowed in iOS, but off for Honeybun." : "Allowed in iOS."
+        }
+    }
+    private func mailToggle(_ title: String, _ sub: String, _ value: Binding<Bool>, _ key: String) -> some View {
+        Toggle(isOn: Binding(get: { value.wrappedValue }, set: { on in
+            let old = value.wrappedValue; value.wrappedValue = on
+            Task { do { try await HBAPI.shared.setMailReminder(key, on: on) } catch { value.wrappedValue = old; self.error = error.localizedDescription } }
+        })) {
+            VStack(alignment: .leading, spacing: 2) { Text(title).font(.system(size: 16)).foregroundColor(.white); Text(sub).font(.system(size: 13)).foregroundColor(HB.soft) }
+        }.tint(HB.orange)
+    }
+
+    private var householdCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 12) {
+                HStack(spacing: -10) { ForEach(store.members.prefix(4)) { m in HBMemberAvatar(member: m, size: 40) } }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(store.snapshot?.nest.name ?? "My household").font(.system(size: 17, weight: .bold)).foregroundColor(.white).lineLimit(1)
+                    Text("\(store.members.count) member\(store.members.count == 1 ? "" : "s") · \(store.kind.capitalized)").font(.system(size: 13)).foregroundColor(HB.soft)
+                }
+                Spacer(minLength: 0)
+            }
+            HBPillButton(title: "Members & invite", symbol: "person.2", filled: false) { showHousehold = true }.accessibilityIdentifier("hb-settings-household")
+        }
+        .padding(16).frame(maxWidth: .infinity, alignment: .leading).hbCard()
+    }
+
     private var dataCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
             Text("Your data").font(.system(size: 18, weight: .bold)).foregroundColor(.white)
             Text("Download everything in your budget as a JSON file.").font(.footnote).foregroundColor(HB.soft)
             HBPillButton(title: busy ? "Preparing…" : "Export my data", symbol: "square.and.arrow.down", filled: false) { exportData() }.disabled(busy).accessibilityIdentifier("hb-account-export")
+            Divider().background(HB.line)
+            Link(destination: URL(string: "https://honeybun.me/privacy.html")!) { linkRow("Privacy Policy", "How your data is handled", "lock") }
+            Divider().background(HB.line)
+            Button { showDelete = true } label: {
+                Text("Delete my account").font(.system(size: 16, weight: .semibold)).foregroundColor(HB.red).frame(maxWidth: .infinity, minHeight: 50)
+                    .overlay(Capsule().stroke(HB.red.opacity(0.6), lineWidth: 1))
+            }.accessibilityIdentifier("hb-account-delete")
+            Text("Permanently removes your login and your private entries. This can't be undone.").font(.footnote).foregroundColor(HB.soft)
+        }
+        .padding(16).frame(maxWidth: .infinity, alignment: .leading).hbCard()
+    }
+
+    private func linkRow(_ title: String, _ sub: String, _ symbol: String) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: symbol).foregroundColor(HB.orange).frame(width: 26)
+            VStack(alignment: .leading, spacing: 1) { Text(title).font(.system(size: 16, weight: .semibold)).foregroundColor(.white); Text(sub).font(.system(size: 13)).foregroundColor(HB.soft) }
+            Spacer(); Image(systemName: "chevron.right").foregroundColor(HB.soft)
+        }.frame(minHeight: 44)
+    }
+
+    private var aboutCard: some View {
+        let v = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
+        let b = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "?"
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack { Text("Honeybun").foregroundColor(.white); Spacer(); Text("Version \(v) (build \(b))").foregroundColor(HB.soft).accessibilityIdentifier("hb-settings-version") }.font(.system(size: 16, weight: .semibold))
+            Divider().background(HB.line)
+            Link(destination: URL(string: "https://honeybun.me/terms.html")!) { linkRow("Terms of Service", "The simple rules", "doc.text") }
+            Divider().background(HB.line)
+            Link(destination: URL(string: "mailto:help@honeybun.me")!) { linkRow("Contact us", "help@honeybun.me", "envelope") }
         }
         .padding(16).frame(maxWidth: .infinity, alignment: .leading).hbCard()
     }
 
     private var sessionCard: some View {
-        VStack(spacing: 10) {
-            HBPillButton(title: "Log out", symbol: "rectangle.portrait.and.arrow.right") { confirmLogout = true }.accessibilityIdentifier("hb-account-logout")
-            Button { showDelete = true } label: {
-                Text("Delete my account").font(.system(size: 16, weight: .semibold)).foregroundColor(HB.red).frame(maxWidth: .infinity, minHeight: 50)
-                    .overlay(Capsule().stroke(HB.red.opacity(0.6), lineWidth: 1))
-            }.accessibilityIdentifier("hb-account-delete")
-            HBAuthLink(title: "Open Classic Honeybun (fallback)") { onClose() }
+        HBPillButton(title: "Log out", symbol: "rectangle.portrait.and.arrow.right") { confirmLogout = true }.accessibilityIdentifier("hb-account-logout")
+    }
+
+    // Classic is an emergency fallback only: small, separated, last.
+    private var classicFallback: some View {
+        VStack(spacing: 4) {
+            Divider().background(HB.line).padding(.vertical, 10)
+            Text("Something not working? Classic Honeybun is still here as a safety net.").font(.footnote).foregroundColor(HB.soft).multilineTextAlignment(.center)
+            HBAuthLink(title: "Open Classic Honeybun (Fallback)") { onClose() }.accessibilityIdentifier("hb-settings-classic")
         }
+        .padding(.top, 8)
     }
 
     // MARK: actions
 
     private func load() async {
-        if store.isPreview { passkeysLoaded = true; passkeys = HBAccountView.previewPasskeys; return }
+        if store.isPreview { passkeysLoaded = true; passkeys = HBAccountView.previewPasskeys; await loadPush(); return }
         if let me = try? await HBAPI.shared.me() { store.account = me.user }
+        if let m = store.account?.mail { mailBills = m.bills ?? true; mailStreak = m.streak ?? true; mailWeekly = m.weekly ?? true }
         if let l = try? await HBAPI.shared.passkeys() { passkeys = l }
         passkeysLoaded = true
+        await loadPush()
     }
+    private func loadPush() async { pushStatus = await HoneybunPush.authorization() }
+    private func setPush(_ want: Bool) {
+        Task {
+            if want { error = await HoneybunPush.enable() } else { await HoneybunPush.disable() }
+            await loadPush()
+        }
+    }
+    private func testPush() { run { info = try await HBAPI.shared.sendTestPush() } }
     private func run(_ work: @escaping () async throws -> Void) {
         busy = true; error = nil; info = nil
         Task {

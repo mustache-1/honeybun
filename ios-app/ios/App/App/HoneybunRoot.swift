@@ -96,18 +96,58 @@ final class HoneybunRoot {
     }
 }
 
-// Notifications: Honeybun used to register for push only from inside the Classic web page. Native is the default now, so the app does it
-// itself — but only when notifications were already allowed (turning them on or off still lives in Classic's Settings).
+// Notifications. Native Honeybun owns them now (the Classic web page used to). Two things are kept separate:
+//  - iOS permission (the system's answer: not asked yet / allowed / denied), and
+//  - Honeybun's own on/off switch for this phone (`hb-native-push`): "off" means the token is removed from the backend and not re-sent.
+// Permission is asked only when you flip the switch on, once; if iOS says no, the screen points to iOS Settings instead of asking again.
 enum HoneybunPush {
+    static let prefKey = "hb-native-push", tokenKey = "hb-native-apns-token"
+    static var userTurnedOff: Bool { UserDefaults.standard.string(forKey: prefKey) == "off" }
+    static var savedToken: String? { UserDefaults.standard.string(forKey: tokenKey) }
+
+    static func authorization() async -> UNAuthorizationStatus { await UNUserNotificationCenter.current().notificationSettings().authorizationStatus }
+
+    /// Launch / after sign-in: if iOS already allows notifications and you haven't turned them off here, make sure this phone's token is registered.
     static func refreshIfAllowed() {
-        UNUserNotificationCenter.current().getNotificationSettings { s in
-            guard s.authorizationStatus == .authorized || s.authorizationStatus == .provisional else { return }
-            DispatchQueue.main.async { UIApplication.shared.registerForRemoteNotifications() }
+        guard !userTurnedOff else { return }
+        Task {
+            let s = await authorization()
+            guard s == .authorized || s == .provisional || s == .ephemeral else { return }
+            await MainActor.run { UIApplication.shared.registerForRemoteNotifications() }
         }
     }
+
+    /// Settings switch ON. Returns an error message, or nil when notifications are on.
+    static func enable() async -> String? {
+        var s = await authorization()
+        if s == .notDetermined {
+            let ok = (try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound])) ?? false
+            s = ok ? .authorized : .denied
+        }
+        guard s == .authorized || s == .provisional || s == .ephemeral else { return "Notifications are off for Honeybun in iOS. Turn them on in Settings → Notifications → Honeybun." }
+        UserDefaults.standard.set("on", forKey: prefKey)
+        await MainActor.run { UIApplication.shared.registerForRemoteNotifications() }
+        return nil
+    }
+
+    /// Settings switch OFF: remove this phone from the backend and stop registering.
+    static func disable() async {
+        UserDefaults.standard.set("off", forKey: prefKey)
+        await removeTokenFromBackend()
+        await MainActor.run { UIApplication.shared.unregisterForRemoteNotifications() }
+    }
+
+    /// Log out / delete: this phone must stop getting the previous account's notifications. (The switch itself stays as it was.)
+    static func removeTokenFromBackend() async {
+        guard #available(iOS 15.0, *), let t = savedToken else { return }
+        _ = try? await HBAPI.shared.send("/api/push/apns", method: "DELETE", body: ["token": t])
+    }
+
+    /// iOS handed us a token: remember it, and send it to the signed-in account (unless it was turned off here).
     static func upload(_ token: Data) {
-        guard #available(iOS 15.0, *), HBSession.hasSessionCookie else { return }
         let hex = token.map { String(format: "%02x", $0) }.joined()
+        UserDefaults.standard.set(hex, forKey: tokenKey)
+        guard #available(iOS 15.0, *), HBSession.hasSessionCookie, !userTurnedOff else { return }
         Task { _ = try? await HBAPI.shared.send("/api/push/apns", method: "POST", body: ["token": hex]) }
     }
 }

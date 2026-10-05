@@ -102,7 +102,7 @@ jobs:
             for screen in ${{ github.event.inputs.screens || 'home money addexp addinc editexp upcoming editbill splash' }}; do
               # `fresh` = a normal launch with no test arguments (what a real user gets); `classicdemo` = Native → Classic → Native round trip
               args=(-HBPreview "$screen")
-              case "$screen" in fresh) args=();; freshearly) args=();; classicdemo) args=(-HBClassicDemo);; esac
+              case "$screen" in accountend) args=(-HBPreview account -HBSheetEnd);; accountemailend) args=(-HBPreview accountemail -HBSheetEnd);; fresh) args=();; freshearly) args=();; classicdemo) args=(-HBClassicDemo);; esac
               run_to 60 xcrun simctl launch --terminate-running-process "$udid" me.honeybun.app ${args[@]+"${args[@]}"} > /dev/null || log "launch $screen failed"
               if [ "$screen" = "freshearly" ]; then sleep 1; elif [ "$screen" = "classicdemo" ]; then
                 sleep 3; run_to 60 xcrun simctl io "$udid" screenshot "$PUB/${tag}_classicdemo_1_native.png" || true; echo "1 $(date +%T)" > "$PUB/times_${tag}.txt"

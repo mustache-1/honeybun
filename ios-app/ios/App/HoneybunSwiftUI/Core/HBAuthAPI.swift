@@ -118,6 +118,17 @@ extension HBAPI {
 }
 
 // Small pure helpers the sign-in screens use (tested on macOS)
+extension HBAPI {
+    /// email reminders: key is mail_bills, mail_streak or mail_weekly (PATCH /api/me, the same call Classic makes)
+    func setMailReminder(_ key: String, on: Bool) async throws { _ = try await send("/api/me", method: "PATCH", body: [key: on]) }
+    /// asks the backend to send this account a test push; returns its message
+    func sendTestPush() async throws -> String {
+        let data = try await send("/api/push/test", method: "POST", body: nil)
+        let o = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+        return (o?["message"] as? String) ?? ((o?["ok"] as? Bool) == true ? "Sent!" : "Something went wrong.")
+    }
+}
+
 enum HBAuthText {
     /// the token from a pasted emailed link ("https://honeybun.me/reset/TOKEN?x=1", "…/verify/TOKEN") or a bare token
     static func token(from pasted: String) -> String {

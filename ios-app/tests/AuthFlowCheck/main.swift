@@ -164,6 +164,25 @@ func run() async {
         let j = d.json; var p = d; p.passkeyOnly = true; let k = p.json
         return (j["username"] as? String) == "una_01" && (j["password"] as? String) == "pw123456" && (j["email"] == nil) && (k["passkey"] as? Bool) == true && k["password"] == nil }())
 
+    // Settings: email reminders, the test notification, and that logging out leaves nothing behind
+    var dp = HBSignupDraft(); dp.name = "Pip"; dp.id = .username("pip_01"); dp.password = "Passw0rd!xyzzy"
+    _ = try? await api.signup(dp)
+    let me0 = await me()
+    check("SETTINGS: /api/me carries the email reminder switches (all on to begin with)", me0?.user?.mail?.bills == true && me0?.user?.mail?.streak == true && me0?.user?.mail?.weekly == true)
+    let flipErr = await refused { try await api.setMailReminder("mail_streak", on: false) }
+    let me1 = await me()
+    check("SETTINGS: switching Streak reminder off is saved (the others stay on)", flipErr == nil && me1?.user?.mail?.streak == false && me1?.user?.mail?.bills == true)
+    let msg0 = (try? await api.sendTestPush()) ?? "threw"
+    check("SETTINGS: the test notification says so when no phone is registered", msg0.contains("No phone"))
+    _ = try? await api.send("/api/push/apns", method: "POST", body: ["token": "abcd"])
+    let msg1 = (try? await api.sendTestPush()) ?? "threw"
+    _ = try? await api.send("/api/push/apns", method: "DELETE", body: ["token": "abcd"])
+    let msg2 = (try? await api.sendTestPush()) ?? "threw"
+    check("SETTINGS: a registered phone gets the test; removing its token (what log out does) stops it", msg1 == "Sent!" && msg2.contains("No phone"))
+    _ = try? await api.logout(); clearCookies()
+    let afterOut = await refused { _ = try await api.me() }
+    check("LOG OUT: the session cookie is gone and the next request is told to log in", !HBSession.hasSessionCookie && afterOut == HBAPIError.notSignedIn.errorDescription)
+
     // links that open the app (Universal Links): only honeybun.me/verify|reset|join/<value>
     func link(_ s: String) -> HBDeepLink? { URL(string: s).flatMap(HBDeepLink.parse) }
     check("LINKS: /verify/<token>, /reset/<token> and /join/<code> on honeybun.me are recognised",

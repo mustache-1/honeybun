@@ -5,6 +5,7 @@ import SwiftUI
 @available(iOS 15.0, *)
 struct HBRootView: View {
     @StateObject private var store: HBAppStore
+    @ObservedObject private var lock = HBAppLock.shared
     let onClose: () -> Void
 
     init(store: HBAppStore? = nil, onClose: @escaping () -> Void) {
@@ -31,8 +32,13 @@ struct HBRootView: View {
             }
         }
         .fullScreenCover(item: $store.sheet) { sheet in sheetView(sheet) }
+        // Face ID lock: covers everything (sheets included) while locked, and the app-switcher snapshot while the lock is on
+        .overlay {
+            if (lock.locked && store.phase != .signedOut) || lock.covered { HBLockCover(lock: lock).transition(.opacity) }
+        }
         .task { await store.start() }
         .onChange(of: store.phase) { _ in Task { await store.processPendingLink() } }
+        .onChange(of: lock.locked) { isLocked in if isLocked { store.sheet = nil } }   // sheets sit above the cover, so close them when the lock engages
         .onReceive(NotificationCenter.default.publisher(for: .hbClassicClosed)) { _ in Task { await store.returnedFromClassic() } }
         .preferredColorScheme(.dark)
     }
