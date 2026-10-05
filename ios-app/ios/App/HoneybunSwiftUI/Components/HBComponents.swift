@@ -36,14 +36,31 @@ struct HBCircleIcon: View {
     }
 }
 
+/// a category's circle: its symbol, or the emoji of one of the account's own categories
+@available(iOS 15.0, *)
+struct HBCatIcon: View {
+    let style: HBCatStyle
+    var size: CGFloat = 38
+    var body: some View {
+        let tint = Color(rgb: style.rgb)
+        Group {
+            if let e = style.emoji { Text(e).font(.system(size: size * 0.5)) }
+            else { Image(systemName: style.symbol).font(.system(size: size * 0.42, weight: .bold)).foregroundColor(tint) }
+        }
+        .frame(width: size, height: size)
+        .background(Circle().fill(tint.opacity(0.16)))
+        .overlay(Circle().stroke(tint.opacity(0.35), lineWidth: 1))
+    }
+}
+
 @available(iOS 15.0, *)
 struct HBEntryRow: View {
     let entry: HBEntry
     var who: String? = nil
     var body: some View {
-        let cat = HBCategory.of(entry.category)
+        let cat = HBCatStyle.of(entry.category)
         HStack(spacing: 12) {
-            if entry.isIncome { HBCircleIcon(symbol: "arrow.down", tint: HB.green) } else { HBCircleIcon(symbol: cat.symbol, tint: Color(rgb: cat.rgb)) }
+            if entry.isIncome { HBCircleIcon(symbol: "arrow.down", tint: HB.green) } else { HBCatIcon(style: cat) }
             VStack(alignment: .leading, spacing: 2) {
                 Text(entry.label).font(.system(size: 16, weight: .semibold)).foregroundColor(.white).lineLimit(1)
                 Text([who, HBDay.short(entry.date)].compactMap { $0 }.joined(separator: " · ")).font(.system(size: 13)).foregroundColor(HB.soft)

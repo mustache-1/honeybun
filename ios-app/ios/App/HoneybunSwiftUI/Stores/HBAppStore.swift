@@ -3,7 +3,7 @@ import SwiftUI
 
 enum HBSheet: Identifiable {
     case newEntry(String), editEntry(HBEntry), editRecurring(HBRecurring), newRecurring, upcoming, allTransactions, goalDetail(String), goalForm(String?)
-    case settle(String, String), fairShare, household(Bool), shopping, search, editMe, carry, account
+    case settle(String, String), fairShare, household(Bool), shopping, search, editMe, carry, account, plan
     var id: String {
         switch self {
         case let .newEntry(t): return "new-" + t
@@ -22,11 +22,12 @@ enum HBSheet: Identifiable {
         case .editMe: return "edit-me"
         case .carry: return "carry"
         case .account: return "account"
+        case .plan: return "plan"
         }
     }
 }
 
-struct HBCategoryTotal: Identifiable { let category: HBCategory; let total: Double; var id: String { category.rawValue } }
+struct HBCategoryTotal: Identifiable { let category: HBCatStyle; let total: Double; var id: String { category.id } }
 struct HBDayGroup: Identifiable { let date: String; let items: [HBEntry]; var id: String { date } }
 
 enum HBTab: String, CaseIterable { case home = "Home", money = "Money", goals = "Goals", together = "Together", inbox = "Inbox" }
@@ -47,7 +48,7 @@ enum HBTab: String, CaseIterable { case home = "Home", money = "Money", goals = 
     #if DEBUG
     var previewAuthScreen: String?           // debug screenshots of the sign-in screens
     #endif
-    @Published var snapshot: HBNestSnapshot?
+    @Published var snapshot: HBNestSnapshot? { didSet { HBCatStyle.custom = snapshot?.categories ?? [] } }   // the account's own categories are looked up everywhere
     @Published var month: String = HBDay.monthKey()
     @Published var selectedTab: HBTab = .home
     @Published var busy = false
@@ -234,9 +235,9 @@ enum HBTab: String, CaseIterable { case home = "Home", money = "Money", goals = 
     func jarMoves(for goalID: String) -> [HBJarMove] { (snapshot?.jar ?? []).filter { $0.goal_id == goalID }.sorted { $0.created_at > $1.created_at } }
     var upcoming: [HBUpcoming] { snapshot.map(HBRecur.upcoming) ?? [] }
     var categoryTotals: [HBCategoryTotal] {
-        var by: [HBCategory: Double] = [:]
-        for e in entries where !e.isIncome { by[HBCategory.of(e.category), default: 0] += e.amount }
-        return by.map { HBCategoryTotal(category: $0.key, total: $0.value) }.sorted { $0.total > $1.total }
+        var by: [String: Double] = [:]
+        for e in entries where !e.isIncome { by[HBCatStyle.of(e.category).id, default: 0] += e.amount }
+        return by.map { HBCategoryTotal(category: HBCatStyle.of($0.key), total: $0.value) }.sorted { $0.total > $1.total }
     }
     var dayGroups: [HBDayGroup] {
         let by = Dictionary(grouping: entries, by: { $0.date })
@@ -265,7 +266,7 @@ enum HBTab: String, CaseIterable { case home = "Home", money = "Money", goals = 
     /// a category id from a message ("food", "c_ab12…") as the account names it
     func categoryName(_ id: String) -> String {
         if let c = snapshot?.categories?.first(where: { $0.id == id }) { return c.name }
-        return HBCategory.of(id).label
+        return HBCatStyle.of(id).label
     }
     var inboxTodayString: String { HBDay.todayString }
     func member(_ id: String) -> HBMember? { members.first { $0.id == id } }
@@ -309,6 +310,19 @@ enum HBTab: String, CaseIterable { case home = "Home", money = "Money", goals = 
     func addRecurring(_ d: HBRecurringDraft) async throws { try await run { try await HBAPI.shared.addRecurring(d) } }
     func updateRecurring(id: String, _ d: HBRecurringDraft) async throws { try await run { try await HBAPI.shared.updateRecurring(id: id, d) } }
     func deleteRecurring(id: String) async throws { try await run { try await HBAPI.shared.deleteRecurring(id: id) } }
+
+    // MARK: Plan actions (backend first, then reload)
+    func saveBudgets(_ limits: [String: Double], rollover: Bool) async throws { try await run { try await HBAPI.shared.saveBudgets(limits, rollover: rollover) } }
+    func addDebt(_ d: HBDebtDraft) async throws { try await run { try await HBAPI.shared.addDebt(d) } }
+    func updateDebt(id: String, _ d: HBDebtDraft) async throws { try await run { try await HBAPI.shared.updateDebt(id: id, d) } }
+    func deleteDebt(id: String) async throws { try await run { try await HBAPI.shared.deleteDebt(id: id) } }
+    func payDebt(_ debt: HBDebt, amount: Double, memberID: String) async throws {
+        try await run { try await HBAPI.shared.payDebt(id: debt.id, amount: amount, memberID: memberID, date: HBDay.todayString) }
+    }
+    func deleteDebtPayment(id: String) async throws { try await run { try await HBAPI.shared.deleteDebtPayment(id: id) } }
+    func createCategory(name: String, emoji: String) async throws { try await run { try await HBAPI.shared.createCategory(name: name, emoji: emoji) } }
+    func updateCategory(id: String, name: String, emoji: String) async throws { try await run { try await HBAPI.shared.updateCategory(id: id, name: name, emoji: emoji) } }
+    func deleteCategory(id: String) async throws { try await run { try await HBAPI.shared.deleteCategory(id: id) } }
 
     // MARK: Together actions (backend first, then reload)
 

@@ -26,21 +26,22 @@ struct HBMoneyView: View {
         let days = [1, 8, 15, 22, 29].filter { $0 <= daysInMonth }
         return days.map { ("\(mon) \($0)", CGFloat($0 - 1) / CGFloat(max(1, daysInMonth - 1))) }
     }
-    private struct CatRow: Identifiable { let id: String; let category: HBCategory; let total: Double; let pct: Int }
+    private struct CatRow: Identifiable { let id: String; let category: HBCatStyle; let total: Double; let pct: Int }
     private var categoryRows: [CatRow] {
         let totals = store.categoryTotals
         let sum = totals.reduce(0) { $0 + $1.total }
         guard sum > 0 else { return [] }
         func pct(_ v: Double) -> Int { Int((v / sum * 100).rounded()) }
         // biggest first, but "Other" always last (like the mockup)
-        let ordered = totals.filter { $0.category != .other } + totals.filter { $0.category == .other }
-        let all = ordered.map { CatRow(id: $0.category.rawValue, category: $0.category, total: $0.total, pct: pct($0.total)) }
+        let other = HBCatStyle.of("other")
+        let ordered = totals.filter { $0.category.id != "other" } + totals.filter { $0.category.id == "other" }
+        let all = ordered.map { CatRow(id: $0.category.id, category: $0.category, total: $0.total, pct: pct($0.total)) }
         if showAllCategories || all.count <= 5 { return all }
         // top four, then everything else together as "Other" (like the mockup)
-        let head = Array(all.filter { $0.category != .other }.prefix(4))
+        let head = Array(all.filter { $0.category.id != "other" }.prefix(4))
         let headIDs = Set(head.map { $0.id })
-        let rest = totals.filter { !headIDs.contains($0.category.rawValue) }.reduce(0) { $0 + $1.total }
-        return head + (rest > 0 ? [CatRow(id: "other-rest", category: .other, total: rest, pct: pct(rest))] : [])
+        let rest = totals.filter { !headIDs.contains($0.category.id) }.reduce(0) { $0 + $1.total }
+        return head + (rest > 0 ? [CatRow(id: "other-rest", category: other, total: rest, pct: pct(rest))] : [])
     }
 
     var body: some View {
@@ -61,6 +62,7 @@ struct HBMoneyView: View {
                 categories
                 if let n = store.notice { Text(n).font(.footnote).foregroundColor(HB.red).onTapGesture { store.notice = nil } }
                 insight
+                moreCard
             }
             .frame(maxWidth: 560)
             .padding(.horizontal, HB.gutter).padding(.top, 8)
@@ -146,7 +148,7 @@ struct HBMoneyView: View {
                 }
                 ForEach(Array(rows.enumerated()), id: \.element.id) { i, row in
                     HStack(spacing: 12) {
-                        HBCircleIcon(symbol: row.category.symbol, tint: Color(rgb: row.category.rgb), size: 36)
+                        HBCatIcon(style: row.category, size: 36)
                         Text(row.category.label).font(.system(size: 17)).foregroundColor(.white).lineLimit(1)
                         Spacer(minLength: 6)
                         Text("\(row.pct)%").font(.system(size: 15)).foregroundColor(HB.soft).frame(width: 44, alignment: .trailing)
@@ -158,6 +160,24 @@ struct HBMoneyView: View {
             }
             .hbCard()
         }
+    }
+
+    // where the rest of the website's Plan lives: budgets, calendar, bills, subscriptions, debts
+    private var moreCard: some View {
+        VStack(spacing: 0) {
+            moreRow("Plan", "Budgets, calendar, bills, subscriptions and debts", "calendar", id: "hb-money-plan") { store.sheet = .plan }
+        }.hbCard()
+    }
+    private func moreRow(_ title: String, _ sub: String, _ symbol: String, id: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                HBCircleIcon(symbol: symbol, tint: HB.orange, size: 38)
+                VStack(alignment: .leading, spacing: 2) { Text(title).font(.system(size: 17, weight: .semibold)).foregroundColor(.white); Text(sub).font(.system(size: 13)).foregroundColor(HB.soft).lineLimit(2) }
+                Spacer(minLength: 6)
+                Image(systemName: "chevron.right").font(.system(size: 13, weight: .bold)).foregroundColor(HB.soft)
+            }
+            .padding(.horizontal, 14).padding(.vertical, 12).contentShape(Rectangle())
+        }.accessibilityIdentifier(id)
     }
 
     // "You're doing great!": compares this month with the one before, from real spending

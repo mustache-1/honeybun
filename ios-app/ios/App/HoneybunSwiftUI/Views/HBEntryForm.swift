@@ -23,11 +23,11 @@ struct HBField<Content: View>: View {
 // The tiles on the form.
 private struct HBTileDef: Identifiable {
     let id: String; let label: String; let symbol: String; let rgb: (Double, Double, Double); let backend: String
+    var emoji: String? = nil          // the account's own categories show their emoji
 }
 // expense tiles: every real category of the account (same ids and names as the website), in the mockup's circle style
-private let hbExpenseTiles: [HBTileDef] = HBCategory.allCases.map {
-    HBTileDef(id: $0.rawValue, label: $0.label, symbol: $0.symbol, rgb: $0.rgb, backend: $0.rawValue)
-}
+// plus the account's own categories (same list the website offers)
+private var hbExpenseTiles: [HBTileDef] { HBCatStyle.all.map { HBTileDef(id: $0.id, label: $0.label, symbol: $0.symbol, rgb: $0.rgb, backend: $0.id, emoji: $0.emoji) } }
 private let hbIncomeTiles: [HBTileDef] = [
     HBTileDef(id: "Paycheck", label: "Paycheck", symbol: "briefcase.fill", rgb: (0.45, 0.90, 0.62), backend: ""),
     HBTileDef(id: "Gift", label: "Gift", symbol: "gift.fill", rgb: (1.00, 0.66, 0.30), backend: ""),
@@ -191,7 +191,9 @@ struct HBEntryForm: View {
                     if !isIncome { category = t.backend }
                 } label: {
                     VStack(spacing: 6) {
-                        Image(systemName: t.symbol).font(.system(size: 22, weight: .semibold)).foregroundColor(Color(rgb: t.rgb))
+                        Group {
+                            if let e = t.emoji { Text(e).font(.system(size: 24)) } else { Image(systemName: t.symbol).font(.system(size: 22, weight: .semibold)).foregroundColor(Color(rgb: t.rgb)) }
+                        }
                             .frame(width: 58, height: 58)
                             .background(Circle().fill(Color(rgb: t.rgb).opacity(on ? 0.30 : 0.14)))
                             .overlay(Circle().stroke(Color(rgb: t.rgb).opacity(on ? 1 : 0.4), lineWidth: on ? 2 : 1))

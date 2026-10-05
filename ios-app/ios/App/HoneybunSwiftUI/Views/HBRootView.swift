@@ -112,6 +112,7 @@ struct HBRootView: View {
         case .editMe: HBEditMeSheet(store: store)
         case .carry: HBCarrySheet(store: store)
         case .account: HBAccountView(store: store, onClose: onClose)
+        case .plan: HBPlanView(store: store)
         }
     }
 }

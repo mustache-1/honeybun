@@ -49,7 +49,7 @@ struct HBJarMove: Decodable, Identifiable {
     var amount: Double { Double(amount_cents) / 100.0 }
     var date: Date { Date(timeIntervalSince1970: created_at) }
 }
-struct HBNest: Decodable { let id: String; let name: String; let kind: String?; let joint: Int?; let invite_code: String?; let accent: String? }
+struct HBNest: Decodable { let id: String; let name: String; let kind: String?; let joint: Int?; let invite_code: String?; let accent: String?; let rollover: Int? }
 /// one "X paid Y back" from /api/nest "settlements" (the latest 10)
 struct HBSettlement: Decodable, Identifiable {
     let id: String; let from_id: String; let to_id: String; let amount_cents: Int; let date: String
@@ -97,7 +97,23 @@ struct HBNestSnapshot: Decodable {
     let logged: [HBLogged]; let goals: [HBGoal]; let shopping_open: Int?; let carry_in: HBCarry?; let inbox: HBInboxCount?; let jar: [HBJarMove]?
     let balances: [String: Int]?; let settlements: [HBSettlement]?
     let carry_pending: HBCarryPrompt?; let categories: [HBCustomCategory]?; let setup_done: Bool?
+    let budgets: [HBBudget]?; let debts: [HBDebt]?; let debt_payments: [HBDebtPayment]?
+    let carry: [String: Int]?            // per-category budget roll-over from earlier months (cents)
 }
+
+/// a monthly limit for one category (built-in id or a custom "c_…" id)
+struct HBBudget: Decodable { let category: String; let limit_cents: Int }
+/// a debt: start_cents is what was owed when it was added, paid_cents is what the logged payments add up to
+struct HBDebt: Decodable, Identifiable {
+    let id: String; let name: String; let start_cents: Int; let apr_bp: Int; let min_cents: Int; let paid_cents: Int
+    var remaining: Double { Double(max(0, start_cents - paid_cents)) / 100.0 }
+    var start: Double { Double(start_cents) / 100.0 }
+    var apr: Double { Double(apr_bp) / 100.0 }
+    var minimum: Double { Double(min_cents) / 100.0 }
+    var progress: Double { start_cents > 0 ? min(1, Double(paid_cents) / Double(start_cents)) : 0 }
+    var paidOff: Bool { remaining <= 0 }
+}
+struct HBDebtPayment: Decodable, Identifiable { let id: String; let debt_id: String; let member_id: String; let amount_cents: Int; let date: String; var amount: Double { Double(amount_cents) / 100.0 } }
 
 enum HBCategory: String, CaseIterable, Identifiable {
     case home, groc, food, date, bills, subs, car, fun, pets, debt, other

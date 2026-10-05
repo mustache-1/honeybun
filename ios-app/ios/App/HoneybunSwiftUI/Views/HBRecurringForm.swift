@@ -52,15 +52,15 @@ struct HBRecurringForm: View {
                     if !isIncome {
                         HBField(title: "Category") {
                             LazyVGrid(columns: [GridItem(.adaptive(minimum: 92), spacing: 8)], spacing: 8) {
-                                ForEach(HBCategory.allCases) { c in
-                                    Button { category = c.rawValue } label: {
+                                ForEach(HBCatStyle.all) { c in
+                                    Button { category = c.id } label: {
                                         VStack(spacing: 5) {
-                                            Image(systemName: c.symbol).font(.system(size: 18, weight: .semibold))
+                                            if let e = c.emoji { Text(e).font(.system(size: 18)) } else { Image(systemName: c.symbol).font(.system(size: 18, weight: .semibold)) }
                                             Text(c.label).font(.caption.weight(.semibold)).lineLimit(1).minimumScaleFactor(0.8)
                                         }
                                         .frame(maxWidth: .infinity, minHeight: 58)
-                                        .foregroundColor(category == c.rawValue ? Color.black.opacity(0.85) : .white)
-                                        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(category == c.rawValue ? HB.orange : Color.white.opacity(0.07)))
+                                        .foregroundColor(category == c.id ? Color.black.opacity(0.85) : .white)
+                                        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(category == c.id ? HB.orange : Color.white.opacity(0.07)))
                                     }
                                 }
                             }

@@ -442,6 +442,117 @@ final class HBMockServer: URLProtocol {
         return nil   // everything else (nest, goals, shopping, inbox…) is answered by the handlers above
     }
 
+    // Plan: budgets, debts and your own categories. Mirrors src/worker.js (same rules and messages).
+    // (called with the lock already held)
+    private static func handlePlan(_ method: String, _ path: String, _ body: [String: Any]) -> (Int, Any)? {
+        let builtIn = ["home", "groc", "food", "date", "bills", "subs", "car", "fun", "pets", "debt", "other"]
+        var customs = state["categories"] as? [[String: Any]] ?? []
+        func isKnown(_ c: String) -> Bool { builtIn.contains(c) || customs.contains { ($0["id"] as? String) == c } }
+        func clean(_ v: Any?, _ n: Int) -> String { String((v as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines).prefix(n)) }
+
+        if path == "/api/budgets" && method == "PUT" {
+            var out: [[String: Any]] = []
+            for it in (body["items"] as? [[String: Any]] ?? []) {
+                guard let cat = it["category"] as? String, isKnown(cat), let n = (it["limit"] as? NSNumber)?.doubleValue, n > 0 else { continue }
+                if n > 10_000_000 { return (400, ["error": "That budget is too big."]) }
+                out.append(["category": cat, "limit_cents": Int((n * 100).rounded())])
+            }
+            state["budgets"] = out
+            if let r = body["rollover"] as? Bool { var nest = state["nest"] as? [String: Any] ?? [:]; nest["rollover"] = r ? 1 : 0; state["nest"] = nest }
+            return (200, ["ok": true])
+        }
+
+        if path == "/api/categories" && method == "POST" {
+            let name = clean(body["name"], 20)
+            if name.isEmpty { return (400, ["error": "Give the category a name."]) }
+            if customs.count >= 12 { return (400, ["error": "You can make up to 12 of your own categories."]) }
+            let id = "c_" + String(UUID().uuidString.replacingOccurrences(of: "-", with: "").lowercased().prefix(12))
+            customs.append(["id": id, "name": name, "emoji": clean(body["emoji"], 12).isEmpty ? "✨" : clean(body["emoji"], 12)])
+            state["categories"] = customs
+            return (201, ["ok": true, "id": id])
+        }
+        if path.hasPrefix("/api/categories/c_") && (method == "PATCH" || method == "DELETE") {
+            let id = String(path.dropFirst("/api/categories/".count))
+            guard let i = customs.firstIndex(where: { ($0["id"] as? String) == id }) else { return (404, ["error": "That category doesn't exist."]) }
+            if method == "PATCH" {
+                let name = clean(body["name"], 20)
+                if name.isEmpty { return (400, ["error": "Give the category a name."]) }
+                customs[i]["name"] = name; customs[i]["emoji"] = clean(body["emoji"], 12).isEmpty ? "✨" : clean(body["emoji"], 12)
+            } else {
+                customs.remove(at: i)
+                // anything filed under it moves to Other, and its budget goes away
+                var entries = state["entries"] as? [[String: Any]] ?? []
+                for j in entries.indices where (entries[j]["category"] as? String) == id { entries[j]["category"] = "other" }
+                state["entries"] = entries
+                var rec = state["recurring"] as? [[String: Any]] ?? []
+                for j in rec.indices where (rec[j]["category"] as? String) == id { rec[j]["category"] = "other" }
+                state["recurring"] = rec
+                state["budgets"] = (state["budgets"] as? [[String: Any]] ?? []).filter { ($0["category"] as? String) != id }
+            }
+            state["categories"] = customs
+            return (200, ["ok": true])
+        }
+
+        // debts
+        var debts = state["debts"] as? [[String: Any]] ?? []
+        var pays = state["debt_payments"] as? [[String: Any]] ?? []
+        func readDebt() -> (String, Int, Int, Int)? {
+            let name = clean(body["name"], 30)
+            guard !name.isEmpty, let bal = (body["balance"] as? NSNumber)?.doubleValue, bal > 0 else { return nil }
+            let apr = (body["apr"] as? NSNumber)?.doubleValue ?? 0, min = (body["min"] as? NSNumber)?.doubleValue ?? 0
+            return (name, Int((bal * 100).rounded()), Int((apr * 100).rounded()), Int((min * 100).rounded()))
+        }
+        if path == "/api/debts" && method == "POST" {
+            guard let d = readDebt() else { return (400, ["error": clean(body["name"], 30).isEmpty ? "Name the debt." : "Enter a balance more than $0."]) }
+            if let apr = (body["apr"] as? NSNumber)?.doubleValue, apr < 0 || apr > 100 { return (400, ["error": "Enter an interest rate from 0 to 100%."]) }
+            let id = UUID().uuidString.lowercased()
+            debts.append(["id": id, "name": d.0, "start_cents": d.1, "apr_bp": d.2, "min_cents": d.3, "paid_cents": 0])
+            state["debts"] = debts
+            return (201, ["ok": true, "id": id])
+        }
+        if path.hasPrefix("/api/debts/") {
+            let rest = path.dropFirst("/api/debts/".count).split(separator: "/").map(String.init)
+            guard let id = rest.first, let i = debts.firstIndex(where: { ($0["id"] as? String) == id }) else { return method == "DELETE" ? (200, ["ok": true]) : (404, ["error": "That debt doesn't exist anymore."]) }
+            if rest.count == 2 && rest[1] == "pay" && method == "POST" {
+                guard let amt = cents(body["amount"]) else { return (400, ["error": "Enter a valid amount."]) }
+                let member = body["member_id"] as? String ?? ((state["me"] as? [String: Any])?["id"] as? String ?? "")
+                let date = body["date"] as? String ?? ""
+                let name = debts[i]["name"] as? String ?? ""
+                debts[i]["paid_cents"] = (debts[i]["paid_cents"] as? Int ?? 0) + amt
+                let entryID = "pay-" + UUID().uuidString.lowercased()
+                pays.insert(["id": UUID().uuidString.lowercased(), "debt_id": id, "member_id": member, "amount_cents": amt, "date": date, "entry_id": entryID], at: 0)
+                var entries = state["entries"] as? [[String: Any]] ?? []
+                entries.insert(["id": entryID, "member_id": member, "type": "expense", "amount_cents": amt, "label": "Payment: " + name, "category": "debt", "shared": 0, "private": 0, "date": date, "created_at": 0], at: 0)
+                state["entries"] = entries; state["debts"] = debts; state["debt_payments"] = pays
+                return (201, ["ok": true])
+            }
+            if rest.count == 1 && method == "PATCH" {
+                guard let d = readDebt() else { return (400, ["error": "Name the debt."]) }
+                debts[i]["name"] = d.0; debts[i]["start_cents"] = d.1; debts[i]["apr_bp"] = d.2; debts[i]["min_cents"] = d.3
+                state["debts"] = debts
+                return (200, ["ok": true])
+            }
+            if rest.count == 1 && method == "DELETE" {
+                debts.remove(at: i); pays.removeAll { ($0["debt_id"] as? String) == id }
+                state["debts"] = debts; state["debt_payments"] = pays
+                return (200, ["ok": true])
+            }
+        }
+        if path.hasPrefix("/api/debt-payments/") && method == "DELETE" {
+            let id = String(path.dropFirst("/api/debt-payments/".count))
+            if let j = pays.firstIndex(where: { ($0["id"] as? String) == id }) {
+                let amt = pays[j]["amount_cents"] as? Int ?? 0, did = pays[j]["debt_id"] as? String ?? ""
+                if let di = debts.firstIndex(where: { ($0["id"] as? String) == did }) { debts[di]["paid_cents"] = max(0, (debts[di]["paid_cents"] as? Int ?? 0) - amt) }
+                let eid = pays[j]["entry_id"] as? String ?? ""
+                pays.remove(at: j)
+                state["entries"] = (state["entries"] as? [[String: Any]] ?? []).filter { ($0["id"] as? String) != eid }   // the expense it created goes too
+                state["debts"] = debts; state["debt_payments"] = pays
+            }
+            return (200, ["ok": true])
+        }
+        return nil
+    }
+
     private static func cents(_ v: Any?) -> Int? {
         guard let d = (v as? NSNumber)?.doubleValue, d > 0, d <= 100_000_000 else { return nil }
         return Int((d * 100).rounded())
@@ -450,6 +561,7 @@ final class HBMockServer: URLProtocol {
     private static func handle(_ method: String, _ path: String, _ body: [String: Any], _ query: [String: String]) -> (Int, Any) {
         lock.lock(); defer { lock.unlock() }
         if let r = handleTogether(method, path, body, query) { return r }
+        if let r = handlePlan(method, path, body) { return r }
         var goals = state["goals"] as? [[String: Any]] ?? []
         var jar = state["jar"] as? [[String: Any]] ?? []
         defer { state["goals"] = goals; state["jar"] = jar }

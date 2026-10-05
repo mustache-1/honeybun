@@ -10,11 +10,11 @@ struct HBUpcomingRow: View {
     let item: HBUpcoming
     @State private var working = false
     var body: some View {
-        let cat = HBCategory.of(item.recurring.category)
+        let cat = HBCatStyle.of(item.recurring.category)
         HStack(spacing: 6) {
             Button { store.sheet = .editRecurring(item.recurring) } label: {
                 HStack(spacing: 12) {
-                    if item.recurring.isIncome { HBCircleIcon(symbol: "arrow.down", tint: HB.green, size: 40) } else { HBCircleIcon(symbol: cat.symbol, tint: Color(rgb: cat.rgb), size: 40) }
+                    if item.recurring.isIncome { HBCircleIcon(symbol: "arrow.down", tint: HB.green, size: 40) } else { HBCatIcon(style: cat, size: 40) }
                     VStack(alignment: .leading, spacing: 2) {
                         Text(item.recurring.label).font(.system(size: 17, weight: .semibold)).foregroundColor(.white).lineLimit(1)
                         Text((item.late ? "Late · " : "") + hbPrettyDate.string(from: item.date)).font(.system(size: 14)).foregroundColor(item.late ? HB.red : HB.soft)
