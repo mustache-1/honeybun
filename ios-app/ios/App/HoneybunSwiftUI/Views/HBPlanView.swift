@@ -27,6 +27,8 @@ struct HBPlanView: View {
     @State private var removing: HBDebtPayment?
     @State private var celebrate: String?
     @State private var error: String?
+    @State private var strategy = HBDebtPrefs.strategy()
+    @State private var extraText = { let e = HBDebtPrefs.extra(); return e > 0 ? HBPlanText.percent(e) : "" }()
 
     private var snap: HBNestSnapshot? { store.snapshot }
 
@@ -240,6 +242,8 @@ struct HBPlanView: View {
         let debts = s.debts ?? []
         let pays = s.debt_payments ?? []
         let left = debts.reduce(0) { $0 + $1.remaining }, paid = debts.reduce(0) { $0 + Double($1.paid_cents) / 100.0 }
+        let plan = HBPlan.payoffPlan(debts, strategy: strategy, extra: currentExtra)
+        let ordered = HBPlan.debtsInPlanOrder(debts, plan: plan)
         return VStack(alignment: .leading, spacing: 10) {
             HBSectionHeader(title: "Debts", action: "Add") { sheet = .debt(nil) }
             VStack(alignment: .leading, spacing: 12) {
@@ -247,11 +251,8 @@ struct HBPlanView: View {
                     Text("Track credit cards, car loans, or student loans and see what's left.").font(.footnote).foregroundColor(HB.soft)
                     HBPillButton(title: "Add a debt", symbol: "plus", filled: false) { sheet = .debt(nil) }.accessibilityIdentifier("hb-plan-add-debt")
                 } else {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(left <= 0 ? "Everything's paid off 🎉" : "\(HBFormat.money(left)) left").font(.system(size: 20, weight: .bold)).foregroundColor(.white)
-                        if paid > 0 { Text("\(HBFormat.money(paid)) paid so far").font(.footnote).foregroundColor(HB.soft) }
-                    }
-                    ForEach(debts) { d in debtRow(d) }
+                    planner(debts, left: left, paid: paid)
+                    ForEach(Array(ordered.enumerated()), id: \.element.id) { i, d in debtRow(d, rank: d.paidOff ? nil : i + 1, paidOffBy: plan.done[d.id]) }
                     if !pays.isEmpty {
                         Divider().background(HB.line)
                         Text("Recent payments").font(.footnote.weight(.semibold)).foregroundColor(HB.soft)
@@ -262,14 +263,43 @@ struct HBPlanView: View {
             .padding(16).frame(maxWidth: .infinity, alignment: .leading).hbCard()
         }
     }
-    private func debtRow(_ d: HBDebt) -> some View {
+    private var currentExtra: Double { max(0, Double(extraText.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: ",", with: ".")) ?? 0) }
+
+    /// Snowball / Avalanche, the extra monthly payment, and when you'll be debt-free (the website's payoff planner)
+    private func planner(_ debts: [HBDebt], left: Double, paid: Double) -> some View {
+        let plan = HBPlan.payoffPlan(debts, strategy: strategy, extra: currentExtra)
+        return VStack(alignment: .leading, spacing: 10) {
+            Picker("Strategy", selection: Binding(get: { strategy }, set: { strategy = $0; HBDebtPrefs.setStrategy($0) })) {
+                ForEach(HBDebtStrategy.allCases, id: \.self) { Text($0.title).tag($0) }
+            }.pickerStyle(.segmented).accessibilityIdentifier("hb-debt-strategy")
+            Text(strategy.hint).font(.footnote).foregroundColor(HB.soft)
+            HStack(spacing: 8) {
+                Text("Extra each month $").font(.system(size: 15, weight: .semibold)).foregroundColor(.white)
+                TextField("0", text: Binding(get: { extraText }, set: { extraText = $0; HBDebtPrefs.setExtra(Double($0.replacingOccurrences(of: ",", with: ".")) ?? 0) }))
+                    .keyboardType(.decimalPad).multilineTextAlignment(.trailing).font(.system(size: 17, weight: .semibold).monospacedDigit()).foregroundColor(.white)
+                    .padding(.horizontal, 12).frame(height: 40).background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.white.opacity(0.07)))
+                    .accessibilityIdentifier("hb-debt-extra")
+            }
+            VStack(alignment: .leading, spacing: 3) {
+                if left <= 0 { Text("Everything's paid off 🎉").font(.system(size: 18, weight: .bold)).foregroundColor(.white) }
+                else if let m = plan.months {
+                    (Text(HBFormat.money(left)).bold() + Text(" left · debt-free around ") + Text(HBPlan.monthsOut(m)).bold()).font(.system(size: 17)).foregroundColor(.white).accessibilityIdentifier("hb-debt-free")
+                } else { Text("Add minimum payments to see your debt-free date.").font(.system(size: 15)).foregroundColor(HB.orange) }
+                if paid > 0 { Text("\(HBFormat.money(paid)) paid so far").font(.footnote).foregroundColor(HB.soft) }
+            }
+        }
+        .padding(14).frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Color.white.opacity(0.05)))
+    }
+
+    private func debtRow(_ d: HBDebt, rank: Int? = nil, paidOffBy: Int? = nil) -> some View {
         HStack(spacing: 12) {
             Button { sheet = .debt(d) } label: {
                 HStack(spacing: 12) {
                     HBCircleIcon(symbol: d.paidOff ? "party.popper.fill" : "creditcard.fill", tint: d.paidOff ? HB.green : Color(red: 1, green: 0.55, blue: 0.45), size: 40)
                     VStack(alignment: .leading, spacing: 3) {
-                        HStack { Text(d.name).font(.system(size: 16, weight: .semibold)).foregroundColor(.white).lineLimit(1); Spacer(minLength: 4); Text(HBFormat.money(d.remaining)).font(.system(size: 15, weight: .semibold).monospacedDigit()).foregroundColor(.white) }
-                        Text(String(format: "%@%% APR · min %@", HBPlanText.percent(d.apr), HBFormat.money(d.minimum))).font(.system(size: 13)).foregroundColor(HB.soft)
+                        HStack { Text((rank.map { "\($0). " } ?? "") + d.name).font(.system(size: 16, weight: .semibold)).foregroundColor(.white).lineLimit(1); Spacer(minLength: 4); Text(HBFormat.money(d.remaining) + " left").font(.system(size: 15, weight: .semibold).monospacedDigit()).foregroundColor(.white).lineLimit(1).minimumScaleFactor(0.8) }
+                        Text(String(format: "%@%% APR · min %@", HBPlanText.percent(d.apr), HBFormat.money(d.minimum)) + (paidOffBy.map { " · paid off ~" + HBPlan.monthsOut($0) } ?? "")).font(.system(size: 13)).foregroundColor(HB.soft).lineLimit(2)
                         GeometryReader { g in ZStack(alignment: .leading) { Capsule().fill(Color.black.opacity(0.28)); Capsule().fill(HB.green).frame(width: max(0, g.size.width * CGFloat(d.progress))) } }.frame(height: 7)
                     }
                 }.contentShape(Rectangle())

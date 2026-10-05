@@ -147,6 +147,80 @@ enum HBPlan {
     }
 }
 
+// MARK: - debt payoff planner (the website's payoffPlan(): Snowball or Avalanche, an extra monthly payment, and the debt-free month)
+
+enum HBDebtStrategy: String, CaseIterable {
+    case snowball, avalanche
+    var title: String { self == .snowball ? "Snowball" : "Avalanche" }
+    var hint: String { self == .snowball ? "Pay the smallest balance first for quick wins." : "Pay the highest interest first to save the most money." }
+}
+struct HBPayoffPlan: Equatable {
+    let months: Int?                 // nil: no minimum payments to plan with, or not paid off within 50 years
+    let order: [String]              // debt ids, the one to pay extra on first at the front (debts with a balance only)
+    let done: [String: Int]          // debt id → the month (counting from now) it reaches $0
+}
+
+extension HBPlan {
+    /// Same rules as Classic: each month interest is added to every balance, the minimums are paid, and what is left of (minimums + extra) goes to the
+    /// debts in strategy order. Snowball = smallest balance first; Avalanche = highest rate first (smaller balance breaks a tie). Stops at 600 months.
+    static func payoffPlan(_ debts: [HBDebt], strategy: HBDebtStrategy, extra: Double) -> HBPayoffPlan {
+        struct D { let id: String; var bal: Double; let r: Double; let min: Double }
+        var ds = debts.map { D(id: $0.id, bal: max(0, Double($0.start_cents - $0.paid_cents) / 100.0), r: Double($0.apr_bp) / 10000.0 / 12.0, min: Double($0.min_cents) / 100.0) }.filter { $0.bal > 0.005 }
+        // a stable sort, like the website's (equal debts keep the order they were added in)
+        let ranked = ds.enumerated().sorted { x, y in
+            let a = x.element, b = y.element
+            if strategy == .avalanche { if a.r != b.r { return a.r > b.r }; if a.bal != b.bal { return a.bal < b.bal } }
+            else if a.bal != b.bal { return a.bal < b.bal }
+            return x.offset < y.offset
+        }
+        let order = ranked.map { $0.element.id }
+        if ds.isEmpty { return HBPayoffPlan(months: 0, order: order, done: [:]) }
+        let budget = ds.reduce(0) { $0 + $1.min } + extra
+        var done: [String: Int] = [:]
+        if budget <= 0 { return HBPayoffPlan(months: nil, order: order, done: done) }
+        var m = 0
+        while ds.contains(where: { $0.bal > 0.005 }) && m < 600 {
+            m += 1
+            for i in ds.indices where ds[i].bal > 0.005 { ds[i].bal += ds[i].bal * ds[i].r }
+            var pool = budget
+            for i in ds.indices where ds[i].bal > 0.005 { let p = Swift.min(ds[i].min, ds[i].bal, pool); ds[i].bal -= p; pool -= p }
+            for id in order {
+                guard let i = ds.firstIndex(where: { $0.id == id }) else { continue }
+                if ds[i].bal > 0.005 && pool > 0 { let p = Swift.min(pool, ds[i].bal); ds[i].bal -= p; pool -= p }
+            }
+            for d in ds where d.bal <= 0.005 && done[d.id] == nil { done[d.id] = m }
+        }
+        return HBPayoffPlan(months: m >= 600 ? nil : m, order: order, done: done)
+    }
+
+    /// "Mar 2027": n months from `from`, the way the website's monthsOut() counts it (it adds months to the date, so the 31st can roll into the next month)
+    static func monthsOut(_ n: Int, from: Date = Date()) -> String {
+        let cal = HBDay.cal
+        let c = cal.dateComponents([.year, .month, .day], from: from)
+        var t = DateComponents(); t.year = c.year; t.month = (c.month ?? 1) + n; t.day = c.day
+        let d = cal.date(from: t) ?? from
+        let f = DateFormatter(); f.dateFormat = "MMM yyyy"; f.locale = Locale(identifier: "en_US_POSIX")
+        return f.string(from: d)
+    }
+
+    /// the debts in plan order (debts with a balance first, then paid-off ones), as the website lists them
+    static func debtsInPlanOrder(_ debts: [HBDebt], plan: HBPayoffPlan) -> [HBDebt] {
+        debts.enumerated().sorted { x, y in
+            let ia = plan.order.firstIndex(of: x.element.id) ?? 999, ib = plan.order.firstIndex(of: y.element.id) ?? 999
+            return ia != ib ? ia < ib : x.offset < y.offset
+        }.map { $0.element }
+    }
+}
+
+/// the strategy and the extra monthly amount are remembered on this device (the website keeps them in the browser the same way)
+enum HBDebtPrefs {
+    static let strategyKey = "hb-debt-strat", extraKey = "hb-debt-extra"
+    static func strategy(_ d: UserDefaults = .standard) -> HBDebtStrategy { HBDebtStrategy(rawValue: d.string(forKey: strategyKey) ?? "") ?? .snowball }
+    static func setStrategy(_ s: HBDebtStrategy, _ d: UserDefaults = .standard) { d.set(s.rawValue, forKey: strategyKey) }
+    static func extra(_ d: UserDefaults = .standard) -> Double { max(0, Double(d.string(forKey: extraKey) ?? "") ?? 0) }
+    static func setExtra(_ v: Double, _ d: UserDefaults = .standard) { d.set(String(max(0, v.isFinite ? v : 0)), forKey: extraKey) }
+}
+
 enum HBPlanText {
     /// 5 → "5", 5.25 → "5.25"  (the website trims a trailing .00)
     static func percent(_ v: Double) -> String { let s = String(format: "%.2f", v); return s.hasSuffix(".00") ? String(s.dropLast(3)) : s }

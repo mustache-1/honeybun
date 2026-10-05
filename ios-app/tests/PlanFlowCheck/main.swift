@@ -100,6 +100,41 @@ func run() async {
     s = await snap()
     check("DEBTS: deleting a debt removes it and its payment history (payments already in spending stay)", (s?.debts ?? []).isEmpty && (s?.debt_payments ?? []).isEmpty && s?.entries.contains { $0.label == "Payment: Visa Platinum" } == true)
 
+    // debt payoff planner (Snowball / Avalanche / extra monthly payment / debt-free month), checked against the website's payoffPlan() by hand-worked cases
+    func debt(_ id: String, _ bal: Int, _ aprPct: Double, _ min: Int, paid: Int = 0) -> HBDebt {
+        let j = "{\"id\":\"\(id)\",\"name\":\"\(id)\",\"start_cents\":\(bal * 100),\"apr_bp\":\(Int(aprPct * 100)),\"min_cents\":\(min * 100),\"paid_cents\":\(paid * 100)}"
+        return try! JSONDecoder().decode(HBDebt.self, from: Data(j.utf8))
+    }
+    let small = debt("small", 500, 10, 50), big = debt("big", 5000, 24, 100), mid = debt("mid", 1200, 3, 40)
+    let snow = HBPlan.payoffPlan([big, small, mid], strategy: .snowball, extra: 0)
+    let aval = HBPlan.payoffPlan([big, small, mid], strategy: .avalanche, extra: 0)
+    check("PAYOFF: Snowball pays the smallest balance first (small, mid, big)", snow.order == ["small", "mid", "big"])
+    check("PAYOFF: Avalanche pays the highest interest first (big 24%, small 10%, mid 3%)", aval.order == ["big", "small", "mid"])
+    check("PAYOFF: a tie on rate goes to the smaller balance (Avalanche), and equal balances keep the order they were added (Snowball)",
+          HBPlan.payoffPlan([debt("a", 900, 12, 30), debt("b", 400, 12, 30)], strategy: .avalanche, extra: 0).order == ["b", "a"]
+          && HBPlan.payoffPlan([debt("x", 300, 5, 20), debt("y", 300, 9, 20)], strategy: .snowball, extra: 0).order == ["x", "y"])
+    check("PAYOFF: every debt gets a payoff month, the debt-free month is the last of them, and an extra payment makes it sooner",
+          snow.months != nil && snow.done.count == 3 && snow.months == snow.done.values.max() && HBPlan.payoffPlan([big, small, mid], strategy: .snowball, extra: 200).months! < snow.months!)
+    // one debt, no interest: $1,000 at $100 a month is exactly 10 months; with $150 extra it is 4 months
+    let flat = debt("flat", 1000, 0, 100)
+    check("PAYOFF: $1,000 at 0% with $100 a month is 10 months; with $150 extra it is 4 months (1000/250)", HBPlan.payoffPlan([flat], strategy: .snowball, extra: 0).months == 10 && HBPlan.payoffPlan([flat], strategy: .snowball, extra: 150).months == 4)
+    // with interest: $1,000 at 12% (1% a month), $100 a month. Month 1: 1000 -> 1010 -> 910 ... the standard annuity answer is 11 months
+    check("PAYOFF: $1,000 at 12% APR with $100 a month takes 11 months (interest added each month before the payment)", HBPlan.payoffPlan([debt("loan", 1000, 12, 100)], strategy: .snowball, extra: 0).months == 11)
+    let noMin = debt("n", 500, 5, 0)
+    check("PAYOFF: no minimums and no extra means no date (the 'Add minimum payments' message); an extra payment alone is enough to plan with",
+          HBPlan.payoffPlan([noMin], strategy: .snowball, extra: 0).months == nil && (HBPlan.payoffPlan([noMin], strategy: .snowball, extra: 25).months ?? 0) > 18)
+    check("PAYOFF: a minimum too small to cover the interest never pays off (capped at 600 months → no date)", HBPlan.payoffPlan([debt("trap", 10000, 36, 50)], strategy: .snowball, extra: 0).months == nil)
+    check("PAYOFF: paid-off debts are left out of the plan; nothing owed is 0 months", HBPlan.payoffPlan([debt("done", 100, 5, 10, paid: 100)], strategy: .snowball, extra: 0).months == 0 && HBPlan.payoffPlan([], strategy: .avalanche, extra: 10).order.isEmpty)
+    check("PAYOFF: debts are listed in plan order with paid-off ones last", HBPlan.debtsInPlanOrder([debt("done", 100, 5, 10, paid: 100), big, small], plan: HBPlan.payoffPlan([debt("done", 100, 5, 10, paid: 100), big, small], strategy: .snowball, extra: 0)).map { $0.id } == ["small", "big", "done"])
+    // the debt-free month label counts months like the website's setMonth (the 31st rolls over)
+    let jan31 = HBDay.parse("2026-01-31")!, oct4b = HBDay.parse("2026-10-04")!
+    check("PAYOFF: month labels: Oct 4 + 10 months = Aug 2027; Oct 4 + 0 = Oct 2026; Jan 31 + 1 month rolls into March like the website", HBPlan.monthsOut(10, from: oct4b) == "Aug 2027" && HBPlan.monthsOut(0, from: oct4b) == "Oct 2026" && HBPlan.monthsOut(1, from: jan31) == "Mar 2026")
+    // remembered choices
+    let ud = UserDefaults(suiteName: "hb-test-debtprefs")!; ud.removePersistentDomain(forName: "hb-test-debtprefs")
+    check("PAYOFF: the strategy defaults to Snowball and the extra to 0; both are remembered", HBDebtPrefs.strategy(ud) == .snowball && HBDebtPrefs.extra(ud) == 0)
+    HBDebtPrefs.setStrategy(.avalanche, ud); HBDebtPrefs.setExtra(75.5, ud)
+    check("PAYOFF: …after choosing Avalanche and $75.50 extra they come back, and a negative extra is 0", HBDebtPrefs.strategy(ud) == .avalanche && HBDebtPrefs.extra(ud) == 75.5 && { HBDebtPrefs.setExtra(-5, ud); return HBDebtPrefs.extra(ud) == 0 }())
+
     // forecast
     let sep29 = HBDay.parse("2026-09-29")!, sep3 = HBDay.parse("2026-09-03")!
     s = await snap()
