@@ -139,8 +139,9 @@ actor HBAPI {
     // Inbox: Bun's messages
     func inbox() async throws -> [HBInboxMessage] { let e: HBInboxEnvelope = try decode(try await send("/api/inbox", method: "GET", body: nil)); return e.messages }
     func markInboxRead() async throws { _ = try await send("/api/inbox/read", method: "POST", body: nil) }
-    func decideCarry(month: String, accept: Bool, remember: Bool) async throws {
-        _ = try await send("/api/carry", method: "POST", body: ["month": month, "accept": accept, "change": false, "remember": remember])
+    /// `change: true` reconsiders a decision already made for the current month (the website's "Change"); the server only allows it for this month
+    func decideCarry(month: String, accept: Bool, remember: Bool, change: Bool = false) async throws {
+        _ = try await send("/api/carry", method: "POST", body: ["month": month, "accept": accept, "change": change, "remember": remember])
     }
 
     @discardableResult

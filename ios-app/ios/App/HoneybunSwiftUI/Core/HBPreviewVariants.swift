@@ -48,7 +48,7 @@ enum HBPreviewVariants {
             d["settlements"] = [[String: Any]]()
             others([riley], 0.7)
             d["inbox"] = ["unread": name == "inbox" ? 6 : 0]
-            if name == "inbox" { d["carry_pending"] = ["from": "2026-09", "amount_cents": 12450] }
+            if name == "inbox" { d["carry_pending"] = ["from": "2026-09", "amount_cents": 12450]; d["carry_prev"] = ["from": "2026-09", "amount_cents": 12450] }
         default: // "partner" and "joint"
             nest["kind"] = "couple"; nest["joint"] = name == "joint" ? 1 : 0
             members += [person(riley, "Riley", "🐻", "#FFF0C2", 5)]

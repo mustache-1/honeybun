@@ -103,7 +103,7 @@ struct HBNestSnapshot: Decodable {
     let me: HBUser?; let nest: HBNest; let members: [HBMember]; let entries: [HBEntry]; let recurring: [HBRecurring]
     let logged: [HBLogged]; let goals: [HBGoal]; let shopping_open: Int?; let carry_in: HBCarry?; let inbox: HBInboxCount?; let jar: [HBJarMove]?
     let balances: [String: Int]?; let settlements: [HBSettlement]?
-    let carry_pending: HBCarryPrompt?; let categories: [HBCustomCategory]?; let setup_done: Bool?
+    let carry_pending: HBCarryPrompt?; let carry_prev: HBCarryPrompt?; let categories: [HBCustomCategory]?; let setup_done: Bool?
     let budgets: [HBBudget]?; let debts: [HBDebt]?; let debt_payments: [HBDebtPayment]?
     let carry: [String: Int]?            // per-category budget roll-over from earlier months (cents)
     let repeats: [HBRepeat]?             // your most common expenses (one-tap repeats on the Add screen)

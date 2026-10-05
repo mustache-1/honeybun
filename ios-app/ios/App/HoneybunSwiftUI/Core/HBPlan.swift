@@ -258,3 +258,23 @@ extension HBPlan {
         return HBBeforePayday(payday: payday, bills: bills, paydays: pays)
     }
 }
+
+
+/// The carry-over line on the website's Home ("Carried over from August +$X / This month …" or "Started this month fresh") and whether "Change" is offered.
+struct HBCarryCard: Equatable {
+    enum Kind: Equatable { case carried(Double), fresh }
+    let kind: Kind
+    let fromMonth: String
+    let canChange: Bool
+}
+extension HBPlan {
+    static func carryCard(_ s: HBNestSnapshot, month: String, today: Date = HBDay.startOfToday()) -> HBCarryCard? {
+        guard let ci = s.carry_in else { return nil }
+        let isCurrent = month == HBDay.monthKey(today)
+        let from = HBDay.shiftMonth(month, by: -1)
+        let change = isCurrent && s.carry_prev != nil
+        if ci.amount_cents != 0 { return HBCarryCard(kind: .carried(Double(ci.amount_cents) / 100.0), fromMonth: from, canChange: change) }
+        if isCurrent && ci.accepted == false && s.carry_prev != nil { return HBCarryCard(kind: .fresh, fromMonth: from, canChange: true) }
+        return nil
+    }
+}

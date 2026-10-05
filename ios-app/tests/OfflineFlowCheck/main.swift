@@ -459,6 +459,35 @@ func run() async {
     check("CARRY-OVER: an unknown choice is refused", refusedMode)
     check("CARRY-OVER: the Inbox \"remember\" choice changes the very same setting (Always carry)", cm2 == "always")
     check("CARRY-OVER: Settings can set it back to Ask me, and that is what the Inbox then sees", c3 == "ask")
+
+    // ---- carry-over "Change" for the current month (the same /api/carry the Inbox uses, with change: true)
+    HBMockServer.install(seed: "inbox")
+    func carryState() async -> (HBNestSnapshot?, HBCarryCard?) {
+        let s = try? await api.nest(month: "2026-10")
+        return (s, s.flatMap { HBPlan.carryCard($0, month: "2026-10", today: HBDay.parse("2026-10-04")!) })
+    }
+    let cs0 = await carryState()
+    check("CARRY CHANGE: before anything is decided there is nothing to change (the Inbox question is still open)", cs0.0?.carry_pending != nil && cs0.1 == nil)
+    try? await api.decideCarry(month: "2026-10", accept: true, remember: false)
+    let cs1 = await carryState()
+    check("CARRY CHANGE: after carrying over, Money shows \"Carried over from September +$124.50\" with Change offered", cs1.0?.carry_in?.amount_cents == 12450 && cs1.1 == HBCarryCard(kind: .carried(124.5), fromMonth: "2026-09", canChange: true))
+    try? await api.decideCarry(month: "2026-10", accept: false, remember: false)
+    let csNoChange = await carryState()
+    check("CARRY CHANGE: deciding again WITHOUT change changes nothing (the backend says already decided)", csNoChange.0?.carry_in?.amount_cents == 12450)
+    try? await api.decideCarry(month: "2026-10", accept: false, remember: false, change: true)
+    let cs2 = await carryState()
+    check("CARRY CHANGE: carried → Start fresh: nothing carries (0), the card says \"Started this month fresh\" with Change offered", cs2.0?.carry_in?.amount_cents == 0 && cs2.0?.carry_in?.accepted == false && cs2.1 == HBCarryCard(kind: .fresh, fromMonth: "2026-09", canChange: true))
+    try? await api.decideCarry(month: "2026-10", accept: true, remember: false, change: true)
+    let cs3 = await carryState()
+    check("CARRY CHANGE: fresh → carried again: the $124.50 comes back", cs3.0?.carry_in?.amount_cents == 12450 && cs3.1 == HBCarryCard(kind: .carried(124.5), fromMonth: "2026-09", canChange: true))
+    check("CARRY CHANGE: the future-months setting was not touched by changing this month", cs3.0?.nest.carry_mode == "ask")
+    try? await api.decideCarry(month: "2026-10", accept: false, remember: true, change: true)
+    let cs4 = await carryState()
+    check("CARRY CHANGE: \"Do this every month\" while changing updates the SAME Settings preference (Start fresh)", cs4.0?.nest.carry_mode == "never")
+    if let s = cs3.0 {
+        check("CARRY CHANGE: no Change button when looking at another month, but the breakdown still shows", HBPlan.carryCard(s, month: "2026-09", today: HBDay.parse("2026-10-04")!) == HBCarryCard(kind: .carried(124.5), fromMonth: "2026-08", canChange: false))
+        check("CARRY CHANGE: no card at all if no decision exists", { if let n = cs0.0 { return HBPlan.carryCard(n, month: "2026-10", today: HBDay.parse("2026-10-04")!) == nil }; return false }())
+    }
     HBOfflineCache.shared.clear()
 }
 

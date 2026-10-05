@@ -136,8 +136,15 @@ final class HBMockServer: URLProtocol {
             return (200, ["ok": true])
         }
         if path == "/api/carry" && method == "POST" {
-            guard let pending = state["carry_pending"] as? [String: Any] else { return (200, ["ok": true, "already": true]) }
             let accept = (body["accept"] as? Bool) ?? false
+            // "Change": reconsider this month's decision (the backend's rule: only with a previous month to carry, and only once something was decided)
+            if (body["change"] as? Bool) == true, state["carry_pending"] is NSNull || state["carry_pending"] == nil, let prev = state["carry_prev"] as? [String: Any], state["carry_in"] is [String: Any] {
+                let amount = prev["amount_cents"] as? Int ?? 0
+                state["carry_in"] = ["amount_cents": accept ? amount : 0, "accepted": accept]
+                if (body["remember"] as? Bool) == true { nest["carry_mode"] = accept ? "always" : "never" }
+                return (200, ["ok": true, "amount_cents": accept ? amount : 0, "accepted": accept])
+            }
+            guard let pending = state["carry_pending"] as? [String: Any] else { return (200, ["ok": true, "already": true]) }
             let amount = pending["amount_cents"] as? Int ?? 0
             state["carry_pending"] = NSNull()
             state["carry_in"] = ["amount_cents": accept ? amount : 0, "accepted": accept]

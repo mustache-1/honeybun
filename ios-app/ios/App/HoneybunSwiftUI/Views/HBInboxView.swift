@@ -340,14 +340,15 @@ struct HBInboxView: View {
 @available(iOS 15.0, *)
 struct HBCarrySheet: View {
     @ObservedObject var store: HBAppStore
+    var changing = false                     // true: reconsidering the decision already made for this month (from Money)
     @Environment(\.dismiss) private var dismiss
     @State private var remember = false
     @State private var busy = false
     @State private var error: String?
 
     var body: some View {
-        HBSheetScaffold(title: "New month!", onBack: { dismiss() }) {
-            if let p = store.carryPrompt {
+        HBSheetScaffold(title: changing ? "Change your choice" : "New month!", onBack: { dismiss() }) {
+            if let p = changing ? store.carryChangePrompt : store.carryPrompt {
                 let v = Double(p.amount_cents) / 100, neg = v < 0
                 let from = HBDay.monthName(p.from), to = HBDay.monthName(HBDay.monthKey())
                 VStack(spacing: 10) {
@@ -362,15 +363,15 @@ struct HBCarrySheet: View {
                 Toggle(isOn: $remember) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Do this every month").font(.system(size: 17, weight: .semibold)).foregroundColor(.white)
-                        Text("You can change it any time in Settings.").font(.footnote).foregroundColor(HB.soft)
+                        Text(changing ? "Settings → Monthly carry-over decides future months. This choice is for this month." : "You can change it any time in Settings.").font(.footnote).foregroundColor(HB.soft)
                     }
                 }
                 .tint(HB.orange).accessibilityIdentifier("hb-carry-remember")
                 if let error = error { Text(error).font(.footnote.weight(.semibold)).foregroundColor(HB.red) }
                 HBPillButton(title: busy ? "Saving…" : (neg ? "Carry the shortfall" : "Carry it over")) { decide(true) }.disabled(busy).accessibilityIdentifier("hb-carry-yes")
                 HBPillButton(title: "Start fresh", filled: false) { decide(false) }.disabled(busy).accessibilityIdentifier("hb-carry-no")
-                Button { dismiss() } label: { Text("Decide later").font(.system(size: 16, weight: .semibold)).foregroundColor(Color(red: 0.72, green: 0.68, blue: 0.9)).frame(maxWidth: .infinity, minHeight: 44) }
-                    .accessibilityIdentifier("hb-carry-later")
+                if !changing { Button { dismiss() } label: { Text("Decide later").font(.system(size: 16, weight: .semibold)).foregroundColor(Color(red: 0.72, green: 0.68, blue: 0.9)).frame(maxWidth: .infinity, minHeight: 44) }
+                    .accessibilityIdentifier("hb-carry-later") }
             } else {
                 HBMessageView(title: "Already decided", message: "This month's carry-over is settled. Nothing else changed.", primary: ("Back", { dismiss() }))
             }
@@ -380,7 +381,7 @@ struct HBCarrySheet: View {
     private func decide(_ accept: Bool) {
         error = nil; busy = true
         Task {
-            do { try await store.decideCarry(accept: accept, remember: remember); dismiss() } catch { self.error = error.localizedDescription }
+            do { if changing { try await store.changeCarry(accept: accept, remember: remember) } else { try await store.decideCarry(accept: accept, remember: remember) }; dismiss() } catch { self.error = error.localizedDescription }
             busy = false
         }
     }

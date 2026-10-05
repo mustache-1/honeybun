@@ -3,7 +3,7 @@ import SwiftUI
 
 enum HBSheet: Identifiable {
     case newEntry(String), editEntry(HBEntry), editRecurring(HBRecurring), newRecurring, upcoming, allTransactions, goalDetail(String), goalForm(String?)
-    case settle(String, String), fairShare, household(Bool), shopping, search, editMe, carry, account, plan, stats, referrals
+    case carryChange, settle(String, String), fairShare, household(Bool), shopping, search, editMe, carry, account, plan, stats, referrals
     var id: String {
         switch self {
         case let .newEntry(t): return "new-" + t
@@ -21,6 +21,7 @@ enum HBSheet: Identifiable {
         case .search: return "search"
         case .editMe: return "edit-me"
         case .carry: return "carry"
+        case .carryChange: return "carry-change"
         case .account: return "account"
         case .plan: return "plan"
         case .stats: return "stats"
@@ -585,6 +586,13 @@ enum HBTab: String, CaseIterable { case home = "Home", money = "Money", goals = 
     /// Monthly carry-over (Ask me / Always carry / Start fresh): the same setting the Inbox "remember" choice writes (nests.carry_mode)
     var carryMode: String { snapshot?.nest.carry_mode ?? "ask" }
     func setCarryMode(_ mode: String) async throws { try await run { try await HBAPI.shared.patchNest(["carry_mode": mode]) } }
+    /// Reconsider THIS month's carry-over decision (the website's "Change"). Future months follow the Settings choice instead.
+    var carryCard: HBCarryCard? { snapshot.flatMap { HBPlan.carryCard($0, month: month) } }
+    var carryChangePrompt: HBCarryPrompt? { snapshot?.carry_prev }
+    func changeCarry(accept: Bool, remember: Bool) async throws {
+        try await run { try await HBAPI.shared.decideCarry(month: HBDay.monthKey(), accept: accept, remember: remember, change: true) }
+        showToast(accept ? "Carried over" : "Starting fresh")
+    }
     func setJoint(_ on: Bool) async throws { try await run { try await HBAPI.shared.patchNest(["joint": on]) } }
     func setKind(_ kind: String) async throws { try await run { try await HBAPI.shared.patchNest(["kind": kind]) } }
     func renameNest(_ name: String) async throws { try await run { try await HBAPI.shared.patchNest(["name": name]) } }

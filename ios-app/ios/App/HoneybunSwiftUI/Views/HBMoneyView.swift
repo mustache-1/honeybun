@@ -61,6 +61,7 @@ struct HBMoneyView: View {
                 chart
                 categories
                 if let n = store.notice { Text(n).font(.footnote).foregroundColor(HB.red).onTapGesture { store.notice = nil } }
+                carryCard
                 insight
                 moreCard
             }
@@ -183,6 +184,39 @@ struct HBMoneyView: View {
     }
 
     // "You're doing great!": compares this month with the one before, from real spending
+    /// "Carried over from August +$X · This month …" (or "Started this month fresh") with a Change button for this month's decision.
+    /// Settings → Monthly carry-over is a different thing: it decides what happens in future months.
+    @ViewBuilder private var carryCard: some View {
+        if let c = store.carryCard {
+            let thisMonth = store.income - store.spent
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text(c.kind == .fresh ? "Started this month fresh" : "Carried over from \(HBDay.monthName(c.fromMonth))").font(.system(size: 16, weight: .semibold)).foregroundColor(.white)
+                    Spacer()
+                    if case let .carried(v) = c.kind {
+                        Text((v > 0 ? "+" : "") + HBFormat.money(v)).font(.system(size: 17, weight: .bold).monospacedDigit()).foregroundColor(v < 0 ? HB.red : HB.green)
+                            .accessibilityIdentifier("hb-money-carry-amount")
+                    }
+                }
+                if case .carried = c.kind {
+                    HStack {
+                        Text("This month").font(.system(size: 14)).foregroundColor(HB.soft)
+                        Spacer()
+                        Text((thisMonth > 0 ? "+" : "") + HBFormat.money(thisMonth)).font(.system(size: 15, weight: .semibold).monospacedDigit()).foregroundColor(thisMonth < 0 ? HB.red : .white)
+                    }
+                }
+                if c.canChange {
+                    Button { store.sheet = .carryChange } label: {
+                        Text("Change this month's choice").font(.system(size: 15, weight: .semibold)).foregroundColor(HB.orange)
+                    }
+                    .accessibilityIdentifier("hb-money-carry-change")
+                }
+            }
+            .padding(14).frame(maxWidth: .infinity, alignment: .leading).hbCard()
+            .accessibilityElement(children: .contain).accessibilityIdentifier("hb-money-carry")
+        }
+    }
+
     private var insight: some View {
         var title = "Keep logging!", text = "Add a few more days and Bun will compare your months."
         if let prev = store.prevSpent, prev > 0.5 {

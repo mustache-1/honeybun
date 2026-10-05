@@ -479,6 +479,45 @@ ok("…the owner's earlier private entries join the shared pot (the other person
 r = await call(PA, "/api/entries", "POST", eb({ label: "Private in joint", private: true }));
 ok("…and nothing can be private in a joint account", (await listFor(PB, "Private in joint"))?.private === 0, JSON.stringify(r.json));
 
+// ===== 14. changing the current month's carry-over decision (Classic's "Change") =====
+resetLimits();
+const CA = jar(), cA = uname("ca");
+await call(CA, "/api/signup", "POST", { name: "Carry", username: cA, password: PW });
+await call(CA, "/api/nests", "POST", { kind: "solo", name: "Carry Hive" });
+const idCA = (await call(CA, "/api/me")).json.user.id;
+const nowC = new Date(), curC = nowC.toISOString().slice(0, 7);
+const prevC = new Date(Date.UTC(nowC.getUTCFullYear(), nowC.getUTCMonth() - 1, 15)).toISOString().slice(0, 10), prevCM = prevC.slice(0, 7);
+await call(CA, "/api/entries", "POST", { type: "income", amount: 100, label: "Last month pay", member_id: idCA, date: prevC });
+await call(CA, "/api/entries", "POST", { type: "expense", amount: 30, label: "Last month spend", category: "food", member_id: idCA, shared: false, date: prevC });
+const dayCA = nowC.toISOString().slice(0, 10);
+await call(CA, "/api/entries", "POST", { type: "income", amount: 50, label: "This month pay", member_id: idCA, date: dayCA });
+const carryNest = async () => (await call(CA, "/api/nest?month=" + curC)).json;
+let cn = await carryNest();
+ok("carry-over: the new month asks (pending = last month's $70) and offers the same figure as carry_prev", cn.carry_pending?.amount_cents === 7000 && cn.carry_pending?.from === prevCM && cn.carry_prev?.amount_cents === 7000 && cn.carry_in === null, JSON.stringify([cn.carry_pending, cn.carry_prev, cn.carry_in]));
+r = await call(CA, "/api/carry", "POST", { month: curC, accept: true, change: false, remember: false });
+cn = await carryNest();
+ok("carry it over → carry_in is +$70 and accepted", r.status === 200 && cn.carry_in?.amount_cents === 7000 && cn.carry_in?.accepted === true && cn.carry_pending === null, JSON.stringify(r.json));
+r = await call(CA, "/api/carry", "POST", { month: curC, accept: false, change: false, remember: false });
+ok("deciding again without \"change\" does nothing (already decided)", r.json?.already === true && (await carryNest()).carry_in?.amount_cents === 7000, JSON.stringify(r.json));
+r = await call(CA, "/api/carry", "POST", { month: curC, accept: false, change: true, remember: false });
+cn = await carryNest();
+ok("CHANGE: carried → Start fresh: carry_in becomes $0, not accepted; last month's figure is still offered (carry_prev) so it can be changed back", r.status === 200 && cn.carry_in?.amount_cents === 0 && cn.carry_in?.accepted === false && cn.carry_prev?.amount_cents === 7000, JSON.stringify([r.json, cn.carry_in, cn.carry_prev]));
+const leftOf = (n) => n.entries.reduce((a, e) => a + (e.type === "income" ? e.amount_cents : -e.amount_cents), 0) + (n.carry_in?.amount_cents || 0);
+ok("…and the month's safe-to-spend is just this month ($50), with no carry", leftOf(cn) === 5000, String(leftOf(cn)));
+r = await call(CA, "/api/carry", "POST", { month: curC, accept: true, change: true, remember: false });
+cn = await carryNest();
+ok("CHANGE: fresh → carried: the $70 comes back and safe-to-spend is $120", r.status === 200 && cn.carry_in?.amount_cents === 7000 && cn.carry_in?.accepted === true && leftOf(cn) === 12000, JSON.stringify([r.json, leftOf(cn)]));
+ok("changing this month's choice left the future-months setting alone (still Ask me)", cn.nest.carry_mode === "ask");
+r = await call(CA, "/api/carry", "POST", { month: curC, accept: false, change: true, remember: true });
+cn = await carryNest();
+ok("CHANGE with \"do this every month\": the same Settings preference becomes Start fresh", cn.nest.carry_mode === "never" && cn.carry_in?.amount_cents === 0, JSON.stringify(cn.nest.carry_mode));
+r = await call(CA, "/api/nest", "PATCH", { carry_mode: "ask" });
+r = await call(CA, "/api/carry", "POST", { month: "2999-01", accept: true, change: true });
+ok("a month that hasn't started can't be decided (400)", r.status === 400 && /hasn't started/.test(r.json?.error || ""), JSON.stringify(r.json));
+r = await call(CA, "/api/carry", "POST", { month: prevCM, accept: true, change: true });
+const prevNest = (await call(CA, "/api/nest?month=" + prevCM)).json;
+ok("changing is only for the CURRENT month: an older month gets no carry_prev, so the app offers no Change there", prevNest.carry_prev === null && prevNest.carry_pending === null, JSON.stringify([prevNest.carry_prev, prevNest.carry_pending]));
+
 // ===== 9. Google sign-in is gone =====
 r = await call(jar(), "/api/auth/google", "POST", { credential: "x".repeat(200) });
 ok("POST /api/auth/google no longer signs anyone in (no session cookie, an error)", r.status >= 400 && !/__Host-hb=/.test(r.setCookie || ""), JSON.stringify([r.status, r.json]));
