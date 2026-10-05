@@ -388,7 +388,7 @@ resetLimits();
 const PA = jar(), pA = uname("pa"), PB = jar(), pB = uname("pb"), PX = jar(), pX = uname("px");
 await call(PA, "/api/signup", "POST", { name: "Pat", username: pA, password: PW });
 await call(PA, "/api/nests", "POST", { kind: "couple", name: "Pair Hive" });
-const inviteP = (await call(PA, "/api/nest")).json.nest.invite_code;
+const inviteP = (await call(PA, "/api/nest?month=" + new Date().toISOString().slice(0, 7))).json.nest.invite_code;
 await call(PB, "/api/signup", "POST", { name: "Quinn", username: pB, password: PW });
 r = await call(PB, "/api/nests/join", "POST", { code: inviteP });
 ok("two people share one budget (a couple)", r.status === 200, JSON.stringify(r.json));
