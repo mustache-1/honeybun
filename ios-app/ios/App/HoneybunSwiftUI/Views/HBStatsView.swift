@@ -93,14 +93,27 @@ struct HBStatsView: View {
                     }
                     hopDetail(cal)
                     HStack {
-                        hopSummary("\(cal.noSpendDays)", "no-spend days")
-                        hopSummary(cal.calmest.map { "\(HBDay.short(String(format: "%@-%02d", store.month, $0.from)))–\($0.to)" } ?? "–", "calmest week")
-                        hopSummary(cal.biggest.map { HBFormat.money($0.amount).replacingOccurrences(of: ".00", with: "") } ?? "–", cal.biggest.map { "biggest day, " + HBDay.short(String(format: "%@-%02d", store.month, $0.day)) } ?? "biggest day")
+                        hopSummary(String(cal.noSpendDays), "no-spend days")
+                        hopSummary(calmestText(cal), "calmest week")
+                        hopSummary(biggestText(cal), biggestLabel(cal))
                     }
                 }
                 .padding(14).frame(maxWidth: .infinity, alignment: .leading).hbCard()
             }
         }
+    }
+    private func dayString(_ n: Int) -> String { String(format: "%@-%02d", store.month, n) }
+    private func calmestText(_ cal: HBStats.HopCalendar) -> String {
+        guard let c = cal.calmest else { return "–" }
+        return HBDay.short(dayString(c.from)) + "–" + String(c.to)
+    }
+    private func biggestText(_ cal: HBStats.HopCalendar) -> String {
+        guard let b = cal.biggest else { return "–" }
+        return HBFormat.money(b.amount).replacingOccurrences(of: ".00", with: "")
+    }
+    private func biggestLabel(_ cal: HBStats.HopCalendar) -> String {
+        guard let b = cal.biggest else { return "biggest day" }
+        return "biggest day, " + HBDay.short(dayString(b.day))
     }
     private func hopCell(_ d: HBStats.HopDay) -> some View {
         let tappable = d.done || d.spend > 0
@@ -118,10 +131,17 @@ struct HBStatsView: View {
             .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).stroke(d.isToday ? HB.orange.opacity(0.8) : Color.clear, lineWidth: 1))
         }.disabled(!tappable)
     }
+    private func hopDetailText(_ sel: String, _ spend: Double) -> String {
+        let list = (store.snapshot?.entries ?? []).filter { $0.date == sel && !$0.isIncome }
+        let day = HBDay.short(sel)
+        if list.isEmpty { return day + ": no spending 🐾" }
+        let names = list.prefix(3).map { $0.label }.joined(separator: ", ")
+        let more = list.count > 3 ? " +" + String(list.count - 3) : ""
+        return day + ": " + names + more + " · " + HBFormat.money(spend)
+    }
     @ViewBuilder private func hopDetail(_ cal: HBStats.HopCalendar) -> some View {
         if let sel = hopSel, let d = cal.days.first(where: { $0.date == sel }) {
-            let list = (store.snapshot?.entries ?? []).filter { $0.date == sel && !$0.isIncome }
-            Text(list.isEmpty ? "\(HBDay.short(sel)): no spending 🐾" : "\(HBDay.short(sel)): " + list.prefix(3).map { $0.label }.joined(separator: ", ") + (list.count > 3 ? " +\(list.count - 3)" : "") + " · " + HBFormat.money(d.spend))
+            Text(hopDetailText(sel, d.spend))
                 .font(.footnote).foregroundColor(Color(red: 0.86, green: 0.82, blue: 0.95)).frame(maxWidth: .infinity, alignment: .leading)
         } else { Text("Tap a day to see what you spent. A paw means a no-spend day.").font(.footnote).foregroundColor(HB.soft).frame(maxWidth: .infinity, alignment: .leading) }
     }

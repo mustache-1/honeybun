@@ -332,23 +332,27 @@ struct HBForecastCard: View {
         HStack { Text(l).font(.system(size: 14)).foregroundColor(HB.soft); Spacer(); Text(v).font(.system(size: 14, weight: .semibold).monospacedDigit()).foregroundColor(.white) }
     }
     private func chart(neg: Bool) -> some View {
-        GeometryReader { g in
-            let vals = f.points.map { $0.left } + [f.endLeft, 0]
-            let lo = vals.min() ?? 0, hi = vals.max() ?? 1, span = max(hi - lo, 0.0001)
-            let W = g.size.width, H = g.size.height
-            func X(_ d: Int) -> CGFloat { CGFloat(d - 1) / CGFloat(max(1, f.dim - 1)) * W }
-            func Y(_ v: Double) -> CGFloat { H - CGFloat((v - lo) / span) * (H - 8) - 4 }
-            let col = neg ? HB.red : HB.orange
-            ZStack {
-                Path { p in
-                    for (i, pt) in f.points.enumerated() { let q = CGPoint(x: X(pt.day), y: Y(pt.left)); if i == 0 { p.move(to: q) } else { p.addLine(to: q) } }
-                }.stroke(col, style: StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
-                if let last = f.points.last {
-                    Path { p in p.move(to: CGPoint(x: X(last.day), y: Y(last.left))); p.addLine(to: CGPoint(x: W, y: Y(f.endLeft))) }
-                        .stroke(col, style: StrokeStyle(lineWidth: 3, lineCap: .round, dash: [3, 7]))
-                    Circle().fill(col).frame(width: 9, height: 9).position(x: X(last.day), y: Y(last.left))
-                }
-            }
+        GeometryReader { g in chartBody(size: g.size, neg: neg) }
+    }
+    private func chartBody(size: CGSize, neg: Bool) -> some View {
+        let vals = f.points.map { $0.left } + [f.endLeft, 0]
+        let lo = vals.min() ?? 0, hi = vals.max() ?? 1, span = max(hi - lo, 0.0001)
+        let W = size.width, H = size.height
+        let dimSpan = CGFloat(max(1, f.dim - 1))
+        func X(_ d: Int) -> CGFloat { CGFloat(d - 1) / dimSpan * W }
+        func Y(_ v: Double) -> CGFloat { H - CGFloat((v - lo) / span) * (H - 8) - 4 }
+        let col = neg ? HB.red : HB.orange
+        let pts: [CGPoint] = f.points.map { CGPoint(x: X($0.day), y: Y($0.left)) }
+        let solid = Path { p in
+            for (i, q) in pts.enumerated() { if i == 0 { p.move(to: q) } else { p.addLine(to: q) } }
+        }
+        let tail = Path { p in
+            if let last = pts.last { p.move(to: last); p.addLine(to: CGPoint(x: W, y: Y(f.endLeft))) }
+        }
+        return ZStack {
+            solid.stroke(col, style: StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
+            tail.stroke(col, style: StrokeStyle(lineWidth: 3, lineCap: .round, dash: [3, 7]))
+            if let last = pts.last { Circle().fill(col).frame(width: 9, height: 9).position(x: last.x, y: last.y) }
         }
     }
 }
