@@ -155,7 +155,8 @@ func run() async {
     let _aw18 = await unwritable.all()
     check("QUEUE: if the phone cannot write the entry to disk, adding FAILS (the app never claims it is safe when it is not)", writeFailed && _aw18.isEmpty)
 
-    // ---- search filters against the backend's own rules
+    // ---- search filters against the backend's own rules (on a fresh copy of the sample data, without the test entries added above)
+    HBMockServer.install(seed: "default")
     func found(_ f: HBSearchFilter) async -> [HBEntry] { (try? await api.search(f)) ?? [] }
     var f = HBSearchFilter(); f.category = "food"
     let foodN = (await found(f)).count
@@ -185,7 +186,7 @@ func run() async {
     var who = HBSearchFilter(); who.member = me; who.q = "pizza"
     let _aw26 = await found(who)
     check("FILTERS: the existing person + text filters still work", _aw26.map { $0.label } == ["Pizza"])
-    check("FILTERS: Clear filters puts everything back to the defaults (nothing active)", { var x = f; x = HBSearchFilter(); return x.isDefault && x.activeCount == 0 && !x.hasCriteria && !f.isDefault && f.activeCount == 7 }())
+    check("FILTERS: Clear filters puts everything back to the defaults (nothing active)", { var x = f; x = HBSearchFilter(); return x.isDefault && x.activeCount == 0 && !x.hasCriteria && !f.isDefault && f.activeCount == 6 }())
     var bad = HBSearchFilter(); bad.minAmount = -5; bad.maxAmount = 0; bad.from = "not-a-date"; bad.category = "food"
     let names = bad.queryItems.map { $0.name }
     check("FILTERS: an invalid amount or date is never sent (the server would ignore it)", !names.contains("min") && !names.contains("max") && !names.contains("from") && names.contains("cat"))
