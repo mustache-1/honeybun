@@ -86,6 +86,7 @@
 		4A3DD7835B6A5A9A14C5A7BC /* HBTogetherView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A55252D57A6BB6991D11F4DD /* HBTogetherView.swift */; };
 		4B8BDBD38BD3BAE888ABB469 /* HoneybunRoot.swift in Sources */ = {isa = PBXBuildFile; fileRef = E160CA821EB1DC900D9D391E /* HoneybunRoot.swift */; };
 		499D95DB99DEBAFFFA8AD703 /* HalloweenSplash.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DC4EE75500D76E2E486B95F /* HalloweenSplash.swift */; };
+		F2AD45AC1E0605CC745CAA86 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BDB5FC16DEF0F5D23CFC387 /* SceneDelegate.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -198,6 +199,7 @@
 		A55252D57A6BB6991D11F4DD /* HBTogetherView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HBTogetherView.swift; sourceTree = "<group>"; };
 		E160CA821EB1DC900D9D391E /* HoneybunRoot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HoneybunRoot.swift; sourceTree = "<group>"; };
 		5DC4EE75500D76E2E486B95F /* HalloweenSplash.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HalloweenSplash.swift; sourceTree = "<group>"; };
+		6BDB5FC16DEF0F5D23CFC387 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -256,6 +258,7 @@
 			children = (
 				50379B222058CBB4000EE86E /* capacitor.config.json */,
 				504EC3071FED79650016851F /* AppDelegate.swift */,
+				6BDB5FC16DEF0F5D23CFC387 /* SceneDelegate.swift */,
 				A1B2C3D4E5F60718293A4B03 /* MainViewController.swift */,
 				A1B2C3D4E5F60718293A4B01 /* BiometricLock.swift */,
 				504EC30B1FED79650016851F /* Main.storyboard */,
@@ -566,6 +569,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
+				F2AD45AC1E0605CC745CAA86 /* SceneDelegate.swift in Sources */,
 				A1B2C3D4E5F60718293A4B04 /* MainViewController.swift in Sources */,
 				A1B2C3D4E5F60718293A4B02 /* BiometricLock.swift in Sources */,
 				94D2DE343B1CCBD49EDE521B /* HoneybunNative.swift in Sources */,
