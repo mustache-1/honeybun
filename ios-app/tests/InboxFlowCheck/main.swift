@@ -21,7 +21,10 @@ func run() async {
     let nBills = byTab[.bills]?.count ?? 0, nShared = byTab[.shared]?.count ?? 0, nUpdates = byTab[.updates]?.count ?? 0
     check("INBOX: tabs split the messages (Bills 5 incl. the carry question and the budget warning, Shared 2, Updates 6)", nBills == 5 && nShared == 2 && nUpdates == 6)
     let groups = HBInbox.groups(msgs)
-    check("INBOX: grouped newest-first by day, starting with Today", groups.first?.title == "Today" && groups.count >= 3)
+    let newest = msgs.map { $0.created_at }.max() ?? 0
+    // the sample messages are dated "N hours ago", so just after midnight the newest one is Yesterday; the group must follow the real date
+    let expectFirst = HBInbox.dayTitle(Date(timeIntervalSince1970: newest))
+    check("INBOX: grouped newest-first by day, starting with the newest message's day (Today when it is from today)", groups.first?.title == expectFirst && groups.count >= 3)
     check("INBOX: every message has text and a heading", msgs.allSatisfy { !HBInbox.text($0, today: today, categoryName: { HBCategory.of($0).label }).isEmpty && !HBInbox.heading(for: $0.kind).isEmpty })
 
     // the bill messages
