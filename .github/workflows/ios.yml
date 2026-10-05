@@ -46,7 +46,8 @@ jobs:
         working-directory: ios-app
         run: |
           swiftc -D DEBUG -o /tmp/hbinbox ios/App/HoneybunSwiftUI/Models/HBModels.swift ios/App/HoneybunSwiftUI/Core/HBDates.swift ios/App/HoneybunSwiftUI/Core/HBGoalStyle.swift ios/App/HoneybunSwiftUI/Core/HBTogether.swift ios/App/HoneybunSwiftUI/Core/HBInbox.swift ios/App/HoneybunSwiftUI/Core/HBPreviewData.swift ios/App/HoneybunSwiftUI/Core/HBPreviewVariants.swift ios/App/HoneybunSwiftUI/Core/HBPasskeyKit.swift ios/App/HoneybunSwiftUI/Core/HBMockServer.swift ios/App/HoneybunSwiftUI/Core/HBAPI.swift tests/InboxFlowCheck/main.swift
-          /tmp/hbinbox
+          /tmp/hbinbox > /tmp/inbox-run.txt 2>&1 || { grep -E 'FAIL|fail|error' /tmp/inbox-run.txt | head -20 | while IFS= read -r l; do echo "::error::${l:0:400}"; done; tail -5 /tmp/inbox-run.txt; exit 1; }
+          tail -3 /tmp/inbox-run.txt
       - name: Authentication through the real API path (login, signup, Apple, passkeys, recovery, delete)
         working-directory: ios-app
         run: |
