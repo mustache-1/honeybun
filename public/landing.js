@@ -19,27 +19,54 @@
     image.alt = descriptions[key]; image.width = 1206; image.height = 2622;
     image.loading = 'lazy'; image.decoding = 'async'; image.className = 'hbl-native-capture';
     image.onload = () => {
-      frame.querySelector('.hbl-capture-slot')?.remove();
+      frame.querySelector('.hbl-product-art')?.remove();
       frame.classList.add('has-capture');
-      frame.querySelector('figcaption').textContent = 'REAL FINAL NATIVE SCREENSHOT';
     };
     image.onerror = () => image.remove(); // Keep the labeled placeholder if a capture is unavailable.
     frame.querySelector('.hbl-screen').append(image);
     image.src = src;
   });
   const reduce = matchMedia('(prefers-reduced-motion: reduce)');
-  if (!reduce.matches) {
-    const field = document.createElement('div'); field.className = 'hbl-firefly-field'; field.setAttribute('aria-hidden', 'true');
-    const count = matchMedia('(max-width: 800px)').matches ? 14 : 28;
-    for (let i = 0; i < count; i++) {
-      const particle = document.createElement('i');
-      particle.className = i % 7 === 0 ? 'hbl-particle-leaf' : 'hbl-particle-firefly';
-      particle.style.cssText = `--x:${3 + (i * 37) % 94}%;--y:${2 + (i * 23) % 96}%;--size:${2 + i % 2}px;--duration:${12 + i % 7}s;--delay:-${i * 1.7}s`;
-      if (i % 7 === 0) particle.innerHTML = '<svg viewBox="0 0 24 24"><path d="m12 1 2 6 5-3-1 6 5 1-5 4 1 4-6-2v6h-2v-6l-6 2 1-4-5-4 5-1-1-6 5 3Z" fill="currentColor"/></svg>';
-      field.append(particle);
-    }
-    landing.querySelector('.hbl-page').append(field);
-    reduce.addEventListener('change', (event) => { if (event.matches) field.remove(); });
+  // Content-sized mobile art offset, not viewport/page scaling. The shared world remains one layer.
+  if ('ResizeObserver' in window) {
+    let queued = false;
+    const placeWorld = () => {
+      queued = false;
+      if (!matchMedia('(max-width:959px)').matches) { landing.style.removeProperty('--hbl-world-start'); return; }
+      const intro = landing.querySelector('.hbl-intro'), hero = landing.querySelector('.hbl-hero');
+      const top = intro.getBoundingClientRect().bottom - hero.getBoundingClientRect().top + 24;
+      landing.style.setProperty('--hbl-world-start', `${Math.ceil(top)}px`);
+    };
+    const layoutObserver = new ResizeObserver(() => { if (!queued) { queued = true; requestAnimationFrame(placeWorld); } });
+    layoutObserver.observe(landing.querySelector('.hbl-intro'));
+  }
+  const mobile = matchMedia('(max-width: 640px)');
+  // Small, staggered fireflies throughout each scene; no full-page repaint loop.
+  function atmosphere() {
+    landing.querySelectorAll('.hbl-firefly-field').forEach((field) => field.remove());
+    // Reduced motion keeps stationary lights visible; CSS disables their drift.
+    const regions = [...landing.querySelectorAll('.hbl-hero,.hbl-safe,.hbl-insights,.hbl-features,.hbl-together,.hbl-trust,.hbl-faq,.hbl-final')];
+    regions.forEach((region, ri) => {
+      const field = document.createElement('div'); field.className = 'hbl-firefly-field'; field.setAttribute('aria-hidden', 'true');
+      const count = region.classList.contains('hbl-hero') ? (mobile.matches ? 12 : 24) : (mobile.matches ? 6 : 12);
+      for (let i = 0; i < count; i++) {
+        const n = ri * 24 + i, particle = document.createElement('i');
+        const x = 4 + (i * 37 + ri * 19) % 92;
+        particle.style.cssText = `--x:${x}%;--y:${12 + (n * 23) % 76}%;--size:${2.5 + n % 3}px;--duration:${7 + n % 7}s;--delay:-${1 + n * 1.3}s;--sway:${n % 2 ? 30 : -30}px`;
+        field.append(particle);
+      }
+      region.append(field);
+    });
+  }
+  atmosphere(); reduce.addEventListener('change', atmosphere); mobile.addEventListener('change', atmosphere);
+  document.addEventListener('visibilitychange', () => landing.classList.toggle('hbl-paused', document.hidden));
+  // The old hb/rv reveal timing, adapted to the new product cards and headings.
+  if ('IntersectionObserver' in window && !reduce.matches) {
+    landing.classList.add('hbl-reveals');
+    const observer = new IntersectionObserver((entries) => entries.forEach((entry) => {
+      if (entry.isIntersecting) { entry.target.classList.add('in'); observer.unobserve(entry.target); }
+    }), { rootMargin: '0px 0px -6% 0px', threshold: .06 });
+    landing.querySelectorAll('.hbl-card,.hbl-section-intro,.hbl-safe-copy,.hbl-insight-copy,.hbl-together-copy').forEach((node) => { node.classList.add('hbl-reveal'); observer.observe(node); });
   }
   const views = [...landing.querySelectorAll('.hbl-subpage')];
   const links = [...landing.querySelectorAll('[data-hbl-view]')];
