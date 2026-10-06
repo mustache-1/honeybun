@@ -94,14 +94,27 @@ struct HBPrevMonth: Equatable {
     let rows: [HBPrevRow]
     init(month: String, entries: [HBEntry]) {
         self.month = month
-        self.rows = entries.filter { !$0.isIncome }.map { e in
-            HBPrevRow(day: Int(e.date.suffix(2)) ?? 1, category: e.category ?? "other", amount: e.amount, shared: e.shared == 1 && e.isPrivate == 0, recurring: e.recurring_id != nil)
+        var built: [HBPrevRow] = []
+        for e in entries where !e.isIncome {
+            let day: Int = Int(e.date.suffix(2)) ?? 1
+            let category: String = e.category ?? "other"
+            let isShared: Bool = e.shared == 1 && e.isPrivate == 0
+            built.append(HBPrevRow(day: day, category: category, amount: e.amount, shared: isShared, recurring: e.recurring_id != nil))
         }
+        self.rows = built
     }
     var total: Double { rows.reduce(0) { $0 + $1.amount } }
-    var dim: Int { HBDay.parse(month + "-01").flatMap { HBDay.cal.range(of: .day, in: .month, for: $0)?.count } ?? 30 }
+    var dim: Int {
+        guard let first = HBDay.parse(month + "-01"), let span = HBDay.cal.range(of: .day, in: .month, for: first) else { return 30 }
+        return span.count
+    }
     func everyday(through day: Int, sharedOnly: Bool = false) -> Double {
-        rows.filter { !$0.recurring && $0.day <= day && (!sharedOnly || $0.shared) }.reduce(0) { $0 + $1.amount }
+        var total: Double = 0
+        for r in rows where !r.recurring && r.day <= day {
+            if sharedOnly && !r.shared { continue }
+            total += r.amount
+        }
+        return total
     }
     func everydayByCategory(through day: Int) -> [String: Double] {
         var by: [String: Double] = [:]
@@ -186,11 +199,18 @@ enum HBInsights {
             i.trace.novelty = c.memory.novelty(i.id)
             ranked.append(i)
         }
-        return ranked.sorted { a, b in a.score != b.score ? a.score > b.score : a.id < b.id }
+        return ranked.sorted(by: byScore)
     }
 
     /// Which few to show. At most `homeCount` (a fourth only when it is urgent), one per group, nothing below `minScore`, and a good-news
     /// insight gets a place whenever there is one, so Honeybun doesn't only speak up when something is wrong.
+    /// best first; equal scores fall back to the id so the order never changes between runs
+    static func byScore(_ a: HBInsight, _ b: HBInsight) -> Bool {
+        let sa: Double = a.score, sb: Double = b.score
+        if sa != sb { return sa > sb }
+        return a.id < b.id
+    }
+
     static func home(_ c: HBInsightContext) -> HBInsightPlan { pick(all(c)) }
 
     static func pick(_ ranked: [HBInsight]) -> HBInsightPlan {
@@ -210,7 +230,7 @@ enum HBInsights {
             if shown.count < homeCount { shown.append(good) }
             else if let last = shown.last, !(last.tone == .warning && last.score >= urgentExtra) { shown[shown.count - 1] = good }
         }
-        shown.sort { a, b in a.score != b.score ? a.score > b.score : a.id < b.id }
+        shown.sort(by: byScore)
         let ids = Set(shown.map { $0.id })
         return HBInsightPlan(shown: shown, more: eligible.filter { !ids.contains($0.id) })
     }
@@ -285,7 +305,7 @@ enum HBInsights {
             let wk = week(c, k)
             if net <= -weekChangeMin {
                 var note = "You spent \(whole(w.spent))" + (w.came > 0 ? " and \(whole(w.came)) came in" : "") + " over the last 7 days."
-                var facts = [("Spent, last 7 days", fmt(w.spent)), ("Came in, last 7 days", fmt(w.came)), ("Change", fmt(net))]
+                var facts: [(String, String)] = [("Spent, last 7 days", fmt(w.spent)), ("Came in, last 7 days", fmt(w.came)), ("Change", fmt(net))]
                 if let wk = wk, weekHigh(wk) {
                     note += " That's more than a usual week (about \(whole(wk.usual)))."
                     facts += [("Everyday spending, last 7 days", fmt(wk.spent)), ("A usual week (\(wk.basis))", fmt(wk.usual))]
@@ -310,7 +330,9 @@ enum HBInsights {
         if k.isCurrent, let b = HBPlan.beforePayday(c.snapshot, today: c.today), b.due > 0 {
             let when = b.payday.map { "before \(HBDay.dayName($0))'s payday" } ?? "in the next 30 days"
             let after = l - b.due
-            return after >= 0 ? "\(whole(b.due)) of bills are due \(when); you'd have \(whole(after)) after them." : "\(whole(b.due)) of bills are due \(when), about \(whole(-after)) more than you have left."
+            let due: String = whole(b.due)
+            if after >= 0 { return "\(due) of bills are due \(when); you'd have \(whole(after)) after them." }
+            return "\(due) of bills are due \(when), about \(whole(-after)) more than you have left."
         }
         if income(c) + carryIn(c) > 0 { return "\(whole(income(c) + carryIn(c))) in\(carryIn(c) != 0 ? " (carry-over counted)" : "") minus \(whole(spent(c))) spent." }
         return nil
@@ -325,7 +347,16 @@ enum HBInsights {
         guard loose.count >= 4, total > 0 else { return [] }
         var by: [String: Double] = [:]
         for e in loose { by[e.category ?? "other", default: 0] += e.amount }
-        return by.map { (category: $0.key, share: $0.value / total) }.filter { $0.share >= 0.2 }.sorted { $0.share != $1.share ? $0.share > $1.share : $0.category < $1.category }.prefix(2).map { $0 }
+        var shares: [(category: String, share: Double)] = []
+        for (category, amount) in by {
+            let share: Double = amount / total
+            if share >= 0.2 { shares.append((category: category, share: share)) }
+        }
+        shares.sort { (a: (category: String, share: Double), b: (category: String, share: Double)) -> Bool in
+            if a.share != b.share { return a.share > b.share }
+            return a.category < b.category
+        }
+        return Array(shares.prefix(2))
     }
 
     static func forecastResult(_ c: HBInsightContext) -> HBForecastResult {
@@ -353,20 +384,22 @@ enum HBInsights {
         case let .ready(f):
             let end = f.endLeft
             let month = HBDay.monthName(c.month)
-            let facts = [("Left now", fmt(f.leftNow)), ("Paychecks still due", fmt(f.pays)), ("Bills still due", fmt(f.bills)), ("Everyday spending ahead", fmt(f.ahead)), ("Projected month-end", fmt(end))]
-            let conf = f.day >= 10 ? 1.0 : 0.7
+            let facts: [(String, String)] = [("Left now", fmt(f.leftNow)), ("Paychecks still due", fmt(f.pays)), ("Bills still due", fmt(f.bills)), ("Everyday spending ahead", fmt(f.ahead)), ("Projected month-end", fmt(end))]
+            let conf: Double = f.day >= 10 ? 1.0 : 0.7
+            let monthTiming: Double = 0.5 + 0.5 * Double(f.day) / Double(f.dim)
+            let shortUrgency: Double = 0.6 + Swift.min(0.4, -end / 500 * 0.4)
             if end < 0 {
                 var note = "At your current pace you'd finish \(month) about \(whole(-end)) short."
                 let top = topCategories(c)
                 if !top.isEmpty { note += " Most of your everyday spending so far is \(top.map { name($0.category) }.joined(separator: " and "))." }
                 if let b = backOnTrack(f) { note += " Spending about \(whole(b.perWeek)) less a week on everyday things would put you back on track." }
                 return [HBInsight(id: "forecast-\(c.month)", kind: .forecast, tone: .warning, title: "Heading toward -\(whole(-end))", note: note,
-                    trace: trace("projected month-end is below zero", facts, u: 0.6 + Swift.min(0.4, -end / 500 * 0.4), m: -end / 300, t: 0.5 + 0.5 * Double(f.day) / Double(f.dim), c: conf))]
+                    trace: trace("projected month-end is below zero", facts, u: shortUrgency, m: -end / 300, t: monthTiming, c: conf))]
             }
             if end < 50 {
                 return [HBInsight(id: "forecast-\(c.month)", kind: .forecast, tone: .watch, title: "Cutting it close: about \(whole(end)) left",
                     note: "At your current pace you'd finish \(month) with about \(whole(end)) remaining.",
-                    trace: trace("projected month-end is under $50", facts, u: 0.35, m: 0.2, t: 0.5 + 0.5 * Double(f.day) / Double(f.dim), c: conf))]
+                    trace: trace("projected month-end is under $50", facts, u: 0.35, m: 0.2, t: monthTiming, c: conf))]
             }
             return [HBInsight(id: "forecast-\(c.month)", kind: .forecast, tone: .positive, title: "On track for +\(whole(end))",
                 note: "At your current pace you're projected to finish \(month) with about \(whole(end)) remaining.",
@@ -423,7 +456,7 @@ enum HBInsights {
         let now = sum(loose), before = p.everyday(through: k.day)
         guard before >= 50 else { return out }
         let diff = now - before
-        let facts = [("Everyday spending so far", fmt(now)), ("Same point last month", fmt(before)), ("Difference", fmt(diff))]
+        let facts: [(String, String)] = [("Everyday spending so far", fmt(now)), ("Same point last month", fmt(before)), ("Difference", fmt(diff))]
         if abs(diff) >= Swift.max(25, 0.10 * before) {
             if diff < 0 {
                 out.append(HBInsight(id: "vs-less-\(c.month)", kind: .comparison, tone: .positive, title: "You're doing better than last month",
@@ -445,7 +478,11 @@ enum HBInsights {
             guard Swift.max(n, pr) >= 40, abs(n - pr) >= Swift.max(25, 0.30 * Swift.max(pr, 1)) else { continue }
             rows.append((cat, n, pr, n - pr))
         }
-        rows.sort { abs($0.diff) != abs($1.diff) ? abs($0.diff) > abs($1.diff) : $0.cat < $1.cat }
+        rows.sort { (a: (cat: String, now: Double, prev: Double, diff: Double), b: (cat: String, now: Double, prev: Double, diff: Double)) -> Bool in
+            let da: Double = abs(a.diff), db: Double = abs(b.diff)
+            if da != db { return da > db }
+            return a.cat < b.cat
+        }
         if let up = rows.first(where: { $0.diff > 0 }) {
             out.append(HBInsight(id: "cat-up-\(up.cat)-\(c.month)", kind: .comparison, tone: .watch, title: "More going to \(name(up.cat).lowercased()) than last month",
                 note: "\(whole(up.now)) so far, \(whole(up.diff)) more than at this point last month.", category: up.cat,
@@ -470,7 +507,7 @@ enum HBInsights {
             let when = b.payday.map { "before \(HBDay.dayName($0))'s payday" } ?? "in the next 30 days"
             let after = l - b.due
             let daysToPay = b.payday.flatMap { HBDay.cal.dateComponents([.day], from: c.today, to: $0).day } ?? 30
-            let facts = [("Bills due", fmt(b.due)), ("Bills", "\(b.bills.count)"), ("Left now", fmt(l)), ("Left after those bills", fmt(after)), ("Days to payday", b.payday == nil ? "none scheduled" : "\(daysToPay)")]
+            let facts: [(String, String)] = [("Bills due", fmt(b.due)), ("Bills", "\(b.bills.count)"), ("Left now", fmt(l)), ("Left after those bills", fmt(after)), ("Days to payday", b.payday == nil ? "none scheduled" : "\(daysToPay)")]
             if after < 0 {
                 out.append(HBInsight(id: "bills-short-\(c.month)-\(HBDay.string(c.today).suffix(2))", kind: .bills, tone: .warning, title: "Bills may outrun what's left",
                     note: "\(whole(b.due)) is due \(when) and you have \(whole(Swift.max(0, l))) left, about \(whole(-after)) short.",
@@ -495,14 +532,22 @@ enum HBInsights {
         if totals.count >= 3 {
             let median = totals[totals.count / 2]
             let week = perDay.filter { $0.key >= 0 && $0.key <= 7 }
-            if let heavy = week.max(by: { $0.value.total != $1.value.total ? $0.value.total < $1.value.total : $0.key > $1.key }) {
+            var heavy: (key: Int, value: (total: Double, count: Int))? = nil
+            for entry in week {
+                guard let best = heavy else { heavy = entry; continue }
+                if entry.value.total > best.value.total || (entry.value.total == best.value.total && entry.key < best.key) { heavy = entry }
+            }
+            if let heavy = heavy {
                 let t = heavy.value.total, n = heavy.value.count
                 let heavier = n >= 2 ? (t >= 75 && t >= 1.5 * median) : (t >= 150 && t >= 2 * median)
                 if heavier {
                     let date = HBDay.addDays(c.today, heavy.key)
                     let when = heavy.key == 0 ? "Today" : (heavy.key == 1 ? "Tomorrow" : HBDay.dayName(date))
+                    let heavyNote: String
+                    if n >= 2 { heavyNote = "\(whole(t)) across \(n) bills, against about \(whole(median)) on a usual bill day." }
+                    else { heavyNote = "\(whole(t)) is due, against about \(whole(median)) on a usual bill day." }
                     out.append(HBInsight(id: "heavy-\(HBDay.string(date))", kind: .bills, tone: .watch, title: "\(when) is a heavier day than usual",
-                        note: n >= 2 ? "\(whole(t)) across \(n) bills, against about \(whole(median)) on a usual bill day." : "\(whole(t)) is due, against about \(whole(median)) on a usual bill day.",
+                        note: heavyNote,
                         trace: trace("one day's bills are well above a usual bill day", [("That day's bills", fmt(t)), ("Number of bills", "\(n)"), ("A usual bill day (next 30 days)", fmt(median)), ("Days away", "\(heavy.key)")],
                                      u: 1 - Double(heavy.key) / 10, m: t / 400, t: 1 - Double(heavy.key) / 8, c: totals.count >= 5 ? 1 : 0.75)))
                 }
@@ -524,7 +569,11 @@ enum HBInsights {
         let ups = items.filter { $0.delta > 0 }
         let net = items.reduce(0) { $0 + $1.delta }
         guard ups.count >= 2, net >= 5 else { return nil }
-        return (net, ups.sorted { $0.delta != $1.delta ? $0.delta > $1.delta : $0.label < $1.label })
+        let biggestFirst = ups.sorted { (a: (label: String, delta: Double), b: (label: String, delta: Double)) -> Bool in
+            if a.delta != b.delta { return a.delta > b.delta }
+            return a.label < b.label
+        }
+        return (net, biggestFirst)
     }
 
     static func recurringCosts(_ c: HBInsightContext, _ k: Cal) -> [HBInsight] {
@@ -621,7 +670,11 @@ enum HBInsights {
             }
             // a milestone crossed recently
             if let m = [0.9, 0.75, 0.5, 0.25].first(where: { g.progress >= $0 && g.progress - $0 < 0.10 }) {
-                let text = m == 0.5 ? "You're halfway to \(who)" : (m == 0.25 ? "A quarter of the way to \(who)" : (m == 0.75 ? "Three quarters of the way to \(who)" : "Almost there: \(who)"))
+                let text: String
+                if m == 0.5 { text = "You're halfway to \(who)" }
+                else if m == 0.25 { text = "A quarter of the way to \(who)" }
+                else if m == 0.75 { text = "Three quarters of the way to \(who)" }
+                else { text = "Almost there: \(who)" }
                 out.append(HBInsight(id: "goal-mile-\(g.id)-\(Int(m * 100))", kind: .goal, tone: .positive, title: text, note: "\(whole(g.target - g.saved)) to go.",
                     trace: trace("goal crossed a milestone in the last 10 points", [("Progress", "\(Int((g.progress * 100).rounded()))%"), ("Milestone", "\(Int(m * 100))%"), ("Saved", fmt(g.saved)), ("Target", fmt(g.target))], u: 0.1, m: 0.45, t: 0.4)))
                 continue
@@ -630,7 +683,7 @@ enum HBInsights {
             if let p = goalPace(g, c) {
                 let when = HBDay.addDays(c.today, Int(p.days.rounded(.up)))
                 var note = "At your current contribution pace you'd reach it around \(monthLabel(when, from: c.today))."
-                var facts = [("To go", fmt(togo)), ("Pace (last 90 days)", fmt(p.perDay * 30.4) + "/month"), ("Deposits counted", "\(p.deposits)")]
+                var facts: [(String, String)] = [("To go", fmt(togo)), ("Pace (last 90 days)", fmt(p.perDay * 30.4) + "/month"), ("Deposits counted", "\(p.deposits)")]
                 if let ppm = paydaysPerMonth(c) {
                     let faster = togo / (p.perDay + 25 * ppm / 30.4)
                     let sooner = (p.days - faster) / 30.4
@@ -659,7 +712,7 @@ enum HBInsights {
             if before >= 60 {
                 let diff = sharedNow - before
                 if abs(diff) >= Swift.max(30, 0.15 * before) {
-                    let facts = [("Shared spending so far", fmt(sharedNow)), ("Same point last month", fmt(before))]
+                    let facts: [(String, String)] = [("Shared spending so far", fmt(sharedNow)), ("Same point last month", fmt(before))]
                     if diff < 0 {
                         out.append(HBInsight(id: "tog-less-\(c.month)", kind: .together, tone: .positive, title: "Household spending is on a good track",
                             note: "Shared spending is \(whole(-diff)) lower than at this point last month.", trace: trace("shared spending below the same point last month", facts, u: 0.1, m: -diff / 250, t: 0.4)))
