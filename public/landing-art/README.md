@@ -29,3 +29,12 @@ Follow-up: scene-clean.webp uses the fully cleaned scenic output without any ori
 
 
 scene-single-lantern.webp is the current scenic background. A precise image edit removed only the lower-right background lantern to prevent duplication beside the couple sprite. The hero illustration is unchanged. The eyebrow heart uses a small SVG, and From Bun's transparent sprite is tucked further behind its device edge.
+
+
+## Responsive correction (local approval build)
+
+The environment now spans the viewport; independently bounded HTML grids contain copy and individual device frames. There is no page-wide canvas scaling. `crisp/hero-scene.webp` (2048 × 768) and `crisp/scene-single-lantern.webp` (1024 × 1536) remain the approved continuous artwork. Transparent insight/couple artwork remains separate; the unwanted Goals peek stays removed.
+
+`responsive/hero-mobile.webp` (1280 × 480, approximately 103 KB) and `responsive/world-mobile.webp` (640 × 960, approximately 80 KB) are proportionally resized WebP derivatives of those same assets. They introduce no new artwork or product claims. The hero uses a responsive picture source; the mobile scenic background selects its smaller asset in CSS. Below-the-fold character illustrations load lazily.
+
+Concept phone SVG reconstructions are retired from the landing markup. All seven product slots are explicitly labeled placeholders for final real native captures; see `../native-shots/README.md`. Fireflies and a few drifting leaves use CSS-only motion, with reduced-motion suppression. Existing files remain for provenance but are not loaded by the landing page unless referenced.
