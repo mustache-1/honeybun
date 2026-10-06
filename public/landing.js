@@ -87,6 +87,14 @@
     customLinks[0].focus({ preventScroll: true });
   }));
   landing.querySelector('#lpUpdatesLink').addEventListener('click', clearCustomViews);
+  landing.querySelector('.hbl-brand').addEventListener('click', (event) => {
+    event.preventDefault();
+    clearCustomViews();
+    landing.querySelector('#lp-updates').hidden = true;
+    landing.querySelector('#lp-rewards').hidden = true;
+    landing.removeAttribute('data-view');
+    topOfPage();
+  });
   // Consistent disclosure behavior across the supported preview browsers.
   landing.querySelectorAll('.hbl-faq-list summary').forEach((summary) => summary.addEventListener('click', (event) => {
     event.preventDefault();

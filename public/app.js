@@ -3825,6 +3825,11 @@
   (async () => {
     if (resetToken) { show("reset"); return; }
     if (verifyToken) { runVerify(); return; }
+    // The public homepage always opens the website, even for returning account holders.
+    // Native/installed apps, quick actions and account deep links keep their existing startup.
+    if (location.pathname === "/" && !pendingCode && !QUICK && !IS_DESKTOP_APP && !IOS_NATIVE && !matchMedia("(display-mode: standalone)").matches) {
+      show("landing"); return;
+    }
     try { await afterAuth(); }
     catch (e) {
       if (e.status === 401) {

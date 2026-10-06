@@ -100,3 +100,14 @@ Local desktop check confirms two remaining download CTAs, no duplicate footer bl
 
 
 Deployment authorization refinement: the user explicitly approved copying website files only to main for Cloudflare's GitHub deployment. Do not merge the working branch. The production commit must preserve main's existing iOS files, backend, Cloudflare configuration, auth/app JavaScript and account markup. Account markup after the marketing section (apart from the additional landing script) and public/app.js were compared to production main 066d61e and match exactly. All edited files are website assets or documentation.
+
+
+## Responsive sizing and homepage navigation correction
+
+The illustrated page now grows gradually with browser width and caps at 1440 CSS pixels. At 2560 × 1440 it is 1440 px wide, at 1920 it is about 1347 px, and at 1366 it is about 1259 px. Phones use their full width. The layout scales using its own container width, keeping artwork and typography in proportion without magnifying them across a large monitor.
+
+The browser root homepage now opens the marketing landing page before account bootstrap, including visitors with a saved had-account flag or an existing session. Native iOS, desktop app, installed web app, quick actions, invitation links, password reset and email verification retain their existing startup paths. Clicking the Honeybun logo returns to the landing view without reloading.
+
+Changes: public/app.js (browser homepage startup guard only), public/landing.css, public/landing.js and this report. No native iOS, backend, legal, Cloudflare configuration or workflow changes.
+
+Verified actual bootstrap code in nine cases, including returning-account and signed-in browser homepages, native iOS, desktop, installed web app, quick action, join, reset and verify. Browser review at 2560, 1920, 1366, 390 and 320 px found no horizontal overflow; homepage refresh and logo return passed. JavaScript syntax and whitespace checks pass.
