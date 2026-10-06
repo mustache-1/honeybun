@@ -13,17 +13,19 @@
 <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
 <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 <link rel="manifest" href="/manifest.webmanifest">
-<title>Honeybun — a cute little budget</title>
-<meta name="description" content="Honeybun is a simple, cute budget for you, your partner, or your whole family. Track spending, bills, and goals, and build a daily streak with your bunny.">
+<title>Honeybun — Money, your way. Together, or solo.</title>
+<meta name="description" content="Budget, plan, track bills, explore debt payoff, and work toward goals with Honeybun. Manage money solo or together, without a bank connection.">
 <link rel="canonical" href="https://honeybun.me/">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Honeybun">
 <meta property="og:url" content="https://honeybun.me/">
-<meta property="og:title" content="Honeybun — a cute little budget">
-<meta property="og:description" content="Track spending, bills, and savings goals on your own, as a couple, or as a family. Build a daily streak with your bunny.">
+<meta property="og:title" content="Honeybun — Money, your way. Together, or solo.">
+<meta property="og:description" content="A cozier way to budget, plan, tackle debt, and reach goals. Solo or together. No bank login.">
 <meta property="og:image" content="https://honeybun.me/og-image.png?v=3">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
+<meta name="twitter:title" content="Honeybun — Money, your way. Together, or solo.">
+<meta name="twitter:description" content="A cozier way to budget, plan, tackle debt, and reach goals. Solo or together. No bank login.">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image" content="https://honeybun.me/og-image.png?v=3">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -2189,6 +2191,7 @@ dialog::backdrop{background:var(--backdrop)}
 .carry-amt.pos{color:var(--c-green,#4fb36a)}.carry-amt.neg{color:#E8504A}
 </style>
 <link rel="stylesheet" href="/halloween.css">
+<link rel="stylesheet" href="/landing.css">
 </head>
 <body>
 <div class="app">
@@ -2201,50 +2204,124 @@ dialog::backdrop{background:var(--backdrop)}
 
 
   <!-- LANDING (first-time visitors) -->
-  <main id="scr-landing" class="lp hb" hidden>
-    <nav class="lp-nav hb-nav" aria-label="Site">
+<main id="scr-landing" class="lp reference" hidden>
+<a class="hbl-skip" href="#lp-how">Skip to product details</a>
+<div class="hbl-page">
+<nav class="hbl-nav lp-nav" aria-label="Site">
+<a class="hbl-brand" href="/">
+<img src="/landing-art/crisp/logo.webp" width="34" height="40" alt="">Honeybun</a>
+<div class="lp-links hbl-links"><a class="hbl-tab" href="#lp-meet-bun" data-hbl-view="meet-bun"><span aria-hidden="true">♡</span> Meet Bun</a><a class="hbl-tab" href="#lp-help" data-hbl-view="help"><span aria-hidden="true">?</span> Help</a><a href="#lp-updates" id="lpUpdatesLink"><svg class="hbl-updates-spark" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2 3 7 7 3-7 3-3 7-3-7-7-3 7-3Z" fill="currentColor"/></svg>Updates <span id="lpUpdCount"></span></a></div>
+<a class="hbl-store" href="#lp-download" data-appstore aria-label="Download on the App Store — coming soon">
+<svg viewBox="0 0 24 28" aria-hidden="true"><path fill="currentColor" d="M17 5c1-1 2-3 2-5-2 0-4 1-5 2-1 1-2 3-2 5 2 0 4-1 5-2ZM21 15c0-3 2-5 3-5-2-3-5-3-6-3-2 0-4 1-6 1s-3-1-5-1c-3 0-7 3-7 8 0 3 1 7 3 10 2 2 3 3 5 2l4-1 4 1c2 1 3-1 5-3l2-4c-1 0-4-2-4-5Z"/></svg><span><small>Download on the</small><strong>App Store</strong></span>
+</a>
+</nav>
+<section id="lp-meet-bun" class="hbl-subpage" hidden aria-labelledby="hbl-meet-title">
+<div class="hbl-sub-wrap">
+<button class="hbl-back" type="button" data-hbl-back>← Back to Honeybun</button>
+<div class="hbl-meet-hero">
+<div><span class="hbl-sub-eyebrow">A little friend for your money journey</span><h1 id="hbl-meet-title" tabindex="-1">Meet <em>Bun.</em></h1><p>Your cozy companion for making sense of the numbers. Bun turns the information you enter into friendly observations, so you can see how your month is going and what could use a little attention.</p><span class="hbl-sub-note">Your plans. Your pace. A little help from Bun.</span></div>
+<img class="hbl-meet-art" src="/landing-art/crisp/together-art.webp" alt="Bun and a rabbit friend sharing warm drinks by a glowing lantern" width="819" height="557">
+</div>
+<div class="hbl-sub-grid">
+<article><img src="/landing-art/crisp/insightIcon.svg" alt="" width="44" height="44"><h2>A friendly heads-up.</h2><p>See observations about spending pace, upcoming bills, goal progress and debt payoff opportunities, based on what you enter.</p></article>
+<article><img src="/landing-art/crisp/planIcon.svg" alt="" width="44" height="44"><h2>A clearer month ahead.</h2><p>Bring your income, spending and plans together. Bun helps you understand the picture while you decide what works for you.</p></article>
+<article><img src="/landing-art/crisp/togetherIcon.svg" alt="" width="44" height="44"><h2>Together, or solo.</h2><p>Plan on your own or share the journey with someone you trust. There’s room for different goals and different ways to budget.</p></article>
+</div>
+<p class="hbl-sub-disclaimer">Bun’s observations and projections depend on your entries. Forecasts and payoff projections are estimates.</p>
+</div></section>
+<section id="lp-help" class="hbl-subpage" hidden aria-labelledby="hbl-help-title">
+<div class="hbl-sub-wrap">
+<button class="hbl-back" type="button" data-hbl-back>← Back to Honeybun</button>
+<div class="hbl-help-heading"><img src="/landing-art/crisp/logo.webp" alt="" width="100" height="100"><span class="hbl-sub-eyebrow">A little help, whenever you need it</span><h1 id="hbl-help-title" tabindex="-1">Let’s make it <em>clear.</em></h1><p>A few answers to help you feel at home with Honeybun.</p></div>
+<div class="hbl-help-layout"><div class="hbl-faq-list">
+<details><summary>Do I need to connect my bank?</summary><p>No. Honeybun uses the information you enter. There are no bank connections or bank logins.</p></details>
+<details><summary>What does Safe to Spend mean?</summary><p>Safe to Spend is your income minus spending, plus carry-over. Upcoming bills are shown separately and aren’t automatically deducted. It isn’t a live bank balance.</p></details>
+<details><summary>What does Bun use for insights?</summary><p>Bun looks at your entries to surface useful observations about spending, upcoming bills, goals and debt. Keeping your entries up to date helps the picture stay useful.</p></details>
+<details><summary>Can I use Honeybun on my own?</summary><p>Yes. You can plan solo or use Together to share budgets, bills, goals and debt with someone you trust, while keeping private information private.</p></details>
+<details><summary>Does Honeybun move money or pay bills?</summary><p>No. Honeybun helps you plan and track. It does not move money, pay creditors or connect to your bank. Forecasts and debt payoff projections are estimates.</p></details>
+<details><summary>Where can I download the iPhone app?</summary><p>Honeybun is coming soon to the App Store. The download button will link to the listing when it’s available.</p></details>
+</div><aside class="hbl-help-contact"><img src="/landing-art/crisp/logo.webp" alt="" width="80" height="80"><h2>Still need a hand?</h2><p>Ask a question, report a problem or share an idea with the Honeybun team.</p><a href="mailto:help@honeybun.me" class="hbl-contact-button">Email support ↗</a><span>help@honeybun.me</span><div class="hbl-help-legal"><a href="/privacy.html">Privacy Policy</a><a href="/terms.html">Terms</a></div></aside></div>
+</div></section>
+<section class="lp-updates" id="lp-updates" hidden>
       <div class="lp-wrap">
-        <a class="lp-brand" href="/"><img src="/icon-192.png" alt=""><span>Honeybun</span></a>
-        <div class="lp-links"><a href="#lp-features">Features</a><a href="#lp-how">How it works</a><a href="#lp-download" id="lpDownloadLink">Download</a><a href="#lp-updates" id="lpUpdatesLink" class="lp-upd-link">Updates <span class="lp-new" id="lpUpdCount"></span></a><a href="#lp-rewards" id="lpRewardsLink" class="lp-upd-link">🎁 Rewards</a></div>
-        <div class="lp-navbtns"><a class="lp-btn p sm" href="#lp-download" data-appstore="short">Get the app</a></div>
-      </div>
-    </nav>
-
-    <section class="lp-updates" id="lp-updates" hidden>
-      <div class="lp-wrap">
-        <div class="lp-upd-head lp-rv">
-          <button class="lp-btn g sm" id="lpUpdBack" type="button"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>Back</button>
-          <div><span class="lp-eyebrow">What's new</span><h2>Updates</h2><p class="lp-sub">Everything we've shipped, newest first. Bun keeps this list honest.</p></div>
+        <div class="lp-upd-head lp-rv"><img class="hbl-updates-bun" src="/landing-art/crisp/logo.webp" alt="" width="120" height="120">
+          <button class="lp-btn g sm" id="lpUpdBack" type="button">
+<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+<path d="M15 6l-6 6 6 6"/>
+</svg>Back</button>
+          <div>
+<span class="lp-eyebrow">What's new</span>
+<h2>Updates</h2>
+<p class="lp-sub">Everything we've shipped, newest first. Bun keeps this list honest.</p>
+</div>
         </div>
-        <div class="lp-upd-legend" id="lpUpdLegend"></div>
-        <div class="lp-upd-list" id="lpUpdList"></div>
+        <div class="lp-upd-legend" id="lpUpdLegend">
+</div>
+        <div class="lp-upd-list" id="lpUpdList">
+</div>
       </div>
     </section>
 
     <section class="lp-rewards" id="lp-rewards" hidden>
       <div class="lp-wrap">
         <div class="lp-upd-head">
-          <button class="lp-btn g sm" id="lpRwBack" type="button"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>Back</button>
+          <button class="lp-btn g sm" id="lpRwBack" type="button">
+<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+<path d="M15 6l-6 6 6 6"/>
+</svg>Back</button>
         </div>
         <div class="lp-rw-hero">
           <div>
             <span class="lp-eyebrow">Referral rewards</span>
             <h2>Share Honeybun, get a $10 gift card</h2>
             <p class="lp-sub">Invite friends with your personal link. For every 10 friends who use Honeybun for a week, Bun sends you a $10 gift card. There's no limit.</p>
-            <div class="lp-acts"><button class="lp-btn p" data-auth-go="signup">Get my link, it's free</button><button class="lp-btn g" data-auth-go="login">I have an account</button></div>
+            <div class="lp-acts">
+<button class="lp-btn p" data-auth-go="signup">Get my link, it's free</button>
+<button class="lp-btn g" data-auth-go="login">I have an account</button>
+</div>
           </div>
           <div class="lp-rw-card" aria-hidden="true">
             <div class="big">🐰🎁</div>
             <b>10 friends = $10</b>
             <small>Every friend who sticks around fills a dot</small>
-            <div class="lp-rw-dots"><i>✓</i><i>✓</i><i>✓</i><i>✓</i><i>✓</i><i>✓</i><i class="w"></i><i class="w"></i><i class="w"></i><i class="w">🎁</i></div>
+            <div class="lp-rw-dots">
+<i>✓</i>
+<i>✓</i>
+<i>✓</i>
+<i>✓</i>
+<i>✓</i>
+<i>✓</i>
+<i class="w">
+</i>
+<i class="w">
+</i>
+<i class="w">
+</i>
+<i class="w">🎁</i>
+</div>
           </div>
         </div>
         <div class="lp-rw-steps">
-          <article class="lp-card"><b class="n">1</b><h3>Get your link</h3><p>Sign up and open Invite friends from Home or Settings. Your link is ready to copy or share.</p></article>
-          <article class="lp-card"><b class="n">2</b><h3>Friends sign up</h3><p>They create a free account with your link and confirm their email. Bun tells you the moment they join.</p></article>
-          <article class="lp-card"><b class="n">3</b><h3>They use it for a week</h3><p>A friend counts once they've logged on 4 different days and are still using Honeybun after 7 days, alone or with a partner.</p></article>
-          <article class="lp-card"><b class="n">4</b><h3>Get your gift card</h3><p>Every 10 friends who count earns you a $10 gift card by email. Ask Bun anytime to see who signed up.</p></article>
+          <article class="lp-card">
+<b class="n">1</b>
+<h3>Get your link</h3>
+<p>Sign up and open Invite friends from Home or Settings. Your link is ready to copy or share.</p>
+</article>
+          <article class="lp-card">
+<b class="n">2</b>
+<h3>Friends sign up</h3>
+<p>They create a free account with your link and confirm their email. Bun tells you the moment they join.</p>
+</article>
+          <article class="lp-card">
+<b class="n">3</b>
+<h3>They use it for a week</h3>
+<p>A friend counts once they've logged on 4 different days and are still using Honeybun after 7 days, alone or with a partner.</p>
+</article>
+          <article class="lp-card">
+<b class="n">4</b>
+<h3>Get your gift card</h3>
+<p>Every 10 friends who count earns you a $10 gift card by email. Ask Bun anytime to see who signed up.</p>
+</article>
         </div>
         <div class="lp-rw-rules">
           <h3>The simple rules</h3>
@@ -2254,207 +2331,161 @@ dialog::backdrop{background:var(--backdrop)}
             <li>People who join your own budget don't count, since they're already part of your household.</li>
             <li>Gift cards are sent by email within about 5 business days.</li>
           </ul>
-          <p style="margin:10px 0 0;font-size:13px"><a href="/terms.html#referrals">Full referral terms</a></p>
+          <p style="margin:10px 0 0;font-size:13px">
+<a href="/terms.html#referrals">Full referral terms</a>
+</p>
         </div>
       </div>
     </section>
 
-    <header class="hb-hero" id="lp-top">
-      <div class="hb-sky" aria-hidden="true">
-        <i class="hb-spark s1">✦</i><i class="hb-spark s2">✧</i><i class="hb-spark s3">✦</i><i class="hb-heart h1">♥</i><i class="hb-heart h2">♥</i><i class="hb-spark s4">✧</i>
-        <span class="hb-blob b1"></span><span class="hb-blob b2"></span><span class="hb-blob b3"></span>
-      </div>
-      <div class="lp-wrap hb-hero-in">
-        <div class="hb-hero-copy">
-          <a class="hb-pill" href="#lp-updates" data-updates-go><b>New</b>Honeybun 3.0 for iPhone <span aria-hidden="true">›</span></a>
-          <h1>Money, together.<br><span class="hb-grad">Minus the stress.</span></h1>
-          <p class="hb-lede">The cute budget app for you, your partner, or your whole family. See what's left, split costs fairly, never miss a bill, and let Bun cheer you on. Made for iPhone.</p>
-          <div class="hb-ctas"><a class="lp-btn p hb-big" href="#lp-download" data-appstore>Download on the App Store</a><a class="lp-btn g hb-big" href="#lp-shots">See inside</a></div>
-          <ul class="hb-trust">
-            <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l4 4 10-10"/></svg>Free, no bank login</li>
-            <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l4 4 10-10"/></svg>Made for iPhone · Windows too</li>
-            <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l4 4 10-10"/></svg>English · Español · 中文</li>
-          </ul>
-        </div>
-        <div class="hb-stage" id="hbStage" aria-label="Honeybun preview">
-          <div class="hb-money hb-card" data-depth="6">
-            <div class="hb-money-top"><span>Left in September</span><em>On track</em></div>
-            <div class="hb-money-amt" id="lpAmt">$0<small>.00</small></div>
-            <div class="hb-meter"><i id="lpMeter"></i></div>
-            <div class="hb-money-row"><span><small>Came in</small><b id="lpS1">$0.00</b></span><span><small>Spent</small><b id="lpS2">$0.00</b></span><span><small>Bills due</small><b id="lpS3">$0.00</b></span></div>
-          </div>
-          <div class="hb-bun-wrap" data-depth="14"><svg class="hb-bun" viewBox="0 0 160 170" aria-hidden="true"><ellipse class="hb-bun-shadow" cx="80" cy="162" rx="44" ry="6"/><g class="hb-bun-body"><g class="hb-ear hb-ear-l"><path d="M58 70 C44 40 44 8 55 6 C66 4 71 36 72 62" /><path class="hb-ear-in" d="M59 58 C52 38 53 18 57 16 C61 15 64 36 65 52"/></g><g class="hb-ear hb-ear-r"><path d="M102 70 C116 40 116 8 105 6 C94 4 89 36 88 62" /><path class="hb-ear-in" d="M101 58 C108 38 107 18 103 16 C99 15 96 36 95 52"/></g><ellipse class="hb-head" cx="80" cy="108" rx="50" ry="45"/><g class="hb-eyes"><ellipse cx="63" cy="103" rx="5.5" ry="6.5"/><ellipse cx="97" cy="103" rx="5.5" ry="6.5"/><circle class="hb-shine" cx="65" cy="100.5" r="1.8"/><circle class="hb-shine" cx="99" cy="100.5" r="1.8"/></g><ellipse class="hb-cheek" cx="49" cy="118" rx="9" ry="5"/><ellipse class="hb-cheek" cx="111" cy="118" rx="9" ry="5"/><path class="hb-mouth" d="M72 117 q4 5 8 0 q4 5 8 0"/></g></svg><span class="hb-bubble">You're doing great! 🥕</span></div>
-          <div class="hb-float f1" data-depth="22"><span class="hb-avs"><i style="background:#FFE1CC">🐻</i><i style="background:#FFD6E5">🐰</i></span><span><b>Your partner added Groceries</b><small>$86.40 · split evenly</small></span></div>
-          <div class="hb-float f2" data-depth="18"><span class="hb-ico honey">🐾</span><span><b>12-day hop streak</b><small>+10 carrots today</small></span></div>
-          <div class="hb-float f3" data-depth="26"><span class="hb-ico rose"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg></span><span><b>Rent is due in 3 days</b><small>Bun reminds you</small></span></div>
-        </div>
-      </div>
-    </header>
+<section class="hbl-hero" id="lp-download">
+<img class="hbl-hero-art" src="/landing-art/crisp/hero-scene.webp" width="684" height="325" alt="Witch Bun hugging a glowing honey jar beside a sleeping companion and lantern, overlooking a moonlit village">
+<div class="hbl-intro">
+<p class="hbl-eyebrow">A cozier way to budget <svg class="hbl-eyebrow-heart" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 17C-2 9 3 1 8 6l2 2 2-2c5-5 10 3-2 11Z" fill="currentColor"/></svg></p>
+<h1>Money, <em>your way.</em>
+<br>Together, <em>or solo.</em>
+</h1>
+<p>Manage your money, stay ahead of bills,<br class="hbl-desktop-break"> work toward goals, and share the journey<br class="hbl-desktop-break"> with someone — or keep it yours.</p>
+<a class="hbl-store" href="#lp-download" data-appstore aria-label="Download on the App Store — coming soon">
+<svg viewBox="0 0 24 28" aria-hidden="true"><path fill="currentColor" d="M17 5c1-1 2-3 2-5-2 0-4 1-5 2-1 1-2 3-2 5 2 0 4-1 5-2ZM21 15c0-3 2-5 3-5-2-3-5-3-6-3-2 0-4 1-6 1s-3-1-5-1c-3 0-7 3-7 8 0 3 1 7 3 10 2 2 3 3 5 2l4-1 4 1c2 1 3-1 5-3l2-4c-1 0-4-2-4-5Z"/></svg><span><small>Download on the</small><strong>App Store</strong></span>
+</a>
+<ul class="hbl-trustline hbl-assurances" aria-label="Honeybun essentials">
+<li><img src="/landing-art/crisp/star.svg" alt="" width="14" height="14"><span>Free</span></li>
+<li><img src="/landing-art/crisp/lock.svg" alt="" width="14" height="14"><span>No bank login</span></li>
+<li><img src="/landing-art/crisp/iphone.svg" alt="" width="14" height="14"><span>Made for iPhone</span></li>
+</ul>
+</div>
+</section>
+<section class="hbl-safe" id="lp-how">
+<figure class="hbl-phone" data-native-shot="home">
+<div class="hbl-screen">
+<img class="hbl-concept-capture" src="/landing-art/crisp/concept-home.svg" alt="Home design concept preview; final native capture pending" loading="lazy">
+</div>
+<figcaption>Concept preview · native capture pending</figcaption>
+</figure>
+<div class="hbl-safe-copy">
+<img class="hbl-icon" src="/landing-art/crisp/safeIcon.svg" alt="">
+<h2>Know what<br>you can spend.</h2>
+<p>See how your money fits together, with a clear<br class="hbl-desktop-break"> Safe to Spend number, upcoming bills and a plan<br class="hbl-desktop-break"> for the month. No bank connections, ever.</p>
+</div>
+</section>
+<section class="hbl-insights">
+<div class="hbl-insight-copy">
+<img class="hbl-icon" src="/landing-art/crisp/insightIcon.svg" alt="">
+<h2>A little smarter<br>when you need it.</h2>
+<p>Bun looks at the information you enter and<br class="hbl-desktop-break"> surfaces helpful insights — like spending<br class="hbl-desktop-break"> trends, upcoming bills, goal progress and<br class="hbl-desktop-break"> ways to make faster progress.</p>
+</div>
+<img class="hbl-insight-peek" src="/landing-art/crisp/insight-peek.webp" width="120" height="196" alt="">
+<figure class="hbl-phone" data-native-shot="insight">
+<div class="hbl-screen">
+<img class="hbl-concept-capture" src="/landing-art/crisp/concept-insight.svg" alt="From Bun design concept preview; final native capture pending" loading="lazy">
+</div>
+<figcaption>Concept preview · native capture pending</figcaption>
+</figure>
+</section>
+<section class="hbl-features" id="lp-features">
+<div class="hbl-trio" id="lp-shots">
+<article class="hbl-card hbl-plan">
+<div class="hbl-card-copy">
+<img class="hbl-icon" src="/landing-art/crisp/planIcon.svg" alt="">
+<h3>Make a plan<br>that feels manageable.</h3>
+<p>Budget, track spending, see what’s coming<br>next and get a clearer picture of the month<br>ahead.</p>
+</div>
+<figure class="hbl-phone" data-native-shot="plan">
+<div class="hbl-screen">
+<img class="hbl-concept-capture" src="/landing-art/crisp/concept-plan.svg" alt="Plan design concept preview; final native capture pending" loading="lazy">
+</div>
+<figcaption>Concept preview · native capture pending</figcaption>
+</figure>
+</article>
+<article class="hbl-card hbl-debt">
+<div class="hbl-card-copy">
+<img class="hbl-icon" src="/landing-art/crisp/debtIcon.svg" alt="">
+<h3>See the way out.</h3>
+<p>Track your debt, compare Snowball and<br>Avalanche, and see how extra payments<br>can save you time and money.</p>
+</div>
+<figure class="hbl-phone" data-native-shot="debt">
+<div class="hbl-screen">
+<img class="hbl-concept-capture" src="/landing-art/crisp/concept-debt.svg" alt="Debt Center design concept preview; final native capture pending" loading="lazy">
+</div>
+<figcaption>Concept preview · native capture pending</figcaption>
+</figure>
+</article>
+<article class="hbl-card hbl-goals">
+<div class="hbl-card-copy">
+<img class="hbl-icon" src="/landing-art/crisp/goalsIcon.svg" alt="">
+<h3>Save for something good.</h3>
+<p>Create goals, add to them, and watch<br>your progress. Bun can also let you know<br>when you’re on track — or when a little<br>extra could help.</p>
+</div>
 
-    <section class="hb-sec" id="lp-features">
-      <div class="lp-wrap">
-        <div class="hb-head rv"><span class="hb-eyebrow">Why people like it</span><h2>Everything a household needs.<br>Nothing it doesn't.</h2><p>Budget apps usually feel like homework. Honeybun feels like a little friend who's good with money.</p></div>
-        <div class="hb-bento">
-          <article class="hb-tile t-split rv">
-            <div class="hb-tile-txt"><span class="hb-tag rose">Together</span><h3>Split costs fairly</h3><p>Evenly, by percent, or a set amount. A running balance means nobody keeps score.</p></div>
-            <div class="hb-demo hb-split">
-              <div class="hb-split-row"><span class="hb-av" style="background:#FFD6E5">🐰</span><div class="hb-split-bar"><i class="a">You</i><i class="b">Partner</i></div><span class="hb-av" style="background:#FFE1CC">🐻</span></div>
-              <div class="hb-split-owe"><span>Partner owes you <b>$21.34</b></span><button class="hb-settle" type="button" tabindex="-1">Settle up</button></div>
-            </div>
-          </article>
-          <article class="hb-tile t-cal rv">
-            <div class="hb-tile-txt"><span class="hb-tag honey">New · Stats</span><h3>Your month as a hop calendar</h3><p>Bigger dots mean bigger spending days. Paw prints mark days you spent nothing.</p></div>
-            <div class="hb-demo hb-cal" id="hbCal" aria-hidden="true"></div>
-            <div class="hb-cal-sum"><span class="g"><b>9</b>no-spend days</span><span class="h"><b>$212</b>biggest day</span></div>
-          </article>
-          <article class="hb-tile t-inbox rv">
-            <div class="hb-tile-txt"><span class="hb-tag lilac">Bun's inbox</span><h3>A buddy who texts first</h3></div>
-            <div class="hb-demo hb-chat" aria-hidden="true">
-              <div class="hb-msg m1"><img src="/icon-192.png" alt=""><p>Rent ($1,450) is due in 3 days 🐰</p></div>
-              <div class="hb-msg m2"><img src="/icon-192.png" alt=""><p>Your partner split Groceries with you 💞</p></div>
-              <div class="hb-msg me m3"><p>How are my referrals doing?</p></div>
-              <div class="hb-msg m4"><img src="/icon-192.png" alt=""><p>3 friends joined! 7 more for a $10 gift card 🎁</p></div>
-            </div>
-          </article>
-          <article class="hb-tile t-jar rv">
-            <div class="hb-tile-txt"><span class="hb-tag green">Goals</span><h3>Honey jar savings</h3><p>Save for a trip or a rainy day, and see a debt-free date.</p></div>
-            <div class="hb-demo hb-jar" aria-hidden="true">
-              <svg viewBox="0 0 100 120"><defs><clipPath id="hbJarClip"><path d="M22 34 h56 a8 8 0 0 1 8 8 v58 a14 14 0 0 1 -14 14 h-44 a14 14 0 0 1 -14 -14 v-58 a8 8 0 0 1 8 -8z"/></clipPath></defs><g clip-path="url(#hbJarClip)"><rect class="hb-honey" x="0" y="0" width="100" height="120"/><path class="hb-wave" d="M-20 0 q15 -8 30 0 t30 0 t30 0 t30 0 t30 0 v12 h-150z"/></g><path class="hb-jar-glass" d="M22 34 h56 a8 8 0 0 1 8 8 v58 a14 14 0 0 1 -14 14 h-44 a14 14 0 0 1 -14 -14 v-58 a8 8 0 0 1 8 -8z"/><rect class="hb-jar-lid" x="26" y="20" width="48" height="14" rx="5"/></svg>
-              <div><b>Weekend getaway</b><small><span class="hb-jar-pct">62%</span> of $800</small></div>
-            </div>
-          </article>
-          <article class="hb-tile t-bills rv">
-            <div class="hb-tile-txt"><span class="hb-tag blue">Plan</span><h3>Bills before payday</h3></div>
-            <ul class="hb-demo hb-bills" aria-hidden="true">
-              <li><i></i><span>Rent</span><b>$1,450</b></li>
-              <li><i></i><span>Phone</span><b>$85</b></li>
-              <li><i></i><span>Netflix</span><b>$15.49</b></li>
-              <li class="pay"><i></i><span>Payday 💰</span><b>+$2,400</b></li>
-            </ul>
-          </article>
-          <article class="hb-tile t-tap rv">
-            <div class="hb-tile-txt"><span class="hb-tag honey">iPhone</span><h3>Tap to pay, logged</h3><p>An Apple Pay Shortcut sends each purchase to Honeybun. No bank connection, ever.</p></div>
-            <div class="hb-demo hb-tap" aria-hidden="true"><span class="hb-card-mini"><i></i></span><span class="hb-ripple"></span><span class="hb-ripple r2"></span><span class="hb-toast">☕ Coffee · $4.75 logged</span></div>
-          </article>
-          <article class="hb-tile t-safe rv">
-            <div class="hb-tile-txt"><span class="hb-tag gray">Private</span><h3>Yours, and only yours</h3><p>Lock it with Face ID, keep personal entries private, no ads, and we never sell your data.</p></div>
-            <div class="hb-demo hb-lock" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2.5"/><path class="hb-shackle" d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></div>
-          </article>
-        </div>
-      </div>
-    </section>
+<figure class="hbl-phone" data-native-shot="goals">
+<div class="hbl-screen">
+<img class="hbl-concept-capture" src="/landing-art/crisp/concept-goals.svg" alt="Goals design concept preview; final native capture pending" loading="lazy">
+</div>
+<figcaption>Concept preview · native capture pending</figcaption>
+</figure>
+</article>
+</div>
+</section>
+<section class="hbl-together" id="lp-together">
+<figure class="hbl-phone" data-native-shot="together">
+<div class="hbl-screen">
+<img class="hbl-concept-capture" src="/landing-art/crisp/concept-together.svg" alt="Together design concept preview; final native capture pending" loading="lazy">
+</div>
+<figcaption>Concept preview · native capture pending</figcaption>
+</figure>
+<div class="hbl-together-copy">
+<img class="hbl-icon" src="/landing-art/crisp/togetherIcon.svg" alt="">
+<h2>Together when you want it.<br>Private when you need it.</h2>
+<p>Share budgets, bills, goals and debt with someone you trust,<br class="hbl-desktop-break"> while keeping your private information private. Honeybun is<br class="hbl-desktop-break"> built for real life — whether you’re planning together, or just<br class="hbl-desktop-break"> want a clearer picture on your own.</p>
+</div>
+<img class="hbl-together-art" src="/landing-art/crisp/together-art.webp" width="242" height="159" alt="Two Bun companions sharing warm drinks beside a lantern">
+</section>
+<section class="hbl-trust" aria-label="About Honeybun">
+<div>
+<img src="/landing-art/crisp/lock.svg" alt="" width="30" height="31">
+<p>
+<strong>No bank connections</strong>
+<small>You control your information.</small>
+</p>
+</div>
+<div>
+<img src="/landing-art/crisp/iphone.svg" alt="" width="30" height="31">
+<p>
+<strong>Made for iPhone</strong>
+<small>A beautiful, native experience.</small>
+</p>
+</div>
+<div>
+<img src="/landing-art/crisp/people.svg" alt="" width="30" height="31">
+<p>
+<strong>For you or together</strong>
+<small>Flexible for real life.</small>
+</p>
+</div>
+<div>
+<img src="/landing-art/crisp/star.svg" alt="" width="30" height="31">
+<p>
+<strong>A happier way to budget</strong>
+<small>Same goals. All welcome.</small>
+</p>
+</div>
+</section>
 
-    <section class="hb-sec" id="lp-shots">
-      <div class="lp-wrap">
-        <div class="hb-head rv"><span class="hb-eyebrow">Inside the app</span><h2>A real iPhone app.</h2><p>This is what Honeybun looks like on your phone. Face ID, widgets, Siri and notifications that actually ping.</p></div>
-        <div class="hb-shots rv">
-          <figure><img src="/lp-home.webp" width="270" height="584" alt="Honeybun Home: what is left this month" loading="lazy"><figcaption>See what's left</figcaption></figure>
-          <figure><img src="/lp-plan.webp" width="270" height="584" alt="Honeybun Plan: budgets and a bills calendar" loading="lazy"><figcaption>Never miss a bill</figcaption></figure>
-          <figure><img src="/lp-stats.webp" width="270" height="584" alt="Honeybun Stats: the hop calendar" loading="lazy"><figcaption>Your month, at a glance</figcaption></figure>
-          <figure><img src="/lp-us.webp" width="270" height="584" alt="Honeybun Together: a shared joint account" loading="lazy"><figcaption>Split costs fairly</figcaption></figure>
-          <figure><img src="/lp-bun.webp" width="270" height="584" alt="Bun's inbox: friendly reminders" loading="lazy"><figcaption>Bun keeps you on track</figcaption></figure>
-        </div>
-      </div>
-    </section>
+</div>
+<footer class="hbl-utility" id="lp-faq">
+<details>
+<summary>Help and privacy</summary>
+<p>Honeybun is coming soon to the App Store. The phone imagery above is the approved design concept; final native captures will replace it. Safe to Spend is income minus spending plus carry-over; bills are shown separately. Forecasts and payoff projections are estimates. Honeybun does not connect to banks, move money, or pay creditors.</p>
+<p>
+<a href="/privacy.html">Privacy Policy</a> · <a href="/terms.html">Terms</a> · <a href="mailto:help@honeybun.me">Support</a>
+</p>
 
-    <section class="hb-sec hb-how" id="lp-how">
-      <div class="lp-wrap">
-        <div class="hb-head rv"><span class="hb-eyebrow">How it works</span><h2>Set up in about a minute.</h2></div>
-        <div class="hb-steps rv">
-          <div class="hb-path" aria-hidden="true"><span class="hb-hopper"><svg class="hb-bun" viewBox="0 0 160 170" aria-hidden="true"><ellipse class="hb-bun-shadow" cx="80" cy="162" rx="44" ry="6"/><g class="hb-bun-body"><g class="hb-ear hb-ear-l"><path d="M58 70 C44 40 44 8 55 6 C66 4 71 36 72 62" /><path class="hb-ear-in" d="M59 58 C52 38 53 18 57 16 C61 15 64 36 65 52"/></g><g class="hb-ear hb-ear-r"><path d="M102 70 C116 40 116 8 105 6 C94 4 89 36 88 62" /><path class="hb-ear-in" d="M101 58 C108 38 107 18 103 16 C99 15 96 36 95 52"/></g><ellipse class="hb-head" cx="80" cy="108" rx="50" ry="45"/><g class="hb-eyes"><ellipse cx="63" cy="103" rx="5.5" ry="6.5"/><ellipse cx="97" cy="103" rx="5.5" ry="6.5"/><circle class="hb-shine" cx="65" cy="100.5" r="1.8"/><circle class="hb-shine" cx="99" cy="100.5" r="1.8"/></g><ellipse class="hb-cheek" cx="49" cy="118" rx="9" ry="5"/><ellipse class="hb-cheek" cx="111" cy="118" rx="9" ry="5"/><path class="hb-mouth" d="M72 117 q4 5 8 0 q4 5 8 0"/></g></svg></span><i class="p1">🐾</i><i class="p2">🐾</i><i class="p3">🐾</i><i class="p4">🐾</i></div>
-          <div class="hb-step"><b>1</b><h3>Get the app</h3><p>Download Honeybun from the App Store, make a free account, and pick Just me, Couple, or Family.</p></div>
-          <div class="hb-step"><b>2</b><h3>Add bills and paydays</h3><p>Rent, subscriptions, paychecks. Add them once and Honeybun remembers.</p></div>
-          <div class="hb-step"><b>3</b><h3>Invite and hop</h3><p>Send your partner your invite code, log what you spend, and watch your streak grow.</p></div>
-        </div>
-        <div class="hb-kinds rv" aria-hidden="true">
-          <span><i>🐰</i>Just me</span><span class="on"><i>🐰</i><i>🐻</i>Couple</span><span><i>🐰</i><i>🐻</i><i>🐥</i>Family</span>
-        </div>
-      </div>
-    </section>
-
-    <section class="hb-sec" id="lp-download">
-      <div class="lp-wrap hb-dl">
-        <div class="hb-dl-copy rv">
-          <span class="hb-eyebrow">Download</span>
-          <h2>Honeybun on your iPhone.</h2>
-          <p>A real iPhone app with Face ID, widgets, Siri and notifications. Your account also works in the Windows app, and everything stays in sync.</p>
-          <div class="hb-dl-store">
-            <a class="lp-btn p hb-big" id="dlStore" href="#lp-download" data-appstore><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.4 12.6c0-2.3 1.9-3.4 2-3.5-1.1-1.6-2.8-1.8-3.4-1.8-1.4-.1-2.8.9-3.5.9s-1.8-.8-3-.8c-1.5 0-3 .9-3.8 2.3-1.6 2.8-.4 7 1.2 9.2.8 1.1 1.7 2.4 2.9 2.3 1.2 0 1.6-.7 3-.7s1.8.7 3 .7 2-1.1 2.8-2.2c.9-1.3 1.2-2.5 1.3-2.6-.1 0-2.5-1-2.5-3.8zM14.2 5.8c.6-.8 1.1-1.8 1-2.8-.9 0-2 .6-2.7 1.4-.6.7-1.1 1.8-1 2.7 1 .1 2-.5 2.7-1.3z"/></svg>Download on the App Store</a>
-            <small id="dlStoreNote">iPhone · free · no bank login</small>
-          </div>
-          <div class="hb-dl-win">
-            <b class="hb-also">Also for your computer</b>
-            <a class="lp-btn g hb-big" id="dlWin" href="/download/windows" download><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 5.5l7-1v7H3zM11 4.3L21 3v8.5H11zM3 12.5h7v7l-7-1zM11 12.5h10V21l-10-1.3z"/></svg>Download for Windows</a>
-            <small>Windows 10 and 11 · about 1.4 MB</small>
-            <div class="hb-dl-help">
-              <b>Seeing a warning?</b>
-              <p>That's normal for a new app, and it goes away as more people download Honeybun. The file is safe.</p>
-              <ol>
-                <li><b>Chrome</b> says "isn't commonly downloaded": click <b>Download suspicious file</b>.</li>
-                <li><b>Edge</b> says "isn't commonly downloaded": click <b>⋯</b>, then <b>Keep</b>.</li>
-                <li><b>Windows</b> says "Windows protected your PC": click <b>More info</b>, then <b>Run anyway</b>.</li>
-              </ol>
-            </div>
-          </div>
-          <div class="hb-dl-phones">
-            <div><b>Android</b><span>There isn't an Android app yet. Honeybun is built for iPhone first.</span></div>
-          </div>
-        </div>
-        <div class="hb-devices rv" aria-hidden="true">
-          <div class="hb-laptop"><div class="hb-screen">
-            <div class="hb-mini-side"><img src="/icon-192.png" alt=""><i class="on"></i><i></i><i></i><i></i><span></span><i class="gift"></i></div>
-            <div class="hb-mini-main"><div class="hb-mini-h">Stats <em>Sep 2026</em></div><div class="hb-mini-cal" id="hbMiniCal"></div></div>
-          </div><div class="hb-base"></div></div>
-          <div class="hb-phone"><div class="hb-notch"></div><img src="/lp-home.webp" width="270" height="584" alt="" loading="lazy"></div>
-          <span class="hb-sync">Synced ✓</span>
-        </div>
-      </div>
-    </section>
-
-    <section class="hb-sec">
-      <div class="lp-wrap">
-        <div class="hb-reward rv">
-          <div class="hb-reward-txt"><span class="hb-eyebrow">Referral rewards</span><h2>Share Honeybun, get a $10 gift card.</h2><p>For every 10 friends who use Honeybun for a week, Bun sends you a $10 gift card. No limit.</p>
-            <div class="hb-ctas"><a class="lp-btn p" href="#lp-download" data-appstore="short">Get the app</a><button class="lp-btn g" type="button" data-rewards-go>How it works</button></div></div>
-          <div class="hb-reward-dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i class="gift">🎁</i></div>
-        </div>
-      </div>
-    </section>
-
-    <section class="hb-sec" id="lp-faq">
-      <div class="lp-wrap">
-        <div class="hb-head rv"><span class="hb-eyebrow">Good to know</span><h2>Questions, answered.</h2></div>
-        <div class="lp-faq hb-faq rv">
-          <details><summary>Is Honeybun free?</summary><p>Yes. Honeybun is free to use.</p></details>
-          <details><summary>Do I have to connect my bank?</summary><p>No. You add what you spend yourself, or let an Apple Pay Shortcut do it. Your bank logins stay with you.</p></details>
-          <details><summary>Is there an app to download?</summary><p>Yes. Honeybun is an iPhone app on the App Store, and there's a Windows app too. It's one account everywhere, so everything stays in sync.</p></details>
-          <details><summary>Can I use Honeybun on the web?</summary><p>Honeybun is built for iPhone now. If you already have an account you can still sign in on the web, using the link at the bottom of this page.</p></details>
-          <details><summary>Can my partner see everything?</summary><p>People in your budget see shared spending, bills, and goals. Anything you mark "Only I can see this" stays private.</p></details>
-          <details><summary>Can I use it on my own?</summary><p>Of course. Pick Just me when you start. You can invite someone later whenever you like.</p></details>
-          <details><summary>Can I delete my data?</summary><p>Anytime. Settings lets you download everything or delete your account for good.</p></details>
-        </div>
-      </div>
-    </section>
-
-    <section class="hb-sec hb-end">
-      <div class="lp-wrap">
-        <div class="hb-final rv">
-          <div class="hb-trail" aria-hidden="true"><i>🐾</i><i>🐾</i><i>🐾</i><i>🐾</i><i>🐾</i></div>
-          <div class="hb-final-bun"><svg class="hb-bun" viewBox="0 0 160 170" aria-hidden="true"><ellipse class="hb-bun-shadow" cx="80" cy="162" rx="44" ry="6"/><g class="hb-bun-body"><g class="hb-ear hb-ear-l"><path d="M58 70 C44 40 44 8 55 6 C66 4 71 36 72 62" /><path class="hb-ear-in" d="M59 58 C52 38 53 18 57 16 C61 15 64 36 65 52"/></g><g class="hb-ear hb-ear-r"><path d="M102 70 C116 40 116 8 105 6 C94 4 89 36 88 62" /><path class="hb-ear-in" d="M101 58 C108 38 107 18 103 16 C99 15 96 36 95 52"/></g><ellipse class="hb-head" cx="80" cy="108" rx="50" ry="45"/><g class="hb-eyes"><ellipse cx="63" cy="103" rx="5.5" ry="6.5"/><ellipse cx="97" cy="103" rx="5.5" ry="6.5"/><circle class="hb-shine" cx="65" cy="100.5" r="1.8"/><circle class="hb-shine" cx="99" cy="100.5" r="1.8"/></g><ellipse class="hb-cheek" cx="49" cy="118" rx="9" ry="5"/><ellipse class="hb-cheek" cx="111" cy="118" rx="9" ry="5"/><path class="hb-mouth" d="M72 117 q4 5 8 0 q4 5 8 0"/></g></svg></div>
-          <h2>Ready to hop in?</h2>
-          <p>Setup takes about a minute. Bun takes it from there.</p>
-          <a class="lp-btn p hb-big" href="#lp-download" data-appstore>Download on the App Store</a>
-        </div>
-        <footer class="lp-foot">
-          <div class="lang-row" data-lang-picker></div>
-          <p><a href="/privacy.html">Privacy Policy</a> · <a href="/terms.html">Terms</a> · <a href="mailto:help@honeybun.me">help@honeybun.me</a></p>
-          <p>Developed by Rodrigo · © 2026 Honeybun</p>
-          <p class="lp-weblogin"><button type="button" class="linkbtn" data-auth-go="login">Already have an account? Sign in on the web</button></p>
-          <p class="coffee-wrap" data-coffee-wrap hidden><button type="button" class="coffee" data-support>💛 Support me</button></p>
-        </footer>
-      </div>
-    </section>
-  </main>
+<div class="lang-row" data-lang-picker>
+</div>
+</details>
+</footer>
+</main>
 
   <!-- LOGIN / SIGN UP / FORGOT -->
   <main id="scr-auth" class="gate" hidden>
@@ -3239,6 +3270,7 @@ dialog::backdrop{background:var(--backdrop)}
 <script src="/i18n.js" defer></script>
 <script src="/app.js" defer></script>
 <script src="/lp.js" defer></script>
+<script src="/landing.js" defer></script>
 <script src="/halloween.js" defer></script>
 </body>
 </html>
