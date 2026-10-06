@@ -1,17 +1,13 @@
 # Honeybun for iPhone
 
-A native iOS shell (Capacitor) around https://honeybun.me, the same way the Windows app works: the website
-updates itself, so most changes never need a new App Store build. Native pieces live in `ios/App/App`:
+Honeybun launches into native SwiftUI authentication and budgeting screens in
+`ios/App/HoneybunSwiftUI`. The Capacitor website remains an optional Classic fallback.
+Native changes require a new app build; a website update does not update native screens.
 
-- `BiometricLock.swift`: Face ID / passcode lock (honeybun.me shows the switch in Settings inside this app only).
-- `MainViewController.swift`: registers the plugins.
-- `HoneybunNative.swift`: gives the widget and Siri this phone's own token (made by honeybun.me after you sign in).
-- `HoneybunIntents.swift`: Siri shortcuts ("log an expense", "how much is left").
-- `HoneybunWidget/`: home-screen and lock-screen widgets (they fetch /api/app/summary themselves).
-- `Shared/`: code used by both the app and the widget.
-- `App.entitlements`: Push Notifications and the App Group `group.me.honeybun.app`.
-
-`scripts/setup_native.rb` adds those to the Xcode project (widget target, entitlements). It is already applied in this repo and is safe to run again.
+The project also includes Face ID/passcode locking, StoreKit consumable tips, Siri
+shortcuts, widgets, push notification integration and shared app-group storage.
+`scripts/setup_native.rb` registers the native sources and widget target in Xcode.
+Backend and Apple service configuration must be verified separately from source presence.
 
 ## Build it (needs a Mac with Xcode)
 
@@ -48,14 +44,27 @@ Once you have an Apple Developer account, GitHub's Mac servers can build, sign a
    - `ASC_KEY_ID`: the key id
    - `ASC_ISSUER_ID`: the issuer id
    - `ASC_KEY_P8`: the full text of the `.p8` file, including the BEGIN and END lines
-4. GitHub, Actions, **iPhone app (TestFlight)**, **Run workflow**. About 10 minutes later the build appears in App Store Connect, TestFlight. Install the TestFlight app on your iPhone, add yourself as an internal tester and open it.
+4. After validating and committing the intended release candidate, select its branch in GitHub Actions, **iPhone app (TestFlight)**, **Run workflow**. This workflow signs and uploads immediately; it is not a signing-only check. Wait for Apple processing and verify the build in App Store Connect before installing it through TestFlight on a physical iPhone.
 
 Each run gets a new build number automatically.
 
-## Before the App Store
+## Honeybun 1.0 release gates
 
-1. Apple Developer account ($99/year), then create the app record (bundle id `me.honeybun.app`).
-2. Apple wants more than a website in a frame. This app has a Face ID lock; add home-screen widgets,
-   real push notifications (Push Notifications capability) and Siri shortcuts before submitting.
-3. Paid upgrades inside the app must use Apple In-App Purchase (StoreKit), not Stripe.
-4. Privacy details: the app collects email and budget entries. Add a privacy policy URL (honeybun.me/privacy) and an account-deletion option (Settings already has one).
+- Freeze features and preserve the native UI. Run the existing backend, Swift,
+  project, simulator UI and Release archive checks on the selected candidate.
+- Verify production backend alignment, authentication, email, APNs and Sign in
+  with Apple configuration. Local tests do not prove production service readiness.
+- Confirm signing for `me.honeybun.app` and `me.honeybun.app.widget`, including
+  `group.me.honeybun.app`, associated domains, Sign in with Apple and production APNs.
+- The optional tip jar uses three consumable StoreKit products:
+  `me.honeybun.app.tip.small`, `.medium` and `.large`. Verify their App Store Connect
+  configuration and submission status, and test purchases in TestFlight.
+- Test the final TestFlight build on supported physical devices. Record launch,
+  typical use, registration, login, account deletion and the tip flow on a physical
+  device running the latest OS, as Apple requested. Simulator footage is insufficient.
+- Supply working review credentials, actual-app screenshots and all six requested
+  review disclosures. Add the same information to App Review Notes and the response.
+- Complete accurate privacy and age-rating questionnaires. Verify the age rating
+  against the minimum age in the Terms; do not blindly answer None to every question.
+
+Uploading, deployment and App Review submission require explicit release authorization.

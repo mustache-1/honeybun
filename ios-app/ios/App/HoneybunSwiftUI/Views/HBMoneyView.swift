@@ -170,6 +170,7 @@ struct HBMoneyView: View {
             Divider().background(HB.line).padding(.leading, 64)
             moreRow("Stats & year", "Your year, 50/30/20, badges and your monthly recap", "chart.pie.fill", id: "hb-money-stats") { store.sheet = .stats }
         }.hbCard()
+        .accessibilityElement(children: .contain).accessibilityIdentifier("hb-last-card")
     }
     private func moreRow(_ title: String, _ sub: String, _ symbol: String, id: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
@@ -238,6 +239,6 @@ struct HBMoneyView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(LinearGradient(colors: [Color(red: 0.24, green: 0.15, blue: 0.14), Color(red: 0.13, green: 0.09, blue: 0.14)], startPoint: .leading, endPoint: .trailing)))
         .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).stroke(HB.orange.opacity(0.28), lineWidth: 1))
-        .accessibilityElement(children: .combine).accessibilityIdentifier("hb-last-card")
+        .accessibilityElement(children: .combine)
     }
 }

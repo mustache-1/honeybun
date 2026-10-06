@@ -40,7 +40,7 @@ Face ID lock, home-screen and lock-screen widgets, Siri shortcuts, and your data
 PRIVATE BY DESIGN
 No ads and we never sell your data. Download or delete everything any time in Settings.
 
-Available in English, Spanish and Chinese.
+The native iPhone interface is in English. The Classic web experience also supports Spanish and Chinese.
 
 Questions? help@honeybun.me
 
@@ -58,10 +58,11 @@ Primary: Finance
 Secondary: Lifestyle   (or Productivity)
 
 PRICING AND AVAILABILITY
-Price: Free (Tier 0). All countries/regions you want. No in-app purchases yet.
+Price: Free (Tier 0). Confirm selected countries/regions in App Store Connect.
+Optional consumable tips use StoreKit: me.honeybun.app.tip.small, me.honeybun.app.tip.medium, me.honeybun.app.tip.large. Tips do not unlock budgeting features. Verify product configuration and review status before submission.
 
 AGE RATING (questionnaire)
-Answer "None" to every content question. This gives 4+. (Your Terms say users must be 13+; that's fine.)
+Complete the current questionnaire accurately. The Terms require users to be at least 13; verify the resulting rating and use the appropriate higher-age override where required. Do not assume a 4+ rating is compatible with that minimum.
 
 APP PRIVACY (the "nutrition label")
 Data Collected, all "Linked to the user", none used for tracking:
@@ -74,11 +75,13 @@ Used for: App Functionality only.
 "Do you or your third-party partners use data for tracking?" -> No.
 
 APP REVIEW INFORMATION
-Sign-in required: Yes. Create a demo account in the app first and enter its username and password here.
-(Tip: sign up in the app with username `appreview` and a password, add a few entries, then paste those details.)
-Contact: your name, phone and email.
-Notes for the reviewer:
-"Honeybun is a budgeting app for individuals, couples and families. It does not connect to bank accounts. Sign in with the demo account above. Face ID lock is optional (Settings). Account deletion is in Settings > Delete account. The app loads honeybun.me content inside a native shell with a native tab bar, Face ID lock, widgets and Siri shortcuts."
+Sign-in required: Yes. Provide a verified demo account with representative sample budget data in App Store Connect's credential fields. Do not include passwords in this repository.
+Contact: the developer's verified name, phone and email.
+Notes for the reviewer (complete recording link, build identity and service/region verification before posting):
+Honeybun is a manual budgeting app for individuals, couples and families. It helps users track income, spending, bills, goals, debt payoff and shared household costs without connecting a bank account. Its core iPhone flows use native SwiftUI screens; Classic is an optional web fallback.
+Sign in with the supplied demo account. Use Home, Money, Goals and Together to explore the seeded budget. Open Settings from Home for optional app locking, data export, account deletion and Support Honeybun. Optional StoreKit tips support development and do not unlock paid budgeting features.
+Attach the physical-device recording and all six requested disclosures to both the App Review response and these Notes. The recording must begin at app launch and demonstrate typical use, registration, login, account deletion and the optional purchase flow. Record the final TestFlight build on a physical device running the latest OS after completing physical-device QA.
+External services implemented in the repository: Cloudflare Workers and D1 for the backend/database, Resend for email, Apple Sign in with Apple, APNs, StoreKit, widgets and Siri/App Intents; browser push uses Web Push. Confirm which services are enabled in production. No external AI provider was identified in the reviewed backend; insights are implemented in app/backend logic. Verify regional availability and any rights/regulatory disclosures before posting.
 
 EXPORT COMPLIANCE
 The app only uses standard HTTPS encryption (already declared in the build), so answer that it uses exempt/standard encryption.

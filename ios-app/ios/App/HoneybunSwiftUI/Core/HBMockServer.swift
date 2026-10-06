@@ -699,6 +699,11 @@ final class HBMockServer: URLProtocol {
 
     private static func handle(_ method: String, _ path: String, _ body: [String: Any], _ query: [String: String]) -> (Int, Any) {
         lock.lock(); defer { lock.unlock() }
+        // UI seeds represent a signed-in household, so native startup must be able to load its account.
+        if path == "/api/me" && method == "GET" {
+            let nest = state["nest"] as? [String: Any] ?? [:]
+            return (200, ["user": state["me"] ?? NSNull(), "nest_id": nest["id"] ?? NSNull()])
+        }
         if let r = handleTogether(method, path, body, query) { return r }
         if let r = handlePlan(method, path, body, query) { return r }
         var goals = state["goals"] as? [[String: Any]] ?? []
