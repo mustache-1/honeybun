@@ -1,39 +1,99 @@
 import SwiftUI
 
-// Home: "Heads up from Bun" (budget warnings, price changes, forecast, quiet-day nudge), the "confirm your email" reminder, and the offline /
-// waiting-to-sync notices. The rules live in HBHeadsUp.swift; this is only how they look.
+// Home: "From Bun" (the ranked insights: budget warnings, price changes, forecast, pace, bills, debts, goals, together; plus the quiet-day nudge),
+// the "confirm your email" reminder, and the offline / waiting-to-sync notices. The rules live in HBInsights.swift (and HBHeadsUp.swift for the
+// original Heads-up rules it reuses); this is only how they look.
 
+@available(iOS 15.0, *)
+extension HBAppStore {
+    /// everything Bun's insight engine reads (the month's entries as Home counts them, last month's facts, Debt Center+'s settings)
+    var insightContext: HBInsightContext? {
+        guard let s = snapshot else { return nil }
+        return HBInsightContext(snapshot: s, entries: entries, month: month, today: HBDay.startOfToday(), myID: myID, me: member(myID), prev: prevMonth,
+                                strategy: HBDebtPrefs.strategy(), extra: HBDebtPrefs.extra())
+    }
+    /// the one line under Home's Safe to Spend number
+    var safeLine: String? { insightContext.flatMap { HBInsights.safeLine($0) } }
+}
+
+/// "From Bun" on Home: the few insights that matter right now (ranked by HBInsights), plus the quiet-day nudge. "Why am I seeing this?" shows the
+/// numbers behind each one. The rules and ranking live in HBInsights.swift; this is only how they look.
 @available(iOS 15.0, *)
 struct HBHeadsUpSection: View {
     @ObservedObject var store: HBAppStore
-    @State private var seen = HBHeadsUpRules.seen()
+    @State private var memory = HBInsightMemory.load()        // the ranking is worked out against what was known when Home opened
+    @State private var priceSeen = HBHeadsUpRules.seen()
+    @State private var why: Set<String> = []
 
-    private var data: HBHeadsUp? {
+    private var plan: HBInsightPlan? {
+        guard var c = store.insightContext else { return nil }
+        c.memory = memory; c.priceSeen = priceSeen
+        return HBInsights.home(c)
+    }
+    private var shownIDs: [String] { plan?.shown.map { $0.id } ?? [] }
+    private var sleepyDays: Int? {
         guard let s = store.snapshot else { return nil }
-        let forecast = HBPlan.forecast(s, month: store.month, myID: store.myID, lastMonthSpent: store.prevSpent)
-        return HBHeadsUpRules.compute(s, month: store.month, me: store.member(store.myID), seen: seen, forecast: forecast)
+        return HBHeadsUpRules.compute(s, month: store.month, me: store.member(store.myID), seen: priceSeen, forecast: .notThisMonth).sleepyDays
     }
 
     var body: some View {
-        if let d = data, !d.isEmpty {
+        let p = plan
+        let sleepy = sleepyDays
+        if sleepy != nil || !(p?.shown.isEmpty ?? true) {
             VStack(alignment: .leading, spacing: 10) {
-                if let days = d.sleepyDays { sleepy(days) }
-                if !d.rows.isEmpty {
-                    HBSectionHeader(title: "Heads up from Bun")
+                if let days = sleepy { sleepyCard(days) }
+                if let p = p, !p.shown.isEmpty {
+                    HBSectionHeader(title: "From Bun")
                     VStack(spacing: 0) {
-                        ForEach(Array(d.rows.enumerated()), id: \.element.id) { i, row in
+                        ForEach(Array(p.shown.enumerated()), id: \.element.id) { i, ins in
                             if i > 0 { Divider().background(HB.line).padding(.leading, 62) }
-                            rowView(row)
+                            row(ins)
                         }
                     }
                     .hbCard()
                     .accessibilityElement(children: .contain).accessibilityIdentifier("hb-heads-up")
+                    if !p.more.isEmpty {
+                        Button { store.sheet = .insights } label: {
+                            Text("More from Bun (\(p.more.count))").font(.system(size: 14, weight: .semibold)).foregroundColor(Color(red: 0.72, green: 0.68, blue: 0.9))
+                                .frame(maxWidth: .infinity, minHeight: 36)
+                        }
+                        .accessibilityIdentifier("hb-insights-more")
+                    }
                 }
             }
+            .onAppear { record(p) }
+            .onChange(of: shownIDs) { _ in record(plan) }
         }
     }
 
-    private func sleepy(_ days: Int) -> some View {
+    /// counts today as a day each of these was on Home (the ranking above isn't touched until Home opens again)
+    private func record(_ p: HBInsightPlan?) {
+        guard let p = p else { return }
+        var m = HBInsightMemory.load()
+        m.markShown(p.shown.map { $0.id }, day: HBDay.todayString)
+        m.save()
+    }
+
+    private func dismiss(_ i: HBInsight) {
+        var m = HBInsightMemory.load()
+        m.dismiss(i.id); m.save()
+        memory = m
+        if let key = i.dismissKey { HBHeadsUpRules.dismiss(key); priceSeen = HBHeadsUpRules.seen() }
+    }
+
+    private func open(_ i: HBInsight) {
+        switch i.kind {
+        case .forecast, .budget, .pace, .debt: store.sheet = .plan
+        case .comparison: store.sheet = .stats
+        case .safeToSpend: store.sheet = .allTransactions
+        case .bills, .recurring: store.sheet = .upcoming
+        case .goal: store.selectedTab = .goals
+        case .together: store.selectedTab = .together
+        case .onboarding: store.sheet = .newEntry("expense")
+        }
+    }
+
+    private func sleepyCard(_ days: Int) -> some View {
         HStack(spacing: 12) {
             HBCircleIcon(symbol: "moon.zzz.fill", tint: Color(red: 0.62, green: 0.58, blue: 1), size: 44)
             VStack(alignment: .leading, spacing: 3) {
@@ -48,44 +108,122 @@ struct HBHeadsUpSection: View {
         .accessibilityElement(children: .contain).accessibilityIdentifier("hb-sleepy")
     }
 
-    @ViewBuilder private func icon(_ r: HBHeadsUpRow) -> some View {
-        switch r.kind {
-        case let .budget(category, _): HBCatIcon(style: HBCatStyle.of(category), size: 40)
-        case .priceUp: HBCircleIcon(symbol: "chart.line.uptrend.xyaxis", tint: HB.red, size: 40)
-        case .priceDown: HBCircleIcon(symbol: "arrow.down.right", tint: HB.green, size: 40)
-        case let .forecast(short): HBCircleIcon(symbol: short ? "exclamationmark.triangle.fill" : "sparkles", tint: short ? HB.red : HB.orange, size: 40)
+    private func row(_ i: HBInsight) -> some View {
+        HBInsightRow(insight: i, showWhy: why.contains(i.id), onOpen: { open(i) }, onDismiss: { dismiss(i) },
+                     onToggleWhy: { if why.contains(i.id) { why.remove(i.id) } else { why.insert(i.id) } })
+    }
+}
+
+/// one insight: icon, what Bun says, a "why" you can open, and a dismiss
+@available(iOS 15.0, *)
+struct HBInsightRow: View {
+    let insight: HBInsight
+    let showWhy: Bool
+    var onOpen: () -> Void = {}
+    var onDismiss: (() -> Void)? = nil
+    var onToggleWhy: (() -> Void)? = nil
+
+    private var tint: Color {
+        switch insight.tone {
+        case .positive: return HB.green
+        case .neutral: return HB.orange
+        case .watch: return Color(red: 1, green: 0.78, blue: 0.4)
+        case .warning: return HB.red
+        }
+    }
+    private var symbol: String {
+        switch insight.kind {
+        case .forecast: return insight.tone == .warning ? "exclamationmark.triangle.fill" : "sparkles"
+        case .safeToSpend: return "dollarsign.circle.fill"
+        case .budget, .pace: return "clock.fill"
+        case .comparison: return insight.tone == .positive ? "arrow.down.right" : "arrow.up.right"
+        case .bills: return "calendar"
+        case .recurring: return "chart.line.uptrend.xyaxis"
+        case .debt: return "creditcard.fill"
+        case .goal: return "flag.fill"
+        case .together: return "person.2.fill"
+        case .onboarding: return "sparkles"
         }
     }
 
-    private func rowView(_ r: HBHeadsUpRow) -> some View {
-        HStack(spacing: 12) {
-            Button { if r.dismissKey == nil { store.sheet = .plan } } label: {
-                HStack(spacing: 12) {
-                    icon(r)
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(r.title).font(.system(size: 16, weight: .semibold)).foregroundColor(.white).fixedSize(horizontal: false, vertical: true)
-                        if case let .budget(_, ratio) = r.kind {
-                            GeometryReader { g in ZStack(alignment: .leading) {
-                                Capsule().fill(Color.black.opacity(0.28))
-                                Capsule().fill(ratio > 1 ? HB.red : HB.orange).frame(width: max(6, g.size.width * CGFloat(min(1, ratio))))
-                            } }.frame(height: 6)
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .top, spacing: 12) {
+                Button(action: onOpen) {
+                    HStack(alignment: .top, spacing: 12) {
+                        if let cat = insight.category { HBCatIcon(style: HBCatStyle.of(cat), size: 40) }
+                        else { HBCircleIcon(symbol: symbol, tint: tint, size: 40) }
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(insight.title).font(.system(size: 16, weight: .semibold)).foregroundColor(.white).fixedSize(horizontal: false, vertical: true)
+                            if let ratio = insight.ratio {
+                                GeometryReader { g in ZStack(alignment: .leading) {
+                                    Capsule().fill(Color.black.opacity(0.28))
+                                    Capsule().fill(ratio > 1 ? HB.red : HB.orange).frame(width: max(6, g.size.width * CGFloat(min(1, ratio))))
+                                } }.frame(height: 6)
+                            }
+                            Text(insight.note).font(.system(size: 13)).foregroundColor(insight.tone == .warning ? HB.red.opacity(0.95) : HB.soft).fixedSize(horizontal: false, vertical: true)
                         }
-                        Text(r.note).font(.system(size: 13)).foregroundColor(r.kind == .forecast(short: true) ? HB.red : HB.soft).fixedSize(horizontal: false, vertical: true)
+                        Spacer(minLength: 0)
                     }
-                    Spacer(minLength: 0)
-                    if r.dismissKey == nil { Image(systemName: "chevron.right").font(.system(size: 12, weight: .bold)).foregroundColor(HB.soft) }
+                    .contentShape(Rectangle())
                 }
-                .contentShape(Rectangle())
+                .buttonStyle(.plain)
+                if let onDismiss = onDismiss {
+                    Button(action: onDismiss) { Image(systemName: "xmark").font(.system(size: 12, weight: .bold)).foregroundColor(HB.soft).frame(width: 32, height: 32) }
+                        .accessibilityLabel("Dismiss").accessibilityIdentifier("hb-insight-dismiss")
+                }
             }
-            .buttonStyle(.plain)
-            if let key = r.dismissKey {
-                Button { HBHeadsUpRules.dismiss(key); seen = HBHeadsUpRules.seen() } label: {
-                    Image(systemName: "xmark").font(.system(size: 12, weight: .bold)).foregroundColor(HB.soft).frame(width: 32, height: 32)
+            if let toggle = onToggleWhy {
+                Button(action: toggle) {
+                    Text(showWhy ? "Hide" : "Why am I seeing this?").font(.system(size: 12, weight: .semibold)).foregroundColor(Color(red: 0.72, green: 0.68, blue: 0.9))
                 }
-                .accessibilityLabel("Dismiss").accessibilityIdentifier("hb-headsup-dismiss")
+                .padding(.leading, 52).accessibilityIdentifier("hb-insight-why")
+            }
+            if showWhy {
+                VStack(alignment: .leading, spacing: 2) {
+                    ForEach(insight.trace.explanation(), id: \.self) { line in
+                        Text(line).font(.system(size: 12)).foregroundColor(HB.soft).fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .padding(.leading, 52)
             }
         }
         .padding(.horizontal, 14).padding(.vertical, 10)
+        .accessibilityIdentifier("hb-insight-" + insight.id)
+    }
+}
+
+/// everything Bun noticed, with the numbers behind each note
+@available(iOS 15.0, *)
+struct HBInsightsSheet: View {
+    @ObservedObject var store: HBAppStore
+    @Environment(\.dismiss) private var dismiss
+
+    private var all: [HBInsight] {
+        guard var c = store.insightContext else { return [] }
+        c.memory = HBInsightMemory.load()
+        let p = HBInsights.home(c)
+        return p.shown + p.more
+    }
+
+    var body: some View {
+        HBSheetScaffold(title: "From Bun", onBack: { dismiss() }) {
+            let items = all
+            if items.isEmpty {
+                Text("Nothing to flag right now. Bun will say something when your numbers give it a reason to.").font(.system(size: 15)).foregroundColor(HB.soft)
+                    .padding(16).frame(maxWidth: .infinity, alignment: .leading).hbCard()
+            } else {
+                VStack(spacing: 0) {
+                    ForEach(Array(items.enumerated()), id: \.element.id) { i, ins in
+                        if i > 0 { Divider().background(HB.line).padding(.leading, 62) }
+                        HBInsightRow(insight: ins, showWhy: true, onOpen: {})
+                    }
+                }
+                .hbCard()
+            }
+            Text("Bun's notes are worked out from the numbers you've entered in Honeybun, using the same rules every time. They're for budgeting and planning, not financial advice, and projections are estimates.")
+                .font(.footnote).foregroundColor(HB.soft).fixedSize(horizontal: false, vertical: true)
+        }
     }
 }
 

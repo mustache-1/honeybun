@@ -90,6 +90,7 @@
 		39C105FA33AB67D4E59AF4D6 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 62E3DA521F78C57F849D7056 /* PrivacyInfo.xcprivacy */; };
 		3E806FF04DA53E86E88DE4EF /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = A12A1B398A0100639370938D /* PrivacyInfo.xcprivacy */; };
 		F5B09F2CFDA133C78E2644E9 /* HBDebtCenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62942972E0CE4EED73F9258F /* HBDebtCenter.swift */; };
+		580619A95BC8809EC32EDEFE /* HBInsights.swift in Sources */ = {isa = PBXBuildFile; fileRef = 286A8B091977547E36DA0C01 /* HBInsights.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -206,6 +207,7 @@
 		62E3DA521F78C57F849D7056 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		A12A1B398A0100639370938D /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		62942972E0CE4EED73F9258F /* HBDebtCenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HBDebtCenter.swift; sourceTree = "<group>"; };
+		286A8B091977547E36DA0C01 /* HBInsights.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HBInsights.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -365,6 +367,7 @@
 				3CCD1AD68186D27376DAD05E /* HBPasskeyKit.swift */,
 				BE963011E90DC814C770263A /* HBPendingQueue.swift */,
 				1FB68304301832EA649F132D /* HBPlan.swift */,
+				286A8B091977547E36DA0C01 /* HBInsights.swift */,
 				6FBE7F07FCEFE72D3B2D2F6E /* HBPlanAPI.swift */,
 				EA85F25FAA32C83873820826 /* HBPlatformAuth.swift */,
 				0DB696AF552A9D32BB46F290 /* HBPreview.swift */,
@@ -608,6 +611,7 @@
 				3031E7423212B84439AA850B /* HBPasskeyKit.swift in Sources */,
 				9BD219C37A19A402893EB2B6 /* HBPendingQueue.swift in Sources */,
 				996E2A45201B74108143C706 /* HBPlan.swift in Sources */,
+				580619A95BC8809EC32EDEFE /* HBInsights.swift in Sources */,
 				4C718AB657C67AA6A855F435 /* HBPlanAPI.swift in Sources */,
 				A18980A60AFABEC8CD38C7BC /* HBPlatformAuth.swift in Sources */,
 				84C73FC80269026F3A163B38 /* HBPreview.swift in Sources */,

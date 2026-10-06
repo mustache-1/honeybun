@@ -3,7 +3,7 @@ import SwiftUI
 
 enum HBSheet: Identifiable {
     case newEntry(String), editEntry(HBEntry), editRecurring(HBRecurring), newRecurring, upcoming, allTransactions, goalDetail(String), goalForm(String?)
-    case carryChange, settle(String, String), fairShare, household(Bool), shopping, search, editMe, carry, account, plan, stats, referrals
+    case carryChange, settle(String, String), fairShare, household(Bool), shopping, search, editMe, carry, account, plan, stats, referrals, insights
     var id: String {
         switch self {
         case let .newEntry(t): return "new-" + t
@@ -26,6 +26,7 @@ enum HBSheet: Identifiable {
         case .plan: return "plan"
         case .stats: return "stats"
         case .referrals: return "referrals"
+        case .insights: return "insights"
         }
     }
 }
@@ -66,6 +67,7 @@ enum HBTab: String, CaseIterable { case home = "Home", money = "Money", goals = 
     @Published var shopState: ShopState = .idle
     @Published var prevSpent: Double?   // last month's spending, for the Money insight card
     @Published var prevDaily: [Int: Double] = [:]   // last month's spending by day of month, for the chart
+    @Published var prevMonth: HBPrevMonth?          // last month's expenses as small facts (no labels), for Bun's "same point last month" notes
 
     // MARK: offline (entries made with no connection wait on this iPhone, see HBPendingQueue)
     @Published var pending: [HBPendingEntry] = []     // waiting for THIS account in THIS budget
@@ -168,9 +170,10 @@ enum HBTab: String, CaseIterable { case home = "Home", money = "Money", goals = 
     /// Everything from the old household is dropped before the new state loads, so none of it can show up on screen (you stay signed in).
     private func householdChanged() async {
         sheet = nil; selectedTab = .home; month = HBDay.monthKey()
-        snapshot = nil; inboxMessages = []; inboxState = .idle; shopping = []; shopState = .idle; prevSpent = nil; prevDaily = [:]
+        snapshot = nil; inboxMessages = []; inboxState = .idle; shopping = []; shopState = .idle; prevSpent = nil; prevDaily = [:]; prevMonth = nil
         pending = []; heldElsewhere = 0
         HBOfflineCache.shared.clear()
+        HBInsightMemory.clear()
         onboardingDone = false
         await start()
     }
@@ -251,7 +254,8 @@ enum HBTab: String, CaseIterable { case home = "Home", money = "Money", goals = 
         HBAppLock.shared.reset()
         HoneybunDevice.clearLocal()
         snapshot = nil; account = nil; sheet = nil; selectedTab = .home; month = HBDay.monthKey()
-        inboxMessages = []; inboxState = .idle; shopping = []; shopState = .idle; prevSpent = nil; prevDaily = [:]
+        inboxMessages = []; inboxState = .idle; shopping = []; shopState = .idle; prevSpent = nil; prevDaily = [:]; prevMonth = nil
+        HBInsightMemory.clear()   // what Bun showed or you dismissed belongs to the account that just left
         onboardingDone = false
         phase = .signedOut
     }
@@ -274,7 +278,8 @@ enum HBTab: String, CaseIterable { case home = "Home", money = "Money", goals = 
             let out = p.entries.filter { !$0.isIncome }
             prevSpent = out.reduce(0) { $0 + $1.amount }
             prevDaily = HBChartMath.dailyExpenses(out)
-        } else { prevSpent = nil; prevDaily = [:] }
+            prevMonth = HBPrevMonth(month: prev, entries: p.entries)
+        } else { prevSpent = nil; prevDaily = [:]; prevMonth = nil }
     }
 
     /// the last 12 months, newest first, for the month menu

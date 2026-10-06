@@ -78,7 +78,7 @@ struct HBPlanView: View {
                 Text("Bun needs a few days of spending to guess where the month is heading.").font(.footnote).foregroundColor(HB.soft)
             }
             .padding(16).frame(maxWidth: .infinity, alignment: .leading).hbCard()
-        case let .ready(f): HBForecastCard(f: f)
+        case let .ready(f): HBForecastCard(f: f, extra: store.insightContext.map { HBInsights.forecastNotes($0) } ?? [])
         }
     }
 
@@ -331,6 +331,7 @@ struct HBPlanView: View {
 @available(iOS 15.0, *)
 struct HBForecastCard: View {
     let f: HBForecast
+    var extra: [String] = []     // Phase 7: what is behind the projection and what would change it (HBInsights.forecastNotes)
     var body: some View {
         let neg = f.endLeft < 0
         VStack(alignment: .leading, spacing: 10) {
@@ -362,7 +363,7 @@ struct HBForecastCard: View {
         if let r = f.risky { out.append("\(HBCatStyle.of(r.category).label) is on pace to hit \(HBFormat.money(r.projected).replacingOccurrences(of: ".00", with: "")) of your \(HBFormat.money(r.limit).replacingOccurrences(of: ".00", with: "")) budget.") }
         if f.daysLeft > 1 { out.append("Cut \(HBFormat.money(f.saveEach).replacingOccurrences(of: ".00", with: "")) a day and you'd end with \(HBFormat.money(f.saveEnd)).") }
         if let p = f.vsLastMonthPct { out.append("Spending is on pace to be \(abs(p))% \(p <= 0 ? "lower" : "higher") than last month.") }
-        return out
+        return out + extra
     }
     private func row(_ l: String, _ v: String) -> some View {
         HStack { Text(l).font(.system(size: 14)).foregroundColor(HB.soft); Spacer(); Text(v).font(.system(size: 14, weight: .semibold).monospacedDigit()).foregroundColor(.white) }

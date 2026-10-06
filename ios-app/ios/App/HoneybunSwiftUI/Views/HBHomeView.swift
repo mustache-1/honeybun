@@ -139,6 +139,10 @@ struct HBHomeView: View {
                 HBMonthMenu(store: store)
             }
             .padding(.top, max(0, 6))
+            if let line = store.safeLine {
+                Text(line).font(.system(size: 14)).foregroundColor(Color(red: 0.98, green: 0.92, blue: 0.84).opacity(0.9))
+                    .fixedSize(horizontal: false, vertical: true).accessibilityIdentifier("hb-safe-line")
+            }
             GeometryReader { g in
                 ZStack(alignment: .leading) {
                     Capsule().fill(Color.black.opacity(0.28))

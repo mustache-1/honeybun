@@ -126,6 +126,7 @@ struct HBRootView: View {
         case .plan: HBPlanView(store: store)
         case .stats: HBStatsView(store: store)
         case .referrals: HBReferralsView(store: store)
+        case .insights: HBInsightsSheet(store: store)
         }
     }
 }
