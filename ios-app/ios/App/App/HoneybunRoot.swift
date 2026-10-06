@@ -117,6 +117,12 @@ enum HoneybunPush {
         Task {
             let s = await authorization()
             guard s == .authorized || s == .provisional || s == .ephemeral else { return }
+            // A registration callback may arrive before session restoration. Re-send the saved
+            // token after sign-in as well, so this installation follows the current account.
+            if #available(iOS 15.0, *), HBSession.hasSessionCookie, let token = savedToken {
+                do { try await registerSavedToken(token) }
+                catch { NSLog("Honeybun push registration failed: %@", error.localizedDescription) }
+            }
             await MainActor.run { UIApplication.shared.registerForRemoteNotifications() }
         }
     }
@@ -157,12 +163,30 @@ enum HoneybunPush {
         _ = try? await HBAPI.shared.send("/api/push/apns", method: "DELETE", body: ["token": t])
     }
 
+    @available(iOS 15.0, *)
+    static func registerSavedToken(_ token: String) async throws {
+        _ = try await HBAPI.shared.send("/api/push/apns", method: "POST", body: ["token": token])
+    }
+
+    @available(iOS 15.0, *)
+    static func prepareTest() async throws -> String {
+        guard let token = savedToken else {
+            refreshIfAllowed()
+            throw HBAPIError.http(0, "This iPhone is still registering for notifications. Wait a few seconds and try again.")
+        }
+        try await registerSavedToken(token)
+        return token
+    }
+
     /// iOS handed us a token: remember it, and send it to the signed-in account (unless it was turned off here).
     static func upload(_ token: Data) {
         let hex = token.map { String(format: "%02x", $0) }.joined()
         UserDefaults.standard.set(hex, forKey: tokenKey)
         guard #available(iOS 15.0, *), HBSession.hasSessionCookie, !userTurnedOff else { return }
-        Task { _ = try? await HBAPI.shared.send("/api/push/apns", method: "POST", body: ["token": hex]) }
+        Task {
+            do { try await registerSavedToken(hex) }
+            catch { NSLog("Honeybun push registration failed: %@", error.localizedDescription) }
+        }
     }
 }
 

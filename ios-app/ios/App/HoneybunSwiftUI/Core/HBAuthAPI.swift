@@ -126,8 +126,8 @@ extension HBAPI {
     /// email reminders: key is mail_bills, mail_streak or mail_weekly (PATCH /api/me, the same call Classic makes)
     func setMailReminder(_ key: String, on: Bool) async throws { _ = try await send("/api/me", method: "PATCH", body: [key: on]) }
     /// asks the backend to send this account a test push; returns its message
-    func sendTestPush() async throws -> String {
-        let data = try await send("/api/push/test", method: "POST", body: nil)
+    func sendTestPush(token: String? = nil) async throws -> String {
+        let data = try await send("/api/push/test", method: "POST", body: token.map { ["token": $0] })
         let o = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
         return (o?["message"] as? String) ?? ((o?["ok"] as? Bool) == true ? "Sent!" : "Something went wrong.")
     }

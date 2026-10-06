@@ -58,12 +58,12 @@ struct HBMoneyView: View {
                     sum("Income", store.income, HB.green, "arrow.up")
                     sum("Expenses", store.spent, HB.red, "arrow.down")
                 }
+                moreCard
                 chart
                 categories
                 if let n = store.notice { Text(n).font(.footnote).foregroundColor(HB.red).onTapGesture { store.notice = nil } }
                 carryCard
-                insight
-                moreCard
+                insight.accessibilityIdentifier("hb-last-card")
             }
             .frame(maxWidth: 560)
             .padding(.horizontal, HB.gutter).padding(.top, 8)
@@ -170,7 +170,7 @@ struct HBMoneyView: View {
             Divider().background(HB.line).padding(.leading, 64)
             moreRow("Stats & year", "Your year, 50/30/20, badges and your monthly recap", "chart.pie.fill", id: "hb-money-stats") { store.sheet = .stats }
         }.hbCard()
-        .accessibilityElement(children: .contain).accessibilityIdentifier("hb-last-card")
+        .accessibilityElement(children: .contain).accessibilityIdentifier("hb-money-navigation")
     }
     private func moreRow(_ title: String, _ sub: String, _ symbol: String, id: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {

@@ -18,6 +18,9 @@ struct HBAccountView: View {
     @State private var error: String?
     @State private var info: String?
     @State private var busy = false
+    @State private var testingPush = false
+    @State private var pushInfo: String?
+    @State private var pushError: String?
     @State private var confirmLogout = false
     @State private var confirmNewCode = false
     @State private var newCode: String?
@@ -284,7 +287,8 @@ struct HBAccountView: View {
             }
             if pushAllowed {
                 if hasEmail { Divider().background(HB.line) }
-                HBPillButton(title: busy ? "Sending…" : "Send me a test notification", symbol: "bell.badge", filled: false) { testPush() }.disabled(busy)
+                HBPillButton(title: testingPush ? "Sending…" : "Send me a test notification", symbol: "bell.badge", filled: false) { testPush() }.disabled(busy || testingPush)
+                HBAuthNote(error: pushError, info: pushInfo)
             }
         }
         .padding(16).frame(maxWidth: .infinity, alignment: .leading).hbCard()
@@ -439,7 +443,17 @@ struct HBAccountView: View {
     }
     private func loadPush() async { pushStatus = await HoneybunPush.authorization() }
     private func leave() { run { try await store.leaveBudget() } }
-    private func testPush() { run { info = try await HBAPI.shared.sendTestPush() } }
+    private func testPush() {
+        testingPush = true; pushInfo = nil; pushError = nil
+        Task {
+            defer { testingPush = false }
+            do {
+                let token = try await HoneybunPush.prepareTest()
+                pushInfo = try await HBAPI.shared.sendTestPush(token: token)
+            }
+            catch { pushError = error.localizedDescription }
+        }
+    }
     private func run(_ work: @escaping () async throws -> Void) {
         busy = true; error = nil; info = nil
         Task {

@@ -132,6 +132,7 @@ enum HBTab: String, CaseIterable { case home = "Home", money = "Money", goals = 
             account = me.user
             usingCache = got.cached
             if !got.cached {
+                if me.user != nil { HoneybunPush.refreshIfAllowed() }
                 await HBSession.mirrorToWebView()     // keeps the Classic fallback signed in too
                 Task { await HoneybunDevice.ensureAppToken() }   // the widget and Siri need this phone's token
             }

@@ -1,3 +1,6 @@
+Warning: truncated output (original token count: 43387)
+Total output lines: 2262
+
 // Honeybun API — Cloudflare Worker + D1
 // Static files in /public are served automatically; this Worker only handles /api/*.
 
@@ -1021,167 +1024,7 @@ async function handle(request, env, url) {
     if (await limited(env, "pklogin:" + ip, 60, 900)) throw new HttpError("Too many tries. Wait 15 minutes.", 429);
     await recordAttempt(env, "pklogin:" + ip);
     const id = cleanText(body.id, 1024);
-    const pk = await env.DB.prepare("SELECT id, user_id, public_key, alg, counter FROM passkeys WHERE id = ?").bind(id).first();
-    if (!pk) throw new HttpError("That passkey isn't registered here. Log in with your password and add it in Settings.", 404);
-    const clientData = fromB64u(String(body.clientDataJSON || "")), authData = fromB64u(String(body.authenticatorData || "")), sig = fromB64u(String(body.signature || ""));
-    await checkClientData(env, clientData, "webauthn.get", "login", url);
-    const counter = await checkAuthData(env, authData, url, true);
-    if (!(await verifyWebauthn(fromB64u(pk.public_key), pk.alg, authData, clientData, sig))) throw new HttpError("Passkey check failed.", 401);
-    if (counter && pk.counter && counter <= pk.counter) throw new HttpError("Passkey check failed.", 401);
-    await env.DB.prepare("UPDATE passkeys SET counter = ?, last_used = ? WHERE id = ?").bind(counter, now(), pk.id).run();
-    return json({ ok: true }, 200, { "set-cookie": await createSession(env, pk.user_id) });
-  }
-  if (path === "/api/push/key" && method === "GET") return json({ key: env.VAPID_PUBLIC_KEY || null });
-
-  // ===== Shortcuts / Apple Pay auto-logging (Bearer key instead of a cookie) =====
-  if (path === "/api/log" && method === "POST") {
-    if (await limited(env, "logip:" + ip, 120, 3600)) throw new HttpError("Too many logs from here. Try again in an hour.", 429);
-    const ku = await keyUser(request, env);
-    if (!ku) { await recordAttempt(env, "logip:" + ip); throw new HttpError("That Shortcut key isn't valid. Make a new one in Honeybun settings.", 401); }
-    const nestId = await requireNest(env, ku);
-    // Apple Pay hands Shortcuts the amount as text like "$84.00" or "84,00", so tidy it up first
-    const rawAmt = String(body.amount ?? body.total ?? "").replace(/[^0-9.,-]/g, "").replace(/,(?=\d{1,2}$)/, ".").replace(/,/g, "").replace(/-/g, "");
-    const amount = toCents(rawAmt);
-    const label = cleanText(body.store ?? body.label ?? body.merchant ?? body.name, 40) || "Apple Pay";
-    const ids = await memberIds(env, nestId);
-    // reuse how you logged this store last time (category + split), otherwise guess from the name
-    const prev = await env.DB.prepare(
-      "SELECT category, shared, split_mode, split_value, private FROM entries WHERE nest_id = ? AND member_id = ? AND type = 'expense' AND lower(label) = lower(?) ORDER BY date DESC, created_at DESC LIMIT 1"
-    ).bind(nestId, ku.id, label).first();
-    const category = CATEGORIES.includes(body.category) || (isCustomId(body.category) && (await customCategoryIds(env, nestId)).has(body.category)) ? body.category : prev ? prev.category || "other" : guessCategory(label);
-    const shared = ids.length > 1 && (body.shared !== undefined ? !!body.shared && body.shared !== "false" && body.shared !== "no" : prev ? !!prev.shared : true);
-    let split = { mode: null, value: null }, shares = null;
-    if (shared) {
-      split = prev && prev.shared && SPLITS.includes(prev.split_mode) ? { mode: prev.split_mode, value: prev.split_value } : { mode: "equal", value: null };
-      if (split.mode === "owed" && split.value > amount) split = { mode: "equal", value: null };
-      shares = JSON.stringify(computeShares(amount, split.mode, split.value, ku.id, ids));
-    }
-    const priv = !shared && !(await isJoint(env, nestId)) && (body.private !== undefined ? !!body.private && body.private !== "false" : !!prev?.private) ? 1 : 0;
-    const u = await env.DB.prepare("SELECT tz FROM users WHERE id = ?").bind(ku.id).first();
-    const date = isDate(body.date) ? body.date : localNow(u?.tz).date;
-    const e = { type: "expense", amount, memberId: ku.id, shared: shared ? 1 : 0, split, shares, priv, category, label, date };
-    const id = await insertEntry(env, nestId, ku, e);
-    await env.DB.batch([
-      env.DB.prepare("UPDATE api_keys SET last_used = ?, uses = uses + 1 WHERE token_hash = ?").bind(now(), ku.token_hash),
-      env.DB.prepare("UPDATE members SET inbox_gen_at = 0 WHERE nest_id = ?").bind(nestId),
-    ]);
-    if (shared) await postToOthers(env, nestId, ku.id, "shared_expense", { name: ku.name, label, amount }, `shared:${id}`);
-    let reward = null;
-    try { reward = await award(env, { headers: new Headers({ "x-local-date": date }) }, ku.id, nestId, "entry"); } catch (err) { console.error("award", err.message); }
-    const catName = { home: "Housing", groc: "Groceries", food: "Eating out", date: "Date night", bills: "Bills", subs: "Subscriptions", car: "Car", fun: "Fun", pets: "Pets", debt: "Debt", other: "Other" }[category] || "Other";
-    return json({ ok: true, id, amount: amount / 100, label, category, shared, date,
-      message: `Logged ${money(amount)} at ${label} (${catName}${shared ? ", split" : ""}) 🐰` }, 201);
-  }
-
-  // The iPhone widget asks for this with its own token: what's left this month and the next bill.
-  if (path === "/api/app/summary" && method === "GET") {
-    const ku = await keyUser(request, env);
-    if (!ku) throw new HttpError("Not signed in.", 401);
-    const nestId = await requireNest(env, ku);
-    const u = await env.DB.prepare("SELECT tz FROM users WHERE id = ?").bind(ku.id).first();
-    const L = localNow(u?.tz), ym = L.date.slice(0, 7);
-    const t = await env.DB.prepare(
-      "SELECT type, SUM(amount_cents) AS c FROM entries WHERE nest_id = ? AND substr(date, 1, 7) = ? AND (private = 0 OR member_id = ?) GROUP BY type"
-    ).bind(nestId, ym, ku.id).all();
-    const sum = Object.fromEntries(t.results.map((r) => [r.type, r.c]));
-    const nest = await env.DB.prepare("SELECT name, kind FROM nests WHERE id = ?").bind(nestId).first();
-    let next = null;
-    try {
-      const due = (await nestBillsDue(env, {}, nestId, L.date, sDay(pDay(L.date) + 14 * dayMs))).filter((x) => x.r.shared || x.r.member_id === ku.id);
-      if (due.length) next = { label: due[0].r.label, amount: due[0].r.amount_cents / 100, date: due[0].d };
-    } catch (e) { console.error("summary bills", e.message); }
-    return json({ month: ym, name: nest?.name || "Honeybun", kind: nest?.kind || "couple", income: (sum.income || 0) / 100, spent: (sum.expense || 0) / 100, left: ((sum.income || 0) - (sum.expense || 0)) / 100, next });
-  }
-
-  if (path === "/api/auth/config" && method === "GET") return json({ apple: !!env.APPLE_CLIENT_ID });
-
-  // Forgot your password and you have no email? The recovery code from sign-up sets a new one (and gives you a fresh code).
-  if (path === "/api/password/recover" && method === "POST") {
-    const key = toLoginKey(cleanText(body.username, 254));
-    if ((await limited(env, "recover:" + key, 6, 3600)) || (await limited(env, "recoverip:" + ip, 20, 3600)))
-      throw new HttpError("Too many tries. Wait an hour and try again.", 429);
-    await recordAttempt(env, "recover:" + key); await recordAttempt(env, "recoverip:" + ip);
-    const password = checkPassword(body.password);
-    const u = await env.DB.prepare("SELECT id, recovery_hash FROM users WHERE email = ?").bind(key).first();
-    if (!u || !u.recovery_hash || u.recovery_hash !== (await sha256(recoveryKey(body.code))))
-      throw new HttpError("That username and recovery code don't match.", 401);
-    const code = newRecoveryCode();
-    await env.DB.batch([
-      env.DB.prepare("UPDATE users SET pw = ?, recovery_hash = ? WHERE id = ?").bind(await hashPassword(password), await sha256(recoveryKey(code)), u.id),
-      env.DB.prepare("DELETE FROM sessions WHERE user_id = ?").bind(u.id),
-    ]);
-    return json({ ok: true, recovery_code: code }, 200, { "set-cookie": await createSession(env, u.id) });
-  }
-
-  // Sign in with Apple (the iPhone app): the app hands us Apple's signed identity token plus the secret it hashed into the request's nonce.
-  // We verify Apple's signature, audience, expiry and nonce ourselves, then start the very same __Host-hb session as every other login.
-  if (path === "/api/auth/apple" && method === "POST") {
-    if (!env.APPLE_CLIENT_ID) throw new HttpError("Apple sign-in isn't set up yet.", 503);
-    if (await limited(env, "apple:" + ip, 30, 3600)) throw new HttpError("Too many tries. Try again in an hour.", 429);
-    await recordAttempt(env, "apple:" + ip);
-    const token = String(body.identity_token || ""), nonce = String(body.nonce || "");
-    if (token.length < 100 || token.length > 4000 || nonce.length < 8 || nonce.length > 200) throw new HttpError("Apple sign-in failed. Try again.", 400);
-    let claims;
-    try { claims = await verifyAppleToken(env, token, nonce); }
-    catch (e) { if (e instanceof HttpError) throw e; throw new HttpError("Apple sign-in failed. Try again.", 401); }
-    const claimed = String(claims.email || "").toLowerCase();
-    // only a real, Apple-verified address that is not a private relay counts as "their email"
-    const realEmail = isEmail(claimed) && String(claims.email_verified) === "true" && String(claims.is_private_email) !== "true" && !claimed.endsWith("@privaterelay.appleid.com") ? claimed : "";
-    let user = await env.DB.prepare("SELECT id FROM users WHERE apple_sub = ?").bind(claims.sub).first(), created = false;
-    if (!user && realEmail) {
-      const existing = await env.DB.prepare("SELECT id FROM users WHERE email = ? AND apple_sub IS NULL").bind(realEmail).first();
-      if (existing) { await env.DB.prepare("UPDATE users SET apple_sub = ?, email_verified = 1 WHERE id = ?").bind(claims.sub, existing.id).run(); user = existing; } // Apple confirmed this address
-    }
-    if (!user) {
-      const id = crypto.randomUUID(), lang = LANGS.includes(body.lang) ? body.lang : "en";
-      const name = cleanText(body.name, 24) || cleanText(realEmail.split("@")[0], 24) || "Friend";
-      const email = realEmail || `a_${(await sha256(claims.sub)).replace(/[^a-z0-9]/gi, "").toLowerCase().slice(0, 16)}@${USERNAME_DOMAIN}`;
-      await env.DB.prepare("INSERT INTO users (id, email, name, pw, lang, created_at, email_verified, apple_sub, pw_known) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)")
-        .bind(id, email, name, await hashPassword(randomToken()), lang, now(), realEmail ? 1 : 0, claims.sub).run();
-      try { if (body.ref) await recordReferral(env, request, { id, name }, body.ref); await rememberDevices(env, request, id); } catch (e) { console.error("referral failed", e.message); }
-      user = { id }; created = true;
-    }
-    return json({ ok: true, created }, created ? 201 : 200, { "set-cookie": await createSession(env, user.id) });
-  }
-
-  // ===== signed in =====
-  const user = await currentUser(request, env);
-  if (!user) throw new HttpError("Please log in.", 401);
-  const me = { id: user.id, email: user.email, name: user.name };
-
-  if (path === "/api/referrals" && method === "GET") {
-    const sum = await referralSummary(env, user.id);
-    const people = (await env.DB.prepare("SELECT referred_id, referred_name, status, reason, created_at FROM referrals WHERE referrer_id = ? ORDER BY created_at DESC LIMIT 100").bind(user.id).all()).results;
-    const ids = people.filter((p) => p.status === "pending").map((p) => p.referred_id);
-    const days = {};
-    if (ids.length) {
-      const rows = (await env.DB.prepare(`SELECT created_by, COUNT(DISTINCT date(created_at, 'unixepoch')) AS d FROM entries WHERE created_by IN (${ids.map(() => "?").join(",")}) GROUP BY created_by`).bind(...ids).all()).results;
-      for (const r of rows) days[r.created_by] = r.d;
-    }
-    const rewards = (await env.DB.prepare("SELECT amount_cents, status, created_at, sent_at FROM rewards WHERE user_id = ? ORDER BY created_at DESC").bind(user.id).all()).results;
-    return json({ ...sum, link: `${appUrl}/r/${sum.code}`, days_needed: REF_DAYS, active_days_needed: REF_ACTIVE_DAYS,
-      people: people.map((p) => ({ name: p.referred_name, status: p.status, reason: p.reason, created_at: p.created_at, active_days: days[p.referred_id] || 0 })), rewards });
-  }
-
-  if (path === "/api/me" && method === "GET") {
-    try { await rememberDevices(env, request, user.id); } catch (e) { console.error("device", e.message); }
-    let ref = null; try { ref = await referralSummary(env, user.id); } catch (e) { console.error("ref summary", e.message); }
-    const m = await membership(env, user.id);
-    const u = await env.DB.prepare("SELECT email_verified, tz, lang, mail_bills, mail_streak, mail_weekly, apple_sub, pw_known FROM users WHERE id = ?").bind(user.id).first();
-    const k = await env.DB.prepare("SELECT created_at, last_used, uses FROM api_keys WHERE user_id = ?").bind(user.id).first();
-    return json({ user: { ...me, verified: !!u.email_verified, has_email: hasRealEmail(user.email), apple: !!u.apple_sub, has_password: u.pw_known !== 0, tz: u.tz, lang: u.lang, mail: { bills: !!u.mail_bills, streak: !!u.mail_streak, weekly: !!u.mail_weekly },
-      shortcut: k ? { created_at: k.created_at, last_used: k.last_used, uses: k.uses } : null, ref }, nest_id: m ? m.nest_id : null });
-  }
-
-  // ----- passkeys (signed in) -----
-  if (path === "/api/passkeys" && method === "GET") {
-    const rows = (await env.DB.prepare("SELECT id, name, created_at, last_used FROM passkeys WHERE user_id = ? ORDER BY created_at").bind(user.id).all()).results;
-    return json({ passkeys: rows });
-  }
-  if (path === "/api/passkeys/options" && method === "POST") {
-    const challenge = randomToken();
-    await env.DB.prepare("INSERT INTO challenges (id, user_id, kind, expires_at) VALUES (?, ?, 'register', ?)").bind(challenge, user.id, now() + 300).run();
-    const existing = (await env.DB.prepare("SELECT id FROM passkeys WHERE user_id = ?").bind(user.id).all()).results.map((r) => ({ type: "public-key", id: r.id }));
+    const p…3387 tokens truncated…).results.map((r) => ({ type: "public-key", id: r.id }));
     return json({
       challenge, rp: { id: rpOrigin(env, url).hostname, name: "Honeybun" },
       user: { id: b64u(enc.encode(user.id)), name: user.email, displayName: user.name },
@@ -1245,7 +1088,11 @@ async function handle(request, env, url) {
     if (await limited(env, "pushtest:" + user.id, 10, 3600)) throw new HttpError("Too many tests. Try again later.", 429);
     await recordAttempt(env, "pushtest:" + user.id);
     if (!env.APNS_KEY || !env.APNS_KEY_ID || !env.APNS_TEAM_ID) return json({ ok: false, step: "server", message: "Push isn't set up on the server yet." });
-    const toks = (await env.DB.prepare("SELECT token FROM apns_tokens WHERE user_id = ?").bind(user.id).all()).results;
+    const requestedToken = body.token === undefined ? null : String(body.token).toLowerCase();
+    if (requestedToken !== null && !/^[0-9a-f]{32,200}$/.test(requestedToken)) throw new HttpError("Bad device token.");
+    const toks = requestedToken === null
+      ? (await env.DB.prepare("SELECT token FROM apns_tokens WHERE user_id = ?").bind(user.id).all()).results
+      : (await env.DB.prepare("SELECT token FROM apns_tokens WHERE user_id = ? AND token = ?").bind(user.id, requestedToken).all()).results;
     if (!toks.length) return json({ ok: false, step: "phone", message: "No phone has signed up for notifications yet. Allow notifications for Honeybun in your iPhone Settings, then reopen the app." });
     const jwt = await apnsToken(env), topic = env.APNS_TOPIC || "me.honeybun.app";
     const payload = JSON.stringify({ aps: { alert: { title: "Honeybun", body: "Test notification. It works! 🐰" }, sound: "default" }, kind: "test" });
