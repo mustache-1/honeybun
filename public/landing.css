@@ -296,3 +296,20 @@ html:has(#scr-landing.reference:not([hidden]):not([data-view])),body:has(#scr-la
 .hbl-detail-art{max-width:390px;margin:auto;}
 .reference .hbl-detail-card{padding:24px;}
 }
+
+/* Five navigation destinations fit the existing historical content width. */
+.reference .hbl-links{gap:18px;}
+@media(max-width:640px){.reference:not([data-view]) .hbl-links{gap:4px;}.reference:not([data-view]) .hbl-links a{font-size:12px;}.reference:not([data-view]) .hbl-tab,.reference:not([data-view]) #lpUpdatesLink{padding:8px;}}
+
+/* Character-only motion: original bitmap remains unchanged. */
+.hbl-character-motion{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:-1;overflow:hidden;}
+.reference[data-view] .hbl-character-motion{display:none;}
+.hbl-bun-blink{opacity:0;animation:hblBlink 6.7s linear infinite;}
+@keyframes hblBlink{0%,89%,93%,100%{opacity:0;}90%,92%{opacity:1;}}
+.hbl-sleeper-breath{transform-origin:845px 646px;animation:hblSleepBreath 4.6s ease-in-out infinite;}
+@keyframes hblSleepBreath{0%,100%{transform:scale(1);}50%{transform:scale(1.009);}}
+.hbl-sleep-trail{opacity:0;animation:hblSleepTrail 5.5s ease-in-out infinite;}
+@keyframes hblSleepTrail{0%,100%{opacity:0;transform:translateY(8px);}30%{opacity:.35;}70%{opacity:.2;transform:translateY(-10px);}90%{opacity:0;transform:translateY(-16px);}}
+@media(min-width:641px) and (max-width:959px){.reference:not([data-view]) .hbl-world img{object-position:center;}}
+@media(max-width:640px){.hbl-character-motion{inset:auto auto 0;left:calc(50% - 550px);width:960px;height:360px;}}
+@media(prefers-reduced-motion:reduce){.hbl-bun-blink,.hbl-sleep-trail{opacity:0!important;animation:none!important;}.hbl-sleeper-breath{transform:none!important;animation:none!important;}}
