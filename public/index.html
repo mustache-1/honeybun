@@ -2210,7 +2210,7 @@ dialog::backdrop{background:var(--backdrop)}
 <nav class="hbl-nav lp-nav" aria-label="Site">
 <a class="hbl-brand" href="/">
 <img src="/landing-art/crisp/logo.webp" width="34" height="40" alt="">Honeybun</a>
-<div class="lp-links hbl-links"><a class="hbl-tab" href="#lp-meet-bun" data-hbl-view="meet-bun"><span aria-hidden="true">♡</span> Meet Bun</a><a class="hbl-tab" href="#lp-help" data-hbl-view="help"><span aria-hidden="true">?</span> Help</a><a href="#lp-updates" id="lpUpdatesLink"><svg class="hbl-updates-spark" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2 3 7 7 3-7 3-3 7-3-7-7-3 7-3Z" fill="currentColor"/></svg>Updates <span id="lpUpdCount"></span></a></div>
+<div class="lp-links hbl-links"><a href="#lp-features" data-hbl-anchor>Features</a><a href="#lp-together" data-hbl-anchor>Together</a><a class="hbl-tab" href="#lp-help" data-hbl-view="help">Help</a><a href="#lp-updates" id="lpUpdatesLink"><svg class="hbl-updates-spark" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2 3 7 7 3-7 3-3 7-3-7-7-3 7-3Z" fill="currentColor"/></svg>Updates <span id="lpUpdCount"></span></a></div>
 <a class="hbl-store" href="#lp-download" data-appstore aria-label="Download on the App Store — coming soon">
 <svg viewBox="0 0 24 28" aria-hidden="true"><path fill="currentColor" d="M17 5c1-1 2-3 2-5-2 0-4 1-5 2-1 1-2 3-2 5 2 0 4-1 5-2ZM21 15c0-3 2-5 3-5-2-3-5-3-6-3-2 0-4 1-6 1s-3-1-5-1c-3 0-7 3-7 8 0 3 1 7 3 10 2 2 3 3 5 2l4-1 4 1c2 1 3-1 5-3l2-4c-1 0-4-2-4-5Z"/></svg><span><small>Download on the</small><strong>App Store</strong></span>
 </a>
@@ -2339,13 +2339,13 @@ dialog::backdrop{background:var(--backdrop)}
     </section>
 
 <section class="hbl-hero" id="lp-download">
-<img class="hbl-hero-art" src="/landing-art/crisp/hero-scene.webp" width="684" height="325" alt="Witch Bun hugging a glowing honey jar beside a sleeping companion and lantern, overlooking a moonlit village">
+<picture class="hbl-hero-art"><source media="(max-width: 700px)" srcset="/landing-art/responsive/hero-mobile.webp"><img src="/landing-art/crisp/hero-scene.webp" width="2048" height="768" alt="" aria-hidden="true" fetchpriority="high" decoding="async"></picture><div class="hbl-content hbl-hero-content">
 <div class="hbl-intro">
 <p class="hbl-eyebrow">A cozier way to budget <svg class="hbl-eyebrow-heart" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 17C-2 9 3 1 8 6l2 2 2-2c5-5 10 3-2 11Z" fill="currentColor"/></svg></p>
 <h1>Money, <em>your way.</em>
 <br>Together, <em>or solo.</em>
 </h1>
-<p>Manage your money, stay ahead of bills,<br class="hbl-desktop-break"> work toward goals, and share the journey<br class="hbl-desktop-break"> with someone — or keep it yours.</p>
+<p>Manage your money, stay ahead of bills,  work toward goals, and share the journey  with someone — or keep it yours.</p>
 <a class="hbl-store" href="#lp-download" data-appstore aria-label="Download on the App Store — coming soon">
 <svg viewBox="0 0 24 28" aria-hidden="true"><path fill="currentColor" d="M17 5c1-1 2-3 2-5-2 0-4 1-5 2-1 1-2 3-2 5 2 0 4-1 5-2ZM21 15c0-3 2-5 3-5-2-3-5-3-6-3-2 0-4 1-6 1s-3-1-5-1c-3 0-7 3-7 8 0 3 1 7 3 10 2 2 3 3 5 2l4-1 4 1c2 1 3-1 5-3l2-4c-1 0-4-2-4-5Z"/></svg><span><small>Download on the</small><strong>App Store</strong></span>
 </a>
@@ -2355,105 +2355,76 @@ dialog::backdrop{background:var(--backdrop)}
 <li><img src="/landing-art/crisp/iphone.svg" alt="" width="14" height="14"><span>Made for iPhone</span></li>
 </ul>
 </div>
-</section>
-<section class="hbl-safe" id="lp-how">
-<figure class="hbl-phone" data-native-shot="home">
-<div class="hbl-screen">
-<img class="hbl-concept-capture" src="/landing-art/crisp/concept-home.svg" alt="Home design concept preview; final native capture pending" loading="lazy">
 </div>
-<figcaption>Concept preview · native capture pending</figcaption>
-</figure>
+</section>
+<section class="hbl-safe" id="lp-how"><div class="hbl-content hbl-product-grid">
+<figure class="hbl-phone" data-native-shot="home"><div class="hbl-screen"><div class="hbl-capture-slot"><img src="/landing-art/crisp/logo.webp" width="72" height="72" alt="" loading="lazy" decoding="async"><span>Native capture pending</span><strong>Home / Safe to Spend</strong><p>Monthly context, Safe to Spend and upcoming bills.</p><small>Rodrigo’s final simulator screenshot goes here.</small></div></div><figcaption>PLACEHOLDER — RODRIGO MUST CAPTURE</figcaption></figure>
 <div class="hbl-safe-copy">
 <img class="hbl-icon" src="/landing-art/crisp/safeIcon.svg" alt="">
 <h2>Know what<br>you can spend.</h2>
-<p>See how your money fits together, with a clear<br class="hbl-desktop-break"> Safe to Spend number, upcoming bills and a plan<br class="hbl-desktop-break"> for the month. No bank connections, ever.</p>
+<p>See how the information you enter fits together: Safe to Spend, upcoming bills, and a plan for the month. No bank connections, ever.</p><p class="hbl-product-note">Safe to Spend is income minus spending, plus carry-over. Upcoming bills are shown separately; this is not a live bank balance.</p>
 </div>
-</section>
-<section class="hbl-insights">
+</div></section>
+<section class="hbl-insights"><div class="hbl-content hbl-product-grid">
 <div class="hbl-insight-copy">
 <img class="hbl-icon" src="/landing-art/crisp/insightIcon.svg" alt="">
 <h2>A little smarter<br>when you need it.</h2>
-<p>Bun looks at the information you enter and<br class="hbl-desktop-break"> surfaces helpful insights — like spending<br class="hbl-desktop-break"> trends, upcoming bills, goal progress and<br class="hbl-desktop-break"> ways to make faster progress.</p>
+<p>Bun brings useful context to the information you enter: spending pace, budgets, upcoming bills, month-end estimates, goals and debt opportunities. A little encouragement when you’re making progress, without information overload.</p><a class="hbl-text-link" href="#lp-meet-bun" data-hbl-view="meet-bun">Meet Bun →</a>
 </div>
-<img class="hbl-insight-peek" src="/landing-art/crisp/insight-peek.webp" width="120" height="196" alt="">
-<figure class="hbl-phone" data-native-shot="insight">
-<div class="hbl-screen">
-<img class="hbl-concept-capture" src="/landing-art/crisp/concept-insight.svg" alt="From Bun design concept preview; final native capture pending" loading="lazy">
-</div>
-<figcaption>Concept preview · native capture pending</figcaption>
-</figure>
-</section>
+<img class="hbl-insight-peek" src="/landing-art/crisp/insight-peek.webp" width="500" height="659" alt="" loading="lazy" decoding="async">
+<div class="hbl-insight-media"><div class="hbl-shot-tabs" role="tablist" aria-label="Native screenshot views"><button id="hbl-tab-insight" type="button" role="tab" aria-selected="true" aria-controls="hbl-panel-insight" data-shot-tab="insight">From Bun</button><button id="hbl-tab-inbox" type="button" role="tab" aria-selected="false" aria-controls="hbl-panel-inbox" tabindex="-1" data-shot-tab="inbox">Bun Inbox</button></div><figure id="hbl-panel-insight" role="tabpanel" aria-labelledby="hbl-tab-insight" class="hbl-phone" data-native-shot="insight"><div class="hbl-screen"><div class="hbl-capture-slot"><img src="/landing-art/crisp/logo.webp" width="72" height="72" alt="" loading="lazy" decoding="async"><span>Native capture pending</span><strong>From Bun · Phase 7</strong><p>Final friendly insight cards and customer explanations.</p><small>Rodrigo’s final simulator screenshot goes here.</small></div></div><figcaption>PLACEHOLDER — RODRIGO MUST CAPTURE</figcaption></figure>
+<figure id="hbl-panel-inbox" role="tabpanel" aria-labelledby="hbl-tab-inbox" hidden class="hbl-phone" data-native-shot="inbox"><div class="hbl-screen"><div class="hbl-capture-slot"><img src="/landing-art/crisp/logo.webp" width="72" height="72" alt="" loading="lazy" decoding="async"><span>Native capture pending</span><strong>Bun Inbox</strong><p>Current Inbox, with the streak card in its final location.</p><small>Rodrigo’s final simulator screenshot goes here.</small></div></div><figcaption>PLACEHOLDER — RODRIGO MUST CAPTURE</figcaption></figure></div></div></section>
 <section class="hbl-features" id="lp-features">
-<div class="hbl-trio" id="lp-shots">
+<div class="hbl-content"><div class="hbl-section-intro"><span class="hbl-sub-eyebrow">A plan for what matters</span><h2>Small steps. A clearer path.</h2><p>See the month ahead, explore your way out of debt, and make room for your goals.</p></div><div class="hbl-trio" id="lp-shots">
 <article class="hbl-card hbl-plan">
 <div class="hbl-card-copy">
 <img class="hbl-icon" src="/landing-art/crisp/planIcon.svg" alt="">
 <h3>Make a plan<br>that feels manageable.</h3>
-<p>Budget, track spending, see what’s coming<br>next and get a clearer picture of the month<br>ahead.</p>
+<p>Bring monthly budgets, bills, spending and your forecast into one clearer plan.</p>
 </div>
-<figure class="hbl-phone" data-native-shot="plan">
-<div class="hbl-screen">
-<img class="hbl-concept-capture" src="/landing-art/crisp/concept-plan.svg" alt="Plan design concept preview; final native capture pending" loading="lazy">
-</div>
-<figcaption>Concept preview · native capture pending</figcaption>
-</figure>
+<figure class="hbl-phone" data-native-shot="plan"><div class="hbl-screen"><div class="hbl-capture-slot"><img src="/landing-art/crisp/logo.webp" width="72" height="72" alt="" loading="lazy" decoding="async"><span>Native capture pending</span><strong>Plan</strong><p>Monthly forecast, budgets and upcoming bills.</p><small>Rodrigo’s final simulator screenshot goes here.</small></div></div><figcaption>PLACEHOLDER — RODRIGO MUST CAPTURE</figcaption></figure>
 </article>
 <article class="hbl-card hbl-debt">
 <div class="hbl-card-copy">
 <img class="hbl-icon" src="/landing-art/crisp/debtIcon.svg" alt="">
 <h3>See the way out.</h3>
-<p>Track your debt, compare Snowball and<br>Avalanche, and see how extra payments<br>can save you time and money.</p>
+<p>Compare Snowball and Avalanche, explore extra payments, and see estimated payoff dates and interest impact. Honeybun helps you plan; it does not pay creditors.</p>
 </div>
-<figure class="hbl-phone" data-native-shot="debt">
-<div class="hbl-screen">
-<img class="hbl-concept-capture" src="/landing-art/crisp/concept-debt.svg" alt="Debt Center design concept preview; final native capture pending" loading="lazy">
-</div>
-<figcaption>Concept preview · native capture pending</figcaption>
-</figure>
+<figure class="hbl-phone" data-native-shot="debt"><div class="hbl-screen"><div class="hbl-capture-slot"><img src="/landing-art/crisp/logo.webp" width="72" height="72" alt="" loading="lazy" decoding="async"><span>Native capture pending</span><strong>Debt Center+</strong><p>Journey, strategy comparison and extra payments.</p><small>Rodrigo’s final simulator screenshot goes here.</small></div></div><figcaption>PLACEHOLDER — RODRIGO MUST CAPTURE</figcaption></figure>
 </article>
 <article class="hbl-card hbl-goals">
 <div class="hbl-card-copy">
 <img class="hbl-icon" src="/landing-art/crisp/goalsIcon.svg" alt="">
 <h3>Save for something good.</h3>
-<p>Create goals, add to them, and watch<br>your progress. Bun can also let you know<br>when you’re on track — or when a little<br>extra could help.</p>
+<p>Create goals, record contributions, and watch your progress. Bun can surface useful observations about milestones and contribution pace when there’s enough information.</p>
 </div>
 
-<figure class="hbl-phone" data-native-shot="goals">
-<div class="hbl-screen">
-<img class="hbl-concept-capture" src="/landing-art/crisp/concept-goals.svg" alt="Goals design concept preview; final native capture pending" loading="lazy">
-</div>
-<figcaption>Concept preview · native capture pending</figcaption>
-</figure>
+<figure class="hbl-phone" data-native-shot="goals"><div class="hbl-screen"><div class="hbl-capture-slot"><img src="/landing-art/crisp/logo.webp" width="72" height="72" alt="" loading="lazy" decoding="async"><span>Native capture pending</span><strong>Goals</strong><p>Active goals, contributions and progress.</p><small>Rodrigo’s final simulator screenshot goes here.</small></div></div><figcaption>PLACEHOLDER — RODRIGO MUST CAPTURE</figcaption></figure>
 </article>
 </div>
-</section>
-<section class="hbl-together" id="lp-together">
-<figure class="hbl-phone" data-native-shot="together">
-<div class="hbl-screen">
-<img class="hbl-concept-capture" src="/landing-art/crisp/concept-together.svg" alt="Together design concept preview; final native capture pending" loading="lazy">
-</div>
-<figcaption>Concept preview · native capture pending</figcaption>
-</figure>
+</div></section>
+<section class="hbl-together" id="lp-together"><div class="hbl-content hbl-product-grid">
+<figure class="hbl-phone" data-native-shot="together"><div class="hbl-screen"><div class="hbl-capture-slot"><img src="/landing-art/crisp/logo.webp" width="72" height="72" alt="" loading="lazy" decoding="async"><span>Native capture pending</span><strong>Together</strong><p>Shared planning and actual privacy boundaries.</p><small>Rodrigo’s final simulator screenshot goes here.</small></div></div><figcaption>PLACEHOLDER — RODRIGO MUST CAPTURE</figcaption></figure>
 <div class="hbl-together-copy">
 <img class="hbl-icon" src="/landing-art/crisp/togetherIcon.svg" alt="">
 <h2>Together when you want it.<br>Private when you need it.</h2>
-<p>Share budgets, bills, goals and debt with someone you trust,<br class="hbl-desktop-break"> while keeping your private information private. Honeybun is<br class="hbl-desktop-break"> built for real life — whether you’re planning together, or just<br class="hbl-desktop-break"> want a clearer picture on your own.</p>
+<p>Share budgets, bills, goals and debt with someone you trust,  while keeping your private information private. Honeybun is  built for real life — whether you’re planning together, or just  want a clearer picture on your own.</p>
 </div>
-<img class="hbl-together-art" src="/landing-art/crisp/together-art.webp" width="242" height="159" alt="Two Bun companions sharing warm drinks beside a lantern">
-</section>
-<section class="hbl-trust" aria-label="About Honeybun">
+<img class="hbl-together-art" src="/landing-art/crisp/together-art.webp" width="819" height="557" alt="Two Bun companions sharing warm drinks beside a lantern" loading="lazy" decoding="async">
+</div></section>
+<section class="hbl-trust" aria-label="About Honeybun"><div class="hbl-content hbl-trust-grid">
 <div>
 <img src="/landing-art/crisp/lock.svg" alt="" width="30" height="31">
 <p>
 <strong>No bank connections</strong>
-<small>You control your information.</small>
+<small>You control what you enter.</small>
 </p>
 </div>
 <div>
 <img src="/landing-art/crisp/iphone.svg" alt="" width="30" height="31">
 <p>
 <strong>Made for iPhone</strong>
-<small>A beautiful, native experience.</small>
+<small>A native Honeybun experience.</small>
 </p>
 </div>
 <div>
@@ -2470,21 +2441,12 @@ dialog::backdrop{background:var(--backdrop)}
 <small>Same goals. All welcome.</small>
 </p>
 </div>
-</section>
-
+</div></section>
+<section class="hbl-faq" id="lp-faq"><div class="hbl-content"><span class="hbl-sub-eyebrow">A few things, made clear</span><h2>A cozier way starts with clarity.</h2><div class="hbl-faq-list"><details><summary>Do I need a bank connection?</summary><p>No. Honeybun works with the information you enter. No bank logins or automatic bank imports.</p></details><details><summary>Can I plan solo or together?</summary><p>Yes. Plan on your own or share planning with someone you trust. Private entries stay private according to Honeybun’s sharing settings.</p></details><details><summary>Is the iPhone app available now?</summary><p>Honeybun is coming soon to the App Store. The download buttons will connect to the verified public listing when it’s available.</p></details></div></div></section><section class="hbl-final" id="lp-final"><div class="hbl-content"><img src="/landing-art/crisp/logo.webp" width="64" height="64" alt="" loading="lazy"><h2>Your goals. Your journey.</h2><p>A little help from Honeybun along the way.</p><a class="hbl-store" href="#lp-download" data-appstore aria-label="Download on the App Store — coming soon">
+<svg viewBox="0 0 24 28" aria-hidden="true"><path fill="currentColor" d="M17 5c1-1 2-3 2-5-2 0-4 1-5 2-1 1-2 3-2 5 2 0 4-1 5-2ZM21 15c0-3 2-5 3-5-2-3-5-3-6-3-2 0-4 1-6 1s-3-1-5-1c-3 0-7 3-7 8 0 3 1 7 3 10 2 2 3 3 5 2l4-1 4 1c2 1 3-1 5-3l2-4c-1 0-4-2-4-5Z"/></svg><span><small>Download on the</small><strong>App Store</strong></span>
+</a><span class="hbl-launch-note">Coming soon to the App Store · Free · No bank login</span></div></section>
 </div>
-<footer class="hbl-utility" id="lp-faq">
-<details>
-<summary>Help and privacy</summary>
-<p>Honeybun is coming soon to the App Store. The phone imagery above is the approved design concept; final native captures will replace it. Safe to Spend is income minus spending plus carry-over; bills are shown separately. Forecasts and payoff projections are estimates. Honeybun does not connect to banks, move money, or pay creditors.</p>
-<p>
-<a href="/privacy.html">Privacy Policy</a> · <a href="/terms.html">Terms</a> · <a href="mailto:help@honeybun.me">Support</a>
-</p>
-
-<div class="lang-row" data-lang-picker>
-</div>
-</details>
-</footer>
+<footer class="hbl-utility"><div class="hbl-content"><a class="hbl-footer-brand" href="/">Honeybun</a><nav aria-label="Footer"><a href="/privacy.html">Privacy</a><a href="/terms.html">Terms</a><a href="mailto:help@honeybun.me">Support</a><a href="#lp-help" data-hbl-view="help">Help</a><a href="#lp-meet-bun" data-hbl-view="meet-bun">Meet Bun</a><a href="#lp-updates" data-updates-go>Updates</a></nav><p>Preview for visual approval. All seven native capture slots are placeholders awaiting Rodrigo’s final screenshots. Forecasts and payoff projections are estimates. Honeybun does not connect to banks, move money, or pay creditors.</p><div class="lang-row" data-lang-picker></div></div></footer>
 </main>
 
   <!-- LOGIN / SIGN UP / FORGOT -->
