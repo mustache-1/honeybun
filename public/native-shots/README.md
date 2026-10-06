@@ -1,6 +1,6 @@
 # Final Honeybun 1.0 native screenshot capture list
 
-All seven website slots are **PLACEHOLDER — RODRIGO MUST CAPTURE**. No current final native screenshots are displayed. Older listing composites and reconstructed concept SVGs are not final Phase 7 screenshots and are not used by this page.
+Internal audit status for all seven mappings: **PLACEHOLDER — RODRIGO MUST CAPTURE**. No current final native screenshots are displayed. Visitors see simple illustrated product panels without developer labels, capture instructions or invented app values. Older listing composites and reconstructed concept SVGs are not final Phase 7 screenshots and are not used by this page.
 
 Use the final Phase 7 Honeybun native build on **iPhone 16 Pro simulator, portrait, 1206 × 2622**. Use consistent fictional demo data and the same current month and native dark theme throughout. Dismiss the keyboard, debug overlays, permission sheets and notification banners. Do not include personal account information.
 
@@ -20,7 +20,7 @@ The simulator, orientation and full-screen crop instructions above apply to ever
 
 ## Connecting the approved captures
 
-Place each approved capture in this folder. Set each matching key in the `screenshots` map in `public/landing.js` to `/native-shots/<filename>`. Each component switches to **REAL FINAL NATIVE SCREENSHOT** only after its configured image successfully loads. Missing/failed images keep the labeled placeholder. From Bun and Inbox share a keyboard-accessible viewer; the other five appear separately in the product story. Review all frames at desktop and mobile sizes after replacement.
+Place each approved capture in this folder. Set each matching key in the `screenshots` map in `public/landing.js` to `/native-shots/<filename>`. Each component switches to its reviewed real native capture only after its configured image successfully loads. Missing/failed images retain the illustrated product panel. Capture status belongs in this internal guide, not public captions. From Bun and Inbox share a keyboard-accessible viewer; the other five appear separately in the product story. Review all frames at desktop and mobile sizes after replacement.
 
 ## App Store URL still required
 
