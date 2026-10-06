@@ -142,6 +142,474 @@
       { t: "One-tap repeats", d: "Your five most common expenses sit at the top of the Add screen. Tap one and it's logged with the same amount, category, and split as last time.", tags: ["new"], icon: "repeat" }
     ] }
   ];
+  // Website release history includes preview progress; native generated content is unchanged.
+  var WEBSITE_UPDATES = [
+  {
+    "v": "website-2026-10-06",
+    "date": "2026-10-06",
+    "name": "One Cozy Night Honeybun website",
+    "items": [
+      {
+        "t": "One scene, one homepage",
+        "d": "The homepage is now one Cozy Night scene, with the existing witch Bun, sleeping companion, moon, town, lantern and welcome sign. The long marketing page and phone placeholders are gone.",
+        "tags": [
+          "design"
+        ],
+        "icon": "landing"
+      },
+      {
+        "t": "The original artwork stays",
+        "d": "The single-scene homepage uses the original illustration without redrawing, enhancing or upscaling it. Its native resolution can still look softer on high-density displays.",
+        "tags": [
+          "design"
+        ],
+        "icon": "sun"
+      },
+      {
+        "t": "A homepage that stays in place",
+        "d": "The homepage is locked to the visible browser height. Detail pages still scroll normally, and mobile spacing adapts to the available height.",
+        "tags": [
+          "fixed",
+          "design"
+        ],
+        "icon": "landing"
+      },
+      {
+        "t": "Comfortable responsive layouts",
+        "d": "Content and navigation reuse the earlier website’s comfortable width and padding. The scene crops responsively without scaling the entire page.",
+        "tags": [
+          "improved",
+          "design"
+        ],
+        "icon": "landing"
+      },
+      {
+        "t": "Honeybun’s fireflies are back",
+        "d": "The original warm drifting fireflies return, with fewer lights on mobile. Motion pauses in the background; Reduced Motion keeps the scene calm.",
+        "tags": [
+          "design"
+        ],
+        "icon": "sun"
+      },
+      {
+        "t": "Bun blinks, the companion sleeps",
+        "d": "Witch Bun has an occasional blink. The sleeping companion has a gentle breathing motion and a faint sleep trail. Reduced Motion keeps them still.",
+        "tags": [
+          "design"
+        ],
+        "icon": "sun"
+      },
+      {
+        "t": "Features, Together and Meet Bun",
+        "d": "All three tabs have their own views, with richer cards, existing illustration, warmer lighting and subtle motion. Meet Bun is now in the top navigation.",
+        "tags": [
+          "new",
+          "design"
+        ],
+        "icon": "landing"
+      },
+      {
+        "t": "Help and Updates stay close",
+        "d": "Help, Updates, privacy, terms, support and the language picker remain available. Selecting the Honeybun brand returns to the homepage.",
+        "tags": [
+          "improved"
+        ],
+        "icon": "landing"
+      },
+      {
+        "t": "Stay on the homepage after refresh",
+        "d": "Opening or refreshing the public homepage no longer sends returning browser visitors straight to sign-in. Existing account and deep-link routes remain available.",
+        "tags": [
+          "fixed"
+        ],
+        "icon": "bug"
+      },
+      {
+        "t": "Cleaner artwork boundaries",
+        "d": "Section-sized overlays that produced visible edges were removed. The homepage has one environmental image rather than repeated scenery below it.",
+        "tags": [
+          "fixed",
+          "design"
+        ],
+        "icon": "sun"
+      },
+      {
+        "t": "An honest App Store button",
+        "d": "The iPhone app’s public App Store listing is still pending. Download buttons are marked coming soon rather than linking to an invented or unrelated app.",
+        "tags": [
+          "improved"
+        ],
+        "icon": "landing"
+      }
+    ],
+    "label": "Website"
+  },
+  {
+    "v": "iphone-preview-phase-7",
+    "date": "2026-10-05",
+    "name": "Smarter Honeybun · Phase 7 preview",
+    "items": [
+      {
+        "t": "One shared insight engine",
+        "d": "Bun’s observations use calculations on the information you enter. Home, planning, goals, debts and shared spending draw from one consistent insight engine.",
+        "tags": [
+          "new"
+        ],
+        "icon": "bell"
+      },
+      {
+        "t": "A factual Safe to Spend explanation",
+        "d": "A short line explains Safe to Spend and upcoming obligations. Safe to Spend remains income minus spending plus carry-over; upcoming bills are shown separately.",
+        "tags": [
+          "improved"
+        ],
+        "icon": "budget"
+      },
+      {
+        "t": "From Bun, with the important notes first",
+        "d": "Home prioritizes a small set of relevant observations, avoids filling the card with the same topic, and includes good news when there is something positive to show.",
+        "tags": [
+          "new",
+          "design"
+        ],
+        "icon": "bell"
+      },
+      {
+        "t": "Why am I seeing this?",
+        "d": "Open an observation for friendly explanations and the numbers behind it. More from Bun stays inside the From Bun card; notes can be dismissed for their relevant period.",
+        "tags": [
+          "new"
+        ],
+        "icon": "search"
+      },
+      {
+        "t": "Spending pace and comparisons",
+        "d": "Bun can notice a budget moving faster than the month, unusual recent spending, and meaningful changes from the same point last month when there is enough history.",
+        "tags": [
+          "new"
+        ],
+        "icon": "budget"
+      },
+      {
+        "t": "Bills and recurring costs",
+        "d": "Observations can highlight bills before payday, busy bill days and increases in recurring costs, based on the entries and schedules you have recorded.",
+        "tags": [
+          "new"
+        ],
+        "icon": "repeat"
+      },
+      {
+        "t": "Forecasts with clearer context",
+        "d": "Monthly planning adds everyday category context and, where the calculation supports it, a realistic weekly spending adjustment. Forecasts remain estimates.",
+        "tags": [
+          "improved"
+        ],
+        "icon": "budget"
+      },
+      {
+        "t": "Debt progress and goal milestones",
+        "d": "Bun can surface a payment that changes the estimated debt-free month, useful payoff comparisons, goal milestones, contribution pace and completed goals.",
+        "tags": [
+          "new"
+        ],
+        "icon": "budget"
+      },
+      {
+        "t": "Shared planning stays about shared information",
+        "d": "Together observations use shared, non-private entries and shared bills. Insight dismissals and display history stay on the device and clear when signing out or changing household.",
+        "tags": [
+          "improved"
+        ],
+        "icon": "key"
+      },
+      {
+        "t": "Day Streak moves to Bun’s Inbox",
+        "d": "The streak card now lives near the top of the Inbox and opens Stats. Home has more space for money and From Bun; streak calculations are unchanged.",
+        "tags": [
+          "design"
+        ],
+        "icon": "bell"
+      }
+    ],
+    "label": "Phase 7"
+  },
+  {
+    "v": "iphone-preview-phase-6",
+    "date": "2026-10-05",
+    "name": "Debt Center+ · Phase 6 preview",
+    "items": [
+      {
+        "t": "A dedicated Debt Center+",
+        "d": "Open Debt Center from Plan to see your recorded debts, paid-down progress, estimated payoff journey and a month-by-month balance path.",
+        "tags": [
+          "new"
+        ],
+        "icon": "budget"
+      },
+      {
+        "t": "Snowball beside Avalanche",
+        "d": "Compare the two payoff strategies using the same recorded debts and calculation engine, including estimated interest and time differences.",
+        "tags": [
+          "new"
+        ],
+        "icon": "budget"
+      },
+      {
+        "t": "What if I paid more?",
+        "d": "Explore an extra monthly payment and see its estimated effect on interest and the debt-free date. Honeybun does not make payments or move money.",
+        "tags": [
+          "new"
+        ],
+        "icon": "budget"
+      },
+      {
+        "t": "Paying it down together",
+        "d": "Household debt summaries include per-member payment contributions rather than relying only on a short recent-payment list.",
+        "tags": [
+          "new"
+        ],
+        "icon": "budget"
+      },
+      {
+        "t": "More reliable debt progress",
+        "d": "Progress counts an overpaid debt only up to the amount originally owed. Payoff summaries and household calculations have dedicated checks.",
+        "tags": [
+          "fixed"
+        ],
+        "icon": "bug"
+      }
+    ],
+    "label": "Phase 6"
+  },
+  {
+    "v": "iphone-preview-release-preparation",
+    "date": "2026-10-05",
+    "name": "iPhone preview · Release preparation",
+    "items": [
+      {
+        "t": "A native app lifecycle",
+        "d": "The app uses the native scene lifecycle and a native SwiftUI root, with the Classic interface retained as a fallback.",
+        "tags": [
+          "improved"
+        ],
+        "icon": "landing"
+      },
+      {
+        "t": "More reliable project builds",
+        "d": "Shared project and workspace setup now includes the native screens consistently. The minimum supported iOS version is 15.",
+        "tags": [
+          "improved"
+        ],
+        "icon": "landing"
+      },
+      {
+        "t": "Checks before an archive",
+        "d": "Project validation, release compilation and archive checks help catch missing native screens, assets and lifecycle configuration before a release build.",
+        "tags": [
+          "improved"
+        ],
+        "icon": "bug"
+      },
+      {
+        "t": "Privacy declarations and clearer boundaries",
+        "d": "Required privacy manifests and safeguards against exposing internal insight diagnostics are included in the app preparation work. This does not mean App Review is complete.",
+        "tags": [
+          "improved"
+        ],
+        "icon": "key"
+      },
+      {
+        "t": "Still preparing for the App Store",
+        "d": "Native functionality through Phase 7 is preview development. A TestFlight release candidate, physical iPhone QA, the Apple-requested recording and App Review submission remain ahead.",
+        "tags": [
+          "improved"
+        ],
+        "icon": "landing"
+      }
+    ],
+    "label": "Build"
+  },
+  {
+    "v": "iphone-preview-phases-1-5",
+    "date": "2026-10-05",
+    "name": "Native Honeybun · Phases 1–5 preview",
+    "items": [
+      {
+        "t": "Native Home, Money and entry forms",
+        "d": "Home, Money, recorded transactions and add/edit/delete forms use native screens backed by Honeybun’s existing data. Coming Up shows recorded bills and payments.",
+        "tags": [
+          "new",
+          "design"
+        ],
+        "icon": "landing"
+      },
+      {
+        "t": "A clearer launch and safer screen spacing",
+        "d": "The native Halloween launch artwork, status-bar treatment and tab-bar layout were refined. Scrolling screens reserve space so the final content stays reachable above navigation.",
+        "tags": [
+          "improved",
+          "design"
+        ],
+        "icon": "landing"
+      },
+      {
+        "t": "Goals from start to finish",
+        "d": "Native Goals includes active and completed views, goal details, deposits, withdrawals, history undo, and creating, editing and deleting goals with illustrated icons.",
+        "tags": [
+          "new"
+        ],
+        "icon": "budget"
+      },
+      {
+        "t": "A native Together screen",
+        "d": "Household balances, fair-share details, settlement, payments, member controls, shopping and entry search have native views and sheets for supported household modes.",
+        "tags": [
+          "new"
+        ],
+        "icon": "budget"
+      },
+      {
+        "t": "The shared shopping list",
+        "d": "Manage, rename and check off shopping items, and open an expense form from shopping when recording what you paid.",
+        "tags": [
+          "new"
+        ],
+        "icon": "budget"
+      },
+      {
+        "t": "A real Bun Inbox",
+        "d": "Inbox tabs, unread state and message actions route to the relevant native screens. Bill-paid and carry-over actions are connected to existing account data.",
+        "tags": [
+          "new"
+        ],
+        "icon": "bell"
+      },
+      {
+        "t": "Native sign-in and account flows",
+        "d": "Welcome, sign-in, account creation, recovery, password reset, email verification, onboarding and account management are native. Sign in with Apple and passkey flows are included.",
+        "tags": [
+          "new"
+        ],
+        "icon": "key"
+      },
+      {
+        "t": "Settings and app lock",
+        "d": "Native Settings includes profile, supported Face ID app-lock controls, notification settings, sign-out and About. Account and email status remain visible where relevant.",
+        "tags": [
+          "new"
+        ],
+        "icon": "key"
+      },
+      {
+        "t": "Plan, budgets and the calendar",
+        "d": "Plan brings budgets, the calendar, forecasts, bills, subscriptions and debts into native screens. Quick payday-and-bill setup can be reopened.",
+        "tags": [
+          "new"
+        ],
+        "icon": "budget"
+      },
+      {
+        "t": "Your own categories",
+        "d": "Create categories from entry and bill forms and manage the categories used in planning and spending.",
+        "tags": [
+          "new"
+        ],
+        "icon": "budget"
+      },
+      {
+        "t": "Debt payoff planning",
+        "d": "The native payoff planner compares Snowball and Avalanche, accepts an extra monthly amount and estimates a debt-free month. Debt Center+ builds on this earlier work.",
+        "tags": [
+          "new"
+        ],
+        "icon": "budget"
+      },
+      {
+        "t": "Stats and your progress",
+        "d": "Native Stats includes monthly and yearly views, the hop calendar, recap, badges, levels and referrals. Progress and rewards respond to supported app actions.",
+        "tags": [
+          "new"
+        ],
+        "icon": "sun"
+      },
+      {
+        "t": "Carry-over you can change",
+        "d": "Review or change the current month’s carry-over from the money card and choose a carry-over preference in Settings.",
+        "tags": [
+          "new"
+        ],
+        "icon": "repeat"
+      },
+      {
+        "t": "Split choices and private entries",
+        "d": "Entry forms retain supported split options, household behavior and private-entry rules. Joint-account entries follow the account’s shared behavior.",
+        "tags": [
+          "improved"
+        ],
+        "icon": "budget"
+      },
+      {
+        "t": "Faster everyday entry actions",
+        "d": "Undo, one-tap repeats, the last-used category, swipe-to-edit/delete and haptic feedback bring familiar entry shortcuts to the native experience.",
+        "tags": [
+          "improved"
+        ],
+        "icon": "tap"
+      },
+      {
+        "t": "Offline entries and safer retries",
+        "d": "Entries can queue offline and appear locally before syncing. Retry identifiers help avoid duplicate creation when a saved entry is sent again.",
+        "tags": [
+          "new"
+        ],
+        "icon": "repeat"
+      },
+      {
+        "t": "Search that narrows the list",
+        "d": "Native search supports person, category, amount and date filters, with relevant edit and delete actions.",
+        "tags": [
+          "new"
+        ],
+        "icon": "search"
+      },
+      {
+        "t": "Help, What’s new and Ask Bun",
+        "d": "Native Help, generated release notes and Ask Bun in the Inbox are included, along with the existing Apple Pay shortcut-key and tip-jar interfaces.",
+        "tags": [
+          "new"
+        ],
+        "icon": "bell"
+      },
+      {
+        "t": "Widget and Siri session handling",
+        "d": "The native app manages the shared widget/Siri token on sign-in and revokes it on sign-out.",
+        "tags": [
+          "improved"
+        ],
+        "icon": "key"
+      },
+      {
+        "t": "Referral and notification follow-through",
+        "d": "Referral links and native sign-ups carry attribution; device notification registration follows the active session. Household join/leave and related notification cleanup were refined.",
+        "tags": [
+          "improved"
+        ],
+        "icon": "bell"
+      }
+    ],
+    "label": "Phases 1–5"
+  }
+];
+  LOG = WEBSITE_UPDATES.concat(LOG.map(function (release) {
+    var copy = Object.assign({}, release, { items: release.items.map(function (entry) {
+      var e = Object.assign({}, entry, { tags: entry.tags.map(function (tag) { return tag === "fix" ? "fixed" : tag; }) });
+      if (e.t === "Honeybun for iPhone is here") { e.t = "Honeybun for iPhone preview"; e.d = "Earlier iPhone app-shell work introduced native navigation, refresh gestures, app-lock controls, haptics and seasonal icons. This is development history, not a public App Store release."; }
+      if (e.t === "A homepage built around the app") e.d = "An earlier homepage direction emphasized the iPhone app and screenshot previews. The current single-scene website replaces that layout; the public App Store listing is still pending.";
+      if (e.t === "Passkeys") e.d = "Use supported device authentication, such as Face ID, Touch ID or your phone’s unlock, instead of typing a password. Manage passkeys in Settings.";
+      return e;
+    }) });
+    return copy;
+  }));
   var T2 = window.HB_TR || function (x) { return x; };
   var list = $("lpUpdList"), legend = $("lpUpdLegend");
   // the changelog renderer is shared with the app's What's new screen
@@ -151,7 +619,7 @@
     var tile = { new: "t-green", improved: "t-blue", fixed: "t-rose", design: "t-lilac", security: "t-honey" };
     list.innerHTML = LOG.map(function (day, di) {
       var counts = {}; day.items.forEach(function (it) { it.tags.forEach(function (k) { counts[k] = (counts[k] || 0) + 1; }); });
-      return '<details class="lp-rel"' + (di === 0 ? ' open' : '') + '><summary><span class="lp-rel-v">v' + day.v + '</span><span class="lp-rel-main"><b></b><small>' + fmtDate(day.date) + ' · ' + day.items.length + ' ' + T2(day.items.length === 1 ? "update" : "updates") + '</small></span><span class="lp-rel-tags">' +
+      return '<details class="lp-rel"' + (di === 0 ? ' open' : '') + '><summary><span class="lp-rel-v">' + T2(day.label || ('v' + day.v)) + '</span><span class="lp-rel-main"><b></b><small>' + fmtDate(day.date) + ' · ' + day.items.length + ' ' + T2(day.items.length === 1 ? "update" : "updates") + '</small></span><span class="lp-rel-tags">' +
         Object.keys(counts).map(function (k) { return '<span class="lp-tag ' + k + '"><i></i>' + counts[k] + '</span>'; }).join("") + '</span><svg class="lp-rel-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></summary><div class="lp-upd-cards">' +
         day.items.map(function (it) {
           var main = it.tags[0];
