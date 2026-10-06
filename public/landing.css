@@ -313,3 +313,51 @@ html:has(#scr-landing.reference:not([hidden]):not([data-view])),body:has(#scr-la
 @media(min-width:641px) and (max-width:959px){.reference:not([data-view]) .hbl-world img{object-position:center;}}
 @media(max-width:640px){.hbl-character-motion{inset:auto auto 0;left:calc(50% - 550px);width:960px;height:360px;}}
 @media(prefers-reduced-motion:reduce){.hbl-bun-blink,.hbl-sleep-trail{opacity:0!important;animation:none!important;}.hbl-sleeper-breath{transform:none!important;animation:none!important;}}
+
+/* Three Honeybun rooms: shared night atmosphere, distinct illustrated introductions. */
+.reference:is([data-view="features"],[data-view="together"],[data-view="meet-bun"]) .hbl-page{background:radial-gradient(ellipse at 90% 10%,#643d632c,transparent 52%),radial-gradient(ellipse at 15% 80%,#9c572119,transparent 60%),#160b20;}
+#lp-features,#lp-together,#lp-meet-bun{background:none;position:relative;}
+#lp-features .hbl-sub-wrap,#lp-together .hbl-sub-wrap,#lp-meet-bun .hbl-sub-wrap{position:relative;z-index:3;width:min(1140px,calc(100% - 40px));}
+.reference:is([data-view="features"],[data-view="together"],[data-view="meet-bun"]) .hbl-firefly-field{display:block;height:min(720px,100svh);bottom:auto;opacity:.75;}
+.hbl-room-hero{display:grid;grid-template-columns:1.1fr 1fr;align-items:center;gap:48px;padding:28px 0 16px;}
+.hbl-room-hero .hbl-detail-heading{padding:30px 0;}
+.hbl-room-hero .hbl-detail-heading h1{font-size:clamp(36px,4.2vw,58px);}
+.hbl-scene-postcard{margin:0;border:1px solid #d291694d;border-radius:28px;overflow:hidden;background:#26172c;box-shadow:0 22px 65px #06020970,0 0 42px #ffae4312;transform:rotate(2deg);transition:transform .3s ease;}
+.hbl-scene-postcard:hover{transform:rotate(0deg) translateY(-4px);}
+.hbl-scene-postcard>img{display:block;width:100%;height:auto;}
+.hbl-postcard-icons{display:flex;justify-content:space-around;padding:20px;background:linear-gradient(135deg,#3a253e,#20152b);}
+.hbl-room-pills{display:flex;gap:12px;flex-wrap:wrap;margin:8px 0 34px;}
+.hbl-room-pills span{border:1px solid #d8916755;border-radius:99px;padding:9px 15px;background:#49302d55;color:#ffe0b8;font-size:13px;}
+#lp-features .hbl-sub-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
+#lp-features .hbl-detail-card:first-child,#lp-features .hbl-detail-card:last-child{grid-column:1/-1;display:grid;grid-template-columns:150px 1fr;column-gap:24px;align-items:center;}
+#lp-features .hbl-detail-card:first-child .hbl-detail-card-top,#lp-features .hbl-detail-card:last-child .hbl-detail-card-top{grid-row:1/3;margin:0;}
+#lp-features .hbl-detail-card:first-child{background:radial-gradient(ellipse at 0% 0%,#ad673733,transparent 70%),#25172b;border-color:#b87d4e66;}
+#lp-features .hbl-detail-card:nth-child(2){background:radial-gradient(ellipse at 0% 0%,#a962b12a,transparent 70%),#24172e;}
+#lp-features .hbl-detail-card:nth-child(3){background:radial-gradient(ellipse at 0% 0%,#36bc8922,transparent 70%),#1b2028;border-color:#67957d55;}
+#lp-features .hbl-detail-card:last-child{background:radial-gradient(ellipse at 0% 0%,#d575932a,transparent 70%),#2b182a;}
+.hbl-detail-card-top img,#lp-meet-bun .hbl-detail-card>img{padding:12px;width:72px;height:72px;border-radius:22px;background:#ffffff06;border:1px solid #ffd29a20;box-sizing:border-box;}
+#lp-meet-bun .hbl-detail-card>img{margin-bottom:24px;}
+.hbl-room-cta{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:12px 26px;border-radius:99px;background:linear-gradient(135deg,#ffd187,#ffac43);color:#20100c!important;font-weight:800;box-shadow:0 8px 30px #ffb1451f;transition:transform .2s;}
+.hbl-room-cta:hover{transform:translateY(-3px);}
+.hbl-together-detail{gap:48px;padding-block:38px;}
+.hbl-tea-stage{position:relative;isolation:isolate;padding:28px 0 12px;}
+.hbl-tea-stage::before{content:'';position:absolute;inset:10% 5%;border-radius:50%;background:radial-gradient(ellipse,#ffad4226,transparent 70%);z-index:-1;}
+.hbl-tea-stage .hbl-detail-art{animation:hbBob 6s ease-in-out infinite;filter:drop-shadow(0 12px 18px #06030a55);}
+#lp-together .hbl-detail-card:first-child{border-color:#bc777755;background:radial-gradient(ellipse at 0% 0%,#a94c6722,transparent 70%),#29182d;}
+#lp-together .hbl-detail-card:last-child{border-color:#9b82bb55;background:radial-gradient(ellipse at 100% 0%,#73589a26,transparent 70%),#23192f;}
+#lp-meet-bun .hbl-meet-hero{grid-template-columns:1.15fr 1fr;gap:50px;padding:50px 0;}
+#lp-meet-bun h1{font-size:clamp(48px,6vw,80px);}
+#lp-meet-bun .hbl-sub-note{display:inline-block;padding:14px 18px;border-left:3px solid #ffc070;border-radius:0 16px 16px 0;background:#ffa84a0d;line-height:1.5;}
+.hbl-bun-stage{position:relative;display:grid;place-items:center;min-height:370px;isolation:isolate;}
+.hbl-bun-stage::before{content:'';position:absolute;width:90%;aspect-ratio:1;border-radius:50%;border:1px solid #c992642a;background:radial-gradient(circle,#ffbc4e22,transparent 65%);z-index:-1;}
+.hbl-bun-stage .hbl-meet-art{width:min(300px,72%);height:auto;filter:drop-shadow(0 14px 22px #04020866);animation:hbBob 6s ease-in-out infinite;}
+.hbl-bun-orbit{position:absolute;display:grid;place-items:center;width:68px;height:68px;border-radius:22px;background:linear-gradient(135deg,#51304b,#241830);border:1px solid #cc907955;box-shadow:0 8px 25px #07030a55;animation:hblRoomFloat 6s ease-in-out infinite;}
+.hbl-orbit-one{top:0;left:12%;animation-delay:-1s;}
+.hbl-orbit-two{top:25%;right:0;animation-delay:-3s;}
+.hbl-orbit-three{bottom:0;left:12%;animation-delay:-5s;}
+@keyframes hblRoomFloat{0%,100%{transform:translateY(0) rotate(-3deg);}50%{transform:translateY(-7px) rotate(3deg);}}
+.reference:is([data-view="features"],[data-view="together"],[data-view="meet-bun"]) .hbl-subpage:not([hidden]) .hbl-sub-wrap{animation:hblArrival .7s cubic-bezier(.2,.8,.2,1) both;}
+.reference .hbl-links [aria-current="page"]{color:#ffd190;}
+@media(max-width:900px){.hbl-room-hero,.hbl-together-detail,#lp-meet-bun .hbl-meet-hero{grid-template-columns:1fr;gap:20px;}.hbl-scene-postcard{max-width:520px;width:100%;justify-self:center;}.hbl-tea-stage{max-width:500px;justify-self:center;}.hbl-bun-stage{width:100%;max-width:400px;justify-self:center;}.hbl-room-hero .hbl-detail-heading{padding-top:16px;}.hbl-room-pills{margin-top:28px;}#lp-meet-bun .hbl-sub-grid{grid-template-columns:1fr;}}
+@media(max-width:640px){#lp-features .hbl-sub-grid{grid-template-columns:1fr;}#lp-features .hbl-detail-card:first-child,#lp-features .hbl-detail-card:last-child{display:block;grid-column:auto;}#lp-features .hbl-detail-card:first-child .hbl-detail-card-top,#lp-features .hbl-detail-card:last-child .hbl-detail-card-top{margin-bottom:24px;}.hbl-room-hero{padding:16px 0;}.hbl-bun-stage{min-height:310px;}.hbl-bun-orbit{width:56px;height:56px;}.hbl-bun-orbit img{width:36px;height:36px;}.hbl-room-pills{gap:8px;}.hbl-room-pills span{font-size:12px;padding:8px 12px;}#lp-meet-bun .hbl-meet-hero{padding:28px 0;}}
+@media(prefers-reduced-motion:reduce){.hbl-bun-orbit,.hbl-tea-stage .hbl-detail-art,.hbl-bun-stage .hbl-meet-art{animation:none!important;}}
