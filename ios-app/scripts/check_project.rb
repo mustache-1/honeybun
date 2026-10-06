@@ -103,6 +103,16 @@ ad = File.read(File.join(root, 'App', 'AppDelegate.swift'))
 fail_with.('AppDelegate still creates a UIWindow (scene owns it now)') if ad =~ /UIWindow\(/
 fail_with.('AppDelegate still implements application(_:open:) / application(_:continue:), which iOS does not call with scenes') if ad =~ /application\(_ \w+: UIApplication, (open|continue)/
 
+# Phase 7 polish: customers never see the insight ranking internals, and the streak lives in the Inbox, not on Home
+views = Dir[File.join(root, 'HoneybunSwiftUI', 'Views', '**', '*.swift')]
+views.each do |f|
+  fail_with.("#{f.sub(root + '/', '')} shows the insight ranking trace to customers (.trace / explanation()); use insight.detail") if File.read(f) =~ /\.trace\b|\.explanation\(\)/
+end
+home = File.read(File.join(root, 'HoneybunSwiftUI', 'Views', 'HBHomeView.swift'))
+fail_with.('Home renders the streak card again; the streak belongs in the Inbox') if home =~ /streakCard|"HBStreak"|day streak/
+inbox = File.read(File.join(root, 'HoneybunSwiftUI', 'Views', 'HBInboxView.swift'))
+fail_with.('Inbox no longer renders the streak card (hb-inbox-streak)') unless inbox.include?('hb-inbox-streak') && inbox.include?('"HBStreak"')
+
 if errors.empty?
   puts "Xcode project checks passed (#{app_paths.size} App sources, #{project.targets.size} targets)."
 else

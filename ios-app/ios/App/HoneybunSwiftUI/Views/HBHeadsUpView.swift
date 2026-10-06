@@ -49,16 +49,13 @@ struct HBHeadsUpSection: View {
                             if i > 0 { Divider().background(HB.line).padding(.leading, 62) }
                             row(ins)
                         }
+                        if !p.more.isEmpty {
+                            Divider().background(HB.line).padding(.leading, 14)
+                            moreRow(p.more.count)
+                        }
                     }
                     .hbCard()
                     .accessibilityElement(children: .contain).accessibilityIdentifier("hb-heads-up")
-                    if !p.more.isEmpty {
-                        Button { store.sheet = .insights } label: {
-                            Text("More from Bun (\(p.more.count))").font(.system(size: 14, weight: .semibold)).foregroundColor(Color(red: 0.72, green: 0.68, blue: 0.9))
-                                .frame(maxWidth: .infinity, minHeight: 36)
-                        }
-                        .accessibilityIdentifier("hb-insights-more")
-                    }
                 }
             }
             .onAppear { record(p) }
@@ -93,6 +90,22 @@ struct HBHeadsUpSection: View {
         }
     }
 
+    /// the quiet footer of the From Bun card: it belongs to the card, not to the next section
+    private func moreRow(_ n: Int) -> some View {
+        Button { store.sheet = .insights } label: {
+            HStack(spacing: 6) {
+                Text("More from Bun").font(.system(size: 14, weight: .semibold)).foregroundColor(Color(red: 0.72, green: 0.68, blue: 0.9))
+                Text(n == 1 ? "1 more" : "\(n) more").font(.system(size: 13)).foregroundColor(HB.soft)
+                Spacer(minLength: 4)
+                Image(systemName: "chevron.right").font(.system(size: 12, weight: .bold)).foregroundColor(HB.soft)
+            }
+            .padding(.horizontal, 14).frame(maxWidth: .infinity, minHeight: 40, alignment: .leading).contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(n == 1 ? "More from Bun, 1 more note" : "More from Bun, \(n) more notes")
+        .accessibilityIdentifier("hb-insights-more")
+    }
+
     private func sleepyCard(_ days: Int) -> some View {
         HStack(spacing: 12) {
             HBCircleIcon(symbol: "moon.zzz.fill", tint: Color(red: 0.62, green: 0.58, blue: 1), size: 44)
@@ -111,6 +124,30 @@ struct HBHeadsUpSection: View {
     private func row(_ i: HBInsight) -> some View {
         HBInsightRow(insight: i, showWhy: why.contains(i.id), onOpen: { open(i) }, onDismiss: { dismiss(i) },
                      onToggleWhy: { if why.contains(i.id) { why.remove(i.id) } else { why.insert(i.id) } })
+    }
+}
+
+/// "Why am I seeing this?": the numbers behind the note, in plain words (never the ranking internals, which stay in the insight's trace)
+@available(iOS 15.0, *)
+struct HBInsightWhy: View {
+    let detail: HBInsightDetail
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            ForEach(Array(detail.lines.enumerated()), id: \.offset) { _, line in
+                HStack(alignment: .firstTextBaseline, spacing: 10) {
+                    Text(line.label).font(.system(size: 13)).foregroundColor(HB.soft).fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 6)
+                    Text(line.value).font(.system(size: 13, weight: .semibold)).foregroundColor(.white).multilineTextAlignment(.trailing).fixedSize(horizontal: false, vertical: true)
+                }
+                .accessibilityElement(children: .combine)
+            }
+            if let note = detail.footnote {
+                Text(note).font(.system(size: 12)).foregroundColor(HB.soft.opacity(0.85)).fixedSize(horizontal: false, vertical: true).padding(.top, 2)
+            }
+        }
+        .padding(12).frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color.white.opacity(0.05)))
+        .accessibilityIdentifier("hb-insight-why-panel")
     }
 }
 
@@ -173,19 +210,14 @@ struct HBInsightRow: View {
                         .accessibilityLabel("Dismiss").accessibilityIdentifier("hb-insight-dismiss")
                 }
             }
-            if let toggle = onToggleWhy {
+            if let toggle = onToggleWhy, !insight.detail.lines.isEmpty {
                 Button(action: toggle) {
                     Text(showWhy ? "Hide" : "Why am I seeing this?").font(.system(size: 12, weight: .semibold)).foregroundColor(Color(red: 0.72, green: 0.68, blue: 0.9))
                 }
                 .padding(.leading, 52).accessibilityIdentifier("hb-insight-why")
             }
-            if showWhy {
-                VStack(alignment: .leading, spacing: 2) {
-                    ForEach(insight.trace.explanation(), id: \.self) { line in
-                        Text(line).font(.system(size: 12)).foregroundColor(HB.soft).fixedSize(horizontal: false, vertical: true)
-                    }
-                }
-                .padding(.leading, 52)
+            if showWhy && !insight.detail.lines.isEmpty {
+                HBInsightWhy(detail: insight.detail).padding(.leading, 52).padding(.top, 2)
             }
         }
         .padding(.horizontal, 14).padding(.vertical, 10)

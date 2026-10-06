@@ -317,6 +317,61 @@ func run() {
           !corpus.isEmpty && corpus.allSatisfy { !$0.trace.rule.isEmpty && !$0.trace.facts.isEmpty && near($0.trace.score, $0.score, 1e-12) && $0.trace.explanation().last?.hasPrefix("Priority ") == true && $0.trace.urgency >= 0 && $0.trace.urgency <= 1 && $0.trace.confidence > 0 })
     check("TRACE: ids are unique within a list, and carry their month or week so a dismissal expires with the period", Set(HBInsights.all(cBusy).map { $0.id }).count == HBInsights.all(cBusy).count)
     let banned = ["guarantee", "invest", "loan", "tax", "legal", "advice", "shame", "irresponsible", "should have", "you must", "careful!", "danger", "panic"]
+    // ===== Phase 7 polish: a friendly "Why am I seeing this?" (the ranking trace stays, but is not what customers see) =====
+    let internals = ["priority", "urgency", "impact", "timing", "confidence", "novelty", "rule"]
+    func customerText(_ i: HBInsight) -> String {
+        var parts: [String] = [i.title, i.note]
+        for line in i.detail.lines { parts.append(line.label); parts.append(line.value) }
+        parts.append(i.detail.footnote ?? "")
+        return parts.joined(separator: " ").lowercased()
+    }
+    check("WHY: every insight has a customer-facing explanation (at least one labelled line)", !corpus.isEmpty && corpus.allSatisfy { !$0.detail.lines.isEmpty })
+    check("WHY: …and, apart from the 'nothing logged yet' nudge, it carries real numbers or dates", corpus.filter { $0.kind != .onboarding }.allSatisfy { i in i.detail.lines.contains { line in line.value.rangeOfCharacter(from: .decimalDigits) != nil } })
+    check("WHY: what the customer sees never contains ranking internals (priority, urgency, impact, timing, confidence, novelty, rule) in its title, note, lines or footnote",
+          corpus.allSatisfy { i in let text = customerText(i); return !internals.contains { text.contains($0) } })
+    check("WHY: the internal trace is still there for tests and debugging: rule, numbers, scores and the 'Priority …' breakdown",
+          corpus.allSatisfy { !$0.trace.rule.isEmpty && !$0.trace.facts.isEmpty && $0.trace.explanation().contains { line in line.hasPrefix("Priority ") && line.contains("urgency") && line.contains("confidence") } })
+    check("WHY: nothing is a developer string: no 'Strategy: Snowball' / 'Months sooner with +$50: 2' style raw trace lines in the customer text", corpus.allSatisfy { i in !i.detail.lines.contains { $0.label.contains("Months sooner with") || $0.label.contains("Extra planned now") || $0.label.hasPrefix("Priority") } })
+    // the extra-payment explanation: every figure is the existing Debt Center engine's (HBPlan.extraImpact / payoffPlan), not re-derived
+    let dx = find(HBInsights.all(ctx(sDebt, today: "2026-10-24")), "debt-extra-")
+    let nowPlan = HBPlan.payoffPlan(openDebts, strategy: .snowball, extra: 0)
+    let xPlan = imp.plan
+    check("WHY: the extra-payment explanation reads like Bun: current estimate, with another $50/month, how much sooner, interest saved, strategy — all from the payoff engine",
+          dx?.detail.lines.map { $0.label } == ["Current estimate", "With another $50/month", "Sooner by", "Estimated interest saved", "Payoff strategy"]
+          && dx?.detail.lines.first?.value == HBPlan.monthsOut(nowPlan.months ?? 0, from: today)
+          && dx?.detail.lines[1].value == HBPlan.monthsOut(xPlan.months ?? 0, from: today)
+          && dx?.detail.lines[2].value == "about " + HBInsights.monthsPhrase(imp.monthsSooner ?? 0)
+          && dx?.detail.lines[3].value == HBInsights.fmt(imp.interestSaved ?? 0)
+          && dx?.detail.lines[4].value == "Snowball"
+          && dx?.detail.footnote == HBInsights.footDebt)
+    check("WHY: the dates and savings are not hard-coded: a different debt set gives different figures", { let other = find(HBInsights.all(ctx(snap(Fix(entries: aRows, debts: [D("Big", 800000, 1800, 20000)])), today: "2026-10-24")), "debt-extra-"); return other != nil && other?.detail.lines[3].value != dx?.detail.lines[3].value }())
+    // "Extra planned now: $1": the value is the stored extra-monthly-payment preference, passed through unchanged
+    let dx1 = find(HBInsights.all(ctx(sDebt, today: "2026-10-24", extra: 1)), "debt-extra-")
+    let imp1 = HBPlan.extraImpact(openDebts, strategy: .snowball, extra: 1, adding: 50)
+    check("EXTRA: a stored extra of $1 is used as exactly $1 in the plan (the '+$50' case is the $51 plan) and is named only in the footnote, never as a raw 'Extra planned now' line",
+          imp1.plan == HBPlan.payoffPlan(openDebts, strategy: .snowball, extra: 51) && dx1?.detail.footnote?.contains("Includes the $1 a month you've already planned.") == true
+          && dx1?.detail.lines.contains { $0.label.contains("Extra planned") } == false && dx?.detail.footnote?.contains("already planned") == false)
+    let prefs = UserDefaults(suiteName: "hb-test-extra")!; prefs.removePersistentDomain(forName: "hb-test-extra")
+    HBDebtPrefs.setExtra(1, prefs)
+    check("EXTRA: the preference round-trips: 1 is stored as \"1.0\" and read back as exactly 1, and the field shows it as \"1\"", HBDebtPrefs.extra(prefs) == 1 && prefs.string(forKey: HBDebtPrefs.extraKey) == "1.0" && HBPlanText.percent(1) == "1")
+    for typed in ["1", "10", "100"] { HBDebtPrefs.setExtra(Double(typed) ?? 0, prefs) }
+    check("EXTRA: typing 100 passes through 1 and 10 (the field saves on each keystroke) but the last value wins: the stored extra is 100, not 1", HBDebtPrefs.extra(prefs) == 100)
+    HBDebtPrefs.setExtra(0, prefs)
+    check("EXTRA: clearing the field stores 0 and the explanation then says nothing about a planned extra", HBDebtPrefs.extra(prefs) == 0)
+    // streak: the card moved to the Inbox, the calculation did not
+    func member(_ last: String?, streak: Int, best: Int) -> HBMember {
+        var d: [String: Any] = ["id": M, "name": "Sam", "streak": streak, "best_streak": best]
+        if let l = last { d["last_day"] = l }
+        return try! JSONDecoder().decode(HBMember.self, from: try! JSONSerialization.data(withJSONObject: d))
+    }
+    let oct24 = HBDay.parse("2026-10-24")!
+    check("STREAK: the streak counts only if you logged today or yesterday (12 stays 12; two days ago is 0), and the best streak is untouched", HBProgress.streak(member("2026-10-24", streak: 12, best: 20), today: oct24) == 12 && HBProgress.streak(member("2026-10-23", streak: 12, best: 20), today: oct24) == 12
+          && HBProgress.streak(member("2026-10-22", streak: 12, best: 20), today: oct24) == 0 && HBProgress.streak(member(nil, streak: 5, best: 5), today: oct24) == 0 && member("2026-10-22", streak: 12, best: 20).best_streak == 20)
+    // privacy: the friendlier text obeys the same boundary as the insight (private words and amounts never reach a household insight's explanation)
+    let householdText = t1.map { customerText($0) }.joined(separator: " ")
+    check("PRIVACY: the customer-facing explanation of every household insight carries no private label, category or amount, and says private entries are never included", !householdText.contains("secret") && !householdText.contains("surprise") && !householdText.contains("gift") && !householdText.contains("900") && !householdText.contains("400") && !householdText.contains("700") && t1.contains { customerText($0).contains("private entries are never included") })
+    check("PRIVACY: …and the explanation of a household insight is identical with or without private data (detail included in the equality above)", t0.map { $0.detail } == t1.map { $0.detail })
+
     check("TONE: nothing Bun says promises, advises on investments, loans, tax or law, or shames (checked across every insight above)", corpus.allSatisfy { i in let t = (i.title + " " + i.note).lowercased(); return !banned.contains { t.contains($0) } })
     check("TONE: every claim of a projection says 'projected', 'pace', 'estimate', 'about' or 'roughly' (no pretending to be certain)", corpus.filter { isAny($0.kind, [.forecast, .debt]) && $0.tone != .neutral || $0.id.hasPrefix("goal-pace") }.allSatisfy { i in let t = i.note.lowercased(); return t.contains("projected") || t.contains("pace") || t.contains("about") || t.contains("roughly") || t.contains("moved your projected") || t.contains("sooner") } )
 }

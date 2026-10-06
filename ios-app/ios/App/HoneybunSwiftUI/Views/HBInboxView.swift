@@ -20,6 +20,7 @@ struct HBInboxView: View {
             VStack(alignment: .leading, spacing: 0) {
                 VStack(alignment: .leading, spacing: 16) {
                     header
+                    streakCard
                     tabBar
                     content.accessibilityElement(children: .contain).accessibilityIdentifier("hb-last-card")
                     askBun
@@ -43,12 +44,47 @@ struct HBInboxView: View {
         }
     }
 
+    // MARK: streak (moved here from Home: the same illustrated card, the same streak numbers; tapping it opens the existing Stats detail)
+
+    private var streakCard: some View {
+        let me = store.member(store.myID)
+        let n = me.map { HBProgress.streak($0) } ?? 0
+        let best = me?.best_streak ?? 0
+        let doneToday = me?.last_day == HBDay.todayString
+        let sub: String
+        if doneToday { sub = "Logged today. Keep it going!" }
+        else if n > 0 { sub = "Log something today to keep it going" }
+        else { sub = "Log something today" }
+        return Button { store.sheet = .stats } label: {
+            HStack(spacing: 10) {
+                Image("HBStreak").resizable().scaledToFit().frame(width: 70, height: 70).accessibilityHidden(true)
+                Image(systemName: "flame.fill").font(.system(size: 34)).foregroundStyle(LinearGradient(colors: [Color(red: 1, green: 0.78, blue: 0.3), Color(red: 1, green: 0.38, blue: 0.2)], startPoint: .top, endPoint: .bottom))
+                    .shadow(color: Color(red: 1, green: 0.4, blue: 0.1).opacity(0.5), radius: 8).accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(n > 0 ? "\(n) day streak" : "Start a streak").font(.system(size: 21, weight: .bold)).foregroundColor(Color(red: 1, green: 0.83, blue: 0.48)).minimumScaleFactor(0.7).lineLimit(1)
+                    Text(sub).font(.system(size: 15)).foregroundColor(Color(red: 0.74, green: 0.69, blue: 0.9)).fixedSize(horizontal: false, vertical: true)
+                    if best > 1 && best > n { Text("Best: \(best) days").font(.system(size: 13)).foregroundColor(HB.soft) }
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right").font(.system(size: 12, weight: .bold)).foregroundColor(HB.soft).padding(.trailing, 6)
+            }
+            .padding(.horizontal, 8).padding(.vertical, 4)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(LinearGradient(colors: [Color(red: 0.24, green: 0.15, blue: 0.14), Color(red: 0.13, green: 0.09, blue: 0.14)], startPoint: .leading, endPoint: .trailing)))
+            .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).stroke(HB.orange.opacity(0.30), lineWidth: 1))
+            .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
+        .accessibilityHint("Opens your stats")
+        .accessibilityIdentifier("hb-inbox-streak")
+    }
+
     // MARK: Ask Bun: the quick questions and "where you are" card from the website's Bun chat (answers open the real screens)
 
     private var askBun: some View {
         let me = store.members.first { $0.id == store.myID }
-        let streak = me.map { HBProgress.streak($0) } ?? 0
-        let done = me?.last_day == HBDay.todayString
         let li = HBProgress.levelInfo(me?.xp ?? 0)
         let ref = store.account?.ref
         return VStack(alignment: .leading, spacing: 12) {
@@ -59,8 +95,6 @@ struct HBInboxView: View {
                 askChip("Add spend") { store.sheet = .newEntry("expense") }
             }
             VStack(spacing: 0) {
-                askRow("🐾", streak == 1 ? "1 day" : "\(streak) days", done ? "hop streak" : "Log today to hop", todo: !done) { store.sheet = .stats }
-                Divider().background(HB.line).padding(.leading, 56)
                 askRow("🥕", "Level \(li.level)", "\(me?.xp ?? 0) carrots · \(max(0, li.hi - (me?.xp ?? 0))) to next level") { store.sheet = .stats }
                 if let r = ref {
                     Divider().background(HB.line).padding(.leading, 56)
@@ -185,7 +219,6 @@ struct HBInboxView: View {
                     }
                 }
             }
-            if tab == .updates { statusCard }
         }
     }
 
@@ -229,25 +262,6 @@ struct HBInboxView: View {
         .padding(16).frame(maxWidth: .infinity, alignment: .leading).frame(minHeight: 112).hbCard()
         .overlay(alignment: .bottomTrailing) { Image("HBInboxTip").resizable().scaledToFit().frame(width: 104).offset(x: -6, y: 6).allowsHitTesting(false).accessibilityHidden(true) }
         .accessibilityIdentifier("hb-inbox-tip")
-    }
-
-    private var statusCard: some View {
-        let me = store.member(store.myID)
-        let streak = me?.streak ?? 0
-        return Button { store.selectedTab = .home } label: {
-            HStack(spacing: 12) {
-                Image(systemName: "flame.fill").font(.system(size: 20, weight: .semibold)).foregroundColor(HB.orange)
-                    .frame(width: 42, height: 42).background(Circle().fill(HB.orange.opacity(0.14))).overlay(Circle().stroke(HB.orange.opacity(0.35), lineWidth: 1))
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(streak == 1 ? "1 day" : "\(streak) days").font(.system(size: 17, weight: .bold)).foregroundColor(.white)
-                    Text("hop streak. Here's where you are 🐰").font(.system(size: 14)).foregroundColor(HB.soft)
-                }
-                Spacer()
-                Image(systemName: "chevron.right").font(.system(size: 13, weight: .bold)).foregroundColor(HB.soft)
-            }
-            .padding(14).frame(maxWidth: .infinity).hbCard()
-        }
-        .buttonStyle(.plain).accessibilityIdentifier("hb-inbox-status")
     }
 
     // MARK: one message

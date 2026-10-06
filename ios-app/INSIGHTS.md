@@ -29,10 +29,15 @@ Existing logic is reused, not copied: `HBPlan.forecast`, `beforePayday`, `payoff
 `score = (0.40 urgency + 0.30 impact + 0.30 timing) × confidence × novelty`. Novelty drops 20% for each day (up to 3) an insight was already on
 Home, never below 40%, so something urgent never disappears. Dismissed insights stay gone for their period (ids carry the month or week).
 Home shows the top **3** (a 4th only if its score is ≥ 0.75), **one per group**, nothing under 0.18, and at least one good-news insight whenever
-one exists. The rest wait behind "More from Bun". Every insight has a trace (rule, numbers used, priority breakdown) under "Why am I seeing this?".
+one exists. The rest wait behind "More from Bun". Every insight has two explanations: a `trace` (rule, inputs, the priority breakdown) that stays internal for tests and debugging, and a `detail` (plain labelled numbers plus a short footnote) that is what "Why am I seeing this?" shows. The customer UI never reads the trace (`check_project.rb` enforces that).
 
 ## Privacy
 The snapshot never contains another member's private entries. Household ("together") insights additionally read **only** entries that are
 shared and not private, shared bills, and debt payments (the debts and their payments are visible to the whole household already). Tests
 prove adding private entries, unshared entries or unshared bills changes none of them. Bun's memory (dismissed ids, day counts) is stored on the
 device only (UserDefaults, already declared in the privacy manifest), is never transmitted, and is wiped on log out or changing household.
+
+## Where things live now
+- The streak card moved from Home to the Inbox tab (top, under the header); tapping it opens Stats. Streak maths (`HBProgress.streak`) and state are unchanged.
+- "More from Bun" is the quiet footer row of the From Bun card.
+- The extra-monthly-payment you set in Plan / Debt Center (`hb-debt-extra`) is read as-is; it is mentioned only in the debt footnote when it is above $0.

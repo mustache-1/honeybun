@@ -69,7 +69,6 @@ struct HBHomeView: View {
                     shoppingShortcut
                     beforePayday
                     comingUp
-                    streakCard
                     latest
                     if let n = store.notice { Text(n).font(.footnote).foregroundColor(HB.red).onTapGesture { store.notice = nil } }
                 }
@@ -263,26 +262,6 @@ struct HBHomeView: View {
             }
             .hbCard()
         }
-    }
-
-    // The illustrated streak card. The count is the real streak from your account.
-    private var streakCard: some View {
-        let n = store.streak
-        return HStack(spacing: 10) {
-            Image("HBStreak").resizable().scaledToFit().frame(width: 70, height: 70).accessibilityHidden(true)
-            Image(systemName: "flame.fill").font(.system(size: 34)).foregroundStyle(LinearGradient(colors: [Color(red: 1, green: 0.78, blue: 0.3), Color(red: 1, green: 0.38, blue: 0.2)], startPoint: .top, endPoint: .bottom))
-                .shadow(color: Color(red: 1, green: 0.4, blue: 0.1).opacity(0.5), radius: 8)
-            VStack(alignment: .leading, spacing: 3) {
-                Text(n > 0 ? "\(n) day streak" : "Start a streak").font(.system(size: 21, weight: .bold)).foregroundColor(Color(red: 1, green: 0.83, blue: 0.48)).minimumScaleFactor(0.7).lineLimit(1)
-                Text(n > 0 ? "Keep it going!" : "Log something today").font(.system(size: 15)).foregroundColor(Color(red: 0.74, green: 0.69, blue: 0.9))
-            }
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, 8).padding(.vertical, 4)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(LinearGradient(colors: [Color(red: 0.24, green: 0.15, blue: 0.14), Color(red: 0.13, green: 0.09, blue: 0.14)], startPoint: .leading, endPoint: .trailing)))
-        .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).stroke(HB.orange.opacity(0.30), lineWidth: 1))
-        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
     }
 
     private var latest: some View {
