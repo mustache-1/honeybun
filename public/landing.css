@@ -261,3 +261,38 @@ body:has(#scr-landing.reference:not([hidden]))>.app{max-width:none;margin:0;padd
 .reference .hbl-sub-grid{grid-template-columns:1fr;}
 }
 @media(prefers-reduced-motion:reduce){.reference .hbl-firefly-field i{animation:none!important;opacity:.2;transform:none;}.reference:not([data-view]) .hbl-intro{animation:none!important;}}
+
+/* Lock only the public homepage; standalone views and the app retain scrolling. */
+html:has(#scr-landing.reference:not([hidden]):not([data-view])),body:has(#scr-landing.reference:not([hidden]):not([data-view])){height:100%;overflow:hidden;overscroll-behavior:none;}
+.reference:not([data-view]){height:100dvh;min-height:0!important;overflow:hidden;}
+.reference:not([data-view]) .hbl-page{height:100dvh;min-height:0;grid-template-rows:auto minmax(0,1fr) auto;overflow:hidden;}
+.reference:not([data-view]) .hbl-hero{min-height:0;}
+/* Detail views use existing art, warm glass cards and an open editorial header. */
+#lp-features,#lp-together{background:radial-gradient(ellipse at 85% 5%,#61323c40,transparent 60%);}
+.hbl-detail-heading{padding:46px 0 36px;max-width:750px;}
+.reference .hbl-detail-heading h1{margin:0 0 24px;font-size:clamp(36px,4.4vw,60px);line-height:1.08;}
+.hbl-detail-heading>p{font-size:18px;line-height:1.7;max-width:620px;}
+#lp-features .hbl-sub-grid,#lp-together .hbl-sub-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;}
+.reference .hbl-detail-card{position:relative;padding:30px;border-radius:28px;border:1px solid #ae776b55;background:linear-gradient(135deg,#3b263eee,#21152dee);box-shadow:0 12px 36px #08040d33;transition:transform .2s ease,border-color .2s ease;}
+.reference .hbl-detail-card:hover{transform:translateY(-4px);border-color:#c1916c;}
+.hbl-detail-card-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;}
+.hbl-detail-card-top img{object-fit:contain;}
+.hbl-detail-card-top span{color:#b68c9e;font:600 12px Inter,sans-serif;letter-spacing:.12em;}
+.reference .hbl-detail-card h2{font-size:25px;line-height:1.2;color:#ffe5bd;margin-bottom:14px;}
+.reference .hbl-detail-card p{font-size:16px;line-height:1.65;color:#d9c7df;}
+.hbl-together-detail{display:grid;grid-template-columns:1.1fr 1fr;align-items:center;gap:32px;padding:12px 0 28px;}
+.hbl-detail-art{display:block;width:100%;height:auto;}
+@media(max-width:640px){
+.reference:not([data-view]) .hbl-hero{padding:12px 0 clamp(56px,16svh,136px);}
+.reference:not([data-view]) .hbl-intro h1{font-size:clamp(30px,5svh,40px);margin-bottom:14px;}
+.reference:not([data-view]) .hbl-intro>p:not(.hbl-eyebrow){font-size:clamp(13px,1.9svh,16px);line-height:1.4;margin-bottom:16px;}
+.reference:not([data-view]) .hbl-eyebrow{font-size:14px!important;margin-bottom:10px!important;}
+.reference:not([data-view]) .hbl-intro .hbl-store{min-height:48px;padding:8px 20px;}
+.reference:not([data-view]) .hbl-assurances{margin-top:12px;}
+.reference:not([data-view]) .hbl-assurances li{padding:6px 8px;}
+#lp-features .hbl-sub-grid,#lp-together .hbl-sub-grid,.hbl-together-detail{grid-template-columns:1fr;}
+.hbl-detail-heading{padding:30px 0;}
+.hbl-detail-heading>p{font-size:16px;}
+.hbl-detail-art{max-width:390px;margin:auto;}
+.reference .hbl-detail-card{padding:24px;}
+}
