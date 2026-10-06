@@ -407,3 +407,7 @@ body:has(#scr-landing.reference:not([hidden])) .hbh-fx { display:none; }
 .hbl-page::after {content:"";display:block;height:2cqw;pointer-events:none;}
 .reference[data-view] .hbl-page::after {display:none;}
 @media(max-width:650px){.hbl-page::after{height:18px;}}
+
+/* Keep the illustrated composition comfortable on large desktop displays. */
+.hbl-page {width:min(100%,calc(1040px + 16vw));max-width:1440px;margin-inline:auto;}
+.hbl-utility {width:min(100%,calc(1040px + 16vw));max-width:1440px;margin-inline:auto;}
