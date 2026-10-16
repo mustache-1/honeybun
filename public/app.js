@@ -282,7 +282,7 @@
   }
   // The App Store link. Paste the app's address here once it is live (https://apps.apple.com/app/id...) and every
   // "Download on the App Store" button on the homepage points to it. Until then they scroll to the Download section.
-  const APPSTORE_URL = "";
+  const APPSTORE_URL = "https://apps.apple.com/us/app/honeybun-budget-buddy/id6818927422";
   document.querySelectorAll("[data-appstore]").forEach((a) => {
     if (APPSTORE_URL) { a.href = APPSTORE_URL; a.target = "_blank"; a.rel = "noopener"; }
     else {
